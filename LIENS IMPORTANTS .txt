@@ -1,3 +1,10 @@
 https://app.netlify.com/teams/henzophotographie/projects
 
 https://supabase.com/dashboard/org/cbxcwxmqbuzlhrzunzxr
+
+ Note bien ton App ID
+Je vois ton App ID dans la capture :
+
+text
+3c73bb8c-6fc3-43db-9aac-f7e7db0499dc
+Copie-le quelque part (Bloc-notes, WhatsApp à toi-même...) — on en aura besoin pour le code.

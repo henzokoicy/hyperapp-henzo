@@ -1629,37 +1629,68 @@ function isNotifEnabled(){
   return localStorage.getItem('notif_enabled') === '1';
 }
 
-function toggleNotifications(){
+async function toggleNotifications(){
   if(isNotifEnabled()){
+    // Désactive
     localStorage.removeItem('notif_enabled');
+    try {
+      const OneSignal = window.OneSignal;
+      if(OneSignal) await OneSignal.User.PushSubscription.optOut();
+    } catch(e){ console.warn(e); }
     updateNotifButton();
     return;
   }
+
+  // Active
   if(!('Notification' in window)){
     document.getElementById('notifStatus').textContent = '❌ Non supporté sur ce navigateur';
     return;
   }
-  Notification.requestPermission().then(p => {
-    if(p === 'granted'){
-      localStorage.setItem('notif_enabled', '1');
-      updateNotifButton();
-      new Notification('🔥 Notifications activées', {
-        body: 'Tu recevras 3 messages par jour pour te motiver et te rappeler d\'épargner 💪'
-      });
-    } else {
-      document.getElementById('notifStatus').textContent = '❌ Permission refusée. Autorise dans les réglages du navigateur.';
+
+  const permission = await Notification.requestPermission();
+  if(permission !== 'granted'){
+    document.getElementById('notifStatus').textContent = '❌ Permission refusée. Autorise dans les réglages du navigateur.';
+    return;
+  }
+
+  try {
+    const OneSignal = window.OneSignal;
+    if(OneSignal){
+      await OneSignal.User.PushSubscription.optIn();
+      // Identifie l'utilisateur avec son email
+      const user = await getCurrentUser();
+      if(user && user.email){
+        await OneSignal.login(user.email);
+      }
     }
-  });
+    localStorage.setItem('notif_enabled', '1');
+    updateNotifButton();
+
+    new Notification('🔥 Notifications activées', {
+      body: 'Tu recevras tes rappels sur tous tes appareils, même app fermée 💪'
+    });
+  } catch(e){
+    console.error('OneSignal error:', e);
+    document.getElementById('notifStatus').textContent = '❌ Erreur : ' + e.message;
+  }
 }
 
-function updateNotifButton(){
+async function updateNotifButton(){
   const btn = document.getElementById('notifBtn');
   const status = document.getElementById('notifStatus');
   if(!btn) return;
   if(isNotifEnabled()){
     btn.classList.add('active');
     btn.textContent = '✅ Notifications activées';
-    if(status) status.textContent = 'Tu recevras des messages automatiques 3x par jour';
+    if(status) status.textContent = 'Tu recevras tes rappels sur tous tes appareils';
+    // Lie l'utilisateur à OneSignal au démarrage
+    try {
+      const OneSignal = window.OneSignal;
+      const user = await getCurrentUser();
+      if(OneSignal && user && user.email){
+        await OneSignal.login(user.email);
+      }
+    } catch(e){ console.warn(e); }
   } else {
     btn.classList.remove('active');
     btn.textContent = '🔔 Activer les notifications';
