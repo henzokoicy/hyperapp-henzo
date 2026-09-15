@@ -293,16 +293,38 @@
      ============================================================ -->
 <div class="page" id="page-business">
   <div class="container">
+
+    <!-- Idées locales -->
     <div class="card">
       <h2>💡 Générateur d'idées</h2>
       <button class="btn-primary" onclick="generateIdeas()">🎲 Générer des idées</button>
-      <button class="btn-ghost" onclick="generateAIIdeas()">🤖 Idées personnalisées par IA</button>
       <div id="ideasList" style="margin-top:14px"></div>
     </div>
+
+    <!-- Idées IA personnalisées -->
+    <div class="card">
+      <h2>🤖 Idées personnalisées par IA</h2>
+
+      <div class="ai-toolbar">
+        <button class="ai-btn ai-btn-primary" onclick="generateAIIdeas()">🤖 Générer</button>
+        <button class="ai-btn" id="ideasCopyBtn" onclick="copyIdeasAI()" disabled>📋 Copier</button>
+        <button class="ai-btn" id="ideasPdfBtn" onclick="exportIdeasAIPDF()" disabled>📄 PDF</button>
+        <button class="ai-btn ai-btn-danger" id="ideasClearBtn" onclick="clearIdeasAI()" disabled>🗑 Effacer</button>
+      </div>
+
+      <div id="ideasLastUpdate" class="ai-last-update"></div>
+
+      <div class="ai-output-clean" id="ideasAIOutput">
+        <div class="empty">Clique sur <strong>Générer</strong> pour obtenir 5 idées de business personnalisées.</div>
+      </div>
+    </div>
+
+    <!-- Idées sauvegardées manuellement -->
     <div class="card">
       <h2>🚀 Mes idées sauvegardées</h2>
       <div id="savedIdeasList"><div class="empty">Aucune idée sauvegardée</div></div>
     </div>
+
   </div>
 </div>
 

@@ -1104,7 +1104,7 @@ function exportHistoryPDF(){
 }
 
 // ============================================================
-// MODULE BUSINESS
+// MODULE BUSINESS — IDÉES LOCALES
 // ============================================================
 function generateIdeas(){
   const shuffled = [...LOCAL_IDEAS].sort(() => Math.random() - 0.5).slice(0, 5);
@@ -1141,6 +1141,299 @@ function renderSavedIdeas(){
       <button class="btn-ghost" style="margin-top:8px;font-size:12px;padding:6px"
         onclick="delSavedIdea(${i.id})">× Retirer</button>
     </div>`).join('');
+}
+
+// ============================================================
+// IDÉES IA — AVEC SAUVEGARDE + BOUTONS (comme l'analyse)
+// ============================================================
+
+// Formate le texte des idées IA en cartes propres
+function formatIdeasText(text){
+  if(!text) return '<div class="empty">Pas de contenu</div>';
+
+  let safe = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const lines = safe.split('\n');
+  let sections = [];
+  let currentSection = null;
+  let currentContent = [];
+
+  const sectionRegex = /^\s*(\d+)\s*[.)]\s*(.+?)$/;
+  const boldRegex    = /\*\*(.+?)\*\*/g;
+
+  lines.forEach(line => {
+    const match = line.match(sectionRegex);
+    if(match){
+      if(currentSection !== null || currentContent.length > 0){
+        sections.push({
+          num: currentSection,
+          content: currentContent.join('\n').trim()
+        });
+      }
+      currentSection = match[1];
+      currentContent = [match[2]];
+    } else {
+      currentContent.push(line);
+    }
+  });
+
+  if(currentSection !== null || currentContent.length > 0){
+    sections.push({
+      num: currentSection,
+      content: currentContent.join('\n').trim()
+    });
+  }
+
+  sections = sections.filter(s => s.content);
+
+  if(sections.length === 0){
+    sections = [{num: null, content: safe}];
+  }
+
+  return sections.map(s => {
+    let content = s.content;
+    let title = '';
+    let body  = content;
+
+    const titleMatch = content.match(/^([^:\n]{2,100}?)(?:\s*:\s*|\n)([\s\S]+)$/);
+    if(titleMatch){
+      title = titleMatch[1].replace(/\*\*/g, '').trim();
+      body  = titleMatch[2];
+    } else {
+      title = content.replace(/\*\*/g, '').substring(0, 100);
+      body = '';
+    }
+
+    body = body.replace(boldRegex, '<strong>$1</strong>');
+    body = body.replace(/→/g, '•');
+
+    return `<div class="ai-section">
+      ${s.num ? `<div class="ai-section-title"><span class="ai-section-num">${s.num}</span>${title}</div>` : ''}
+      ${!s.num && title ? `<div class="ai-section-title">${title}</div>` : ''}
+      ${body.trim() ? `<div class="ai-section-body">${body.trim().replace(/\n/g, '<br>')}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// Charge les idées IA sauvegardées
+async function loadIdeasAI(){
+  try {
+    const user = await getCurrentUser();
+    if(!user) return;
+
+    const { data, error } = await sb
+      .from('user_settings')
+      .select('ideas_ai, ideas_ai_date')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if(error){ console.warn('loadIdeasAI:', error.message); return; }
+    if(!data || !data.ideas_ai) return;
+
+    localStorage.setItem('ideas_ai_last', data.ideas_ai);
+    localStorage.setItem('ideas_ai_last_date', data.ideas_ai_date || '');
+
+    document.getElementById('ideasAIOutput').innerHTML = formatIdeasText(data.ideas_ai);
+    document.getElementById('ideasCopyBtn').disabled = false;
+    document.getElementById('ideasPdfBtn').disabled = false;
+    document.getElementById('ideasClearBtn').disabled = false;
+
+    if(data.ideas_ai_date){
+      const dateEl = document.getElementById('ideasLastUpdate');
+      dateEl.textContent = '🕐 Dernière génération : ' + data.ideas_ai_date;
+      dateEl.classList.add('visible');
+    }
+  } catch(e){
+    console.warn('loadIdeasAI error:', e);
+  }
+}
+
+// Sauvegarde les idées IA
+async function saveIdeasAI(text){
+  const dateStr = new Date().toLocaleString('fr-FR', {
+    day:'2-digit', month:'long', year:'numeric',
+    hour:'2-digit', minute:'2-digit'
+  });
+
+  localStorage.setItem('ideas_ai_last', text);
+  localStorage.setItem('ideas_ai_last_date', dateStr);
+
+  try {
+    const user = await getCurrentUser();
+    if(!user) return;
+
+    const { error } = await sb
+      .from('user_settings')
+      .upsert(
+        { user_id: user.id, ideas_ai: text, ideas_ai_date: dateStr },
+        { onConflict: 'user_id' }
+      );
+
+    if(error) console.warn('saveIdeasAI Supabase:', error.message);
+  } catch(e){
+    console.warn('saveIdeasAI error:', e);
+  }
+}
+
+// Efface les idées IA
+async function clearIdeasAI(){
+  if(!confirm('Effacer les idées IA ?')) return;
+
+  localStorage.removeItem('ideas_ai_last');
+  localStorage.removeItem('ideas_ai_last_date');
+
+  try {
+    const user = await getCurrentUser();
+    if(user){
+      await sb.from('user_settings')
+        .update({ ideas_ai: null, ideas_ai_date: null })
+        .eq('user_id', user.id);
+    }
+  } catch(e){
+    console.warn('clearIdeasAI error:', e);
+  }
+
+  document.getElementById('ideasAIOutput').innerHTML =
+    '<div class="empty">Clique sur <strong>Générer</strong> pour obtenir 5 idées de business personnalisées.</div>';
+  document.getElementById('ideasLastUpdate').classList.remove('visible');
+  document.getElementById('ideasCopyBtn').disabled = true;
+  document.getElementById('ideasPdfBtn').disabled = true;
+  document.getElementById('ideasClearBtn').disabled = true;
+}
+
+// Copie les idées IA
+async function copyIdeasAI(){
+  const text = localStorage.getItem('ideas_ai_last');
+  if(!text){ alert('Aucune idée à copier'); return; }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('ideasCopyBtn');
+    btn.textContent = '✅ Copié !';
+    setTimeout(() => btn.textContent = '📋 Copier', 2000);
+  } catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const btn = document.getElementById('ideasCopyBtn');
+    btn.textContent = '✅ Copié !';
+    setTimeout(() => btn.textContent = '📋 Copier', 2000);
+  }
+}
+
+// Export PDF des idées IA
+function exportIdeasAIPDF(){
+  const text = localStorage.getItem('ideas_ai_last');
+  const date = localStorage.getItem('ideas_ai_last_date');
+  if(!text){ alert('Aucune idée à exporter'); return; }
+
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert('La bibliothèque PDF n\'est pas encore chargée. Attends 2 secondes et réessaie.');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFillColor(255, 107, 157);
+  doc.rect(0, 0, 210, 32, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Idées de business IA", 14, 16);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  if(date) doc.text(date, 14, 24);
+
+  const cleanText = text.replace(/\*\*/g, '').replace(/→/g, '•');
+
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+
+  const splitText = doc.splitTextToSize(cleanText, 180);
+  let y = 42;
+  const pageHeight = doc.internal.pageSize.height - 15;
+
+  splitText.forEach(line => {
+    if(y > pageHeight){
+      doc.addPage();
+      y = 15;
+    }
+    doc.text(line, 14, y);
+    y += 6;
+  });
+
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let i = 1; i <= pageCount; i++){
+    doc.setPage(i);
+    doc.setFontSize(9);
+    doc.setTextColor(140, 140, 140);
+    doc.text(
+      `Page ${i} / ${pageCount}  —  Ma Super App`,
+      14,
+      doc.internal.pageSize.height - 8
+    );
+  }
+
+  doc.save(`idees-ia-${todayStr()}.pdf`);
+}
+
+// Fonction principale (bouton "🤖 Générer")
+async function generateAIIdeas(){
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
+  if(!cfg || !cfg.key){ alert("Configure ta clé dans l'onglet IA"); return; }
+
+  const out = document.getElementById('ideasAIOutput');
+  out.innerHTML = '<div class="empty">⏳ Génération en cours... (5 à 15 secondes)</div>';
+
+  const summary = buildSummary();
+  const prompt = `Voici le profil financier et photo d'une personne :
+
+${summary}
+
+Génère 5 idées de business CONCRÈTES et ADAPTÉES à ce profil (photographe, veut diversifier ses revenus).
+Format strict, chaque idée sur un numéro :
+1. [Titre court]
+   → [Description en 2 lignes]
+   → Revenu potentiel: [fourchette en FCFA]
+   → Difficulté: Facile / Moyenne / Difficile
+2. [Titre]
+   → ...
+(etc. pour les 5)
+
+N'utilise PAS d'astérisques. Sois concret et chiffré.`;
+
+  try {
+    const text = await callAI(prompt);
+    if(!text || !text.trim()){
+      out.innerHTML = '<div class="empty">❌ Pas de réponse de l\'IA. Réessaie.</div>';
+      return;
+    }
+
+    await saveIdeasAI(text);
+    out.innerHTML = formatIdeasText(text);
+
+    document.getElementById('ideasCopyBtn').disabled = false;
+    document.getElementById('ideasPdfBtn').disabled = false;
+    document.getElementById('ideasClearBtn').disabled = false;
+
+    const dateEl = document.getElementById('ideasLastUpdate');
+    dateEl.textContent = '🕐 Dernière génération : ' + new Date().toLocaleString('fr-FR', {
+      day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
+    });
+    dateEl.classList.add('visible');
+
+  } catch(e){
+    out.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
+  }
 }
 
 // ============================================================
@@ -1449,7 +1742,7 @@ function formatAnalysisText(text){
   }).join('');
 }
 
-// Charge l'analyse sauvegardée depuis Supabase (synchro multi-appareils)
+// Charge l'analyse sauvegardée depuis Supabase
 async function loadSavedAnalysis(){
   try {
     const user = await getCurrentUser();
@@ -1464,7 +1757,6 @@ async function loadSavedAnalysis(){
     if(error){ console.warn('loadSavedAnalysis:', error.message); return; }
     if(!data || !data.ai_analysis) return;
 
-    // Cache local (pour boutons Copier/PDF)
     localStorage.setItem('ai_last_analysis', data.ai_analysis);
     localStorage.setItem('ai_last_analysis_date', data.ai_analysis_date || '');
 
@@ -1511,7 +1803,7 @@ async function saveAnalysis(text){
   }
 }
 
-// Efface l'analyse (Supabase + local)
+// Efface l'analyse
 async function clearAnalysis(){
   if(!confirm('Effacer l\'analyse ?')) return;
 
@@ -1782,34 +2074,6 @@ Concret, chiffré, pas de blabla. N'utilise PAS d'astérisques. Écris en franç
   }
 }
 
-async function generateAIIdeas(){
-  let cfg = null;
-  try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
-  if(!cfg || !cfg.key){ alert("Configure ta clé dans l'onglet IA"); return; }
-  const el = document.getElementById('ideasList');
-  el.innerHTML = '<div class="empty">⏳ Génération…</div>';
-  const summary = buildSummary();
-  const prompt = `Voici le profil financier et photo d'une personne :
-
-${summary}
-
-Génère 5 idées de business CONCRÈTES et ADAPTÉES à ce profil (photographe, veut diversifier ses revenus).
-Format strict :
-1. [Titre court]
-   → [Description en 2 lignes]
-   → Revenu potentiel estimé: [fourchette en FCFA]
-   → Difficulté: Facile / Moyenne / Difficile
-(etc. pour les 5)
-
-Pas de blabla, sois concret.`;
-  try {
-    const text = await callAI(prompt);
-    el.innerHTML = `<div class="idea"><div class="d" style="white-space:pre-wrap">${text}</div></div>`;
-  } catch(e){
-    el.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
-  }
-}
-
 // ============================================================
 // INITIALISATION
 // ============================================================
@@ -1823,6 +2087,7 @@ function init(){
   newQuote();
   updateNotifButton();
   loadSavedAnalysis();
+  loadIdeasAI();
   setTimeout(() => {
     checkAutomaticNotifications();
     checkDailyReminders();
