@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#0f1115">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+  <title>Ma Super App</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="logged-out">
+<div id="loadingScreen">
+  <div class="spinner">⏳</div>
+  <p style="color:var(--muted);">Chargement...</p>
+</div>
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">🔐</div>
+    <h1 class="login-title">Ma Super App</h1>
+    <p class="login-sub">Connecte-toi pour retrouver tes données partout</p>
+    <label>Email</label>
+    <input type="email" id="loginEmail" placeholder="ton@email.com" autocomplete="email">
+    <label>Mot de passe</label>
+    <input type="password" id="loginPassword" placeholder="6 caractères minimum" autocomplete="current-password">
+    <button class="btn-primary" onclick="handleLogin()">Se connecter</button>
+    <button class="btn-ghost" onclick="handleSignUp()">Créer un compte</button>
+    <div id="loginMessage" class="login-msg"></div>
+  </div>
+</div>
+
+<header>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+      <h1 id="headerTitle">💰 Ma Super App</h1>
+      <div class="sub" id="today"></div>
+    </div>
+    <button onclick="handleLogout()" title="Se déconnecter"
+      style="background:none;border:none;font-size:20px;cursor:pointer;width:auto;color:var(--muted);padding:6px;">🚪</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="active" onclick="showTab('dash',this)">📊 Tableau</button>
+  <button onclick="showTab('objectifs',this)">🎯 Objectifs</button>
+  <button onclick="showTab('photo',this)">📸 Photo</button>
+  <button onclick="showTab('business',this)">💡 Business</button>
+  <button onclick="showTab('motiv',this)">🔥 Motivation</button>
+  <button onclick="showTab('ia',this)">🤖 IA</button>
+</div>
+
+<div class="page active" id="page-dash">
+  <div class="container">
+    <div class="card">
+      <div style="color:var(--muted);font-size:13px">Solde ce mois</div>
+      <div class="balance" id="balance">0 FCFA</div>
+      <div class="row">
+        <div class="stat"><div class="v" id="totalIn" style="color:var(--green)">0</div><div class="l">Revenus</div></div>
+        <div class="stat"><div class="v" id="totalOut" style="color:var(--red)">0</div><div class="l">Dépenses</div></div>
+        <div class="stat"><div class="v" id="savingsRate" style="color:var(--accent)">0%</div><div class="l">Épargne</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🧠 Analyse automatique</h2>
+      <div id="insights"><div class="empty">Ajoute des transactions</div></div>
+    </div>
+    <div class="card">
+      <h2>Répartition des dépenses</h2>
+      <div id="catBreakdown"><div class="empty">Aucune dépense</div></div>
+    </div>
+    <div class="card">
+      <h2>Transactions du mois</h2>
+      <div id="txList"><div class="empty">Aucune transaction</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-objectifs">
+  <div class="container">
+    <div class="card">
+      <h2>🎯 Mes objectifs d'épargne</h2>
+      <div id="coffresList"><div class="empty">Aucun objectif. Crées-en un.</div></div>
+      <button class="btn-ghost" onclick="openCoffreModal()">+ Créer un objectif</button>
+    </div>
+    <div class="card">
+      <h2>🛡️ Zone anti-tentation</h2>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px">
+        Ces messages te rappellent POURQUOI tu épargnes. Ne touche pas.
+      </div>
+      <div id="antiTemptation"></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-photo">
+  <div class="container">
+    <div class="card">
+      <h2>📸 Statistiques photo</h2>
+      <div class="row">
+        <div class="stat"><div class="v" id="photoMonthCount">0</div><div class="l">Séances ce mois</div></div>
+        <div class="stat"><div class="v" id="photoMonthRevenue" style="color:var(--green)">0</div><div class="l">Revenus photo</div></div>
+        <div class="stat"><div class="v" id="photoPending" style="color:var(--yellow)">0</div><div class="l">À encaisser</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>📅 Séances & Rendez-vous</h2>
+      <div id="shootsList"><div class="empty">Aucune séance planifiée</div></div>
+      <button class="btn-pink" style="margin-top:10px" onclick="openShootModal()">+ Nouvelle séance</button>
+    </div>
+    <div class="card">
+      <h2>👥 Clients</h2>
+      <div id="clientsList"><div class="empty">Aucun client enregistré</div></div>
+      <button class="btn-ghost" onclick="openClientModal()">+ Ajouter un client</button>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-business">
+  <div class="container">
+    <div class="card">
+      <h2>💡 Générateur d'idées</h2>
+      <button class="btn-primary" onclick="generateIdeas()">🎲 Générer des idées</button>
+      <button class="btn-ghost" onclick="generateAIIdeas()">🤖 Idées personnalisées par IA</button>
+      <div id="ideasList" style="margin-top:14px"></div>
+    </div>
+    <div class="card">
+      <h2>🚀 Mes idées sauvegardées</h2>
+      <div id="savedIdeasList"><div class="empty">Aucune idée sauvegardée</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-motiv">
+  <div class="container">
+    <div class="quote-box">
+      <div class="emoji" id="quoteEmoji">💪</div>
+      <div class="q" id="quoteText">Chargement…</div>
+      <div class="a" id="quoteAuthor"></div>
+      <button class="btn-ghost" style="margin-top:14px;width:auto;padding:8px 16px" onclick="newQuote()">🔄 Nouvelle citation</button>
+    </div>
+    <div class="card">
+      <h2>🔔 Notifications & rappels</h2>
+      <button class="btn-primary" onclick="enableNotifications()">Activer les notifications</button>
+      <div id="notifStatus" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <h2>⏰ Mes rappels quotidiens</h2>
+      <div id="remindersList"><div class="empty">Aucun rappel</div></div>
+      <button class="btn-ghost" onclick="openReminderModal()">+ Ajouter un rappel</button>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-ia">
+  <div class="container">
+    <div class="card">
+      <h2>🤖 Connexion IA <span class="pill" id="aiStatus">non configurée</span></h2>
+      <label>Fournisseur</label>
+      <select id="aiProvider">
+        <option value="openai">OpenAI (GPT)</option>
+        <option value="anthropic">Anthropic (Claude)</option>
+        <option value="gemini">Google (Gemini)</option>
+        <option value="custom">Autre (compatible OpenAI)</option>
+      </select>
+      <label>Clé API</label>
+      <input type="password" id="aiKey" placeholder="sk-...">
+      <label id="aiUrlLabel" style="display:none">URL de l'API</label>
+      <input type="text" id="aiUrl" placeholder="https://..." style="display:none">
+      <button class="btn-primary" onclick="saveAiConfig()">Enregistrer</button>
+      <div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5">
+        🔒 Clé stockée uniquement sur cet appareil.
+      </div>
+    </div>
+    <div class="card">
+      <h2>Analyse financière complète</h2>
+      <button class="btn-primary" onclick="askAI()">🔮 Analyser</button>
+      <div class="ai-output" id="aiOutput">L'analyse apparaîtra ici…</div>
+    </div>
+  </div>
+</div>
+
+<button class="fab" onclick="openModal()">+ Transaction</button>
+
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3>Nouvelle transaction</h3>
+      <button class="close" onclick="closeModal()">×</button></div>
+    <div class="type-toggle">
+      <button id="btnRevenu" data-type="revenu" onclick="setType('revenu')">Revenu</button>
+      <button id="btnDepense" data-type="depense" class="active" onclick="setType('depense')">Dépense</button>
+    </div>
+    <label>Montant</label><input type="number" id="amount" inputmode="decimal" placeholder="0">
+    <label>Catégorie</label><select id="category"></select>
+    <label>Note</label><input type="text" id="note" placeholder="Ex: courses, shooting...">
+    <label>Date</label><input type="date" id="date">
+    <button class="btn-primary" onclick="saveTx()">Enregistrer</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="coffreModalBg" onclick="if(event.target===this)closeCoffreModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3 id="coffreModalTitle">Nouvel objectif</h3>
+      <button class="close" onclick="closeCoffreModal()">×</button></div>
+    <label>Nom</label><input type="text" id="coffreName" placeholder="Ex: Fonds d'urgence">
+    <label>Montant à atteindre</label><input type="number" id="coffreGoal" inputmode="decimal" placeholder="0">
+    <label>Déjà épargné</label><input type="number" id="coffreCurrent" inputmode="decimal" placeholder="0">
+    <label>Date cible (optionnel)</label><input type="date" id="coffreDate">
+    <label>Pourquoi cet objectif ?</label>
+    <textarea id="coffreWhy" rows="2" placeholder="Ex: pour être libre..."></textarea>
+    <button class="btn-primary" id="coffreSubmit" onclick="saveCoffre()">Créer</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="depositModalBg" onclick="if(event.target===this)closeDepositModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3>Ajouter à <span id="depositCoffreName"></span></h3>
+      <button class="close" onclick="closeDepositModal()">×</button></div>
+    <label>Montant</label><input type="number" id="depositAmount" inputmode="decimal" placeholder="0">
+    <button class="btn-primary" onclick="confirmDeposit()">Ajouter</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="shootModalBg" onclick="if(event.target===this)closeShootModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3 id="shootModalTitle">Nouvelle séance</h3>
+      <button class="close" onclick="closeShootModal()">×</button></div>
+    <label>Client</label><select id="shootClient"></select>
+    <label>Type de prestation</label>
+    <select id="shootType">
+      <option>Portrait</option><option>Mariage</option><option>Événement</option>
+      <option>Corporate</option><option>Mode</option><option>Famille</option>
+      <option>Baptême</option><option>Autre</option>
+    </select>
+    <label>Date & heure</label><input type="datetime-local" id="shootDate">
+    <label>Prix (FCFA)</label><input type="number" id="shootPrice" inputmode="decimal">
+    <label>Statut paiement</label>
+    <select id="shootPay"><option value="impaye">Impayé</option><option value="paye">Payé</option></select>
+    <label>Notes</label><input type="text" id="shootNotes" placeholder="Lieu, détails...">
+    <button class="btn-primary" style="background:var(--pink)" onclick="saveShoot()">Enregistrer</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="clientModalBg" onclick="if(event.target===this)closeClientModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3 id="clientModalTitle">Nouveau client</h3>
+      <button class="close" onclick="closeClientModal()">×</button></div>
+    <label>Nom complet</label><input type="text" id="clientName">
+    <label>Téléphone</label><input type="tel" id="clientPhone">
+    <label>Email</label><input type="email" id="clientEmail">
+    <label>Notes</label><input type="text" id="clientNotes">
+    <button class="btn-primary" style="background:var(--pink)" onclick="saveClient()">Enregistrer</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="reminderModalBg" onclick="if(event.target===this)closeReminderModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3>Nouveau rappel</h3>
+      <button class="close" onclick="closeReminderModal()">×</button></div>
+    <label>Message</label><input type="text" id="reminderText" placeholder="Ex: Épargner 2000 FCFA">
+    <label>Heure</label><input type="time" id="reminderTime" value="09:00">
+    <button class="btn-primary" onclick="saveReminder()">Ajouter</button>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script src="modules.js"></script>
+
+</body>
+</html>
