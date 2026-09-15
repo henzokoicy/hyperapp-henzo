@@ -1090,3 +1090,19 @@ body:not(.logged-out) #loginScreen{display:none;}
   flex-shrink:0;
 }
 .reminder-del:hover{color:var(--red);}
+/* Boutons d'action des rappels */
+.reminder-actions{
+  display:flex;
+  gap:4px;
+  flex-shrink:0;
+}
+.reminder-edit{
+  background:none;
+  border:none;
+  color:var(--muted);
+  font-size:16px;
+  padding:4px 6px;
+  cursor:pointer;
+  width:auto;
+}
+.reminder-edit:hover{color:var(--accent);}

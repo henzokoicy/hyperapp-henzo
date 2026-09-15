@@ -1,6 +1,8 @@
 // ============================================================
 // MODULES.JS — Objectifs, Photo, Business, Motivation, IA, Dashboard
 // ============================================================
+// ID du rappel en cours de modification (null = création)
+let editingReminderId = null;
 
 const VILLES_CI = [
   "Abidjan","Bouaké","Yamoussoukro","Daloa","Korhogo","San-Pédro","Man",
@@ -1738,29 +1740,118 @@ function checkDailyReminders(){
   });
 }
 
-function openReminderModal(){
-  document.getElementById('reminderText').value = '';
-  document.getElementById('reminderTime').value = '09:00';
-  document.getElementById('reminderDate').value = new Date().toISOString().slice(0,10);
-  document.getElementById('reminderType').value = 'perso';
+// Liste des types fixes (pour distinguer des types perso)
+const REMINDER_TYPES_FIXES = ['perso','rdv','appel','paiement','Autre'];
+
+// Affiche/cache le champ "Précise le type"
+function onReminderTypeChange(){
+  const val = document.getElementById('reminderType').value;
+  const wrap = document.getElementById('reminderCustomTypeWrap');
+  if(wrap) wrap.style.display = (val === 'Autre') ? 'block' : 'none';
+}
+
+// Ouvre la modale (création OU modification)
+function openReminderModal(id){
+  editingReminderId = id || null;
+
+  const r = id ? reminders.find(x => x.id === id) : null;
+
+  document.getElementById('reminderModalTitle').textContent =
+    r ? '✏️ Modifier le rappel' : '⏰ Nouveau rappel';
+  document.getElementById('reminderSubmit').textContent =
+    r ? '💾 Enregistrer les modifications' : '➕ Créer le rappel';
+
+  if(r){
+    // Mode modification : pré-remplit les champs
+    let savedType = r.type || 'perso';
+    if(REMINDER_TYPES_FIXES.includes(savedType)){
+      document.getElementById('reminderType').value = savedType;
+      document.getElementById('reminderCustomType').value = '';
+    } else {
+      document.getElementById('reminderType').value = 'Autre';
+      document.getElementById('reminderCustomType').value = savedType;
+    }
+
+    document.getElementById('reminderText').value = r.text || '';
+
+    if(r.due_date){
+      const d = new Date(r.due_date);
+      document.getElementById('reminderDate').value = d.toISOString().slice(0,10);
+      document.getElementById('reminderTime').value =
+        String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    } else {
+      document.getElementById('reminderDate').value = new Date().toISOString().slice(0,10);
+      document.getElementById('reminderTime').value = r.time || '09:00';
+    }
+  } else {
+    // Mode création : valeurs par défaut
+    document.getElementById('reminderType').value = 'perso';
+    document.getElementById('reminderCustomType').value = '';
+    document.getElementById('reminderText').value = '';
+    document.getElementById('reminderDate').value = new Date().toISOString().slice(0,10);
+    document.getElementById('reminderTime').value = '09:00';
+  }
+
+  onReminderTypeChange();
   document.getElementById('reminderModalBg').classList.add('show');
 }
+
+// Ferme et réinitialise l'ID d'édition
 function closeReminderModal(){
   document.getElementById('reminderModalBg').classList.remove('show');
+  editingReminderId = null;
 }
+
 async function saveReminder(){
   const text = document.getElementById('reminderText').value.trim();
   const time = document.getElementById('reminderTime').value;
   const date = document.getElementById('reminderDate').value;
-  const type = document.getElementById('reminderType').value;
+  let   type = document.getElementById('reminderType').value;
 
   if(!text){ alert("Écris un message"); return; }
   if(!date){ alert("Choisis une date"); return; }
   if(!time){ alert("Choisis une heure"); return; }
 
+  // Si "Autre" est choisi, on prend la valeur personnalisée
+  if(type === 'Autre'){
+    const custom = document.getElementById('reminderCustomType').value.trim();
+    if(custom){
+      type = custom;
+    } else {
+      alert("Précise le type (ou choisis-en un dans la liste)");
+      return;
+    }
+  }
+
   // Construit la date complète au format ISO
   const dueDate = new Date(date + 'T' + time + ':00').toISOString();
 
+  // MODIFICATION
+  if(editingReminderId){
+    const result = await dbUpdate('reminders', editingReminderId, {
+      text: text,
+      time: time,
+      type: type,
+      due_date: dueDate,
+      sent: false  // On remet à false car la date a peut-être changé
+    });
+    if(!result) return;
+
+    const idx = reminders.findIndex(r => r.id === editingReminderId);
+    if(idx >= 0) reminders[idx] = result;
+
+    closeReminderModal();
+    refreshAll();
+
+    alert('✅ Rappel modifié !\nNouveau rendez-vous : ' +
+      new Date(dueDate).toLocaleString('fr-FR', {
+        weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+      })
+    );
+    return;
+  }
+
+  // CRÉATION
   const result = await dbInsert('reminders', {
     text: text,
     time: time,
@@ -1774,7 +1865,6 @@ async function saveReminder(){
   closeReminderModal();
   refreshAll();
 
-  // Confirmation
   alert('✅ Rappel créé !\nTu recevras une notification le ' +
     new Date(dueDate).toLocaleString('fr-FR', {
       weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
@@ -1795,11 +1885,12 @@ function renderReminders(){
     return;
   }
 
-  const icons = {
+  const fixedIcons = {
     perso:    '🔔',
     rdv:      '📅',
     appel:    '📞',
-    paiement: '💰'
+    paiement: '💰',
+    Autre:    '✏️'
   };
 
   // Trie par date (les plus proches en premier)
@@ -1810,7 +1901,8 @@ function renderReminders(){
   });
 
   el.innerHTML = sorted.map(r => {
-    const icon = icons[r.type] || '🔔';
+    // Type fixe ou personnalisé
+    const icon = fixedIcons[r.type] || '✏️';
     const now = new Date();
     const due = r.due_date ? new Date(r.due_date) : null;
 
@@ -1829,7 +1921,7 @@ function renderReminders(){
       const days = Math.floor(hours / 24);
 
       if(hours < 1){
-        statusBadge = '⏱ Dans moins d\'1h';
+        statusBadge = '⏱ Moins d\'1h';
       } else if(hours < 24){
         statusBadge = `⏱ Dans ${hours}h`;
       } else {
@@ -1853,7 +1945,10 @@ function renderReminders(){
           ${statusBadge ? `<span class="reminder-badge">${statusBadge}</span>` : ''}
         </div>
       </div>
-      <button class="reminder-del" onclick="delReminder(${r.id})">×</button>
+      <div class="reminder-actions">
+        <button class="reminder-edit" onclick="openReminderModal(${r.id})" title="Modifier">✏️</button>
+        <button class="reminder-del" onclick="delReminder(${r.id})" title="Supprimer">×</button>
+      </div>
     </div>`;
   }).join('');
 }
