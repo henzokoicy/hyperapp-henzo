@@ -9,8 +9,8 @@
   <title>Ma Super App</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body class="logged-out">
 
@@ -46,9 +46,9 @@
 </header>
 
 <div class="tabs">
-  <button class="active" onclick="showTab('dash',this)">📊 Tableau</button>
-<button onclick="showTab('historique',this)">📜 Historique</button>
-<button onclick="showTab('objectifs',this)">🎯 Objectifs</button>
+  <button class="active" onclick="showTab('dash',this)">📊 Tableau de bord</button>
+  <button onclick="showTab('historique',this)">📜 Historique</button>
+  <button onclick="showTab('objectifs',this)">🎯 Objectifs</button>
   <button onclick="showTab('photo',this)">📸 Photo</button>
   <button onclick="showTab('business',this)">💡 Business</button>
   <button onclick="showTab('motiv',this)">🔥 Motivation</button>
@@ -56,22 +56,23 @@
 </div>
 
 <!-- ============================================================
-     ONGLET TABLEAU DE BORD ENRICHI
+     ONGLET TABLEAU DE BORD
      ============================================================ -->
 <div class="page active" id="page-dash">
   <div class="container">
 
     <!-- Résumé financier principal -->
-   <div class="card">
-  <h2>📥 Exporter</h2>
-  <div class="row" style="margin-bottom:8px">
-    <button class="btn-primary" onclick="exportHistoryCSV()">📊 CSV (Excel)</button>
-    <button class="btn-primary" onclick="exportHistoryJSON()">📦 JSON</button>
-  </div>
-  <button class="btn-primary" style="background:var(--pink);width:100%" onclick="exportHistoryPDF()">📄 PDF (rapport imprimable)</button>
-</div>
+    <div class="card">
+      <div style="color:var(--muted);font-size:13px">Solde ce mois</div>
+      <div class="balance" id="balance">0 FCFA</div>
+      <div class="row">
+        <div class="stat"><div class="v" id="totalIn" style="color:var(--green)">0</div><div class="l">Revenus</div></div>
+        <div class="stat"><div class="v" id="totalOut" style="color:var(--red)">0</div><div class="l">Dépenses</div></div>
+        <div class="stat"><div class="v" id="savingsRate" style="color:var(--accent)">0%</div><div class="l">Épargne</div></div>
+      </div>
+    </div>
 
-    <!-- Vue d'ensemble (chiffres clés de toute l'app) -->
+    <!-- Vue d'ensemble -->
     <div class="card">
       <h2>🌐 Vue d'ensemble</h2>
       <div class="grid-stats">
@@ -94,7 +95,7 @@
       </div>
     </div>
 
-    <!-- Score de santé financière -->
+    <!-- Santé financière -->
     <div class="card">
       <h2>💚 Santé financière</h2>
       <div class="score-wrap">
@@ -106,7 +107,7 @@
       </div>
     </div>
 
-    <!-- Diagramme donut Revenus/Dépenses -->
+    <!-- Revenus vs Dépenses -->
     <div class="card">
       <h2>📊 Revenus vs Dépenses</h2>
       <div class="donut-wrap">
@@ -117,7 +118,7 @@
       </div>
     </div>
 
-    <!-- Répartition des séances par type -->
+    <!-- Séances par type -->
     <div class="card">
       <h2>📸 Séances par type</h2>
       <div id="shootTypesChart"><div class="empty">Aucune séance enregistrée</div></div>
@@ -135,13 +136,13 @@
       <div id="insights"><div class="empty">Ajoute des transactions</div></div>
     </div>
 
-    <!-- Suggestions intelligentes -->
+    <!-- Suggestions -->
     <div class="card">
       <h2>💡 Suggestions personnalisées</h2>
       <div id="suggestions"><div class="empty">Continue à utiliser l'app pour voir des suggestions.</div></div>
     </div>
 
-    <!-- Répartition des dépenses par catégorie -->
+    <!-- Répartition des dépenses -->
     <div class="card">
       <h2>Répartition des dépenses</h2>
       <div id="catBreakdown"><div class="empty">Aucune dépense</div></div>
@@ -155,11 +156,9 @@
 
   </div>
 </div>
+<!-- ⬆️ Ici se ferme bien l'onglet Tableau de bord (2 </div>) -->
 
 <!-- ============================================================
-     ONGLET OBJECTIFS
-     ============================================================ -->
-     <!-- ============================================================
      ONGLET HISTORIQUE
      ============================================================ -->
 <div class="page" id="page-historique">
@@ -201,10 +200,11 @@
     <!-- Export -->
     <div class="card">
       <h2>📥 Exporter</h2>
-      <div class="row">
+      <div class="row" style="margin-bottom:8px">
         <button class="btn-primary" onclick="exportHistoryCSV()">📊 CSV (Excel)</button>
         <button class="btn-primary" onclick="exportHistoryJSON()">📦 JSON</button>
       </div>
+      <button class="btn-primary" style="background:var(--pink);width:100%" onclick="exportHistoryPDF()">📄 PDF (rapport imprimable)</button>
     </div>
 
     <!-- Actions groupées -->
@@ -226,6 +226,10 @@
 
   </div>
 </div>
+
+<!-- ============================================================
+     ONGLET OBJECTIFS
+     ============================================================ -->
 <div class="page" id="page-objectifs">
   <div class="container">
     <div class="card">
