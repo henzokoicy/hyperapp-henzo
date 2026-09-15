@@ -5,16 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="theme-color" content="#0f1115">
   <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>Ma Super App</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="logged-out">
+
 <div id="loadingScreen">
   <div class="spinner">⏳</div>
   <p style="color:var(--muted);">Chargement...</p>
 </div>
+
 <div id="loginScreen">
   <div class="login-box">
     <div class="login-logo">🔐</div>
@@ -50,8 +52,13 @@
   <button onclick="showTab('ia',this)">🤖 IA</button>
 </div>
 
+<!-- ============================================================
+     ONGLET TABLEAU DE BORD ENRICHI
+     ============================================================ -->
 <div class="page active" id="page-dash">
   <div class="container">
+
+    <!-- Résumé financier principal -->
     <div class="card">
       <div style="color:var(--muted);font-size:13px">Solde ce mois</div>
       <div class="balance" id="balance">0 FCFA</div>
@@ -61,21 +68,95 @@
         <div class="stat"><div class="v" id="savingsRate" style="color:var(--accent)">0%</div><div class="l">Épargne</div></div>
       </div>
     </div>
+
+    <!-- Vue d'ensemble (chiffres clés de toute l'app) -->
+    <div class="card">
+      <h2>🌐 Vue d'ensemble</h2>
+      <div class="grid-stats">
+        <div class="mini-stat">
+          <div class="num" id="overviewClients">0</div>
+          <div class="lbl">👥 Clients</div>
+        </div>
+        <div class="mini-stat">
+          <div class="num" id="overviewShoots">0</div>
+          <div class="lbl">📸 Séances (mois)</div>
+        </div>
+        <div class="mini-stat">
+          <div class="num" id="overviewPhotoRev" style="color:var(--green)">0</div>
+          <div class="lbl">💰 CA photo</div>
+        </div>
+        <div class="mini-stat">
+          <div class="num" id="overviewPending" style="color:var(--yellow)">0</div>
+          <div class="lbl">⏳ À encaisser</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Score de santé financière -->
+    <div class="card">
+      <h2>💚 Santé financière</h2>
+      <div class="score-wrap">
+        <div class="score-circle" id="healthScore">--</div>
+        <div class="score-info">
+          <div class="score-title" id="healthTitle">Calcul en cours...</div>
+          <div class="score-text" id="healthText">Ajoute des transactions pour voir ton score.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Diagramme donut Revenus/Dépenses -->
+    <div class="card">
+      <h2>📊 Revenus vs Dépenses</h2>
+      <div class="donut-wrap">
+        <div class="donut" id="donutRevDep">
+          <div class="donut-center" id="donutRevDepText">--</div>
+        </div>
+        <div class="legend" id="legendRevDep"></div>
+      </div>
+    </div>
+
+    <!-- Répartition des séances par type -->
+    <div class="card">
+      <h2>📸 Séances par type</h2>
+      <div id="shootTypesChart"><div class="empty">Aucune séance enregistrée</div></div>
+    </div>
+
+    <!-- Revenus 6 derniers mois -->
+    <div class="card">
+      <h2>📅 Revenus sur 6 mois</h2>
+      <div class="bars-6m" id="bars6m"></div>
+    </div>
+
+    <!-- Analyse automatique -->
     <div class="card">
       <h2>🧠 Analyse automatique</h2>
       <div id="insights"><div class="empty">Ajoute des transactions</div></div>
     </div>
+
+    <!-- Suggestions intelligentes -->
+    <div class="card">
+      <h2>💡 Suggestions personnalisées</h2>
+      <div id="suggestions"><div class="empty">Continue à utiliser l'app pour voir des suggestions.</div></div>
+    </div>
+
+    <!-- Répartition des dépenses par catégorie -->
     <div class="card">
       <h2>Répartition des dépenses</h2>
       <div id="catBreakdown"><div class="empty">Aucune dépense</div></div>
     </div>
+
+    <!-- Transactions du mois -->
     <div class="card">
       <h2>Transactions du mois</h2>
       <div id="txList"><div class="empty">Aucune transaction</div></div>
     </div>
+
   </div>
 </div>
 
+<!-- ============================================================
+     ONGLET OBJECTIFS
+     ============================================================ -->
 <div class="page" id="page-objectifs">
   <div class="container">
     <div class="card">
@@ -93,6 +174,9 @@
   </div>
 </div>
 
+<!-- ============================================================
+     ONGLET PHOTO
+     ============================================================ -->
 <div class="page" id="page-photo">
   <div class="container">
     <div class="card">
@@ -116,6 +200,9 @@
   </div>
 </div>
 
+<!-- ============================================================
+     ONGLET BUSINESS
+     ============================================================ -->
 <div class="page" id="page-business">
   <div class="container">
     <div class="card">
@@ -131,6 +218,9 @@
   </div>
 </div>
 
+<!-- ============================================================
+     ONGLET MOTIVATION
+     ============================================================ -->
 <div class="page" id="page-motiv">
   <div class="container">
     <div class="quote-box">
@@ -152,6 +242,9 @@
   </div>
 </div>
 
+<!-- ============================================================
+     ONGLET IA
+     ============================================================ -->
 <div class="page" id="page-ia">
   <div class="container">
     <div class="card">
@@ -182,6 +275,11 @@
 
 <button class="fab" onclick="openModal()">+ Transaction</button>
 
+<!-- ============================================================
+     MODALES
+     ============================================================ -->
+
+<!-- Transaction -->
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-wrap"><h3>Nouvelle transaction</h3>
@@ -198,6 +296,7 @@
   </div>
 </div>
 
+<!-- Objectif -->
 <div class="modal-bg" id="coffreModalBg" onclick="if(event.target===this)closeCoffreModal()">
   <div class="modal">
     <div class="modal-wrap"><h3 id="coffreModalTitle">Nouvel objectif</h3>
@@ -212,6 +311,7 @@
   </div>
 </div>
 
+<!-- Dépôt objectif -->
 <div class="modal-bg" id="depositModalBg" onclick="if(event.target===this)closeDepositModal()">
   <div class="modal">
     <div class="modal-wrap"><h3>Ajouter à <span id="depositCoffreName"></span></h3>
@@ -221,34 +321,55 @@
   </div>
 </div>
 
+<!-- Séance photo -->
 <div class="modal-bg" id="shootModalBg" onclick="if(event.target===this)closeShootModal()">
   <div class="modal">
     <div class="modal-wrap"><h3 id="shootModalTitle">Nouvelle séance</h3>
       <button class="close" onclick="closeShootModal()">×</button></div>
-    <label>Client</label><select id="shootClient"></select>
-    <label>Type de prestation</label>
-<select id="shootType" onchange="onShootTypeChange()">
-  <option>Mariage</option>
-  <option>Dot</option>
-  <option>Shooting Studio</option>
-  <option>Shoot Extérieur</option>
-  <option>Autre</option>
-</select>
 
-<!-- Champ qui apparaît seulement si "Autre" est choisi -->
-<div id="shootCustomTypeWrap" style="display:none;">
- <input type="text" id="shootCustomType">
-  <input"Ex: Baptême, Grossesse, Anniversaire...">
-</div>
-    <label>Date & heure</label><input type="datetime-local" id="shootDate">
-    <label>Prix (FCFA)</label><input type="number" id="shootPrice" inputmode="decimal">
+    <label>Client</label>
+    <select id="shootClient"></select>
+
+    <label>Type de prestation</label>
+    <select id="shootType" onchange="onShootTypeChange()">
+      <option>Mariage</option>
+      <option>Dot</option>
+      <option>Shooting Studio</option>
+      <option>Shoot Extérieur</option>
+      <option>Autre</option>
+    </select>
+
+    <div id="shootCustomTypeWrap" style="display:none;">
+      <label>Précise le type (facultatif)</label>
+      <input type="text" id="shootCustomType">
+    </div>
+
+    <label>Lieu de la séance</label>
+    <div class="autocomplete-wrap">
+      <input type="text" id="shootLocation" placeholder="Tape une ville..." autocomplete="off">
+      <div class="autocomplete-list" id="shootLocationList"></div>
+    </div>
+
+    <label>Nombre de photos</label>
+    <input type="number" id="shootPhotoCount" inputmode="numeric" placeholder="0">
+
+    <label>Date & heure</label>
+    <input type="datetime-local" id="shootDate">
+
+    <label>Prix (FCFA)</label>
+    <input type="number" id="shootPrice" inputmode="decimal">
+
     <label>Statut paiement</label>
     <select id="shootPay"><option value="impaye">Impayé</option><option value="paye">Payé</option></select>
-    <label>Notes</label><input type="text" id="shootNotes" placeholder="Lieu, détails...">
+
+    <label>Notes</label>
+    <input type="text" id="shootNotes" placeholder="Détails supplémentaires...">
+
     <button class="btn-primary" style="background:var(--pink)" onclick="saveShoot()">Enregistrer</button>
   </div>
 </div>
 
+<!-- Client -->
 <div class="modal-bg" id="clientModalBg" onclick="if(event.target===this)closeClientModal()">
   <div class="modal">
     <div class="modal-wrap"><h3 id="clientModalTitle">Nouveau client</h3>
@@ -256,11 +377,19 @@
     <label>Nom complet</label><input type="text" id="clientName">
     <label>Téléphone</label><input type="tel" id="clientPhone">
     <label>Email</label><input type="email" id="clientEmail">
+
+    <label>Ville</label>
+    <div class="autocomplete-wrap">
+      <input type="text" id="clientCity" placeholder="Tape une ville..." autocomplete="off">
+      <div class="autocomplete-list" id="clientCityList"></div>
+    </div>
+
     <label>Notes</label><input type="text" id="clientNotes">
     <button class="btn-primary" style="background:var(--pink)" onclick="saveClient()">Enregistrer</button>
   </div>
 </div>
 
+<!-- Rappel -->
 <div class="modal-bg" id="reminderModalBg" onclick="if(event.target===this)closeReminderModal()">
   <div class="modal">
     <div class="modal-wrap"><h3>Nouveau rappel</h3>

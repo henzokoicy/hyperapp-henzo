@@ -185,19 +185,12 @@ h2{font-size:13px;font-weight:600;margin:0 0 12px;color:var(--muted);
    ÉCRAN DE CONNEXION
    ============================================================ */
 #loginScreen{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  min-height:100vh;
-  padding:20px;
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;padding:20px;
 }
 .login-box{
-  background:var(--card);
-  border-radius:20px;
-  padding:30px 24px;
-  width:100%;
-  max-width:400px;
-  border:1px solid var(--border);
+  background:var(--card);border-radius:20px;padding:30px 24px;
+  width:100%;max-width:400px;border:1px solid var(--border);
 }
 .login-logo{text-align:center;font-size:48px;margin-bottom:10px;}
 .login-title{text-align:center;font-size:22px;margin:0 0 8px;}
@@ -213,11 +206,6 @@ body.logged-out .modal-bg{display:none !important;}
 body.logged-out #loginScreen{display:flex;}
 body:not(.logged-out) #loginScreen{display:none;}
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
 #loadingScreen{
   position:fixed;inset:0;background:var(--bg);
   display:flex;align-items:center;justify-content:center;
@@ -225,4 +213,120 @@ body:not(.logged-out) #loginScreen{display:none;}
 }
 #loadingScreen.hidden{display:none;}
 .spinner{font-size:48px;animation:spin 1s linear infinite;}
+
 @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+
+/* ============================================================
+   AUTOCOMPLÉTION VILLES
+   ============================================================ */
+.autocomplete-wrap{position:relative;}
+.autocomplete-list{
+  position:absolute;top:100%;left:0;right:0;
+  background:var(--card2);border:1px solid var(--border);
+  border-radius:10px;margin-top:4px;max-height:200px;
+  overflow-y:auto;z-index:50;display:none;
+}
+.autocomplete-list div{
+  padding:10px 12px;cursor:pointer;font-size:14px;
+  border-bottom:1px solid var(--border);
+}
+.autocomplete-list div:last-child{border-bottom:none;}
+.autocomplete-list div:hover{background:var(--card);}
+
+/* ============================================================
+   NOUVELLE VUE D'ENSEMBLE (grille de stats)
+   ============================================================ */
+.grid-stats{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;
+}
+.mini-stat{
+  background:var(--card2);border-radius:12px;padding:14px;text-align:center;
+  border:1px solid var(--border);
+}
+.mini-stat .num{font-size:20px;font-weight:700;margin-bottom:4px;}
+.mini-stat .lbl{color:var(--muted);font-size:11px;}
+
+/* ============================================================
+   SCORE DE SANTÉ
+   ============================================================ */
+.score-wrap{
+  display:flex;align-items:center;gap:16px;
+}
+.score-circle{
+  width:80px;height:80px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;font-weight:700;
+  background:conic-gradient(var(--accent) 0% 0%, var(--card2) 0% 100%);
+  position:relative;flex-shrink:0;
+  transition:background .5s;
+}
+.score-circle::after{
+  content:'';position:absolute;inset:8px;background:var(--card);border-radius:50%;
+}
+.score-circle > *{position:relative;z-index:1;}
+.score-info{flex:1;}
+.score-title{font-weight:600;font-size:14px;margin-bottom:4px;}
+.score-text{color:var(--muted);font-size:12px;line-height:1.4;}
+
+/* ============================================================
+   DIAGRAMME DONUT
+   ============================================================ */
+.donut-wrap{
+  display:flex;align-items:center;gap:20px;
+  flex-wrap:wrap;justify-content:center;
+}
+.donut{
+  width:130px;height:130px;border-radius:50%;
+  position:relative;flex-shrink:0;
+  background:conic-gradient(var(--card2) 0% 100%);
+}
+.donut-center{
+  position:absolute;inset:22px;background:var(--card);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;text-align:center;padding:4px;
+}
+.legend{display:flex;flex-direction:column;gap:8px;min-width:130px;}
+.legend-item{
+  display:flex;align-items:center;gap:8px;font-size:13px;
+}
+.legend-dot{
+  width:12px;height:12px;border-radius:3px;flex-shrink:0;
+}
+.legend-label{flex:1;color:var(--muted);}
+.legend-value{font-weight:600;}
+
+/* ============================================================
+   BARRES 6 MOIS
+   ============================================================ */
+.bars-6m{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:6px;height:140px;padding-top:10px;
+}
+.bar-6m{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:flex-end;gap:6px;height:100%;
+}
+.bar-6m .bar-fill{
+  width:100%;background:linear-gradient(180deg,var(--accent),#4a6fdb);
+  border-radius:6px 6px 0 0;min-height:4px;
+  transition:height .5s;
+}
+.bar-6m .bar-label{
+  font-size:10px;color:var(--muted);text-align:center;
+}
+.bar-6m .bar-value{
+  font-size:10px;color:var(--text);font-weight:600;
+  white-space:nowrap;
+}
+
+/* ============================================================
+   SUGGESTIONS INTELLIGENTES
+   ============================================================ */
+.suggestion{
+  background:linear-gradient(135deg,rgba(108,140,255,.1),rgba(255,107,157,.05));
+  border-radius:12px;padding:14px;margin-bottom:10px;
+  border-left:3px solid var(--accent);
+}
+.suggestion .icon{font-size:20px;margin-bottom:6px;}
+.suggestion .title{font-weight:600;font-size:14px;margin-bottom:4px;}
+.suggestion .body{font-size:13px;color:var(--muted);line-height:1.5;}
