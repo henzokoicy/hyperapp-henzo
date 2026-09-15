@@ -227,11 +227,19 @@
       <button class="close" onclick="closeShootModal()">×</button></div>
     <label>Client</label><select id="shootClient"></select>
     <label>Type de prestation</label>
-    <select id="shootType">
-      <option>Portrait</option><option>Mariage</option><option>Événement</option>
-      <option>Corporate</option><option>Mode</option><option>Famille</option>
-      <option>Baptême</option><option>Autre</option>
-    </select>
+<select id="shootType" onchange="onShootTypeChange()">
+  <option>Mariage</option>
+  <option>Dot</option>
+  <option>Shooting Studio</option>
+  <option>Shoot Extérieur</option>
+  <option>Autre</option>
+</select>
+
+<!-- Champ qui apparaît seulement si "Autre" est choisi -->
+<div id="shootCustomTypeWrap" style="display:none;">
+  <label>Précise le type (facultatif)</label>
+  <input type="text" id="shootCustomType" placeholder="Ex: Baptême, Grossesse, Anniversaire...">
+</div>
     <label>Date & heure</label><input type="datetime-local" id="shootDate">
     <label>Prix (FCFA)</label><input type="number" id="shootPrice" inputmode="decimal">
     <label>Statut paiement</label>

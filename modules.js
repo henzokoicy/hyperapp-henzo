@@ -197,6 +197,16 @@ function renderClients(){
 // ============================================================
 // MODULE PHOTO — SÉANCES
 // ============================================================
+// Types fixes disponibles dans la liste déroulante
+const TYPES_FIXES = ['Mariage','Dot','Shooting Studio','Shoot Extérieur','Autre'];
+
+// Affiche/cache le champ "Précise le type" selon le choix
+function onShootTypeChange(){
+  const t = document.getElementById('shootType').value;
+  document.getElementById('shootCustomTypeWrap').style.display =
+    (t === 'Autre') ? 'block' : 'none';
+}
+
 function openShootModal(id){
   editingShootId = id || null;
   const s = id ? shoots.find(x => x.id === id) : null;
@@ -204,20 +214,33 @@ function openShootModal(id){
   const sel = document.getElementById('shootClient');
   sel.innerHTML = '<option value="">-- Choisir --</option>' +
     clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
   if(s){
     sel.value = s.client_id || '';
-    document.getElementById('shootType').value  = s.type || 'Portrait';
+    // Si le type enregistré fait partie des types fixes, on le sélectionne directement
+    // Sinon, on met "Autre" et on remplit le champ personnalisé
+    const savedType = s.type || 'Mariage';
+    if(TYPES_FIXES.includes(savedType)){
+      document.getElementById('shootType').value = savedType;
+      document.getElementById('shootCustomType').value = '';
+    } else {
+      document.getElementById('shootType').value = 'Autre';
+      document.getElementById('shootCustomType').value = savedType;
+    }
     document.getElementById('shootDate').value  = s.date ? new Date(s.date).toISOString().slice(0,16) : '';
     document.getElementById('shootPrice').value = s.price || '';
     document.getElementById('shootPay').value   = s.payment || 'impaye';
     document.getElementById('shootNotes').value = s.notes || '';
   } else {
     sel.value = '';
+    document.getElementById('shootType').value = 'Mariage';
+    document.getElementById('shootCustomType').value = '';
     document.getElementById('shootDate').value  = new Date().toISOString().slice(0,16);
     document.getElementById('shootPrice').value = '';
     document.getElementById('shootPay').value   = 'impaye';
     document.getElementById('shootNotes').value = '';
   }
+  onShootTypeChange();
   document.getElementById('shootModalBg').classList.add('show');
 }
 function closeShootModal(){
@@ -226,12 +249,19 @@ function closeShootModal(){
 }
 async function saveShoot(){
   const clientId = document.getElementById('shootClient').value;
-  const type     = document.getElementById('shootType').value;
+  let   type     = document.getElementById('shootType').value;
   const date     = document.getElementById('shootDate').value;
   const price    = parseFloat(document.getElementById('shootPrice').value) || 0;
   const payment  = document.getElementById('shootPay').value;
   const notes    = document.getElementById('shootNotes').value.trim();
   if(!date){ alert("Date requise"); return; }
+
+  // Si "Autre" est choisi et qu'un type personnalisé est renseigné, on l'utilise
+  if(type === 'Autre'){
+    const custom = document.getElementById('shootCustomType').value.trim();
+    if(custom) type = custom;
+  }
+
   const data = {
     client_id: clientId ? parseInt(clientId) : null,
     type, date, price, payment, notes
