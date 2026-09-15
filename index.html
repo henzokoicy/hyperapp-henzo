@@ -44,13 +44,10 @@
   </div>
 </div>
 
-<!-- ============================================================
-     TIROIR LATÉRAL (SIDE DRAWER)
-     ============================================================ -->
+<!-- TIROIR LATÉRAL -->
 <div class="drawer-backdrop" id="drawerBackdrop" onclick="closeDrawer()"></div>
 
 <aside class="side-drawer" id="sideDrawer">
-  <!-- Header du tiroir -->
   <div class="drawer-header">
     <div class="drawer-user">
       <div class="user-avatar-large" id="drawerAvatar">?</div>
@@ -62,7 +59,6 @@
     <button class="drawer-close" onclick="closeDrawer()">×</button>
   </div>
 
-  <!-- Actions rapides -->
   <div class="drawer-section">
     <div class="drawer-section-title">⚡ Actions rapides</div>
     <button class="drawer-quick" onclick="drawerAction('addTx')">
@@ -87,74 +83,55 @@
     </button>
   </div>
 
-  <!-- Navigation -->
   <div class="drawer-section">
     <div class="drawer-section-title">🧭 Navigation</div>
     <button class="drawer-nav active" data-tab="dash" onclick="drawerNavigate('dash')">
-      <span class="nav-icon">📊</span>
-      <span>Tableau de bord</span>
+      <span class="nav-icon">📊</span><span>Tableau de bord</span>
     </button>
     <button class="drawer-nav" data-tab="historique" onclick="drawerNavigate('historique')">
-      <span class="nav-icon">📜</span>
-      <span>Historique</span>
+      <span class="nav-icon">📜</span><span>Historique</span>
     </button>
     <button class="drawer-nav" data-tab="objectifs" onclick="drawerNavigate('objectifs')">
-      <span class="nav-icon">🎯</span>
-      <span>Objectifs</span>
+      <span class="nav-icon">🎯</span><span>Objectifs</span>
     </button>
     <button class="drawer-nav" data-tab="photo" onclick="drawerNavigate('photo')">
-      <span class="nav-icon">📸</span>
-      <span>Photo & Clients</span>
+      <span class="nav-icon">📸</span><span>Photo & Clients</span>
     </button>
     <button class="drawer-nav" data-tab="business" onclick="drawerNavigate('business')">
-      <span class="nav-icon">💡</span>
-      <span>Business</span>
+      <span class="nav-icon">💡</span><span>Business</span>
     </button>
     <button class="drawer-nav" data-tab="motiv" onclick="drawerNavigate('motiv')">
-      <span class="nav-icon">🔥</span>
-      <span>Motivation</span>
+      <span class="nav-icon">🔥</span><span>Motivation</span>
     </button>
     <button class="drawer-nav" data-tab="ia" onclick="drawerNavigate('ia')">
-      <span class="nav-icon">🤖</span>
-      <span>Analyse IA</span>
+      <span class="nav-icon">🤖</span><span>Analyse IA</span>
     </button>
   </div>
 
-  <!-- Compte -->
   <div class="drawer-section">
     <div class="drawer-section-title">👤 Mon compte</div>
     <button class="drawer-nav" onclick="drawerAction('profile')">
-      <span class="nav-icon">⚙️</span>
-      <span>Mon profil</span>
+      <span class="nav-icon">⚙️</span><span>Mon profil</span>
     </button>
     <button class="drawer-nav" onclick="drawerAction('preferences')">
-      <span class="nav-icon">🎛️</span>
-      <span>Préférences</span>
+      <span class="nav-icon">🎛️</span><span>Préférences</span>
     </button>
     <button class="drawer-nav" onclick="drawerAction('about')">
-      <span class="nav-icon">ℹ️</span>
-      <span>À propos</span>
+      <span class="nav-icon">ℹ️</span><span>À propos</span>
     </button>
     <button class="drawer-nav drawer-logout" onclick="drawerAction('logout')">
-      <span class="nav-icon">🚪</span>
-      <span>Se déconnecter</span>
+      <span class="nav-icon">🚪</span><span>Se déconnecter</span>
     </button>
   </div>
 
-  <div class="drawer-footer">
-    Ma Super App v2.0
-  </div>
+  <div class="drawer-footer">Ma Super App v2.0</div>
 </aside>
 
-<!-- ============================================================
-     EN-TÊTE
-     ============================================================ -->
+<!-- EN-TÊTE -->
 <header>
   <div class="header-content">
     <button class="burger-btn" onclick="openDrawer()" title="Menu">
-      <span></span>
-      <span></span>
-      <span></span>
+      <span></span><span></span><span></span>
     </button>
     <div class="header-left">
       <h1 id="headerTitle">💰 Ma Super App</h1>
@@ -178,21 +155,17 @@
           </div>
           <div class="user-menu-items">
             <button onclick="openProfileModal()">
-              <span class="icon">👤</span>
-              <span>Mon profil</span>
+              <span class="icon">👤</span><span>Mon profil</span>
             </button>
             <button onclick="openPreferencesModal()">
-              <span class="icon">⚙️</span>
-              <span>Préférences</span>
+              <span class="icon">⚙️</span><span>Préférences</span>
             </button>
             <button onclick="openAboutModal()">
-              <span class="icon">ℹ️</span>
-              <span>À propos</span>
+              <span class="icon">ℹ️</span><span>À propos</span>
             </button>
             <div class="user-divider"></div>
             <button onclick="handleLogout()" class="user-logout">
-              <span class="icon">🚪</span>
-              <span>Se déconnecter</span>
+              <span class="icon">🚪</span><span>Se déconnecter</span>
             </button>
           </div>
         </div>
@@ -201,43 +174,32 @@
   </div>
 </header>
 
-<!-- ============================================================
-     BARRE DE NAVIGATION
-     ============================================================ -->
+<!-- BARRE DE NAVIGATION -->
 <nav class="tabs" id="mainTabs">
   <button class="tab-btn active" data-tab="dash" onclick="showTab('dash',this)">
-    <span class="tab-icon">📊</span>
-    <span class="tab-label">Tableau</span>
+    <span class="tab-icon">📊</span><span class="tab-label">Tableau</span>
   </button>
   <button class="tab-btn" data-tab="historique" onclick="showTab('historique',this)">
-    <span class="tab-icon">📜</span>
-    <span class="tab-label">Historique</span>
+    <span class="tab-icon">📜</span><span class="tab-label">Historique</span>
   </button>
   <button class="tab-btn" data-tab="objectifs" onclick="showTab('objectifs',this)">
-    <span class="tab-icon">🎯</span>
-    <span class="tab-label">Objectifs</span>
+    <span class="tab-icon">🎯</span><span class="tab-label">Objectifs</span>
   </button>
   <button class="tab-btn" data-tab="photo" onclick="showTab('photo',this)">
-    <span class="tab-icon">📸</span>
-    <span class="tab-label">Photo</span>
+    <span class="tab-icon">📸</span><span class="tab-label">Photo</span>
   </button>
   <button class="tab-btn" data-tab="business" onclick="showTab('business',this)">
-    <span class="tab-icon">💡</span>
-    <span class="tab-label">Business</span>
+    <span class="tab-icon">💡</span><span class="tab-label">Business</span>
   </button>
   <button class="tab-btn" data-tab="motiv" onclick="showTab('motiv',this)">
-    <span class="tab-icon">🔥</span>
-    <span class="tab-label">Motivation</span>
+    <span class="tab-icon">🔥</span><span class="tab-label">Motivation</span>
   </button>
   <button class="tab-btn" data-tab="ia" onclick="showTab('ia',this)">
-    <span class="tab-icon">🤖</span>
-    <span class="tab-label">IA</span>
+    <span class="tab-icon">🤖</span><span class="tab-label">IA</span>
   </button>
 </nav>
 
-<!-- ============================================================
-     ONGLET TABLEAU DE BORD
-     ============================================================ -->
+<!-- ONGLET TABLEAU DE BORD -->
 <div class="page active" id="page-dash">
   <div class="container">
     <div class="card quote-box-dash">
@@ -584,7 +546,7 @@
     <input type="time" id="prefEveningTime" value="20:00">
     <button class="btn-primary" onclick="savePreferences()">💾 Enregistrer les préférences</button>
     <div style="font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5">
-      ⚠️ Les préférences sont stockées localement. Pour appliquer les horaires côté serveur, contacte-moi.
+      ⚠️ Les préférences sont stockées localement.
     </div>
   </div>
 </div>
@@ -601,7 +563,7 @@
     </div>
     <div class="about-item">
       <strong>🎯 Fonctionnalités</strong>
-      <div>Gestion financière, clients, séances photo, objectifs d'épargne, IA, notifications push</div>
+      <div>Gestion financière, clients, séances photo, objectifs, IA, notifications push</div>
     </div>
     <div class="about-item">
       <strong>⚙️ Technologies</strong>
@@ -611,15 +573,11 @@
       <strong>📧 Support</strong>
       <div>henzophotographie@gmail.com</div>
     </div>
-    <div class="about-item">
-      <strong>🚀 Développé par</strong>
-      <div>Henzo Koicy — Photographe & développeur</div>
-    </div>
     <button class="btn-ghost" style="margin-top:20px" onclick="closeAboutModal()">Fermer</button>
   </div>
 </div>
 
-<!-- MODALES EXISTANTES -->
+<!-- MODAL TRANSACTION (avec catégorie personnalisée) -->
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-wrap"><h3>Nouvelle transaction</h3>
@@ -629,13 +587,21 @@
       <button id="btnDepense" data-type="depense" class="active" onclick="setType('depense')">Dépense</button>
     </div>
     <label>Montant</label><input type="number" id="amount" inputmode="decimal" placeholder="0">
-    <label>Catégorie</label><select id="category"></select>
+
+    <label>Catégorie</label>
+    <select id="category" onchange="onTxCategoryChange()"></select>
+    <div id="txCustomCategoryWrap" style="display:none;">
+      <label>Précise la catégorie</label>
+      <input type="text" id="txCustomCategory" placeholder="Ex: Coiffure, Cadeau, Épargne...">
+    </div>
+
     <label>Note</label><input type="text" id="note" placeholder="Ex: courses, shooting...">
     <label>Date</label><input type="date" id="date">
     <button class="btn-primary" onclick="saveTx()">Enregistrer</button>
   </div>
 </div>
 
+<!-- AUTRES MODALES -->
 <div class="modal-bg" id="coffreModalBg" onclick="if(event.target===this)closeCoffreModal()">
   <div class="modal">
     <div class="modal-wrap"><h3 id="coffreModalTitle">Nouvel objectif</h3>

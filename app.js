@@ -176,13 +176,11 @@ function updateUserDisplay(user){
   const initials = getInitials(email, profile.displayName);
   const avatarContent = profile.avatarEmoji || initials;
 
-  // Header
   const av  = document.getElementById('userAvatar');
   const nm  = document.getElementById('userNameDisplay');
   if(av) av.textContent = avatarContent;
   if(nm) nm.textContent = displayName;
 
-  // Dropdown header
   const avL = document.getElementById('userAvatarLarge');
   const nmL = document.getElementById('userNameLarge');
   const emL = document.getElementById('userEmail');
@@ -190,7 +188,6 @@ function updateUserDisplay(user){
   if(nmL) nmL.textContent = displayName;
   if(emL) emL.textContent = email;
 
-  // Drawer
   const avD = document.getElementById('drawerAvatar');
   const nmD = document.getElementById('drawerName');
   const emD = document.getElementById('drawerEmail');
@@ -200,7 +197,7 @@ function updateUserDisplay(user){
 }
 
 // ============================================================
-// MENU UTILISATEUR (header)
+// MENU UTILISATEUR
 // ============================================================
 function toggleUserMenu(event){
   if(event) event.stopPropagation();
@@ -217,7 +214,7 @@ document.addEventListener('click', (e) => {
 });
 
 // ============================================================
-// TIROIR LATÉRAL (DRAWER)
+// TIROIR LATÉRAL
 // ============================================================
 function openDrawer(){
   const drawer = document.getElementById('sideDrawer');
@@ -225,7 +222,6 @@ function openDrawer(){
   if(drawer) drawer.classList.add('open');
   if(backdrop) backdrop.classList.add('show');
   document.body.style.overflow = 'hidden';
-  // Synchronise l'onglet actif dans le drawer
   syncDrawerActive();
 }
 
@@ -247,12 +243,10 @@ function syncDrawerActive(){
 }
 
 function drawerNavigate(tab){
-  // Trouve le bouton de tab correspondant et simule un clic
   const btn = document.querySelector(`.tabs .tab-btn[data-tab="${tab}"]`);
   if(btn){
     showTab(tab, btn);
   } else {
-    // Fallback : cherche par onclick
     const allBtns = document.querySelectorAll('.tabs button');
     for(const b of allBtns){
       const onclick = b.getAttribute('onclick') || '';
@@ -464,6 +458,18 @@ function setType(t){
   document.getElementById('btnDepense').classList.toggle('active', t==='depense');
   document.getElementById('category').innerHTML =
     CATEGORIES[t].map(c => `<option>${c}</option>`).join('');
+  // Cache le champ personnalisé
+  const wrap = document.getElementById('txCustomCategoryWrap');
+  if(wrap) wrap.style.display = 'none';
+  const input = document.getElementById('txCustomCategory');
+  if(input) input.value = '';
+}
+
+// Affiche/cache le champ personnalisé quand on choisit "Autre"
+function onTxCategoryChange(){
+  const val = document.getElementById('category').value;
+  const wrap = document.getElementById('txCustomCategoryWrap');
+  if(wrap) wrap.style.display = (val === 'Autre') ? 'block' : 'none';
 }
 
 function openModal(){
@@ -479,10 +485,24 @@ function closeModal(){ document.getElementById('modalBg').classList.remove('show
 async function saveTx(){
   const amount = parseFloat(document.getElementById('amount').value);
   if(!amount || amount <= 0){ alert("Montant invalide"); return; }
+
+  let category = document.getElementById('category').value;
+
+  // Si "Autre" est choisi, on utilise la valeur personnalisée
+  if(category === 'Autre'){
+    const custom = document.getElementById('txCustomCategory').value.trim();
+    if(custom){
+      category = custom;
+    } else {
+      alert("Précise la catégorie (ou choisis-en une dans la liste)");
+      return;
+    }
+  }
+
   const result = await dbInsert('transactions', {
     type: currentType,
     amount,
-    category: document.getElementById('category').value,
+    category,
     note:     document.getElementById('note').value.trim(),
     date:     document.getElementById('date').value || todayStr()
   });
