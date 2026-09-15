@@ -28,7 +28,7 @@ const todayStr = () => new Date().toISOString().slice(0,10);
 const monthKey = d => (d || todayStr()).slice(0,7);
 
 // ============================================================
-// PROFIL UTILISATEUR (stocké dans localStorage)
+// PROFIL UTILISATEUR
 // ============================================================
 function getProfileKey(email){
   return 'user_profile_' + (email || 'anon');
@@ -44,12 +44,9 @@ function getUserProfile(email){
 function saveUserProfile(email, profile){
   localStorage.setItem(getProfileKey(email), JSON.stringify(profile));
 }
-
 function getInitials(email, displayName){
   const name = displayName || email || '?';
-  if(name.includes('@')){
-    return name.charAt(0).toUpperCase();
-  }
+  if(name.includes('@')) return name.charAt(0).toUpperCase();
   const parts = name.trim().split(/\s+/);
   if(parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return name.substring(0, 2).toUpperCase();
@@ -157,7 +154,6 @@ async function startApp(){
   document.getElementById('today').textContent =
     new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
-  // Met à jour l'affichage du profil
   const user = await getCurrentUser();
   if(user) updateUserDisplay(user);
 
@@ -171,7 +167,7 @@ function showLogin(){
 }
 
 // ============================================================
-// AFFICHAGE DU PROFIL UTILISATEUR
+// AFFICHAGE DU PROFIL
 // ============================================================
 function updateUserDisplay(user){
   const email = user?.email || '';
@@ -186,39 +182,109 @@ function updateUserDisplay(user){
   if(av) av.textContent = avatarContent;
   if(nm) nm.textContent = displayName;
 
-  // Dropdown
+  // Dropdown header
   const avL = document.getElementById('userAvatarLarge');
   const nmL = document.getElementById('userNameLarge');
   const emL = document.getElementById('userEmail');
   if(avL) avL.textContent = avatarContent;
   if(nmL) nmL.textContent = displayName;
   if(emL) emL.textContent = email;
+
+  // Drawer
+  const avD = document.getElementById('drawerAvatar');
+  const nmD = document.getElementById('drawerName');
+  const emD = document.getElementById('drawerEmail');
+  if(avD) avD.textContent = avatarContent;
+  if(nmD) nmD.textContent = displayName;
+  if(emD) emD.textContent = email;
 }
 
 // ============================================================
-// MENU UTILISATEUR
+// MENU UTILISATEUR (header)
 // ============================================================
 function toggleUserMenu(event){
   if(event) event.stopPropagation();
   const dd = document.getElementById('userDropdown');
   if(dd) dd.classList.toggle('show');
 }
-
 function closeUserMenu(){
   const dd = document.getElementById('userDropdown');
   if(dd) dd.classList.remove('show');
 }
-
-// Ferme le menu si on clique ailleurs
 document.addEventListener('click', (e) => {
   const menu = document.querySelector('.user-menu');
-  if(menu && !menu.contains(e.target)){
-    closeUserMenu();
-  }
+  if(menu && !menu.contains(e.target)) closeUserMenu();
 });
 
 // ============================================================
-// AJOUT RAPIDE (bouton + dans le header)
+// TIROIR LATÉRAL (DRAWER)
+// ============================================================
+function openDrawer(){
+  const drawer = document.getElementById('sideDrawer');
+  const backdrop = document.getElementById('drawerBackdrop');
+  if(drawer) drawer.classList.add('open');
+  if(backdrop) backdrop.classList.add('show');
+  document.body.style.overflow = 'hidden';
+  // Synchronise l'onglet actif dans le drawer
+  syncDrawerActive();
+}
+
+function closeDrawer(){
+  const drawer = document.getElementById('sideDrawer');
+  const backdrop = document.getElementById('drawerBackdrop');
+  if(drawer) drawer.classList.remove('open');
+  if(backdrop) backdrop.classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function syncDrawerActive(){
+  const active = localStorage.getItem('active_tab') || 'dash';
+  document.querySelectorAll('.drawer-nav').forEach(btn => {
+    const t = btn.getAttribute('data-tab');
+    if(t === active) btn.classList.add('active');
+    else btn.classList.remove('active');
+  });
+}
+
+function drawerNavigate(tab){
+  // Trouve le bouton de tab correspondant et simule un clic
+  const btn = document.querySelector(`.tabs .tab-btn[data-tab="${tab}"]`);
+  if(btn){
+    showTab(tab, btn);
+  } else {
+    // Fallback : cherche par onclick
+    const allBtns = document.querySelectorAll('.tabs button');
+    for(const b of allBtns){
+      const onclick = b.getAttribute('onclick') || '';
+      if(onclick.includes(`'${tab}'`)){
+        showTab(tab, b);
+        break;
+      }
+    }
+  }
+  syncDrawerActive();
+  closeDrawer();
+}
+
+function drawerAction(action){
+  closeDrawer();
+  setTimeout(() => {
+    switch(action){
+      case 'addTx':        openModal(); break;
+      case 'addClient':    openClientModal(); break;
+      case 'addShoot':     openShootModal(); break;
+      case 'addGoal':      openCoffreModal(); break;
+      case 'analyze':      drawerNavigate('ia'); break;
+      case 'profile':      openProfileModal(); break;
+      case 'preferences':  openPreferencesModal(); break;
+      case 'about':        openAboutModal(); break;
+      case 'logout':       handleLogout(); break;
+    }
+  }, 250);
+}
+
+// ============================================================
+// AJOUT RAPIDE
 // ============================================================
 function openQuickAdd(){
   closeUserMenu();
@@ -248,11 +314,9 @@ async function openProfileModal(){
 
   document.getElementById('profileModalBg').classList.add('show');
 }
-
 function closeProfileModal(){
   document.getElementById('profileModalBg').classList.remove('show');
 }
-
 async function saveProfile(){
   const user = await getCurrentUser();
   if(!user) return;
@@ -273,48 +337,34 @@ async function saveProfile(){
 
 function changeAvatar(){
   const emojis = ['😎','📸','🔥','🚀','💪','⭐','🎯','💎','🏆','🌟','⚡','🎨','🎬','💼','🦁','🐺','🌞','🍀','🎁','👑'];
-  const current = getUserProfile((localStorage.getItem('user_email') || '')).avatarEmoji;
   let msg = 'Choisis un emoji (ou tape 0 pour revenir aux initiales) :\n\n';
   emojis.forEach((e, i) => msg += (i+1) + '. ' + e + '   ');
-  msg += '\n\nNuméro (1-' + emojis.length + ') :';
+  msg += '\n\nNuméro (1-' + emojis.length + ') ou 0 :';
 
   const choice = prompt(msg, '');
   if(choice === null) return;
 
-  const n = parseInt(choice);
-  if(n === 0 || choice === '0'){
-    // Reset aux initiales
-    const profile = getUserProfile('');
-    profile.avatarEmoji = '';
-    // On stocke sur toutes les clés possibles
-    // (on va plutôt passer par une fonction qui écrit sur la vraie clé)
-  }
+  getCurrentUser().then(user => {
+    if(!user) return;
+    const profile = getUserProfile(user.email);
 
-  if(n >= 1 && n <= emojis.length){
-    const newEmoji = emojis[n-1];
-    // Récupère l'email actuel
-    getCurrentUser().then(user => {
-      if(!user) return;
-      const profile = getUserProfile(user.email);
-      profile.avatarEmoji = newEmoji;
-      saveUserProfile(user.email, profile);
-      updateUserDisplay(user);
-
-      const preview = document.getElementById('profileAvatarPreview');
-      if(preview) preview.textContent = newEmoji;
-    });
-  } else if(choice === '0'){
-    getCurrentUser().then(user => {
-      if(!user) return;
-      const profile = getUserProfile(user.email);
+    if(choice === '0'){
       profile.avatarEmoji = '';
-      saveUserProfile(user.email, profile);
-      updateUserDisplay(user);
+    } else {
+      const n = parseInt(choice);
+      if(n >= 1 && n <= emojis.length){
+        profile.avatarEmoji = emojis[n-1];
+      } else {
+        return;
+      }
+    }
 
-      const preview = document.getElementById('profileAvatarPreview');
-      if(preview) preview.textContent = getInitials(user.email, profile.displayName);
-    });
-  }
+    saveUserProfile(user.email, profile);
+    updateUserDisplay(user);
+
+    const preview = document.getElementById('profileAvatarPreview');
+    if(preview) preview.textContent = profile.avatarEmoji || getInitials(user.email, profile.displayName);
+  });
 }
 
 // ============================================================
@@ -322,8 +372,6 @@ function changeAvatar(){
 // ============================================================
 function openPreferencesModal(){
   closeUserMenu();
-
-  // Charge les préférences sauvegardées
   const prefs = JSON.parse(localStorage.getItem('user_preferences') || '{}');
 
   document.getElementById('prefCurrency').value      = prefs.currency || CURRENCY || 'FCFA';
@@ -334,11 +382,9 @@ function openPreferencesModal(){
 
   document.getElementById('preferencesModalBg').classList.add('show');
 }
-
 function closePreferencesModal(){
   document.getElementById('preferencesModalBg').classList.remove('show');
 }
-
 function savePreferences(){
   const prefs = {
     currency:      document.getElementById('prefCurrency').value,
@@ -347,10 +393,9 @@ function savePreferences(){
     middayTime:    document.getElementById('prefMiddayTime').value,
     eveningTime:   document.getElementById('prefEveningTime').value
   };
-
   localStorage.setItem('user_preferences', JSON.stringify(prefs));
   closePreferencesModal();
-  alert('✅ Préférences enregistrées !\n\nNote : la devise sera appliquée dans une prochaine mise à jour.');
+  alert('✅ Préférences enregistrées !');
 }
 
 // ============================================================
@@ -360,13 +405,12 @@ function openAboutModal(){
   closeUserMenu();
   document.getElementById('aboutModalBg').classList.add('show');
 }
-
 function closeAboutModal(){
   document.getElementById('aboutModalBg').classList.remove('show');
 }
 
 // ============================================================
-// NAVIGATION + MÉMORISATION DE L'ONGLET
+// NAVIGATION
 // ============================================================
 function showTab(name, btn){
   localStorage.setItem('active_tab', name);
@@ -393,6 +437,8 @@ function showTab(name, btn){
     populateHistFilters();
     if(typeof renderHistory === 'function') renderHistory();
   }
+
+  syncDrawerActive();
 }
 
 function restoreLastTab(){
@@ -547,7 +593,7 @@ function buildInsights(){
 }
 
 // ============================================================
-// RENDU PRINCIPAL
+// RENDU
 // ============================================================
 function render(){
   renderDashboard();
