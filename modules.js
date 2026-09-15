@@ -1675,7 +1675,7 @@ async function toggleNotifications(){
   }
 }
 
-async function updateNotifButton(){
+function updateNotifButton(){
   const btn = document.getElementById('notifBtn');
   const status = document.getElementById('notifStatus');
   if(!btn) return;
@@ -1683,14 +1683,6 @@ async function updateNotifButton(){
     btn.classList.add('active');
     btn.textContent = '✅ Notifications activées';
     if(status) status.textContent = 'Tu recevras tes rappels sur tous tes appareils';
-    // Lie l'utilisateur à OneSignal au démarrage
-    try {
-      const OneSignal = window.OneSignal;
-      const user = await getCurrentUser();
-      if(OneSignal && user && user.email){
-        await OneSignal.login(user.email);
-      }
-    } catch(e){ console.warn(e); }
   } else {
     btn.classList.remove('active');
     btn.textContent = '🔔 Activer les notifications';
