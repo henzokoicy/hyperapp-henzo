@@ -181,9 +181,6 @@ h2{font-size:13px;font-weight:600;margin:0 0 12px;color:var(--muted);
   background:rgba(255,107,157,.15);color:var(--pink);
   font-size:11px;font-weight:600;margin-top:8px;margin-right:4px;}
 
-/* ============================================================
-   ÉCRAN DE CONNEXION
-   ============================================================ */
 #loginScreen{
   display:flex;align-items:center;justify-content:center;
   min-height:100vh;padding:20px;
@@ -216,9 +213,6 @@ body:not(.logged-out) #loginScreen{display:none;}
 
 @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 
-/* ============================================================
-   AUTOCOMPLÉTION VILLES
-   ============================================================ */
 .autocomplete-wrap{position:relative;}
 .autocomplete-list{
   position:absolute;top:100%;left:0;right:0;
@@ -233,9 +227,6 @@ body:not(.logged-out) #loginScreen{display:none;}
 .autocomplete-list div:last-child{border-bottom:none;}
 .autocomplete-list div:hover{background:var(--card);}
 
-/* ============================================================
-   NOUVELLE VUE D'ENSEMBLE (grille de stats)
-   ============================================================ */
 .grid-stats{
   display:grid;grid-template-columns:1fr 1fr;gap:10px;
 }
@@ -246,9 +237,6 @@ body:not(.logged-out) #loginScreen{display:none;}
 .mini-stat .num{font-size:20px;font-weight:700;margin-bottom:4px;}
 .mini-stat .lbl{color:var(--muted);font-size:11px;}
 
-/* ============================================================
-   SCORE DE SANTÉ
-   ============================================================ */
 .score-wrap{
   display:flex;align-items:center;gap:16px;
 }
@@ -268,9 +256,6 @@ body:not(.logged-out) #loginScreen{display:none;}
 .score-title{font-weight:600;font-size:14px;margin-bottom:4px;}
 .score-text{color:var(--muted);font-size:12px;line-height:1.4;}
 
-/* ============================================================
-   DIAGRAMME DONUT
-   ============================================================ */
 .donut-wrap{
   display:flex;align-items:center;gap:20px;
   flex-wrap:wrap;justify-content:center;
@@ -295,9 +280,6 @@ body:not(.logged-out) #loginScreen{display:none;}
 .legend-label{flex:1;color:var(--muted);}
 .legend-value{font-weight:600;}
 
-/* ============================================================
-   BARRES 6 MOIS
-   ============================================================ */
 .bars-6m{
   display:flex;align-items:flex-end;justify-content:space-between;
   gap:6px;height:140px;padding-top:10px;
@@ -319,9 +301,6 @@ body:not(.logged-out) #loginScreen{display:none;}
   white-space:nowrap;
 }
 
-/* ============================================================
-   SUGGESTIONS INTELLIGENTES
-   ============================================================ */
 .suggestion{
   background:linear-gradient(135deg,rgba(108,140,255,.1),rgba(255,107,157,.05));
   border-radius:12px;padding:14px;margin-bottom:10px;
@@ -330,6 +309,7 @@ body:not(.logged-out) #loginScreen{display:none;}
 .suggestion .icon{font-size:20px;margin-bottom:6px;}
 .suggestion .title{font-weight:600;font-size:14px;margin-bottom:4px;}
 .suggestion .body{font-size:13px;color:var(--muted);line-height:1.5;}
+
 /* ============================================================
    ONGLET HISTORIQUE
    ============================================================ */
@@ -433,3 +413,286 @@ body:not(.logged-out) #loginScreen{display:none;}
   flex-shrink:0;
 }
 .hist-del:hover{color:var(--red);}
+
+/* ============================================================
+   OBJECTIFS — DESIGN AMÉLIORÉ
+   ============================================================ */
+.motivation-card{
+  background:linear-gradient(135deg,#2a2f3a 0%,#1a1d24 100%);
+  border:1px solid var(--border);
+  text-align:center;
+  padding:24px 18px;
+  position:relative;
+  overflow:hidden;
+}
+.motivation-card::before{
+  content:'';
+  position:absolute;
+  top:-50%;right:-50%;
+  width:200%;height:200%;
+  background:radial-gradient(circle,rgba(108,140,255,.15) 0%,transparent 70%);
+  pointer-events:none;
+}
+.motiv-icon{
+  font-size:48px;
+  margin-bottom:10px;
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{
+  0%,100%{transform:scale(1);}
+  50%{transform:scale(1.1);}
+}
+.motiv-title{
+  font-size:16px;
+  font-weight:700;
+  margin-bottom:8px;
+  color:var(--accent);
+}
+.motiv-text{
+  font-size:14px;
+  line-height:1.5;
+  color:var(--text);
+  max-width:400px;
+  margin:0 auto;
+}
+
+.defi-card{
+  background:linear-gradient(135deg,rgba(255,107,157,.15),rgba(108,140,255,.1));
+  border:1px solid var(--pink);
+}
+.defi-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+}
+.defi-label{
+  font-size:12px;
+  font-weight:700;
+  color:var(--pink);
+  letter-spacing:1px;
+}
+.defi-date{
+  font-size:11px;
+  color:var(--muted);
+}
+.defi-text{
+  font-size:15px;
+  line-height:1.5;
+  margin-bottom:14px;
+  color:var(--text);
+}
+.defi-btn{
+  background:var(--pink);
+  color:#fff;
+  border:none;
+  font-weight:600;
+  cursor:pointer;
+  padding:12px;
+  border-radius:10px;
+  width:100%;
+  font-size:14px;
+  transition:all .2s;
+}
+.defi-btn:hover{opacity:.9;}
+.defi-btn.done{
+  background:var(--green);
+  color:#000;
+}
+.defi-streak{
+  text-align:center;
+  font-size:12px;
+  color:var(--muted);
+  margin-top:8px;
+}
+
+.coffre{
+  background:linear-gradient(135deg,#232830 0%,#1a1d24 100%);
+  border-radius:16px;
+  padding:16px;
+  margin-bottom:12px;
+  border:1px solid var(--border);
+  position:relative;
+  overflow:hidden;
+}
+.coffre.completed{
+  border-color:var(--green);
+  box-shadow:0 0 20px rgba(46,204,113,.2);
+}
+.coffre-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:12px;
+  gap:8px;
+}
+.coffre-name{
+  font-size:16px;
+  font-weight:700;
+  flex:1;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.coffre-emoji{font-size:22px;}
+.coffre-badge{
+  padding:4px 10px;
+  border-radius:20px;
+  font-size:11px;
+  font-weight:700;
+  background:var(--card2);
+  color:var(--accent);
+  white-space:nowrap;
+}
+.coffre-badge.done{background:var(--green);color:#000;}
+
+.coffre-progress{
+  position:relative;
+  height:14px;
+  background:var(--card2);
+  border-radius:7px;
+  overflow:hidden;
+  margin-bottom:8px;
+}
+.coffre-progress-fill{
+  height:100%;
+  border-radius:7px;
+  transition:width .6s ease, background .6s;
+}
+.coffre-paliers{
+  display:flex;
+  justify-content:space-between;
+  font-size:10px;
+  color:var(--muted);
+  margin-bottom:12px;
+  padding:0 2px;
+}
+.coffre-paliers span{position:relative;}
+.coffre-paliers span.reached{color:var(--green);font-weight:700;}
+
+.coffre-amounts{
+  display:flex;
+  justify-content:space-between;
+  font-size:13px;
+  margin-bottom:10px;
+}
+.coffre-amounts .current{font-weight:700;color:var(--green);}
+.coffre-amounts .goal{color:var(--muted);}
+.coffre-amounts .rest{
+  font-size:12px;
+  color:var(--yellow);
+  font-weight:600;
+}
+
+.coffre-why{
+  font-size:12px;
+  color:var(--muted);
+  font-style:italic;
+  padding:8px 10px;
+  background:rgba(108,140,255,.08);
+  border-radius:8px;
+  margin-bottom:10px;
+  border-left:3px solid var(--accent);
+}
+
+.coffre-message{
+  font-size:13px;
+  font-weight:600;
+  padding:10px 12px;
+  border-radius:10px;
+  margin-bottom:12px;
+  text-align:center;
+}
+.coffre-message.level-1{background:rgba(255,92,92,.15);color:#ff8c8c;}
+.coffre-message.level-2{background:rgba(245,185,66,.15);color:var(--yellow);}
+.coffre-message.level-3{background:rgba(108,140,255,.15);color:var(--accent);}
+.coffre-message.level-4{background:rgba(46,204,113,.15);color:var(--green);}
+.coffre-message.level-5{background:rgba(46,204,113,.3);color:var(--green);}
+
+.coffre-next{
+  font-size:12px;
+  color:var(--muted);
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:12px;
+  padding:0 4px;
+}
+
+.coffre-actions{
+  display:flex;
+  gap:6px;
+}
+.coffre-actions button{
+  padding:10px;
+  font-size:12px;
+  cursor:pointer;
+  border-radius:10px;
+  font-weight:600;
+  flex:1;
+}
+
+.analyse-item{
+  background:var(--card2);
+  border-radius:12px;
+  padding:14px;
+  margin-bottom:10px;
+  border-left:3px solid var(--accent);
+  font-size:13px;
+  line-height:1.5;
+}
+.analyse-item strong{
+  color:var(--accent);
+  display:block;
+  margin-bottom:4px;
+  font-size:14px;
+}
+.analyse-item.warn{border-left-color:var(--yellow);}
+.analyse-item.warn strong{color:var(--yellow);}
+.analyse-item.good{border-left-color:var(--green);}
+.analyse-item.good strong{color:var(--green);}
+.analyse-item.danger{border-left-color:var(--red);}
+.analyse-item.danger strong{color:var(--red);}
+
+/* ============================================================
+   CITATION SUR LE TABLEAU DE BORD
+   ============================================================ */
+.quote-box-dash{
+  background:linear-gradient(135deg,#2a2f3a 0%,#1a1d24 100%);
+  border:1px solid var(--accent);
+  text-align:center;
+  padding:24px 18px;
+  position:relative;
+  overflow:hidden;
+}
+.quote-box-dash::before{
+  content:'';
+  position:absolute;
+  top:-50%;right:-50%;
+  width:200%;height:200%;
+  background:radial-gradient(circle,rgba(108,140,255,.15) 0%,transparent 70%);
+  pointer-events:none;
+}
+.quote-box-dash .emoji{
+  font-size:40px;
+  margin-bottom:10px;
+  animation:pulse 2s infinite;
+}
+.quote-box-dash .q{
+  font-size:16px;
+  font-weight:500;
+  line-height:1.5;
+  font-style:italic;
+  margin-bottom:10px;
+  position:relative;
+}
+.quote-box-dash .a{
+  font-size:12px;
+  color:var(--muted);
+  position:relative;
+}
+
+#notifBtn.active{
+  background:var(--green);
+  color:#000;
+}

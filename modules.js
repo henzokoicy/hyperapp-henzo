@@ -62,8 +62,225 @@ function selectCity(inputId, listId, city){
 }
 
 // ============================================================
-// MODULE OBJECTIFS
+// MODULE OBJECTIFS AMÉLIORÉ
 // ============================================================
+
+function getCoffreEmoji(name){
+  const n = name.toLowerCase();
+  if(n.includes('urgence') || n.includes('secours')) return '🛡️';
+  if(n.includes('voyage') || n.includes('vacance')) return '✈️';
+  if(n.includes('maison') || n.includes('appart')) return '🏠';
+  if(n.includes('voiture') || n.includes('auto') || n.includes('moto')) return '🚗';
+  if(n.includes('mariage')) return '💍';
+  if(n.includes('étud') || n.includes('formation')) return '🎓';
+  if(n.includes('business') || n.includes('entreprise')) return '💼';
+  if(n.includes('retraite')) return '🌴';
+  if(n.includes('matos') || n.includes('matériel')) return '📷';
+  if(n.includes('ordinateur') || n.includes('pc')) return '💻';
+  if(n.includes('téléphone') || n.includes('phone')) return '📱';
+  if(n.includes('santé') || n.includes('médec')) return '💊';
+  return '🎯';
+}
+
+function getMotivationMessage(pct){
+  if(pct >= 100) return {level:5, msg:'🎉 OBJECTIF ATTEINT ! Tu es une machine !'};
+  if(pct >= 75) return {level:4, msg:'🔥 Tu y es presque ! Plus que quelques efforts.'};
+  if(pct >= 50) return {level:3, msg:'💪 À mi-chemin ! Le plus dur est derrière toi.'};
+  if(pct >= 25) return {level:2, msg:'⚡ Bon démarrage ! Garde le rythme.'};
+  if(pct > 0)   return {level:1, msg:'🌱 C\'est parti ! Chaque franc compte.'};
+  return {level:1, msg:'🎯 C\'est le moment de commencer !'};
+}
+
+function getProgressionColor(pct){
+  if(pct >= 100) return 'var(--green)';
+  if(pct >= 75) return '#5fd47f';
+  if(pct >= 50) return 'var(--accent)';
+  if(pct >= 25) return 'var(--yellow)';
+  return 'var(--red)';
+}
+
+function renderMotivationJour(){
+  const totalGoal = coffres.reduce((s,c) => s + Number(c.goal || 0), 0);
+  const totalCurrent = coffres.reduce((s,c) => s + Number(c.current || 0), 0);
+  const globalPct = totalGoal > 0 ? (totalCurrent / totalGoal) * 100 : 0;
+
+  const icons = ['🔥','💪','🚀','⭐','💎','🏆','🌟','⚡'];
+  const today = new Date().getDate();
+  const icon = icons[today % icons.length];
+
+  let title, text;
+  if(coffres.length === 0){
+    title = '🚀 Lance-toi !';
+    text = 'Crée ton premier objectif et commence à épargner. Chaque grand voyage commence par un petit pas.';
+  } else if(globalPct >= 100){
+    title = '🏆 Champion !';
+    text = 'Tu as atteint 100% de tes objectifs. Fais-toi plaisir, tu l\'as mérité, et lance-toi un nouveau défi !';
+  } else if(globalPct >= 75){
+    title = '🔥 Tu y es presque !';
+    text = `Tu es à ${globalPct.toFixed(0)}% de tes objectifs. Encore un petit effort et tu y seras. Ne lâche rien maintenant !`;
+  } else if(globalPct >= 50){
+    title = '💪 À mi-chemin !';
+    text = `Tu as complété ${globalPct.toFixed(0)}% de tes objectifs. Le plus dur est fait. Continue à mettre de côté régulièrement.`;
+  } else if(globalPct >= 25){
+    title = '⚡ Bon démarrage !';
+    text = `Tu es à ${globalPct.toFixed(0)}% de tes objectifs. Garde ce rythme, tu es sur la bonne voie !`;
+  } else if(globalPct > 0){
+    title = '🌱 C\'est parti !';
+    text = `Tu as commencé, c'est l'essentiel. Chaque franc épargné te rapproche de ton but. Tiens bon !`;
+  } else {
+    title = '🎯 À toi de jouer !';
+    text = 'Tes objectifs t\'attendent. Commence par un petit montant aujourd\'hui, même 1000 FCFA.';
+  }
+
+  const icon1 = document.getElementById('motivIcon');
+  const title1 = document.getElementById('motivTitle');
+  const text1 = document.getElementById('motivText');
+  if(icon1) icon1.textContent = icon;
+  if(title1) title1.textContent = title;
+  if(text1) text1.textContent = text;
+}
+
+const DEFIS = [
+  "Aujourd'hui, n'achète rien d'impulsif. Avant chaque achat, demande-toi : 'Est-ce que j'en ai VRAIMENT besoin ?'",
+  "Épargne 1000 FCFA aujourd'hui, même si c'est symbolique. Le geste compte plus que le montant.",
+  "Note TOUS tes achats de la journée, même un simple café. La conscience est le premier pas.",
+  "Prépare ton repas maison au lieu de commander. Économie garantie.",
+  "Évite les réseaux sociaux pendant 2h et utilise ce temps pour réfléchir à un revenu supplémentaire.",
+  "Contacte un ancien client pour prendre de ses nouvelles. Le réseau, c'est du business qui dort.",
+  "Aujourd'hui, utilise uniquement du cash. Pas de carte, pas de mobile money. Tu verras la différence.",
+  "Range ton espace de travail. Un esprit clair attire plus d'opportunités.",
+  "Envoie un message à 3 clients passés pour leur proposer une mini-session à prix réduit.",
+  "Fais le point sur tes abonnements : y en a-t-il un que tu peux annuler ?",
+  "Aujourd'hui, pas de livraison. Va chercher toi-même ce dont tu as besoin.",
+  "Prends 15 minutes pour écrire tes 3 objectifs financiers des 3 prochains mois.",
+  "Poste une de tes meilleures photos sur Instagram avec un prix 'à partir de'. Teste le marché.",
+  "Contacte un photographe pro pour échanger des conseils. Le réseau pro est précieux.",
+  "Aujourd'hui, dis non à une dépense qui ne sert pas ton futur."
+];
+
+function renderDefiDuJour(){
+  const today = new Date();
+  const dayKey = today.toISOString().slice(0,10);
+  const dayIndex = Math.floor(new Date(dayKey).getTime() / 86400000) % DEFIS.length;
+
+  const defiEl  = document.getElementById('defiText');
+  const dateEl  = document.getElementById('defiDate');
+  const btnEl   = document.getElementById('defiBtn');
+  const streakEl = document.getElementById('defiStreak');
+
+  if(defiEl){
+    defiEl.textContent = DEFIS[dayIndex];
+    dateEl.textContent = today.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
+  }
+
+  const doneKey = `defi_${dayKey}`;
+  if(localStorage.getItem(doneKey)){
+    btnEl.classList.add('done');
+    btnEl.textContent = '✅ Défi relevé !';
+  } else {
+    btnEl.classList.remove('done');
+    btnEl.textContent = '✓ J\'ai relevé le défi';
+  }
+
+  let streak = 0;
+  let d = new Date(today);
+  while(true){
+    const k = `defi_${d.toISOString().slice(0,10)}`;
+    if(localStorage.getItem(k)){ streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  if(streak > 0){
+    streakEl.textContent = `🔥 Série : ${streak} jour${streak>1?'s':''} d'affilée !`;
+  } else {
+    streakEl.textContent = '';
+  }
+}
+
+function validerDefi(){
+  const dayKey = new Date().toISOString().slice(0,10);
+  localStorage.setItem(`defi_${dayKey}`, '1');
+  renderDefiDuJour();
+}
+
+function renderAnalysePercutante(){
+  const el = document.getElementById('analysePercutante');
+  if(coffres.length === 0){
+    el.innerHTML = '<div class="empty">Crée un objectif pour voir l\'analyse.</div>';
+    return;
+  }
+
+  const items = [];
+
+  coffres.forEach(c => {
+    const current = Number(c.current || 0);
+    const goal = Number(c.goal || 1);
+    const rest = Math.max(0, goal - current);
+    const pct = (current / goal) * 100;
+
+    if(pct >= 100){
+      items.push({
+        cls:'good',
+        title:`✅ ${c.name} — Terminé !`,
+        text:`Tu as réussi à épargner ${fmt(goal)}. Félicitations, c'est une vraie victoire !`
+      });
+      return;
+    }
+
+    if(c.target_date){
+      const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
+      if(days > 0){
+        const perDay = rest / days;
+        const perWeek = perDay * 7;
+        const perMonth = perDay * 30;
+
+        const s = computeStats();
+        const monthlyCapacity = s.bal > 0 ? s.bal : (s.totalIn * SAVINGS_TARGET);
+
+        if(monthlyCapacity >= perMonth){
+          items.push({
+            cls:'good',
+            title:`🎯 ${c.name} est faisable !`,
+            text:`À ton rythme actuel, tu peux y arriver. Il te faut ${fmt(perMonth)}/mois, soit ${fmt(perWeek)}/semaine ou ${fmt(perDay)}/jour.`
+          });
+        } else {
+          items.push({
+            cls:'warn',
+            title:`⚠ ${c.name} — Rythme serré`,
+            text:`Il te faudrait ${fmt(perMonth)}/mois, mais ta capacité d'épargne estimée est de ${fmt(monthlyCapacity)}. Soit tu prolonges la date, soit tu augmentes tes revenus.`
+          });
+        }
+      }
+    } else {
+      items.push({
+        cls:'',
+        title:`📊 ${c.name} — ${pct.toFixed(0)}%`,
+        text:`Il te reste ${fmt(rest)}. À 5000 FCFA/semaine, tu atteindras ton objectif dans ${Math.ceil(rest / 5000)} semaines.`
+      });
+    }
+  });
+
+  const totalGoal = coffres.reduce((s,c) => s + Number(c.goal || 0), 0);
+  const totalCurrent = coffres.reduce((s,c) => s + Number(c.current || 0), 0);
+  const globalPct = (totalCurrent / totalGoal) * 100;
+
+  if(coffres.length >= 2){
+    items.push({
+      cls: globalPct >= 50 ? 'good' : 'warn',
+      title: '💡 Conseil global',
+      text: globalPct >= 50
+        ? `Tu progresses bien sur l'ensemble de tes ${coffres.length} objectifs (${globalPct.toFixed(0)}% total). Concentre-toi maintenant sur celui qui est le plus loin du but.`
+        : `Tu as ${coffres.length} objectifs en cours mais seulement ${globalPct.toFixed(0)}% complétés. Peut-être te concentrer sur 1 ou 2 objectifs serait plus efficace.`
+    });
+  }
+
+  el.innerHTML = items.map(i => `
+    <div class="analyse-item ${i.cls}">
+      <strong>${i.title}</strong>
+      ${i.text}
+    </div>
+  `).join('');
+}
+
 function openCoffreModal(id){
   editingCoffreId = id || null;
   const c = id ? coffres.find(x => x.id === id) : null;
@@ -130,35 +347,91 @@ async function confirmDeposit(){
   closeDepositModal();
   refreshAll();
 }
+
 function renderCoffres(){
+  renderMotivationJour();
+  renderDefiDuJour();
+  renderAnalysePercutante();
+
   const el = document.getElementById('coffresList');
   if(coffres.length === 0){
     el.innerHTML = '<div class="empty">Aucun objectif. Crées-en un.</div>';
     return;
   }
+
   el.innerHTML = coffres.map(c => {
-    const pct  = Math.min(100, (Number(c.current) / Number(c.goal)) * 100);
-    const rest = Math.max(0, Number(c.goal) - Number(c.current));
+    const current = Number(c.current || 0);
+    const goal    = Number(c.goal || 1);
+    const pct     = Math.min(100, (current / goal) * 100);
+    const rest    = Math.max(0, goal - current);
+    const mot     = getMotivationMessage(pct);
+    const color   = getProgressionColor(pct);
+    const emoji   = getCoffreEmoji(c.name);
+    const done    = pct >= 100;
+
     let timeInfo = '';
     if(c.target_date && rest > 0){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
       if(days > 0){
-        const perMonth = (rest / days) * 30;
-        timeInfo = `<div class="amt"><span>⏱ ${days}j restants</span><span>≈ ${fmt(perMonth)}/mois</span></div>`;
+        const perWeek = (rest / days) * 7;
+        timeInfo = `<div class="coffre-next">
+          <span>⏱ ${days} jours restants</span>
+          <span>${fmt(perWeek)}/semaine</span>
+        </div>`;
       } else {
-        timeInfo = `<div class="amt"><span style="color:var(--red)">⚠ Date dépassée</span></div>`;
+        timeInfo = `<div class="coffre-next"><span style="color:var(--red)">⚠ Date dépassée</span></div>`;
       }
+    } else if(rest > 0){
+      timeInfo = `<div class="coffre-next">
+        <span>💡 Astuce : ajoute régulièrement de petites sommes</span>
+      </div>`;
     }
-    return `<div class="coffre">
-      <div class="head"><div class="name">${c.name}</div><div class="pct">${pct.toFixed(0)}%</div></div>
-      <div class="bar"><div style="width:${pct}%;background:${pct>=100?'var(--green)':'var(--accent)'}"></div></div>
-      <div class="amt"><span>${fmt(c.current)} / ${fmt(c.goal)}</span><span>Reste: ${fmt(rest)}</span></div>
+
+    let badge = '';
+    if(pct >= 100) badge = '<span class="coffre-badge done">🏆 Atteint</span>';
+    else if(pct >= 75) badge = '<span class="coffre-badge">🔥 ' + pct.toFixed(0) + '%</span>';
+    else if(pct >= 50) badge = '<span class="coffre-badge">💪 ' + pct.toFixed(0) + '%</span>';
+    else if(pct >= 25) badge = '<span class="coffre-badge">⚡ ' + pct.toFixed(0) + '%</span>';
+    else badge = '<span class="coffre-badge">🌱 ' + pct.toFixed(0) + '%</span>';
+
+    const p25 = pct >= 25 ? 'reached' : '';
+    const p50 = pct >= 50 ? 'reached' : '';
+    const p75 = pct >= 75 ? 'reached' : '';
+    const p100 = pct >= 100 ? 'reached' : '';
+
+    return `<div class="coffre ${done ? 'completed' : ''}">
+      <div class="coffre-header">
+        <div class="coffre-name">
+          <span class="coffre-emoji">${emoji}</span>
+          ${c.name}
+        </div>
+        ${badge}
+      </div>
+
+      <div class="coffre-progress">
+        <div class="coffre-progress-fill" style="width:${pct}%;background:${color}"></div>
+      </div>
+      <div class="coffre-paliers">
+        <span class="${p25}">25%</span>
+        <span class="${p50}">50%</span>
+        <span class="${p75}">75%</span>
+        <span class="${p100}">100%</span>
+      </div>
+
+      <div class="coffre-amounts">
+        <div><span class="current">${fmt(current)}</span> <span class="goal">/ ${fmt(goal)}</span></div>
+        ${rest > 0 ? `<div class="rest">Reste : ${fmt(rest)}</div>` : ''}
+      </div>
+
+      <div class="coffre-message level-${mot.level}">${mot.msg}</div>
+
+      ${c.why ? `<div class="coffre-why">"${c.why}"</div>` : ''}
       ${timeInfo}
-      ${c.why ? `<div style="font-size:12px;color:var(--muted);margin-top:8px;font-style:italic">"${c.why}"</div>` : ''}
-      <div class="actions">
+
+      <div class="coffre-actions">
         <button class="btn-primary" style="margin:0" onclick="openDepositModal(${c.id})">+ Ajouter</button>
-        <button class="btn-ghost" style="margin:0" onclick="openCoffreModal(${c.id})">Modifier</button>
-        <button class="btn-ghost" style="margin:0" onclick="delCoffre(${c.id})">×</button>
+        <button class="btn-ghost" style="margin:0" onclick="openCoffreModal(${c.id})">✏️ Modifier</button>
+        <button class="btn-ghost" style="margin:0" onclick="delCoffre(${c.id})">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -459,7 +732,6 @@ function renderRevDepDonut(){
     return;
   }
   const pctIn = (s.totalIn / total) * 100;
-  const pctOut = (s.totalOut / total) * 100;
   donut.style.background = `conic-gradient(var(--green) 0% ${pctIn}%, var(--red) ${pctIn}% 100%)`;
   centerText.innerHTML = `<div><div style="font-size:14px">${Math.round(pctIn)}%</div><div style="font-size:9px;color:var(--muted)">Revenus</div></div>`;
   legend.innerHTML = `
@@ -570,6 +842,270 @@ function renderSuggestions(){
 }
 
 // ============================================================
+// MODULE HISTORIQUE
+// ============================================================
+let selectedTxIds = new Set();
+
+function populateHistFilters(){
+  const monthSelect = document.getElementById('histMonth');
+  const catSelect   = document.getElementById('histCategory');
+  if(!monthSelect || !catSelect) return;
+
+  const months = [...new Set(txs.map(t => t.date.slice(0,7)))].sort().reverse();
+  const previousMonth = monthSelect.value;
+  monthSelect.innerHTML = '<option value="all">Tous les mois</option>' +
+    months.map(m => {
+      const [y, mo] = m.split('-');
+      const label = new Date(y, mo-1, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+      return `<option value="${m}">${label}</option>`;
+    }).join('');
+  if(previousMonth && [...monthSelect.options].some(o => o.value === previousMonth)){
+    monthSelect.value = previousMonth;
+  }
+
+  const cats = [...new Set(txs.map(t => t.category))].sort();
+  const previousCat = catSelect.value;
+  catSelect.innerHTML = '<option value="all">Toutes les catégories</option>' +
+    cats.map(c => `<option value="${c}">${c}</option>`).join('');
+  if(previousCat && [...catSelect.options].some(o => o.value === previousCat)){
+    catSelect.value = previousCat;
+  }
+}
+
+function getFilteredTx(){
+  const month = document.getElementById('histMonth').value;
+  const type  = document.getElementById('histType').value;
+  const cat   = document.getElementById('histCategory').value;
+
+  return txs.filter(t => {
+    if(month !== 'all' && !t.date.startsWith(month)) return false;
+    if(type !== 'all' && t.type !== type) return false;
+    if(cat !== 'all' && t.category !== cat) return false;
+    return true;
+  }).sort((a,b) => b.date.localeCompare(a.date));
+}
+
+function renderHistory(){
+  const filtered = getFilteredTx();
+
+  const totalIn  = filtered.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount), 0);
+  const totalOut = filtered.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount), 0);
+  document.getElementById('histCount').textContent = filtered.length;
+  document.getElementById('histIn').textContent    = fmt(totalIn);
+  document.getElementById('histOut').textContent   = fmt(totalOut);
+
+  const el = document.getElementById('histList');
+  if(filtered.length === 0){
+    el.innerHTML = '<div class="empty">Aucune transaction</div>';
+    document.getElementById('histSelectAll').checked = false;
+    return;
+  }
+
+  el.innerHTML = filtered.map(t => {
+    const d = new Date(t.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'});
+    const sign = t.type === 'revenu' ? '+' : '−';
+    const cls  = t.type === 'revenu' ? 'pos' : 'neg';
+    const checked = selectedTxIds.has(t.id) ? 'checked' : '';
+    return `<div class="hist-item">
+      <input type="checkbox" class="hist-check" data-id="${t.id}" ${checked} onchange="toggleTxSelect(${t.id}, this.checked)">
+      <div class="hist-content">
+        <div class="hist-top">
+          <span class="hist-cat">${t.category}</span>
+          <span class="hist-amt ${cls}">${sign}${fmt(t.amount)}</span>
+        </div>
+        <div class="hist-bottom">${d}${t.note ? ' · ' + t.note : ''}</div>
+      </div>
+      <button class="hist-del" onclick="delTxFromHistory(${t.id})">×</button>
+    </div>`;
+  }).join('');
+
+  const allChecked = filtered.length > 0 && filtered.every(t => selectedTxIds.has(t.id));
+  document.getElementById('histSelectAll').checked = allChecked;
+}
+
+function toggleTxSelect(id, checked){
+  if(checked) selectedTxIds.add(id);
+  else selectedTxIds.delete(id);
+  const filtered = getFilteredTx();
+  const allChecked = filtered.length > 0 && filtered.every(t => selectedTxIds.has(t.id));
+  document.getElementById('histSelectAll').checked = allChecked;
+}
+
+function toggleSelectAll(){
+  const isChecked = document.getElementById('histSelectAll').checked;
+  const filtered = getFilteredTx();
+  if(isChecked) filtered.forEach(t => selectedTxIds.add(t.id));
+  else filtered.forEach(t => selectedTxIds.delete(t.id));
+  renderHistory();
+}
+
+async function deleteSelected(){
+  if(selectedTxIds.size === 0){
+    alert("Aucune transaction sélectionnée");
+    return;
+  }
+  if(!confirm(`Supprimer ${selectedTxIds.size} transaction(s) ?`)) return;
+
+  const ids = [...selectedTxIds];
+  for(const id of ids){
+    await dbDelete('transactions', id);
+  }
+  txs = txs.filter(t => !selectedTxIds.has(t.id));
+  selectedTxIds.clear();
+  populateHistFilters();
+  renderHistory();
+  refreshAll();
+}
+
+async function deleteAllFiltered(){
+  const filtered = getFilteredTx();
+  if(filtered.length === 0){
+    alert("Aucune transaction à supprimer");
+    return;
+  }
+  if(!confirm(`⚠ Supprimer ${filtered.length} transaction(s) ?`)) return;
+  if(!confirm(`Confirmer la suppression définitive ?`)) return;
+
+  for(const t of filtered){
+    await dbDelete('transactions', t.id);
+  }
+  const ids = new Set(filtered.map(t => t.id));
+  txs = txs.filter(t => !ids.has(t.id));
+  selectedTxIds.clear();
+  populateHistFilters();
+  renderHistory();
+  refreshAll();
+}
+
+async function delTxFromHistory(id){
+  if(!confirm("Supprimer cette transaction ?")) return;
+  const ok = await dbDelete('transactions', id);
+  if(!ok) return;
+  txs = txs.filter(t => t.id !== id);
+  selectedTxIds.delete(id);
+  populateHistFilters();
+  renderHistory();
+  refreshAll();
+}
+
+function downloadFile(content, filename, mimeType){
+  const blob = new Blob([content], {type: mimeType});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportHistoryCSV(){
+  const filtered = getFilteredTx();
+  if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
+
+  const header = "Date;Type;Catégorie;Montant;Note\n";
+  const rows = filtered.map(t => {
+    const note = (t.note || '').replace(/;/g, ',').replace(/"/g, '""');
+    return `${t.date};${t.type};${t.category};${t.amount};"${note}"`;
+  }).join('\n');
+
+  downloadFile(header + rows, `transactions-${todayStr()}.csv`, 'text/csv;charset=utf-8;');
+}
+
+function exportHistoryJSON(){
+  const filtered = getFilteredTx();
+  if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
+  const json = JSON.stringify(filtered, null, 2);
+  downloadFile(json, `transactions-${todayStr()}.json`, 'application/json');
+}
+
+function exportHistoryPDF(){
+  const filtered = getFilteredTx();
+  if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
+
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert("La bibliothèque PDF n'est pas encore chargée. Attends 2 secondes et réessaie.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFillColor(108, 140, 255);
+  doc.rect(0, 0, 210, 30, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Historique des transactions", 14, 15);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text("Ma Super App — " + new Date().toLocaleDateString('fr-FR'), 14, 23);
+
+  doc.setTextColor(60, 60, 60);
+  doc.setFontSize(10);
+  const month  = document.getElementById('histMonth').value;
+  const type   = document.getElementById('histType').value;
+  const cat    = document.getElementById('histCategory').value;
+  const filterLines = [];
+  filterLines.push("Mois : " + (month === 'all' ? 'Tous' : month));
+  filterLines.push("Type : " + (type === 'all' ? 'Tous' : (type === 'revenu' ? 'Revenus' : 'Dépenses')));
+  filterLines.push("Catégorie : " + (cat === 'all' ? 'Toutes' : cat));
+  doc.text(filterLines.join("   |   "), 14, 40);
+
+  const totalIn  = filtered.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount), 0);
+  const totalOut = filtered.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount), 0);
+  const solde    = totalIn - totalOut;
+
+  doc.setFontSize(11);
+  doc.setTextColor(46, 204, 113);
+  doc.text(`Revenus : ${fmt(totalIn)}`, 14, 50);
+  doc.setTextColor(255, 92, 92);
+  doc.text(`Dépenses : ${fmt(totalOut)}`, 80, 50);
+  doc.setTextColor(solde >= 0 ? 46 : 255, solde >= 0 ? 204 : 92, solde >= 0 ? 113 : 92);
+  doc.text(`Solde : ${fmt(solde)}`, 146, 50);
+
+  const rows = filtered.map(t => [
+    new Date(t.date).toLocaleDateString('fr-FR'),
+    t.type === 'revenu' ? 'Revenu' : 'Dépense',
+    t.category,
+    (t.type === 'revenu' ? '+' : '−') + fmt(t.amount),
+    t.note || ''
+  ]);
+
+  doc.autoTable({
+    startY: 58,
+    head: [['Date', 'Type', 'Catégorie', 'Montant', 'Note']],
+    body: rows,
+    theme: 'striped',
+    headStyles: {fillColor: [108, 140, 255], textColor: 255, fontStyle: 'bold'},
+    bodyStyles: {fontSize: 9, textColor: 40},
+    alternateRowStyles: {fillColor: [245, 247, 250]},
+    columnStyles: {
+      0: {cellWidth: 22},
+      1: {cellWidth: 20},
+      2: {cellWidth: 35},
+      3: {cellWidth: 30, halign: 'right'},
+      4: {cellWidth: 'auto'}
+    }
+  });
+
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let i = 1; i <= pageCount; i++){
+    doc.setPage(i);
+    doc.setFontSize(9);
+    doc.setTextColor(140, 140, 140);
+    doc.text(
+      `Page ${i} / ${pageCount}  —  Ma Super App`,
+      14,
+      doc.internal.pageSize.height - 10
+    );
+  }
+
+  doc.save(`historique-${todayStr()}.pdf`);
+}
+
+// ============================================================
 // MODULE BUSINESS
 // ============================================================
 function generateIdeas(){
@@ -610,34 +1146,174 @@ function renderSavedIdeas(){
 }
 
 // ============================================================
-// MODULE MOTIVATION
+// MODULE MOTIVATION — CITATIONS
 // ============================================================
 function newQuote(){
   const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-  document.getElementById('quoteEmoji').textContent  = q.e;
-  document.getElementById('quoteText').textContent   = '"' + q.q + '"';
-  document.getElementById('quoteAuthor').textContent = '— ' + q.a;
+
+  // Citation dans l'onglet Motivation
+  const emoji1 = document.getElementById('quoteEmoji');
+  const text1  = document.getElementById('quoteText');
+  const auth1  = document.getElementById('quoteAuthor');
+  if(emoji1) emoji1.textContent = q.e;
+  if(text1)  text1.textContent  = '"' + q.q + '"';
+  if(auth1)  auth1.textContent  = '— ' + q.a;
+
+  // Citation sur le Tableau de bord
+  const emoji2 = document.getElementById('dashQuoteEmoji');
+  const text2  = document.getElementById('dashQuoteText');
+  const auth2  = document.getElementById('dashQuoteAuthor');
+  if(emoji2) emoji2.textContent = q.e;
+  if(text2)  text2.textContent  = '"' + q.q + '"';
+  if(auth2)  auth2.textContent  = '— ' + q.a;
 }
-function enableNotifications(){
-  if(!('Notification' in window)){
-    document.getElementById('notifStatus').textContent = "❌ Non supporté sur ce navigateur";
+
+// ============================================================
+// NOTIFICATIONS GLOBALES AUTOMATIQUES
+// ============================================================
+
+const NOTIF_MESSAGES = {
+  morning: [
+    {i:'🌅', t:'Bonjour !', m:'Nouvelle journée, nouvelle opportunité. Chaque petit effort compte.'},
+    {i:'☀️', t:'C\'est le matin !', m:'La discipline du matin fait la réussite du soir.'},
+    {i:'🚀', t:'Debout !', m:'Les gagnants se lèvent avant les autres. Tu es un gagnant.'},
+    {i:'💪', t:'Coucou !', m:'Aujourd\'hui, sois meilleur que hier. C\'est tout.'},
+    {i:'🔥', t:'Allez !', m:'Ta seule limite, c\'est toi-même. Fonce.'},
+    {i:'⭐', t:'Bon réveil !', m:'Un petit pas aujourd\'hui vaut mieux qu\'un grand demain.'},
+    {i:'🌱', t:'Nouveau jour', m:'Plante aujourd\'hui ce que tu veux récolter dans 1 an.'}
+  ],
+  midday: [
+    {i:'💰', t:'Conseil finance', m:'Avant chaque achat, demande-toi : "En ai-je VRAIMENT besoin ?"'},
+    {i:'📸', t:'Astuce photo', m:'Pense à publier 1 photo de ton travail aujourd\'hui. La visibilité, c\'est du business.'},
+    {i:'💡', t:'Idée business', m:'Un client satisfait = 3 recommandations potentielles. Soigne tes relations.'},
+    {i:'🎯', t:'Focus', m:'Écris tes 3 priorités de la journée. Fais-les avant tout le reste.'},
+    {i:'📊', t:'Conseil', m:'Note tes dépenses du jour. La conscience est le 1er pas vers la liberté.'},
+    {i:'💼', t:'Business', m:'Propose un mini-shooting à 3 anciens clients cette semaine.'},
+    {i:'💎', t:'Conseil', m:'Épargner 1000 FCFA/jour = 30 000 FCFA/mois. Commence petit.'}
+  ],
+  evening: [
+    {i:'🌙', t:'Bilan du jour', m:'As-tu épargné quelque chose aujourd\'hui ? Même 500 FCFA compte.'},
+    {i:'💰', t:'Pense à épargner', m:'Ouvre ton app et ajoute tes transactions du jour.'},
+    {i:'🎯', t:'Objectifs', m:'Chaque jour sans épargne est un jour de retard sur tes rêves.'},
+    {i:'🔥', t:'Discipline', m:'Le succès n\'est pas un hasard, c\'est un choix quotidien.'},
+    {i:'📸', t:'Bilan photo', m:'As-tu relancé tes clients impayés aujourd\'hui ?'},
+    {i:'⭐', t:'Bien joué', m:'Tu as survécu à une journée de plus. Demain sera meilleur.'},
+    {i:'💪', t:'Repose-toi', m:'Le repos est aussi productif que le travail.'}
+  ]
+};
+
+function getNotificationMessage(type){
+  const dayIndex = Math.floor(Date.now() / 86400000);
+  const messages = NOTIF_MESSAGES[type];
+  return messages[dayIndex % messages.length];
+}
+
+function isNotifEnabled(){
+  return localStorage.getItem('notif_enabled') === '1';
+}
+
+function toggleNotifications(){
+  if(isNotifEnabled()){
+    localStorage.removeItem('notif_enabled');
+    updateNotifButton();
     return;
   }
+
+  if(!('Notification' in window)){
+    document.getElementById('notifStatus').textContent = '❌ Non supporté sur ce navigateur';
+    return;
+  }
+
   Notification.requestPermission().then(p => {
     if(p === 'granted'){
-      document.getElementById('notifStatus').textContent = "✅ Notifications activées";
-      checkDailyReminders();
-      new Notification("🔥 Ma Super App", {body:"Notifications activées ! Reste focus 💪"});
+      localStorage.setItem('notif_enabled', '1');
+      updateNotifButton();
+      new Notification('🔥 Notifications activées', {
+        body: 'Tu recevras 3 messages par jour pour te motiver et te rappeler d\'épargner 💪'
+      });
     } else {
-      document.getElementById('notifStatus').textContent = "❌ Refusé.";
+      document.getElementById('notifStatus').textContent = '❌ Permission refusée. Autorise dans les réglages du navigateur.';
     }
   });
 }
+
+function updateNotifButton(){
+  const btn = document.getElementById('notifBtn');
+  const status = document.getElementById('notifStatus');
+  if(!btn) return;
+
+  if(isNotifEnabled()){
+    btn.classList.add('active');
+    btn.textContent = '✅ Notifications activées';
+    if(status) status.textContent = 'Tu recevras des messages automatiques 3x par jour';
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '🔔 Activer les notifications';
+    if(status) status.textContent = '';
+  }
+}
+
+function testerNotification(){
+  if(!isNotifEnabled()){
+    alert('Active d\'abord les notifications');
+    return;
+  }
+  const msg = getNotificationMessage('midday');
+  new Notification(msg.i + ' ' + msg.t, { body: msg.m });
+}
+
+function checkAutomaticNotifications(){
+  if(!isNotifEnabled()) return;
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const now = new Date();
+  const hh  = now.getHours();
+  const mm  = now.getMinutes();
+  const todayKey = now.toISOString().slice(0,10);
+
+  if(hh === 8 && mm >= 0 && mm < 5){
+    const key = `notif_morning_${todayKey}`;
+    if(!localStorage.getItem(key)){
+      const msg = getNotificationMessage('morning');
+      new Notification(msg.i + ' ' + msg.t, { body: msg.m });
+      localStorage.setItem(key, '1');
+    }
+  }
+
+  if(hh === 13 && mm >= 0 && mm < 5){
+    const key = `notif_midday_${todayKey}`;
+    if(!localStorage.getItem(key)){
+      const msg = getNotificationMessage('midday');
+      new Notification(msg.i + ' ' + msg.t, { body: msg.m });
+      localStorage.setItem(key, '1');
+    }
+  }
+
+  if(hh === 20 && mm >= 0 && mm < 5){
+    const key = `notif_evening_${todayKey}`;
+    if(!localStorage.getItem(key)){
+      const msg = getNotificationMessage('evening');
+      new Notification(msg.i + ' ' + msg.t, { body: msg.m });
+      localStorage.setItem(key, '1');
+    }
+  }
+}
+
+function enableNotifications(){
+  toggleNotifications();
+}
+
+// ============================================================
+// RAPPELS PERSONNALISÉS
+// ============================================================
 function checkDailyReminders(){
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  if(!isNotifEnabled()) return;
+
   const today  = todayStr();
   const now    = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
+
   reminders.forEach(r => {
     const [h, m] = r.time.split(':').map(Number);
     const rMin   = h * 60 + m;
@@ -647,17 +1323,8 @@ function checkDailyReminders(){
       localStorage.setItem(key, '1');
     }
   });
-  const key = `savings_${today}`;
-  if(!localStorage.getItem(key)){
-    const s = computeStats();
-    if(s.bal > 0){
-      const reco = s.totalIn * SAVINGS_TARGET;
-      new Notification("💰 Pense à épargner", {
-        body: `Objectif : mettre ${fmt(reco)} de côté aujourd'hui 💪`});
-      localStorage.setItem(key, '1');
-    }
-  }
 }
+
 function openReminderModal(){
   document.getElementById('reminderText').value = '';
   document.getElementById('reminderTime').value = '09:00';
@@ -692,7 +1359,12 @@ function renderReminders(){
       <button class="del" onclick="delReminder(${r.id})">×</button>
     </div>`).join('');
 }
-setInterval(checkDailyReminders, 60000);
+
+// Vérifie chaque minute
+setInterval(() => {
+  checkAutomaticNotifications();
+  checkDailyReminders();
+}, 60000);
 
 // ============================================================
 // MODULE IA
@@ -867,282 +1539,7 @@ Pas de blabla, sois concret.`;
     el.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
   }
 }
-// ============================================================
-// MODULE HISTORIQUE
-// ============================================================
-let selectedTxIds = new Set();
 
-function populateHistFilters(){
-  const monthSelect = document.getElementById('histMonth');
-  const catSelect   = document.getElementById('histCategory');
-  if(!monthSelect || !catSelect) return;
-
-  // Mois
-  const months = [...new Set(txs.map(t => t.date.slice(0,7)))].sort().reverse();
-  const previousMonth = monthSelect.value;
-  monthSelect.innerHTML = '<option value="all">Tous les mois</option>' +
-    months.map(m => {
-      const [y, mo] = m.split('-');
-      const label = new Date(y, mo-1, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
-      return `<option value="${m}">${label}</option>`;
-    }).join('');
-  if(previousMonth && [...monthSelect.options].some(o => o.value === previousMonth)){
-    monthSelect.value = previousMonth;
-  }
-
-  // Catégories
-  const cats = [...new Set(txs.map(t => t.category))].sort();
-  const previousCat = catSelect.value;
-  catSelect.innerHTML = '<option value="all">Toutes les catégories</option>' +
-    cats.map(c => `<option value="${c}">${c}</option>`).join('');
-  if(previousCat && [...catSelect.options].some(o => o.value === previousCat)){
-    catSelect.value = previousCat;
-  }
-}
-
-function getFilteredTx(){
-  const month = document.getElementById('histMonth').value;
-  const type  = document.getElementById('histType').value;
-  const cat   = document.getElementById('histCategory').value;
-
-  return txs.filter(t => {
-    if(month !== 'all' && !t.date.startsWith(month)) return false;
-    if(type !== 'all' && t.type !== type) return false;
-    if(cat !== 'all' && t.category !== cat) return false;
-    return true;
-  }).sort((a,b) => b.date.localeCompare(a.date));
-}
-
-function renderHistory(){
-  const filtered = getFilteredTx();
-
-  const totalIn  = filtered.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount), 0);
-  const totalOut = filtered.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount), 0);
-  document.getElementById('histCount').textContent = filtered.length;
-  document.getElementById('histIn').textContent    = fmt(totalIn);
-  document.getElementById('histOut').textContent   = fmt(totalOut);
-
-  const el = document.getElementById('histList');
-  if(filtered.length === 0){
-    el.innerHTML = '<div class="empty">Aucune transaction</div>';
-    document.getElementById('histSelectAll').checked = false;
-    return;
-  }
-
-  el.innerHTML = filtered.map(t => {
-    const d = new Date(t.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'});
-    const sign = t.type === 'revenu' ? '+' : '−';
-    const cls  = t.type === 'revenu' ? 'pos' : 'neg';
-    const checked = selectedTxIds.has(t.id) ? 'checked' : '';
-    return `<div class="hist-item">
-      <input type="checkbox" class="hist-check" data-id="${t.id}" ${checked} onchange="toggleTxSelect(${t.id}, this.checked)">
-      <div class="hist-content">
-        <div class="hist-top">
-          <span class="hist-cat">${t.category}</span>
-          <span class="hist-amt ${cls}">${sign}${fmt(t.amount)}</span>
-        </div>
-        <div class="hist-bottom">${d}${t.note ? ' · ' + t.note : ''}</div>
-      </div>
-      <button class="hist-del" onclick="delTxFromHistory(${t.id})">×</button>
-    </div>`;
-  }).join('');
-
-  const allChecked = filtered.length > 0 && filtered.every(t => selectedTxIds.has(t.id));
-  document.getElementById('histSelectAll').checked = allChecked;
-}
-
-function toggleTxSelect(id, checked){
-  if(checked) selectedTxIds.add(id);
-  else selectedTxIds.delete(id);
-  const filtered = getFilteredTx();
-  const allChecked = filtered.length > 0 && filtered.every(t => selectedTxIds.has(t.id));
-  document.getElementById('histSelectAll').checked = allChecked;
-}
-
-function toggleSelectAll(){
-  const isChecked = document.getElementById('histSelectAll').checked;
-  const filtered = getFilteredTx();
-  if(isChecked) filtered.forEach(t => selectedTxIds.add(t.id));
-  else filtered.forEach(t => selectedTxIds.delete(t.id));
-  renderHistory();
-}
-
-async function deleteSelected(){
-  if(selectedTxIds.size === 0){
-    alert("Aucune transaction sélectionnée");
-    return;
-  }
-  if(!confirm(`Supprimer ${selectedTxIds.size} transaction(s) ?`)) return;
-
-  const ids = [...selectedTxIds];
-  for(const id of ids){
-    await dbDelete('transactions', id);
-  }
-  txs = txs.filter(t => !selectedTxIds.has(t.id));
-  selectedTxIds.clear();
-  populateHistFilters();
-  renderHistory();
-  refreshAll();
-}
-
-async function deleteAllFiltered(){
-  const filtered = getFilteredTx();
-  if(filtered.length === 0){
-    alert("Aucune transaction à supprimer");
-    return;
-  }
-  if(!confirm(`⚠ Supprimer ${filtered.length} transaction(s) ?`)) return;
-  if(!confirm(`Confirmer la suppression définitive ?`)) return;
-
-  for(const t of filtered){
-    await dbDelete('transactions', t.id);
-  }
-  const ids = new Set(filtered.map(t => t.id));
-  txs = txs.filter(t => !ids.has(t.id));
-  selectedTxIds.clear();
-  populateHistFilters();
-  renderHistory();
-  refreshAll();
-}
-
-async function delTxFromHistory(id){
-  if(!confirm("Supprimer cette transaction ?")) return;
-  const ok = await dbDelete('transactions', id);
-  if(!ok) return;
-  txs = txs.filter(t => t.id !== id);
-  selectedTxIds.delete(id);
-  populateHistFilters();
-  renderHistory();
-  refreshAll();
-}
-
-function downloadFile(content, filename, mimeType){
-  const blob = new Blob([content], {type: mimeType});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function exportHistoryCSV(){
-  const filtered = getFilteredTx();
-  if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
-
-  const header = "Date;Type;Catégorie;Montant;Note\n";
-  const rows = filtered.map(t => {
-    const note = (t.note || '').replace(/;/g, ',').replace(/"/g, '""');
-    return `${t.date};${t.type};${t.category};${t.amount};"${note}"`;
-  }).join('\n');
-
-  downloadFile(header + rows, `transactions-${todayStr()}.csv`, 'text/csv;charset=utf-8;');
-}
-
-function exportHistoryJSON(){
-  const filtered = getFilteredTx();
-  if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
-
-  const json = JSON.stringify(filtered, null, 2);
-  downloadFile(json, `transactions-${todayStr()}.json`, 'application/json');
-}
-// ============================================================
-// EXPORT PDF — génère un rapport imprimable
-// ============================================================
-function exportHistoryPDF(){
-  const filtered = getFilteredTx();
-  if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
-
-  // Vérifie que jsPDF est chargé
-  if(!window.jspdf || !window.jspdf.jsPDF){
-    alert("La bibliothèque PDF n'est pas encore chargée. Attends 2 secondes et réessaie.");
-    return;
-  }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  // --- En-tête ---
-  doc.setFillColor(108, 140, 255);
-  doc.rect(0, 0, 210, 30, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
-  doc.setFont('helvetica', 'bold');
-  doc.text("Historique des transactions", 14, 15);
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
-  doc.text("Ma Super App — " + new Date().toLocaleDateString('fr-FR'), 14, 23);
-
-  // --- Filtres actifs ---
-  doc.setTextColor(60, 60, 60);
-  doc.setFontSize(10);
-  const month  = document.getElementById('histMonth').value;
-  const type   = document.getElementById('histType').value;
-  const cat    = document.getElementById('histCategory').value;
-  const filterLines = [];
-  filterLines.push("Mois : " + (month === 'all' ? 'Tous' : month));
-  filterLines.push("Type : " + (type === 'all' ? 'Tous' : (type === 'revenu' ? 'Revenus' : 'Dépenses')));
-  filterLines.push("Catégorie : " + (cat === 'all' ? 'Toutes' : cat));
-  doc.text(filterLines.join("   |   "), 14, 40);
-
-  // --- Totaux ---
-  const totalIn  = filtered.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount), 0);
-  const totalOut = filtered.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount), 0);
-  const solde    = totalIn - totalOut;
-
-  doc.setFontSize(11);
-  doc.setTextColor(46, 204, 113);
-  doc.text(`Revenus : ${fmt(totalIn)}`, 14, 50);
-  doc.setTextColor(255, 92, 92);
-  doc.text(`Dépenses : ${fmt(totalOut)}`, 80, 50);
-  doc.setTextColor(solde >= 0 ? 46 : 255, solde >= 0 ? 204 : 92, solde >= 0 ? 113 : 92);
-  doc.text(`Solde : ${fmt(solde)}`, 146, 50);
-
-  // --- Tableau ---
-  const rows = filtered.map(t => [
-    new Date(t.date).toLocaleDateString('fr-FR'),
-    t.type === 'revenu' ? 'Revenu' : 'Dépense',
-    t.category,
-    (t.type === 'revenu' ? '+' : '−') + fmt(t.amount),
-    t.note || ''
-  ]);
-
-  doc.autoTable({
-    startY: 58,
-    head: [['Date', 'Type', 'Catégorie', 'Montant', 'Note']],
-    body: rows,
-    theme: 'striped',
-    headStyles: {fillColor: [108, 140, 255], textColor: 255, fontStyle: 'bold'},
-    bodyStyles: {fontSize: 9, textColor: 40},
-    alternateRowStyles: {fillColor: [245, 247, 250]},
-    columnStyles: {
-      0: {cellWidth: 22},
-      1: {cellWidth: 20},
-      2: {cellWidth: 35},
-      3: {cellWidth: 30, halign: 'right'},
-      4: {cellWidth: 'auto'}
-    }
-  });
-
-  // --- Pied de page ---
-  const pageCount = doc.internal.getNumberOfPages();
-  for(let i = 1; i <= pageCount; i++){
-    doc.setPage(i);
-    doc.setFontSize(9);
-    doc.setTextColor(140, 140, 140);
-    doc.text(
-      `Page ${i} / ${pageCount}  —  Ma Super App`,
-      14,
-      doc.internal.pageSize.height - 10
-    );
-  }
-
-  // --- Enregistrement ---
-  const filename = `historique-${todayStr()}.pdf`;
-  doc.save(filename);
-}
 // ============================================================
 // INITIALISATION
 // ============================================================
@@ -1154,7 +1551,11 @@ function init(){
   refreshAll();
   updateAiStatus();
   newQuote();
-  setTimeout(checkDailyReminders, 2000);
+  updateNotifButton();
+  setTimeout(() => {
+    checkAutomaticNotifications();
+    checkDailyReminders();
+  }, 2000);
 }
 
 (async function bootstrap(){
