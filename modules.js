@@ -1049,6 +1049,101 @@ function exportHistoryJSON(){
   downloadFile(json, `transactions-${todayStr()}.json`, 'application/json');
 }
 // ============================================================
+// EXPORT PDF — génère un rapport imprimable
+// ============================================================
+function exportHistoryPDF(){
+  const filtered = getFilteredTx();
+  if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
+
+  // Vérifie que jsPDF est chargé
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert("La bibliothèque PDF n'est pas encore chargée. Attends 2 secondes et réessaie.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  // --- En-tête ---
+  doc.setFillColor(108, 140, 255);
+  doc.rect(0, 0, 210, 30, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Historique des transactions", 14, 15);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text("Ma Super App — " + new Date().toLocaleDateString('fr-FR'), 14, 23);
+
+  // --- Filtres actifs ---
+  doc.setTextColor(60, 60, 60);
+  doc.setFontSize(10);
+  const month  = document.getElementById('histMonth').value;
+  const type   = document.getElementById('histType').value;
+  const cat    = document.getElementById('histCategory').value;
+  const filterLines = [];
+  filterLines.push("Mois : " + (month === 'all' ? 'Tous' : month));
+  filterLines.push("Type : " + (type === 'all' ? 'Tous' : (type === 'revenu' ? 'Revenus' : 'Dépenses')));
+  filterLines.push("Catégorie : " + (cat === 'all' ? 'Toutes' : cat));
+  doc.text(filterLines.join("   |   "), 14, 40);
+
+  // --- Totaux ---
+  const totalIn  = filtered.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount), 0);
+  const totalOut = filtered.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount), 0);
+  const solde    = totalIn - totalOut;
+
+  doc.setFontSize(11);
+  doc.setTextColor(46, 204, 113);
+  doc.text(`Revenus : ${fmt(totalIn)}`, 14, 50);
+  doc.setTextColor(255, 92, 92);
+  doc.text(`Dépenses : ${fmt(totalOut)}`, 80, 50);
+  doc.setTextColor(solde >= 0 ? 46 : 255, solde >= 0 ? 204 : 92, solde >= 0 ? 113 : 92);
+  doc.text(`Solde : ${fmt(solde)}`, 146, 50);
+
+  // --- Tableau ---
+  const rows = filtered.map(t => [
+    new Date(t.date).toLocaleDateString('fr-FR'),
+    t.type === 'revenu' ? 'Revenu' : 'Dépense',
+    t.category,
+    (t.type === 'revenu' ? '+' : '−') + fmt(t.amount),
+    t.note || ''
+  ]);
+
+  doc.autoTable({
+    startY: 58,
+    head: [['Date', 'Type', 'Catégorie', 'Montant', 'Note']],
+    body: rows,
+    theme: 'striped',
+    headStyles: {fillColor: [108, 140, 255], textColor: 255, fontStyle: 'bold'},
+    bodyStyles: {fontSize: 9, textColor: 40},
+    alternateRowStyles: {fillColor: [245, 247, 250]},
+    columnStyles: {
+      0: {cellWidth: 22},
+      1: {cellWidth: 20},
+      2: {cellWidth: 35},
+      3: {cellWidth: 30, halign: 'right'},
+      4: {cellWidth: 'auto'}
+    }
+  });
+
+  // --- Pied de page ---
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let i = 1; i <= pageCount; i++){
+    doc.setPage(i);
+    doc.setFontSize(9);
+    doc.setTextColor(140, 140, 140);
+    doc.text(
+      `Page ${i} / ${pageCount}  —  Ma Super App`,
+      14,
+      doc.internal.pageSize.height - 10
+    );
+  }
+
+  // --- Enregistrement ---
+  const filename = `historique-${todayStr()}.pdf`;
+  doc.save(filename);
+}
+// ============================================================
 // INITIALISATION
 // ============================================================
 function init(){
