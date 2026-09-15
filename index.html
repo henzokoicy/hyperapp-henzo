@@ -390,11 +390,23 @@
         <div class="stat"><div class="v" id="photoPending" style="color:var(--yellow)">0</div><div class="l">À encaisser</div></div>
       </div>
     </div>
-    <div class="card">
-      <h2>📅 Séances & Rendez-vous</h2>
-      <div id="shootsList"><div class="empty">Aucune séance planifiée</div></div>
-      <button class="btn-pink" style="margin-top:10px" onclick="openShootModal()">+ Nouvelle séance</button>
-    </div>
+ <div class="card">
+  <h2>📅 Séances & Rendez-vous</h2>
+
+  <!-- Stats rapides -->
+  <div class="shoot-stats-row" id="shootStatsRow"></div>
+
+  <!-- Filtres -->
+  <div class="shoot-filter-row" id="shootFilterRow">
+    <button class="shoot-filter-btn active" data-filter="all" onclick="filterShoots('all', this)">Toutes</button>
+    <button class="shoot-filter-btn" data-filter="planifie" onclick="filterShoots('planifie', this)">📅 Planifiées</button>
+    <button class="shoot-filter-btn" data-filter="shoote" onclick="filterShoots('shoote', this)">✅ Shootées</button>
+    <button class="shoot-filter-btn" data-filter="annule" onclick="filterShoots('annule', this)">❌ Annulées</button>
+  </div>
+
+  <div id="shootsList"><div class="empty">Aucune séance planifiée</div></div>
+  <button class="btn-pink" style="margin-top:10px" onclick="openShootModal()">+ Nouvelle séance</button>
+</div>
     <div class="card">
       <h2>👥 Clients</h2>
       <div id="clientsList"><div class="empty">Aucun client enregistré</div></div>

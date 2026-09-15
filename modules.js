@@ -862,7 +862,13 @@ async function saveShoot(){
     if(custom) type = custom;
   }
 
-  const data = {client_id: clientId ? parseInt(clientId) : null, type, location, photo_count, date, price, payment, notes};
+    const data = {client_id: clientId ? parseInt(clientId) : null, type, location, photo_count, date, price, payment, notes};
+
+  // Si création, on met un statut par défaut
+  if(!editingShootId){
+    data.status = 'planifie';
+    data.status_updated_at = new Date().toISOString();
+  }
   if(editingShootId){
     const result = await dbUpdate('shoots', editingShootId, data);
     if(!result) return;
@@ -891,36 +897,225 @@ async function toggleShootPayment(id){
   s.payment = newPayment;
   refreshAll();
 }
+// ============================================================
+// STATUTS DES SÉANCES (auto + manuel)
+// ============================================================
+
+let currentShootFilter = 'all';
+
+function filterShoots(filter, btn){
+  currentShootFilter = filter;
+  document.querySelectorAll('.shoot-filter-btn').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderShoots();
+}
+
+// Met à jour automatiquement les statuts selon la date
+async function updateShootStatuses(){
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  let hasChanges = false;
+
+  for(const s of shoots){
+    // On ne touche pas aux annulés
+    if(s.status === 'annule') continue;
+
+    const shootDate = new Date(s.date);
+    shootDate.setHours(0,0,0,0);
+
+    // Le lendemain du shooting → "shooté"
+    const dayAfter = new Date(shootDate);
+    dayAfter.setDate(dayAfter.getDate() + 1);
+
+    if(today >= dayAfter && s.status !== 'shoote'){
+      s.status = 'shoote';
+      s.status_updated_at = new Date().toISOString();
+      await dbUpdate('shoots', s.id, {
+        status: 'shoote',
+        status_updated_at: s.status_updated_at
+      });
+      hasChanges = true;
+    }
+    // Jour même → "en cours"
+    else if(today.getTime() === shootDate.getTime() && s.status !== 'encours'){
+      s.status = 'encours';
+      await dbUpdate('shoots', s.id, {status: 'encours'});
+      hasChanges = true;
+    }
+  }
+
+  if(hasChanges) renderShoots();
+}
+
+// Annule une séance (avec raison)
+async function cancelShoot(id){
+  const s = shoots.find(x => x.id === id);
+  if(!s) return;
+
+  const reason = prompt(
+    `Annuler la séance "${s.type}" ?\n\nRaison de l'annulation (optionnel) :`,
+    ''
+  );
+  if(reason === null) return; // L'utilisateur a annulé
+
+  const result = await dbUpdate('shoots', id, {
+    status: 'annule',
+    cancel_reason: reason.trim() || null,
+    status_updated_at: new Date().toISOString()
+  });
+  if(!result) return;
+
+  s.status = 'annule';
+  s.cancel_reason = reason.trim() || null;
+  s.status_updated_at = result.status_updated_at;
+
+  refreshAll();
+  showToast('❌ Séance annulée');
+}
+
+// Réactive une séance annulée
+async function reactivateShoot(id){
+  const s = shoots.find(x => x.id === id);
+  if(!s) return;
+  if(!confirm('Réactiver cette séance ?')) return;
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const shootDate = new Date(s.date);
+  shootDate.setHours(0,0,0,0);
+
+  // On détermine le nouveau statut selon la date
+  let newStatus = 'planifie';
+  const dayAfter = new Date(shootDate);
+  dayAfter.setDate(dayAfter.getDate() + 1);
+  if(today >= dayAfter) newStatus = 'shoote';
+  else if(today.getTime() === shootDate.getTime()) newStatus = 'encours';
+
+  const result = await dbUpdate('shoots', id, {
+    status: newStatus,
+    cancel_reason: null,
+    status_updated_at: new Date().toISOString()
+  });
+  if(!result) return;
+
+  s.status = newStatus;
+  s.cancel_reason = null;
+  refreshAll();
+  showToast('✅ Séance réactivée');
+}
+
 function renderShoots(){
   const el = document.getElementById('shootsList');
-  const sorted = [...shoots].sort((a,b) => (b.date || '').localeCompare(a.date || ''));
-  if(sorted.length === 0){ el.innerHTML = '<div class="empty">Aucune séance</div>'; return; }
+  if(!el) return;
+
+  // === Statistiques rapides ===
+  const now = new Date();
+  now.setHours(0,0,0,0);
+  const statsEl = document.getElementById('shootStatsRow');
+  if(statsEl){
+    const planifies = shoots.filter(s => s.status === 'planifie' || s.status === 'encours').length;
+    const shootes = shoots.filter(s => s.status === 'shoote').length;
+    const annules = shoots.filter(s => s.status === 'annule').length;
+    const clientsAnnules = new Set(
+      shoots.filter(s => s.status === 'annule' && s.client_id).map(s => s.client_id)
+    ).size;
+
+    statsEl.innerHTML = `
+      <div class="shoot-stat-mini">
+        <div class="num" style="color:var(--accent)">${planifies}</div>
+        <div class="lbl">📅 Planifiées</div>
+      </div>
+      <div class="shoot-stat-mini">
+        <div class="num" style="color:var(--green)">${shootes}</div>
+        <div class="lbl">✅ Shootées</div>
+      </div>
+      <div class="shoot-stat-mini">
+        <div class="num" style="color:var(--red)">${annules}</div>
+        <div class="lbl">❌ Annulées</div>
+      </div>
+      <div class="shoot-stat-mini">
+        <div class="num" style="color:var(--yellow)">${clientsAnnules}</div>
+        <div class="lbl">👤 Clients concernés</div>
+      </div>
+    `;
+  }
+
+  // === Filtre ===
+  let list = [...shoots];
+  if(currentShootFilter !== 'all'){
+    if(currentShootFilter === 'planifie'){
+      list = list.filter(s => s.status === 'planifie' || s.status === 'encours');
+    } else {
+      list = list.filter(s => s.status === currentShootFilter);
+    }
+  }
+  const sorted = list.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+
+  if(sorted.length === 0){
+    el.innerHTML = '<div class="empty">Aucune séance dans ce filtre</div>';
+    return;
+  }
+
+  // Icônes et labels de statut
+  const statusInfo = {
+    'planifie': { label: '📅 Planifié', class: 'planifie' },
+    'encours':  { label: '🟠 En cours', class: 'encours' },
+    'shoote':   { label: '✅ Shooté',   class: 'shoote' },
+    'annule':   { label: '❌ Annulé',   class: 'annule' }
+  };
+
   el.innerHTML = sorted.map(s => {
     const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
     const d = new Date(s.date);
-    const dStr = d.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'}) + ' ' +
+    const dStr = d.toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year: 'numeric'}) + ' à ' +
                  d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
     const locInfo = s.location ? `📍 ${s.location}` : '';
     const photoInfo = s.photo_count ? `📷 ${s.photo_count} photos` : '';
     const metaInfo = [locInfo, photoInfo].filter(x => x).join(' · ');
-    return `<div class="item-card">
+
+    const stat = statusInfo[s.status] || statusInfo['planifie'];
+    const isCancelled = s.status === 'annule';
+    const isDone = s.status === 'shoote';
+    const itemClass = isCancelled ? 'cancelled' : (isDone ? 'done' : '');
+
+    // Boutons selon le statut
+    let actionButtons = '';
+
+    if(isCancelled){
+      actionButtons = `
+        <button class="btn-ghost" style="margin:0;padding:6px;background:rgba(46,204,113,.15);color:var(--green);border-color:var(--green)" onclick="reactivateShoot(${s.id})">🔄 Réactiver</button>
+        <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})">✏️</button>
+        <button class="btn-ghost" style="margin:0;padding:6px" onclick="delShoot(${s.id})">×</button>
+      `;
+    } else {
+      actionButtons = `
+        <button class="btn-primary" style="margin:0;padding:6px;background:${s.payment==='paye'?'var(--yellow)':'var(--green)'}"
+          onclick="toggleShootPayment(${s.id})">
+          ${s.payment === 'paye' ? 'Marquer impayé' : '✓ Payé'}
+        </button>
+        <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})">✏️</button>
+        <button class="btn-ghost shoot-cancel-btn" style="margin:0;padding:6px" onclick="cancelShoot(${s.id})">❌</button>
+        <button class="btn-ghost" style="margin:0;padding:6px" onclick="delShoot(${s.id})">×</button>
+      `;
+    }
+
+    return `<div class="item-card ${itemClass}">
       <div class="head">
         <div class="name">📸 ${s.type}${client ? ' · ' + client.name : ''}</div>
-        <span class="badge ${s.payment}">${s.payment === 'paye' ? 'Payé' : 'Impayé'}</span>
+        <div class="shoot-badges">
+          <span class="shoot-status ${stat.class}">${stat.label}</span>
+          ${!isCancelled ? `<span class="badge ${s.payment}">${s.payment === 'paye' ? 'Payé' : 'Impayé'}</span>` : ''}
+        </div>
       </div>
       <div class="amt">
         <span>📅 ${dStr}</span>
         <span style="color:var(--green);font-weight:600">${fmt(s.price)}</span>
       </div>
       ${metaInfo ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">${metaInfo}</div>` : ''}
+      ${isCancelled && s.cancel_reason ? `<div style="font-size:12px;color:var(--red);margin-top:6px;font-style:italic">❌ Raison : ${s.cancel_reason}</div>` : ''}
       ${s.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">${s.notes}</div>` : ''}
-      <div class="actions" style="display:flex;gap:6px;margin-top:8px">
-        <button class="btn-primary" style="margin:0;padding:6px;background:${s.payment==='paye'?'var(--yellow)':'var(--green)'}"
-          onclick="toggleShootPayment(${s.id})">
-          ${s.payment === 'paye' ? 'Marquer impayé' : '✓ Marquer payé'}
-        </button>
-        <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})">✏️</button>
-        <button class="btn-ghost" style="margin:0;padding:6px" onclick="delShoot(${s.id})">×</button>
+      <div class="actions" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        ${actionButtons}
       </div>
     </div>`;
   }).join('');
@@ -2733,6 +2928,9 @@ function init(){
   loadSavedAnalysis();
   loadIdeasAI();
   renderInspirations();
+
+  // Met à jour les statuts de séances automatiquement
+  setTimeout(updateShootStatuses, 1500);
 
   setTimeout(registerOneSignalPlayer, 2000);
 
