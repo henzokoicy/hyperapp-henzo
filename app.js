@@ -1,9 +1,6 @@
 // ============================================================
 // APP.JS — Cœur de l'app + connexion Supabase
 // ============================================================
-// ⚠️ On utilise "sb" comme nom du client Supabase
-// (le nom "supabase" est déjà pris par la bibliothèque)
-// ============================================================
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -60,11 +57,10 @@ async function handleSignUp(){
   if(password.length < 6){ msg.textContent = 'Mot de passe : 6 caractères minimum.'; return; }
   const { data, error } = await sb.auth.signUp({ email, password });
   if(error){ msg.textContent = error.message; return; }
-  if(data.session){
-    await startApp();
-  } else {
+  if(data.session){ await startApp(); }
+  else {
     msg.style.color = 'var(--green)';
-    msg.textContent = '✅ Compte créé ! Vérifie ton email pour confirmer, puis connecte-toi.';
+    msg.textContent = '✅ Compte créé ! Vérifie ton email pour confirmer.';
   }
 }
 
@@ -154,6 +150,9 @@ function showTab(name, btn){
   };
   document.getElementById('headerTitle').textContent = titres[name] || 'Ma Super App';
   if(name === 'motiv') newQuote();
+
+  // Rendu spécifique selon l'onglet
+  if(name === 'dash') renderDashboard();
 }
 
 // ============================================================
@@ -277,7 +276,7 @@ function buildInsights(){
       m:`Mets ${fmt(s.totalIn * SAVINGS_TARGET)} (${(SAVINGS_TARGET*100)}%) dans un objectif.`});
   }
   coffres.forEach(c => {
-    const rest = c.goal - c.current;
+    const rest = Number(c.goal) - Number(c.current);
     if(rest <= 0) return;
     if(c.target_date){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
@@ -294,18 +293,49 @@ function buildInsights(){
 }
 
 // ============================================================
-// RENDU
+// RENDU PRINCIPAL
 // ============================================================
 function render(){
+  // Rendu du tableau de bord complet
+  renderDashboard();
+}
+
+// ============================================================
+// RENDU COMPLET DU TABLEAU DE BORD
+// ============================================================
+function renderDashboard(){
   const s = computeStats();
+
+  // Solde + stats principales
   const balEl = document.getElementById('balance');
   balEl.textContent = fmt(s.bal);
   balEl.className = 'balance ' + (s.bal >= 0 ? 'pos' : 'neg');
   document.getElementById('totalIn').textContent     = fmt(s.totalIn);
   document.getElementById('totalOut').textContent    = fmt(s.totalOut);
   document.getElementById('savingsRate').textContent = (s.savingsRate * 100).toFixed(0) + '%';
+
+  // Vue d'ensemble
+  if(typeof renderOverview === 'function') renderOverview();
+
+  // Score santé
+  if(typeof renderHealthScore === 'function') renderHealthScore();
+
+  // Donut revenus/dépenses
+  if(typeof renderRevDepDonut === 'function') renderRevDepDonut();
+
+  // Séances par type
+  if(typeof renderShootTypesChart === 'function') renderShootTypesChart();
+
+  // Barres 6 mois
+  if(typeof renderBars6m === 'function') renderBars6m();
+
+  // Insights
   document.getElementById('insights').innerHTML = buildInsights().join('');
 
+  // Suggestions
+  if(typeof renderSuggestions === 'function') renderSuggestions();
+
+  // Répartition catégories
   const cb = document.getElementById('catBreakdown');
   if(s.sortedCats.length === 0){
     cb.innerHTML = '<div class="empty">Aucune dépense ce mois</div>';
@@ -319,6 +349,7 @@ function render(){
     }).join('');
   }
 
+  // Liste transactions
   const tl = document.getElementById('txList');
   const sorted = [...s.monthTx].sort((a,b) => b.date.localeCompare(a.date));
   if(sorted.length === 0){
