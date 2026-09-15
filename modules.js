@@ -1957,6 +1957,28 @@ setInterval(() => {
   checkAutomaticNotifications();
   checkDailyReminders();
 }, 60000);
+// ============================================================
+// ÉTAT DES NOTIFICATIONS
+// ============================================================
+function isNotifEnabled(){
+  return localStorage.getItem('notif_enabled') === '1';
+}
+
+function updateNotifButton(){
+  const btn = document.getElementById('notifBtn');
+  const status = document.getElementById('notifStatus');
+  if(!btn) return;
+
+  if(isNotifEnabled()){
+    btn.classList.add('active');
+    btn.textContent = '✅ Notifications activées';
+    if(status) status.textContent = 'Tu recevras tes rappels sur tous tes appareils';
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '🔔 Activer les notifications';
+    if(status) status.textContent = '';
+  }
+}
 
 // ============================================================
 // ENREGISTREMENT DU PLAYER ID ONESIGNAL
