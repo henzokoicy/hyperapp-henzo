@@ -546,6 +546,7 @@
       <h2>🔮 Analyse financière personnalisée</h2>
       <div class="ai-toolbar">
         <button class="ai-btn ai-btn-primary" onclick="askAI()">🔮 Analyser</button>
+        <button class="ai-btn" style="background:linear-gradient(135deg,var(--pink),var(--accent));color:#fff;border:none" onclick="openChat()">💬 Discuter avec l'IA</button>
         <button class="ai-btn" id="aiCopyBtn" onclick="copyAnalysis()" disabled>📋 Copier</button>
         <button class="ai-btn" id="aiPdfBtn" onclick="exportAnalysisPDF()" disabled>📄 PDF</button>
         <button class="ai-btn ai-btn-danger" id="aiClearBtn" onclick="clearAnalysis()" disabled>🗑 Effacer</button>
@@ -633,6 +634,45 @@
     <button class="btn-ghost" style="margin-top:20px" onclick="closeAboutModal()">Fermer</button>
   </div>
 </div>
+<!-- ============================================================
+     MODAL CHAT IA
+     ============================================================ -->
+<div class="modal-bg" id="chatModalBg" onclick="if(event.target===this)closeChat()">
+  <div class="modal chat-modal">
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <div class="chat-avatar">🤖</div>
+        <div>
+          <div class="chat-title">Assistant IA</div>
+          <div class="chat-sub" id="chatSub">En ligne</div>
+        </div>
+      </div>
+      <button class="chat-close" onclick="closeChat()">×</button>
+    </div>
+
+    <div class="chat-messages" id="chatMessages"></div>
+
+    <div class="chat-suggestions" id="chatSuggestions">
+      <button onclick="sendSuggestion('Quels sont mes 3 plus gros postes de dépense ?')">📊 Mes dépenses</button>
+      <button onclick="sendSuggestion('Comment améliorer mon épargne ?')">💰 Améliorer épargne</button>
+      <button onclick="sendSuggestion('Donne-moi un plan concret pour ce mois')">🎯 Plan du mois</button>
+      <button onclick="sendSuggestion('Quels clients dois-je relancer ?')">📞 Clients à relancer</button>
+    </div>
+
+    <div class="chat-input-area">
+      <textarea id="chatInput" placeholder="Écris ton message..." rows="1"
+        onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); sendChatMessage(); }"></textarea>
+      <button class="chat-send-btn" id="chatSendBtn" onclick="sendChatMessage()">➤</button>
+    </div>
+
+    <div class="chat-actions">
+      <button onclick="exportChatPDF()" title="Exporter en PDF">📄 Exporter</button>
+      <button onclick="copyFullChat()" title="Copier tout">📋 Copier tout</button>
+      <button onclick="clearChat()" title="Effacer la conversation" style="color:var(--red)">🗑 Effacer</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL INSPIRATION -->
 <div class="modal-bg" id="inspirationModalBg" onclick="if(event.target===this)closeInspirationModal()">
   <div class="modal">

@@ -2214,6 +2214,489 @@ Concret, chiffré, pas de blabla. N'utilise PAS d'astérisques. Écris en franç
     out.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
   }
 }
+// ============================================================
+// CHAT IA
+// ============================================================
+
+let chatHistory = [];       // [{ role: 'user'|'assistant', content, ts }]
+let chatSending = false;
+
+// Clé unique par utilisateur
+async function getChatStorageKey(){
+  const user = await getCurrentUser();
+  return 'chat_history_' + (user?.email || 'anon');
+}
+
+// Charge l'historique depuis localStorage
+async function loadChatHistory(){
+  try {
+    const key = await getChatStorageKey();
+    const raw = localStorage.getItem(key);
+    chatHistory = raw ? JSON.parse(raw) : [];
+  } catch(e){
+    chatHistory = [];
+  }
+}
+
+// Sauvegarde l'historique
+async function saveChatHistory(){
+  try {
+    const key = await getChatStorageKey();
+    // On garde max 100 messages pour ne pas exploser localStorage
+    const toSave = chatHistory.slice(-100);
+    localStorage.setItem(key, JSON.stringify(toSave));
+  } catch(e){ console.warn(e); }
+}
+
+// Ouvre le chat
+async function openChat(){
+  await loadChatHistory();
+  document.getElementById('chatModalBg').classList.add('show');
+
+  // Si pas d'historique, message de bienvenue
+  if(chatHistory.length === 0){
+    const user = await getCurrentUser();
+    const s = computeStats();
+    const firstName = (user?.email || '').split('@')[0] || 'toi';
+
+    const welcome = `Salut ${firstName} ! 👋
+
+Je suis ton assistant IA. Je connais déjà ta situation :
+• Solde du mois : ${fmt(s.bal)}
+• Revenus : ${fmt(s.totalIn)} | Dépenses : ${fmt(s.totalOut)}
+• ${clients.length} clients · ${shoots.length} séances · ${coffres.length} objectifs
+
+Pose-moi n'importe quelle question : sur tes dépenses, tes économies, tes clients, un plan d'action... Je suis là pour t'aider concrètement. 💪`;
+
+    chatHistory.push({
+      role: 'assistant',
+      content: welcome,
+      ts: Date.now()
+    });
+    await saveChatHistory();
+  }
+
+  renderChatMessages();
+  setTimeout(() => document.getElementById('chatInput')?.focus(), 300);
+}
+
+function closeChat(){
+  document.getElementById('chatModalBg').classList.remove('show');
+}
+
+// Envoie un message suggéré
+function sendSuggestion(text){
+  const input = document.getElementById('chatInput');
+  if(input){
+    input.value = text;
+    sendChatMessage();
+  }
+}
+
+// Envoie un message
+async function sendChatMessage(){
+  if(chatSending) return;
+
+  const input = document.getElementById('chatInput');
+  const btn = document.getElementById('chatSendBtn');
+  const text = (input?.value || '').trim();
+  if(!text) return;
+
+  // Vérifie la config IA
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
+  if(!cfg || !cfg.key){
+    alert("Configure d'abord ta clé API IA dans cette page (bloc en haut).");
+    return;
+  }
+
+  chatSending = true;
+  input.value = '';
+  input.style.height = 'auto';
+  btn.disabled = true;
+
+  // Ajoute le message utilisateur
+  chatHistory.push({ role: 'user', content: text, ts: Date.now() });
+  await saveChatHistory();
+  renderChatMessages();
+
+  // Message de "chargement"
+  const loadingMsg = document.createElement('div');
+  loadingMsg.className = 'chat-msg assistant typing';
+  loadingMsg.id = 'chatLoading';
+  loadingMsg.textContent = 'Analyse en cours';
+  document.getElementById('chatMessages').appendChild(loadingMsg);
+  scrollChatToBottom();
+
+  try {
+    const response = await callChatAI(text);
+
+    // Retire le message de chargement
+    document.getElementById('chatLoading')?.remove();
+
+    // Ajoute la réponse
+    chatHistory.push({ role: 'assistant', content: response, ts: Date.now() });
+    await saveChatHistory();
+    renderChatMessages();
+  } catch(e){
+    document.getElementById('chatLoading')?.remove();
+    chatHistory.push({
+      role: 'assistant',
+      content: '❌ Erreur : ' + e.message,
+      ts: Date.now()
+    });
+    renderChatMessages();
+  } finally {
+    chatSending = false;
+    btn.disabled = false;
+  }
+}
+
+// Construit le contexte complet de l'utilisateur
+function buildChatContext(){
+  const s = computeStats();
+  const lines = [];
+
+  lines.push('=== SITUATION FINANCIÈRE ===');
+  lines.push(`Mois : ${s.ym}`);
+  lines.push(`Revenus : ${Math.round(s.totalIn)} ${CURRENCY}`);
+  lines.push(`Dépenses : ${Math.round(s.totalOut)} ${CURRENCY}`);
+  lines.push(`Solde : ${Math.round(s.bal)} ${CURRENCY}`);
+  lines.push(`Taux d'épargne : ${(s.savingsRate * 100).toFixed(1)}%`);
+  lines.push(`Prévision fin de mois : ${Math.round(s.projectedBal)} ${CURRENCY}`);
+
+  if(s.sortedCats.length > 0){
+    lines.push('');
+    lines.push('=== RÉPARTITION DÉPENSES (ce mois) ===');
+    s.sortedCats.slice(0, 8).forEach(([cat, amt]) => {
+      const pct = (amt / s.totalOut * 100).toFixed(0);
+      lines.push(`• ${cat} : ${Math.round(amt)} ${CURRENCY} (${pct}%)`);
+    });
+  }
+
+  if(coffres.length > 0){
+    lines.push('');
+    lines.push('=== OBJECTIFS D\'ÉPARGNE ===');
+    coffres.forEach(c => {
+      const pct = ((c.current / c.goal) * 100).toFixed(0);
+      lines.push(`• ${c.name} : ${Math.round(c.current)}/${Math.round(c.goal)} ${CURRENCY} (${pct}%)${c.target_date ? ' — cible ' + c.target_date : ''}`);
+    });
+  }
+
+  if(clients.length > 0){
+    lines.push('');
+    lines.push(`=== CLIENTS (${clients.length}) ===`);
+    clients.slice(0, 10).forEach(c => {
+      lines.push(`• ${c.name}${c.city ? ' (' + c.city + ')' : ''}${c.phone ? ' — ' + c.phone : ''}`);
+    });
+  }
+
+  if(shoots.length > 0){
+    lines.push('');
+    lines.push('=== SÉANCES PHOTO ===');
+    const sorted = [...shoots].sort((a,b) => (b.date || '').localeCompare(a.date || '')).slice(0, 10);
+    sorted.forEach(sh => {
+      const client = sh.client_id ? clients.find(c => c.id === sh.client_id) : null;
+      const dateStr = sh.date ? new Date(sh.date).toLocaleDateString('fr-FR') : '?';
+      lines.push(`• ${dateStr} — ${sh.type}${client ? ' avec ' + client.name : ''} — ${Math.round(sh.price)} ${CURRENCY} — ${sh.payment === 'paye' ? 'payé' : 'impayé'}`);
+    });
+    const pending = shoots.filter(sh => sh.payment === 'impaye').reduce((a,b) => a + Number(b.price), 0);
+    if(pending > 0){
+      lines.push(`Total à encaisser : ${Math.round(pending)} ${CURRENCY}`);
+    }
+  }
+
+  const recentTx = [...txs].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 15);
+  if(recentTx.length > 0){
+    lines.push('');
+    lines.push('=== 15 DERNIÈRES TRANSACTIONS ===');
+    recentTx.forEach(t => {
+      const sign = t.type === 'revenu' ? '+' : '-';
+      lines.push(`• ${t.date} ${sign}${Math.round(t.amount)} ${CURRENCY} — ${t.category}${t.note ? ' (' + t.note + ')' : ''}`);
+    });
+  }
+
+  return lines.join('\n');
+}
+
+// Appel IA spécifique au chat (avec contexte complet + historique)
+async function callChatAI(userMessage){
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
+  if(!cfg || !cfg.key) throw new Error("Configure ta clé IA");
+
+  const context = buildChatContext();
+
+  // Construit l'historique au format messages pour l'IA
+  // On garde les 10 derniers échanges (20 messages max)
+  const recentHistory = chatHistory
+    .filter(m => m.role === 'user' || m.role === 'assistant')
+    .slice(-20)
+    .map(m => ({ role: m.role, content: m.content }));
+
+  // Retire le dernier message (c'est celui qu'on vient d'ajouter et qu'on veut envoyer avec le contexte)
+  if(recentHistory.length > 0 && recentHistory[recentHistory.length - 1].role === 'user'){
+    recentHistory.pop();
+  }
+
+  const systemPrompt = `Tu es un assistant financier personnel, direct, bienveillant et concret.
+
+Voici TOUTES les données actuelles de l'utilisateur :
+
+${context}
+
+RÈGLES :
+- Réponds toujours en français, de façon claire et amicale.
+- Base-toi UNIQUEMENT sur ces données réelles. Ne les invente pas.
+- Donne des conseils CONCRETS et CHIFFRÉS quand c'est possible.
+- Si l'utilisateur demande un plan, propose des étapes simples.
+- Utilise des emojis avec modération pour rendre ça vivant.
+- Ne fais pas de longs discours. Va à l'essentiel.
+- Si on te demande quelque chose que tu ne sais pas, dis-le honnêtement.
+- N'utilise PAS d'astérisques ** dans tes réponses.`;
+
+  // Construit le tableau complet de messages
+  const messages = [
+    { role: 'user', content: systemPrompt + '\n\nCompris ? Réponds juste "OK" pour confirmer.' },
+    { role: 'assistant', content: 'OK, je suis prêt à t\'aider avec tes données réelles.' },
+    ...recentHistory,
+    { role: 'user', content: userMessage }
+  ];
+
+  // ==== ANTHROPIC ====
+  if(cfg.provider === 'anthropic'){
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': cfg.key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: AI_MODELS.anthropic,
+        max_tokens: 1500,
+        system: systemPrompt,
+        messages: messages.slice(2) // on retire le fake system
+      })
+    });
+    const j = await r.json();
+    if(j.error) throw new Error(j.error.message);
+    return j.content?.[0]?.text || 'Pas de réponse';
+  }
+
+  // ==== GEMINI ====
+  if(cfg.provider === 'gemini'){
+    // Gemini : on préfixe le contexte au premier message
+    const geminiMessages = messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.gemini}:generateContent?key=${cfg.key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: geminiMessages })
+      }
+    );
+    const j = await r.json();
+    if(j.error) throw new Error(j.error.message);
+    return j.candidates?.[0]?.content?.parts?.[0]?.text || 'Pas de réponse';
+  }
+
+  // ==== OPENAI / CUSTOM ====
+  const url = cfg.provider === 'custom' && cfg.url ? cfg.url : 'https://api.openai.com/v1/chat/completions';
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
+    body: JSON.stringify({
+      model: AI_MODELS.openai,
+      messages: messages,
+      temperature: 0.7,
+      max_tokens: 1500
+    })
+  });
+  const j = await r.json();
+  if(j.error) throw new Error(j.error.message);
+  return j.choices?.[0]?.message?.content || 'Pas de réponse';
+}
+
+// Affiche les messages
+function renderChatMessages(){
+  const el = document.getElementById('chatMessages');
+  if(!el) return;
+
+  if(chatHistory.length === 0){
+    el.innerHTML = '<div class="empty">Commence la conversation !</div>';
+    return;
+  }
+
+  el.innerHTML = chatHistory.map((m, idx) => {
+    const isUser = m.role === 'user';
+    const content = (m.content || '').replace(/\n/g, '<br>');
+    return `<div class="chat-msg ${isUser ? 'user' : 'assistant'}">
+      <div>${content}</div>
+      <div class="chat-msg-footer">
+        <button class="chat-msg-btn" onclick="copyChatMessage(${idx})" title="Copier">📋</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  scrollChatToBottom();
+}
+
+function scrollChatToBottom(){
+  const el = document.getElementById('chatMessages');
+  if(el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
+}
+
+// Copie un message spécifique
+function copyChatMessage(idx){
+  const m = chatHistory[idx];
+  if(!m) return;
+  const text = m.content;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(() => {
+      // Petit feedback visuel
+      const btns = document.querySelectorAll('.chat-msg-btn');
+      // On ne sait pas exactement lequel, donc on affiche un toast
+      showToast('✅ Copié !');
+    }).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  showToast('✅ Copié !');
+}
+
+// Copie TOUT le chat
+function copyFullChat(){
+  if(chatHistory.length === 0){ alert('Aucun message'); return; }
+  const text = chatHistory.map(m => {
+    const who = m.role === 'user' ? '👤 TOI' : '🤖 IA';
+    return `${who} :\n${m.content}`;
+  }).join('\n\n─────────\n\n');
+
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(() => showToast('✅ Tout copié !'))
+      .catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+// Efface tout le chat
+async function clearChat(){
+  if(!confirm('Effacer toute la conversation ?')) return;
+  chatHistory = [];
+  await saveChatHistory();
+  renderChatMessages();
+  // Rouvre avec le message d'accueil
+  closeChat();
+  setTimeout(() => openChat(), 200);
+}
+
+// Export PDF de la conversation
+function exportChatPDF(){
+  if(chatHistory.length === 0){ alert('Aucun message à exporter'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert('Bibliothèque PDF non chargée');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const pageWidth = 190;
+  let y = 20;
+
+  // En-tête
+  doc.setFillColor(108, 140, 255);
+  doc.rect(0, 0, 210, 28, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Conversation avec l\'IA', 14, 14);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(new Date().toLocaleString('fr-FR'), 14, 22);
+  y = 38;
+
+  chatHistory.forEach(m => {
+    const isUser = m.role === 'user';
+    const who = isUser ? '👤 TOI' : '🤖 IA';
+    const dateStr = m.ts ? new Date(m.ts).toLocaleString('fr-FR', {hour: '2-digit', minute: '2-digit'}) : '';
+
+    // Auteur
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(isUser ? 108 : 46, isUser ? 140 : 180, isUser ? 255 : 100);
+    if(y > 280){ doc.addPage(); y = 20; }
+    doc.text(who + (dateStr ? ' — ' + dateStr : ''), 14, y);
+    y += 6;
+
+    // Contenu
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(40, 40, 40);
+    doc.setFontSize(10);
+    const lines = doc.splitTextToSize(m.content || '', pageWidth);
+    lines.forEach(line => {
+      if(y > 285){ doc.addPage(); y = 20; }
+      doc.text(line, 14, y);
+      y += 5;
+    });
+    y += 6; // espace entre messages
+  });
+
+  // Numérotation
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let i = 1; i <= pageCount; i++){
+    doc.setPage(i);
+    doc.setFontSize(9);
+    doc.setTextColor(140, 140, 140);
+    doc.text(`Page ${i} / ${pageCount}  —  Ma Super App`, 14, doc.internal.pageSize.height - 8);
+  }
+
+  doc.save(`chat-ia-${todayStr()}.pdf`);
+}
+
+// Petit toast (message temporaire en haut)
+function showToast(message){
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--green); color: #000; padding: 10px 20px;
+    border-radius: 20px; font-size: 13px; font-weight: 700;
+    z-index: 999; box-shadow: 0 4px 20px rgba(0,0,0,.3);
+    animation: toastIn .2s ease-out;
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity .3s';
+    setTimeout(() => toast.remove(), 300);
+  }, 1500);
+}
+
+// Auto-resize du textarea
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('chatInput');
+  if(input){
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    });
+  }
+});
 
 // ============================================================
 // SERVICE WORKER MESSAGE (clic notification)
