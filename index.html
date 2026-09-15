@@ -100,6 +100,9 @@
     <button class="drawer-nav" data-tab="business" onclick="drawerNavigate('business')">
       <span class="nav-icon">💡</span><span>Business</span>
     </button>
+    <button class="drawer-nav" data-tab="inspiration" onclick="drawerNavigate('inspiration')">
+  <span class="nav-icon">💫</span><span>Inspiration</span>
+</button>
     <button class="drawer-nav" data-tab="motiv" onclick="drawerNavigate('motiv')">
       <span class="nav-icon">🔥</span><span>Motivation</span>
     </button>
@@ -191,6 +194,9 @@
   <button class="tab-btn" data-tab="business" onclick="showTab('business',this)">
     <span class="tab-icon">💡</span><span class="tab-label">Business</span>
   </button>
+  <button class="tab-btn" data-tab="inspiration" onclick="showTab('inspiration',this)">
+  <span class="tab-icon">💫</span><span class="tab-label">Inspiration</span>
+</button>
   <button class="tab-btn" data-tab="motiv" onclick="showTab('motiv',this)">
     <span class="tab-icon">🔥</span><span class="tab-label">Motivation</span>
   </button>
@@ -396,6 +402,57 @@
     </div>
   </div>
 </div>
+<!-- ============================================================
+     ONGLET INSPIRATION
+     ============================================================ -->
+<div class="page" id="page-inspiration">
+  <div class="container">
+
+    <!-- Stats -->
+    <div class="card">
+      <h2>💫 Mes inspirations</h2>
+      <div class="row">
+        <div class="stat"><div class="v" id="inspCount">0</div><div class="l">Personnes</div></div>
+        <div class="stat"><div class="v" id="inspFav" style="color:var(--yellow)">0</div><div class="l">Favoris</div></div>
+        <div class="stat"><div class="v" id="inspCategories" style="color:var(--accent)">0</div><div class="l">Catégories</div></div>
+      </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card">
+      <h2>🔍 Filtrer</h2>
+      <div class="filters-grid">
+        <div>
+          <label>Catégorie</label>
+          <select id="inspFilterCategory" onchange="renderInspirations()">
+            <option value="all">Toutes</option>
+          </select>
+        </div>
+        <div>
+          <label>Favoris</label>
+          <select id="inspFilterFav" onchange="renderInspirations()">
+            <option value="all">Tous</option>
+            <option value="fav">⭐ Favoris uniquement</option>
+          </select>
+        </div>
+        <div>
+          <label>Rechercher</label>
+          <input type="text" id="inspSearch" placeholder="Nom, tag, ville..." oninput="renderInspirations()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Liste -->
+    <div class="card">
+      <h2>📋 Toutes mes inspirations</h2>
+      <div id="inspirationsList">
+        <div class="empty">Aucune inspiration. Ajoute ta première !</div>
+      </div>
+      <button class="btn-pink" style="margin-top:12px;width:100%" onclick="openInspirationModal()">+ Ajouter une inspiration</button>
+    </div>
+
+  </div>
+</div>
 
 <!-- ONGLET BUSINESS -->
 <div class="page" id="page-business">
@@ -574,6 +631,72 @@
       <div>henzophotographie@gmail.com</div>
     </div>
     <button class="btn-ghost" style="margin-top:20px" onclick="closeAboutModal()">Fermer</button>
+  </div>
+</div>
+<!-- MODAL INSPIRATION -->
+<div class="modal-bg" id="inspirationModalBg" onclick="if(event.target===this)closeInspirationModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3 id="inspirationModalTitle">💫 Nouvelle inspiration</h3>
+      <button class="close" onclick="closeInspirationModal()">×</button></div>
+
+    <label>Nom / Pseudo</label>
+    <input type="text" id="inspName" placeholder="Ex: Sarah Bahbah, @john.doe...">
+
+    <label>Catégorie</label>
+    <select id="inspCategory" onchange="onInspCategoryChange()">
+      <option value="Photographe">📸 Photographe</option>
+      <option value="Artiste">🎨 Artiste</option>
+      <option value="Mentor">🧠 Mentor</option>
+      <option value="Business">💼 Business</option>
+      <option value="Client potentiel">🤝 Client potentiel</option>
+      <option value="Ami">👥 Ami</option>
+      <option value="Autre">✏️ Autre</option>
+    </select>
+
+    <div id="inspCustomCategoryWrap" style="display:none;">
+      <label>Précise la catégorie</label>
+      <input type="text" id="inspCustomCategory" placeholder="Ex: Cinéaste, Mannequin...">
+    </div>
+
+    <label>Plateforme</label>
+    <select id="inspPlatform">
+      <option value="">-- Choisir --</option>
+      <option value="Instagram">📷 Instagram</option>
+      <option value="TikTok">🎵 TikTok</option>
+      <option value="YouTube">▶️ YouTube</option>
+      <option value="Facebook">📘 Facebook</option>
+      <option value="Twitter/X">🐦 Twitter / X</option>
+      <option value="LinkedIn">💼 LinkedIn</option>
+      <option value="Site web">🌐 Site web</option>
+      <option value="Pinterest">📌 Pinterest</option>
+      <option value="Behance">🎨 Behance</option>
+      <option value="Autre">✏️ Autre</option>
+    </select>
+
+    <label>Lien (URL)</label>
+    <input type="url" id="inspLink" placeholder="https://instagram.com/...">
+
+    <label>Téléphone (optionnel)</label>
+    <input type="tel" id="inspPhone" placeholder="+225 ...">
+
+    <label>Email (optionnel)</label>
+    <input type="email" id="inspEmail" placeholder="email@exemple.com">
+
+    <label>Ville / Pays</label>
+    <input type="text" id="inspCity" placeholder="Ex: Abidjan, Paris...">
+
+    <label>Pourquoi ça t'inspire ?</label>
+    <textarea id="inspWhy" rows="2" placeholder="Ex: Son style de portrait, son business model..."></textarea>
+
+    <label>Tags (séparés par des virgules)</label>
+    <input type="text" id="inspTags" placeholder="Ex: portrait, lumière naturelle, business">
+
+    <label class="checkbox-label" style="margin-top:14px">
+      <input type="checkbox" id="inspFavorite">
+      <span>⭐ Marquer comme favori</span>
+    </label>
+
+    <button class="btn-primary" id="inspSubmit" onclick="saveInspiration()">💾 Enregistrer</button>
   </div>
 </div>
 
