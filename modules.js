@@ -1661,28 +1661,28 @@ async function toggleNotifications(){
     localStorage.setItem('notif_enabled', '1');
     updateNotifButton();
 
-    // 📝 Enregistre le player_id pour les rappels serveur
     setTimeout(registerOneSignalPlayer, 2000);
 
-    new Notification('🔥 Notifications activées', {
-      body: 'Tu recevras tes rappels sur tous tes appareils, même app fermée 💪'
-    });
+    await showLocalNotification(
+      '🔥 Notifications activées',
+      'Tu recevras tes rappels sur tous tes appareils, même app fermée 💪'
+    );
   } catch(e){
     console.error('OneSignal error:', e);
     document.getElementById('notifStatus').textContent = '❌ Erreur : ' + e.message;
   }
 }
 
-function testerNotification(){
+async function testerNotification(){
   if(!isNotifEnabled()){
     alert('Active d\'abord les notifications');
     return;
   }
   const msg = getNotificationMessage('midday');
-  new Notification(msg.i + ' ' + msg.t, { body: msg.m });
+  await showLocalNotification(msg.i + ' ' + msg.t, msg.m);
 }
 
-function checkAutomaticNotifications(){
+async function checkAutomaticNotifications(){
   if(!isNotifEnabled()) return;
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
 
@@ -1695,7 +1695,7 @@ function checkAutomaticNotifications(){
     const key = `notif_morning_${todayKey}`;
     if(!localStorage.getItem(key)){
       const msg = getNotificationMessage('morning');
-      new Notification(msg.i + ' ' + msg.t, { body: msg.m });
+      await showLocalNotification(msg.i + ' ' + msg.t, msg.m);
       localStorage.setItem(key, '1');
     }
   }
@@ -1703,7 +1703,7 @@ function checkAutomaticNotifications(){
     const key = `notif_midday_${todayKey}`;
     if(!localStorage.getItem(key)){
       const msg = getNotificationMessage('midday');
-      new Notification(msg.i + ' ' + msg.t, { body: msg.m });
+      await showLocalNotification(msg.i + ' ' + msg.t, msg.m);
       localStorage.setItem(key, '1');
     }
   }
@@ -1711,7 +1711,7 @@ function checkAutomaticNotifications(){
     const key = `notif_evening_${todayKey}`;
     if(!localStorage.getItem(key)){
       const msg = getNotificationMessage('evening');
-      new Notification(msg.i + ' ' + msg.t, { body: msg.m });
+      await showLocalNotification(msg.i + ' ' + msg.t, msg.m);
       localStorage.setItem(key, '1');
     }
   }
@@ -1721,7 +1721,7 @@ function enableNotifications(){
   toggleNotifications();
 }
 
-function checkDailyReminders(){
+async function checkDailyReminders(){
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
   if(!isNotifEnabled()) return;
 
@@ -1729,15 +1729,21 @@ function checkDailyReminders(){
   const now    = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
 
-  reminders.forEach(r => {
+  for(const r of reminders){
+    // Ignore les rappels déjà envoyés par le serveur
+    if(r.sent) continue;
+    // Ignore les rappels qui ont une due_date (gérés côté serveur)
+    if(r.due_date) continue;
+
+    if(!r.time) continue;
     const [h, m] = r.time.split(':').map(Number);
     const rMin   = h * 60 + m;
     const key    = `reminder_${r.id}_${today}`;
     if(!localStorage.getItem(key) && Math.abs(nowMin - rMin) <= 5){
-      new Notification("⏰ Rappel", {body: r.text});
+      await showLocalNotification("⏰ Rappel", r.text);
       localStorage.setItem(key, '1');
     }
-  });
+  }
 }
 
 // Liste des types fixes (pour distinguer des types perso)
@@ -1953,10 +1959,50 @@ function renderReminders(){
   }).join('');
 }
 
+// Ouvre l'app quand on clique sur une notification locale
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if(event.data && event.data.type === 'notification-click'){
+      window.focus();
+      if(event.data.url) window.location.href = event.data.url;
+    }
+  });
+}
+
 setInterval(() => {
   checkAutomaticNotifications();
   checkDailyReminders();
 }, 60000);
+// ============================================================
+// HELPER NOTIFICATION (marche PC + mobile)
+// ============================================================
+async function showLocalNotification(title, body, url){
+  try {
+    // Essaie via Service Worker (obligatoire sur mobile)
+    if('serviceWorker' in navigator){
+      const reg = await navigator.serviceWorker.getRegistration();
+      if(reg && reg.showNotification){
+        await reg.showNotification(title, {
+          body: body,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          data: { url: url || 'https://hyperapp-henzo.vercel.app' }
+        });
+        return true;
+      }
+    }
+    // Fallback : notification classique (PC uniquement)
+    if('Notification' in window && Notification.permission === 'granted'){
+      new Notification(title, { body: body });
+      return true;
+    }
+    return false;
+  } catch(e){
+    console.warn('showLocalNotification error:', e);
+    return false;
+  }
+}
+
 // ============================================================
 // ÉTAT DES NOTIFICATIONS
 // ============================================================
