@@ -7,18 +7,19 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ============================================================
 // VARIABLES GLOBALES
 // ============================================================
-let txs         = [];
-let coffres     = [];
-let clients     = [];
-let shoots      = [];
-let reminders   = [];
-let savedIdeas  = [];
+let txs          = [];
+let coffres      = [];
+let clients      = [];
+let shoots       = [];
+let reminders    = [];
+let savedIdeas   = [];
+let inspirations = [];
 
-let currentType       = 'depense';
-let editingCoffreId   = null;
+let currentType        = 'depense';
+let editingCoffreId    = null;
 let depositingCoffreId = null;
-let editingShootId    = null;
-let editingClientId   = null;
+let editingShootId     = null;
+let editingClientId    = null;
 
 // ============================================================
 // OUTILS
@@ -105,20 +106,22 @@ async function handleLogout(){
 async function loadAllData(){
   const user = await getCurrentUser();
   if(!user) return;
-  const [txRes, goalRes, clientRes, shootRes, reminderRes, ideaRes] = await Promise.all([
+  const [txRes, goalRes, clientRes, shootRes, reminderRes, ideaRes, inspRes] = await Promise.all([
     sb.from('transactions').select('*').order('date', {ascending:false}),
     sb.from('goals').select('*').order('created_at', {ascending:false}),
     sb.from('clients').select('*').order('created_at', {ascending:false}),
     sb.from('shoots').select('*').order('date', {ascending:false}),
     sb.from('reminders').select('*').order('created_at', {ascending:true}),
-    sb.from('saved_ideas').select('*').order('created_at', {ascending:false})
+    sb.from('saved_ideas').select('*').order('created_at', {ascending:false}),
+    sb.from('inspirations').select('*').order('created_at', {ascending:false})
   ]);
-  txs        = txRes.data       || [];
-  coffres    = goalRes.data     || [];
-  clients    = clientRes.data   || [];
-  shoots     = shootRes.data    || [];
-  reminders  = reminderRes.data || [];
-  savedIdeas = ideaRes.data     || [];
+  txs          = txRes.data       || [];
+  coffres      = goalRes.data     || [];
+  clients      = clientRes.data   || [];
+  shoots       = shootRes.data    || [];
+  reminders    = reminderRes.data || [];
+  savedIdeas   = ideaRes.data     || [];
+  inspirations = inspRes.data     || [];
 }
 
 // ============================================================
@@ -420,6 +423,7 @@ function showTab(name, btn){
     objectifs:'🎯 Mes Objectifs',
     photo:'📸 Photo & Clients',
     business:'💡 Business',
+    inspiration:'💫 Inspiration',
     motiv:'🔥 Motivation',
     ia:'🤖 Analyse IA'
   };
@@ -430,6 +434,9 @@ function showTab(name, btn){
   if(name === 'historique' && typeof populateHistFilters === 'function'){
     populateHistFilters();
     if(typeof renderHistory === 'function') renderHistory();
+  }
+  if(name === 'inspiration' && typeof renderInspirations === 'function'){
+    renderInspirations();
   }
 
   syncDrawerActive();
@@ -458,14 +465,12 @@ function setType(t){
   document.getElementById('btnDepense').classList.toggle('active', t==='depense');
   document.getElementById('category').innerHTML =
     CATEGORIES[t].map(c => `<option>${c}</option>`).join('');
-  // Cache le champ personnalisé
   const wrap = document.getElementById('txCustomCategoryWrap');
   if(wrap) wrap.style.display = 'none';
   const input = document.getElementById('txCustomCategory');
   if(input) input.value = '';
 }
 
-// Affiche/cache le champ personnalisé quand on choisit "Autre"
 function onTxCategoryChange(){
   const val = document.getElementById('category').value;
   const wrap = document.getElementById('txCustomCategoryWrap');
@@ -488,7 +493,6 @@ async function saveTx(){
 
   let category = document.getElementById('category').value;
 
-  // Si "Autre" est choisi, on utilise la valeur personnalisée
   if(category === 'Autre'){
     const custom = document.getElementById('txCustomCategory').value.trim();
     if(custom){

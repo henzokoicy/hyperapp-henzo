@@ -1,8 +1,12 @@
 // ============================================================
-// MODULES.JS — Objectifs, Photo, Business, Motivation, IA, Dashboard
+// MODULES.JS — Objectifs, Photo, Business, Inspiration, Motivation, IA
 // ============================================================
+
 // ID du rappel en cours de modification (null = création)
 let editingReminderId = null;
+
+// ID de l'inspiration en cours de modification
+let editingInspirationId = null;
 
 const VILLES_CI = [
   "Abidjan","Bouaké","Yamoussoukro","Daloa","Korhogo","San-Pédro","Man",
@@ -35,6 +39,7 @@ function refreshAll(){
   if(typeof renderPhotoStats === 'function')      renderPhotoStats();
   if(typeof renderSavedIdeas === 'function')      renderSavedIdeas();
   if(typeof renderReminders === 'function')       renderReminders();
+  if(typeof renderInspirations === 'function')    renderInspirations();
   render();
 }
 
@@ -63,7 +68,336 @@ function selectCity(inputId, listId, city){
 }
 
 // ============================================================
-// MODULE OBJECTIFS AMÉLIORÉ
+// MODULE INSPIRATION
+// ============================================================
+const INSP_CATEGORIES_FIXES = ['Photographe','Artiste','Mentor','Business','Client potentiel','Ami','Autre'];
+
+function onInspCategoryChange(){
+  const val = document.getElementById('inspCategory').value;
+  const wrap = document.getElementById('inspCustomCategoryWrap');
+  if(wrap) wrap.style.display = (val === 'Autre') ? 'block' : 'none';
+}
+
+function openInspirationModal(id){
+  editingInspirationId = id || null;
+  const i = id ? inspirations.find(x => x.id === id) : null;
+
+  document.getElementById('inspirationModalTitle').textContent =
+    i ? '✏️ Modifier' : '💫 Nouvelle inspiration';
+  document.getElementById('inspSubmit').textContent =
+    i ? '💾 Enregistrer les modifications' : '💾 Enregistrer';
+
+  if(i){
+    let savedCat = i.category || 'Photographe';
+    if(INSP_CATEGORIES_FIXES.includes(savedCat)){
+      document.getElementById('inspCategory').value = savedCat;
+      document.getElementById('inspCustomCategory').value = '';
+    } else {
+      document.getElementById('inspCategory').value = 'Autre';
+      document.getElementById('inspCustomCategory').value = savedCat;
+    }
+    document.getElementById('inspName').value     = i.name || '';
+    document.getElementById('inspPlatform').value = i.platform || '';
+    document.getElementById('inspLink').value     = i.link || '';
+    document.getElementById('inspPhone').value    = i.phone || '';
+    document.getElementById('inspEmail').value    = i.email || '';
+    document.getElementById('inspCity').value     = i.city || '';
+    document.getElementById('inspWhy').value      = i.why || '';
+    document.getElementById('inspTags').value     = (i.tags || []).join(', ');
+    document.getElementById('inspFavorite').checked = !!i.favorite;
+  } else {
+    document.getElementById('inspCategory').value = 'Photographe';
+    document.getElementById('inspCustomCategory').value = '';
+    document.getElementById('inspName').value     = '';
+    document.getElementById('inspPlatform').value = '';
+    document.getElementById('inspLink').value     = '';
+    document.getElementById('inspPhone').value    = '';
+    document.getElementById('inspEmail').value    = '';
+    document.getElementById('inspCity').value     = '';
+    document.getElementById('inspWhy').value      = '';
+    document.getElementById('inspTags').value     = '';
+    document.getElementById('inspFavorite').checked = false;
+  }
+
+  onInspCategoryChange();
+  document.getElementById('inspirationModalBg').classList.add('show');
+}
+
+function closeInspirationModal(){
+  document.getElementById('inspirationModalBg').classList.remove('show');
+  editingInspirationId = null;
+}
+
+async function saveInspiration(){
+  const name = document.getElementById('inspName').value.trim();
+  if(!name){ alert("Le nom est requis"); return; }
+
+  let category = document.getElementById('inspCategory').value;
+  if(category === 'Autre'){
+    const custom = document.getElementById('inspCustomCategory').value.trim();
+    if(custom) category = custom;
+  }
+
+  const tagsRaw = document.getElementById('inspTags').value.trim();
+  const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+  let link = document.getElementById('inspLink').value.trim();
+  if(link && !/^https?:\/\//i.test(link)){
+    link = 'https://' + link;
+  }
+
+  const data = {
+    name,
+    category,
+    platform: document.getElementById('inspPlatform').value || null,
+    link: link || null,
+    phone: document.getElementById('inspPhone').value.trim() || null,
+    email: document.getElementById('inspEmail').value.trim() || null,
+    city: document.getElementById('inspCity').value.trim() || null,
+    why: document.getElementById('inspWhy').value.trim() || null,
+    tags: tags.length ? tags : null,
+    favorite: document.getElementById('inspFavorite').checked
+  };
+
+  if(editingInspirationId){
+    const result = await dbUpdate('inspirations', editingInspirationId, data);
+    if(!result) return;
+    const idx = inspirations.findIndex(x => x.id === editingInspirationId);
+    if(idx >= 0) inspirations[idx] = result;
+    closeInspirationModal();
+    renderInspirations();
+  } else {
+    const result = await dbInsert('inspirations', data);
+    if(!result) return;
+    inspirations.unshift(result);
+    closeInspirationModal();
+    renderInspirations();
+  }
+}
+
+async function delInspiration(id){
+  if(!confirm("Supprimer cette inspiration ?")) return;
+  const ok = await dbDelete('inspirations', id);
+  if(!ok) return;
+  inspirations = inspirations.filter(x => x.id !== id);
+  renderInspirations();
+}
+
+async function toggleFavoriteInspiration(id){
+  const i = inspirations.find(x => x.id === id);
+  if(!i) return;
+  const newFav = !i.favorite;
+  const result = await dbUpdate('inspirations', id, {favorite: newFav});
+  if(!result) return;
+  i.favorite = newFav;
+  renderInspirations();
+}
+
+function inspInitials(name){
+  if(!name) return '?';
+  const parts = name.trim().replace('@','').split(/\s+/);
+  if(parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.replace('@','').substring(0, 2).toUpperCase();
+}
+
+function inspPlatformIcon(platform){
+  const icons = {
+    'Instagram': '📷',
+    'TikTok': '🎵',
+    'YouTube': '▶️',
+    'Facebook': '📘',
+    'Twitter/X': '🐦',
+    'LinkedIn': '💼',
+    'Site web': '🌐',
+    'Pinterest': '📌',
+    'Behance': '🎨'
+  };
+  return icons[platform] || '🔗';
+}
+
+function renderInspirations(){
+  const el = document.getElementById('inspirationsList');
+  if(!el) return;
+
+  const count = inspirations.length;
+  const favs = inspirations.filter(i => i.favorite).length;
+  const cats = new Set(inspirations.map(i => i.category).filter(Boolean)).size;
+  document.getElementById('inspCount').textContent = count;
+  document.getElementById('inspFav').textContent = favs;
+  document.getElementById('inspCategories').textContent = cats;
+
+  const filterCat = document.getElementById('inspFilterCategory');
+  const currentCat = filterCat.value;
+  const allCats = [...new Set(inspirations.map(i => i.category).filter(Boolean))].sort();
+  filterCat.innerHTML = '<option value="all">Toutes</option>' +
+    allCats.map(c => `<option value="${c}">${c}</option>`).join('');
+  if(currentCat && [...filterCat.options].some(o => o.value === currentCat)){
+    filterCat.value = currentCat;
+  }
+
+  const catFilter = filterCat.value;
+  const favFilter = document.getElementById('inspFilterFav').value;
+  const search = (document.getElementById('inspSearch').value || '').trim().toLowerCase();
+
+  let filtered = inspirations.filter(i => {
+    if(catFilter !== 'all' && i.category !== catFilter) return false;
+    if(favFilter === 'fav' && !i.favorite) return false;
+    if(search){
+      const haystack = [i.name, i.city, i.why, i.platform, (i.tags||[]).join(' ')]
+        .filter(Boolean).join(' ').toLowerCase();
+      if(!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+
+  filtered.sort((a,b) => {
+    if(a.favorite !== b.favorite) return b.favorite ? 1 : -1;
+    return (b.created_at || '').localeCompare(a.created_at || '');
+  });
+
+  if(filtered.length === 0){
+    el.innerHTML = '<div class="empty">Aucune inspiration trouvée</div>';
+    return;
+  }
+
+  el.innerHTML = filtered.map(i => {
+    const initials = inspInitials(i.name);
+    const isFav = i.favorite ? 'favorite' : '';
+
+    const metaParts = [];
+    if(i.platform) metaParts.push(inspPlatformIcon(i.platform) + ' ' + i.platform);
+    if(i.city) metaParts.push('📍 ' + i.city);
+    if(i.phone) metaParts.push('📞 ' + i.phone);
+    if(i.email) metaParts.push('✉️ ' + i.email);
+
+    const actions = [];
+    if(i.link){
+      actions.push(`<a href="${i.link}" target="_blank" rel="noopener" class="insp-btn-link">🔗 Voir sa page</a>`);
+    }
+    if(i.phone){
+      const cleanPhone = i.phone.replace(/[^0-9+]/g, '');
+      actions.push(`<a href="tel:${cleanPhone}" class="insp-btn-call">📞 Appeler</a>`);
+    }
+    if(i.email){
+      actions.push(`<a href="mailto:${i.email}" class="insp-btn-mail">✉️ Mail</a>`);
+    }
+    actions.push(`<button class="insp-btn-edit" onclick="openInspirationModal(${i.id})">✏️ Modifier</button>`);
+    actions.push(`<button class="insp-btn-del" onclick="delInspiration(${i.id})">🗑</button>`);
+
+    return `<div class="insp-card ${isFav}">
+      <div class="insp-card-header">
+        <div class="insp-avatar">${initials}</div>
+        <div class="insp-title">
+          <div class="insp-name">
+            ${i.name}
+            ${i.favorite ? '<span class="insp-fav-star">⭐</span>' : ''}
+          </div>
+          <div><span class="insp-category">${i.category || 'Autre'}</span></div>
+          ${metaParts.length ? `<div class="insp-meta">${metaParts.map(m => `<span>${m}</span>`).join('')}</div>` : ''}
+        </div>
+        <button class="insp-btn-fav" onclick="toggleFavoriteInspiration(${i.id})" title="Favori"
+          style="background:none;border:none;font-size:20px;cursor:pointer;color:${i.favorite?'var(--yellow)':'var(--muted)'};padding:4px;">
+          ${i.favorite ? '⭐' : '☆'}
+        </button>
+      </div>
+      ${i.why ? `<div class="insp-why">"${i.why}"</div>` : ''}
+      ${(i.tags && i.tags.length) ? `<div class="insp-tags">${i.tags.map(t => `<span class="insp-tag">${t}</span>`).join('')}</div>` : ''}
+      <div class="insp-actions">${actions.join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// ÉTAT DES NOTIFICATIONS
+// ============================================================
+function isNotifEnabled(){
+  return localStorage.getItem('notif_enabled') === '1';
+}
+
+function updateNotifButton(){
+  const btn = document.getElementById('notifBtn');
+  const status = document.getElementById('notifStatus');
+  if(!btn) return;
+  if(isNotifEnabled()){
+    btn.classList.add('active');
+    btn.textContent = '✅ Notifications activées';
+    if(status) status.textContent = 'Tu recevras tes rappels sur tous tes appareils';
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '🔔 Activer les notifications';
+    if(status) status.textContent = '';
+  }
+}
+
+// ============================================================
+// HELPER NOTIFICATION (marche PC + mobile)
+// ============================================================
+async function showLocalNotification(title, body, url){
+  try {
+    if('serviceWorker' in navigator){
+      const reg = await navigator.serviceWorker.getRegistration();
+      if(reg && reg.showNotification){
+        await reg.showNotification(title, {
+          body: body,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          data: { url: url || 'https://hyperapp-henzo.vercel.app' }
+        });
+        return true;
+      }
+    }
+    if('Notification' in window && Notification.permission === 'granted'){
+      new Notification(title, { body: body });
+      return true;
+    }
+    return false;
+  } catch(e){
+    console.warn('showLocalNotification error:', e);
+    return false;
+  }
+}
+
+// ============================================================
+// ENREGISTREMENT DU PLAYER ID ONESIGNAL
+// ============================================================
+async function registerOneSignalPlayer(){
+  try {
+    const user = await getCurrentUser();
+    if(!user) return;
+
+    const OneSignal = window.OneSignal;
+    if(!OneSignal) return;
+
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    const sub = OneSignal.User?.PushSubscription;
+    if(!sub) return;
+
+    const playerId = sub.id;
+    if(!playerId) return;
+
+    const { data: existing } = await sb
+      .from('push_subscriptions')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('player_id', playerId)
+      .maybeSingle();
+
+    if(existing) return;
+
+    await sb.from('push_subscriptions').insert({
+      user_id: user.id,
+      player_id: playerId
+    });
+
+    console.log('✅ Player ID enregistré pour les rappels:', playerId);
+  } catch(e){
+    console.warn('registerOneSignalPlayer:', e);
+  }
+}
+
+// ============================================================
+// MODULE OBJECTIFS
 // ============================================================
 function getCoffreEmoji(name){
   const n = name.toLowerCase();
@@ -114,22 +448,22 @@ function renderMotivationJour(){
     text = 'Crée ton premier objectif et commence à épargner. Chaque grand voyage commence par un petit pas.';
   } else if(globalPct >= 100){
     title = '🏆 Champion !';
-    text = 'Tu as atteint 100% de tes objectifs. Fais-toi plaisir, tu l\'as mérité, et lance-toi un nouveau défi !';
+    text = 'Tu as atteint 100% de tes objectifs. Fais-toi plaisir, tu l\'as mérité !';
   } else if(globalPct >= 75){
     title = '🔥 Tu y es presque !';
-    text = `Tu es à ${globalPct.toFixed(0)}% de tes objectifs. Encore un petit effort et tu y seras. Ne lâche rien maintenant !`;
+    text = `Tu es à ${globalPct.toFixed(0)}% de tes objectifs. Encore un petit effort.`;
   } else if(globalPct >= 50){
     title = '💪 À mi-chemin !';
-    text = `Tu as complété ${globalPct.toFixed(0)}% de tes objectifs. Le plus dur est fait. Continue à mettre de côté régulièrement.`;
+    text = `Tu as complété ${globalPct.toFixed(0)}% de tes objectifs. Continue !`;
   } else if(globalPct >= 25){
     title = '⚡ Bon démarrage !';
-    text = `Tu es à ${globalPct.toFixed(0)}% de tes objectifs. Garde ce rythme, tu es sur la bonne voie !`;
+    text = `Tu es à ${globalPct.toFixed(0)}%. Garde ce rythme !`;
   } else if(globalPct > 0){
     title = '🌱 C\'est parti !';
-    text = `Tu as commencé, c'est l'essentiel. Chaque franc épargné te rapproche de ton but. Tiens bon !`;
+    text = `Chaque franc épargné te rapproche de ton but. Tiens bon !`;
   } else {
     title = '🎯 À toi de jouer !';
-    text = 'Tes objectifs t\'attendent. Commence par un petit montant aujourd\'hui, même 1000 FCFA.';
+    text = 'Commence par un petit montant aujourd\'hui, même 1000 FCFA.';
   }
 
   const icon1 = document.getElementById('motivIcon');
@@ -142,19 +476,19 @@ function renderMotivationJour(){
 
 const DEFIS = [
   "Aujourd'hui, n'achète rien d'impulsif. Avant chaque achat, demande-toi : 'Est-ce que j'en ai VRAIMENT besoin ?'",
-  "Épargne 1000 FCFA aujourd'hui, même si c'est symbolique. Le geste compte plus que le montant.",
-  "Note TOUS tes achats de la journée, même un simple café. La conscience est le premier pas.",
-  "Prépare ton repas maison au lieu de commander. Économie garantie.",
-  "Évite les réseaux sociaux pendant 2h et utilise ce temps pour réfléchir à un revenu supplémentaire.",
-  "Contacte un ancien client pour prendre de ses nouvelles. Le réseau, c'est du business qui dort.",
-  "Aujourd'hui, utilise uniquement du cash. Pas de carte, pas de mobile money. Tu verras la différence.",
+  "Épargne 1000 FCFA aujourd'hui, même si c'est symbolique.",
+  "Note TOUS tes achats de la journée, même un simple café.",
+  "Prépare ton repas maison au lieu de commander.",
+  "Évite les réseaux sociaux pendant 2h et réfléchis à un revenu supplémentaire.",
+  "Contacte un ancien client pour prendre de ses nouvelles.",
+  "Aujourd'hui, utilise uniquement du cash.",
   "Range ton espace de travail. Un esprit clair attire plus d'opportunités.",
-  "Envoie un message à 3 clients passés pour leur proposer une mini-session à prix réduit.",
+  "Envoie un message à 3 clients passés pour leur proposer une mini-session.",
   "Fais le point sur tes abonnements : y en a-t-il un que tu peux annuler ?",
   "Aujourd'hui, pas de livraison. Va chercher toi-même ce dont tu as besoin.",
   "Prends 15 minutes pour écrire tes 3 objectifs financiers des 3 prochains mois.",
-  "Poste une de tes meilleures photos sur Instagram avec un prix 'à partir de'. Teste le marché.",
-  "Contacte un photographe pro pour échanger des conseils. Le réseau pro est précieux.",
+  "Poste une de tes meilleures photos avec un prix 'à partir de'.",
+  "Contacte un photographe pro pour échanger des conseils.",
   "Aujourd'hui, dis non à une dépense qui ne sert pas ton futur."
 ];
 
@@ -208,9 +542,7 @@ function renderAnalysePercutante(){
     el.innerHTML = '<div class="empty">Crée un objectif pour voir l\'analyse.</div>';
     return;
   }
-
   const items = [];
-
   coffres.forEach(c => {
     const current = Number(c.current || 0);
     const goal = Number(c.goal || 1);
@@ -218,67 +550,31 @@ function renderAnalysePercutante(){
     const pct = (current / goal) * 100;
 
     if(pct >= 100){
-      items.push({
-        cls:'good',
-        title:`✅ ${c.name} — Terminé !`,
-        text:`Tu as réussi à épargner ${fmt(goal)}. Félicitations, c'est une vraie victoire !`
-      });
+      items.push({cls:'good', title:`✅ ${c.name} — Terminé !`,
+        text:`Tu as réussi à épargner ${fmt(goal)}. Félicitations !`});
       return;
     }
-
     if(c.target_date){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
       if(days > 0){
-        const perDay = rest / days;
-        const perWeek = perDay * 7;
-        const perMonth = perDay * 30;
-
+        const perMonth = (rest / days) * 30;
         const s = computeStats();
         const monthlyCapacity = s.bal > 0 ? s.bal : (s.totalIn * SAVINGS_TARGET);
-
         if(monthlyCapacity >= perMonth){
-          items.push({
-            cls:'good',
-            title:`🎯 ${c.name} est faisable !`,
-            text:`À ton rythme actuel, tu peux y arriver. Il te faut ${fmt(perMonth)}/mois, soit ${fmt(perWeek)}/semaine ou ${fmt(perDay)}/jour.`
-          });
+          items.push({cls:'good', title:`🎯 ${c.name} est faisable !`,
+            text:`Il te faut ${fmt(perMonth)}/mois. À ton rythme c'est faisable.`});
         } else {
-          items.push({
-            cls:'warn',
-            title:`⚠ ${c.name} — Rythme serré`,
-            text:`Il te faudrait ${fmt(perMonth)}/mois, mais ta capacité d'épargne estimée est de ${fmt(monthlyCapacity)}. Soit tu prolonges la date, soit tu augmentes tes revenus.`
-          });
+          items.push({cls:'warn', title:`⚠ ${c.name} — Rythme serré`,
+            text:`Il te faudrait ${fmt(perMonth)}/mois. Capacité estimée : ${fmt(monthlyCapacity)}.`});
         }
       }
     } else {
-      items.push({
-        cls:'',
-        title:`📊 ${c.name} — ${pct.toFixed(0)}%`,
-        text:`Il te reste ${fmt(rest)}. À 5000 FCFA/semaine, tu atteindras ton objectif dans ${Math.ceil(rest / 5000)} semaines.`
-      });
+      items.push({cls:'', title:`📊 ${c.name} — ${pct.toFixed(0)}%`,
+        text:`Il te reste ${fmt(rest)}. À 5000 FCFA/semaine : ${Math.ceil(rest / 5000)} semaines.`});
     }
   });
-
-  const totalGoal = coffres.reduce((s,c) => s + Number(c.goal || 0), 0);
-  const totalCurrent = coffres.reduce((s,c) => s + Number(c.current || 0), 0);
-  const globalPct = (totalCurrent / totalGoal) * 100;
-
-  if(coffres.length >= 2){
-    items.push({
-      cls: globalPct >= 50 ? 'good' : 'warn',
-      title: '💡 Conseil global',
-      text: globalPct >= 50
-        ? `Tu progresses bien sur l'ensemble de tes ${coffres.length} objectifs (${globalPct.toFixed(0)}% total). Concentre-toi maintenant sur celui qui est le plus loin du but.`
-        : `Tu as ${coffres.length} objectifs en cours mais seulement ${globalPct.toFixed(0)}% complétés. Peut-être te concentrer sur 1 ou 2 objectifs serait plus efficace.`
-    });
-  }
-
-  el.innerHTML = items.map(i => `
-    <div class="analyse-item ${i.cls}">
-      <strong>${i.title}</strong>
-      ${i.text}
-    </div>
-  `).join('');
+  el.innerHTML = items.map(i => `<div class="analyse-item ${i.cls}">
+    <strong>${i.title}</strong>${i.text}</div>`).join('');
 }
 
 function openCoffreModal(id){
@@ -374,17 +670,10 @@ function renderCoffres(){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
       if(days > 0){
         const perWeek = (rest / days) * 7;
-        timeInfo = `<div class="coffre-next">
-          <span>⏱ ${days} jours restants</span>
-          <span>${fmt(perWeek)}/semaine</span>
-        </div>`;
+        timeInfo = `<div class="coffre-next"><span>⏱ ${days} jours restants</span><span>${fmt(perWeek)}/semaine</span></div>`;
       } else {
         timeInfo = `<div class="coffre-next"><span style="color:var(--red)">⚠ Date dépassée</span></div>`;
       }
-    } else if(rest > 0){
-      timeInfo = `<div class="coffre-next">
-        <span>💡 Astuce : ajoute régulièrement de petites sommes</span>
-      </div>`;
     }
 
     let badge = '';
@@ -401,33 +690,21 @@ function renderCoffres(){
 
     return `<div class="coffre ${done ? 'completed' : ''}">
       <div class="coffre-header">
-        <div class="coffre-name">
-          <span class="coffre-emoji">${emoji}</span>
-          ${c.name}
-        </div>
+        <div class="coffre-name"><span class="coffre-emoji">${emoji}</span>${c.name}</div>
         ${badge}
       </div>
-
-      <div class="coffre-progress">
-        <div class="coffre-progress-fill" style="width:${pct}%;background:${color}"></div>
-      </div>
+      <div class="coffre-progress"><div class="coffre-progress-fill" style="width:${pct}%;background:${color}"></div></div>
       <div class="coffre-paliers">
-        <span class="${p25}">25%</span>
-        <span class="${p50}">50%</span>
-        <span class="${p75}">75%</span>
-        <span class="${p100}">100%</span>
+        <span class="${p25}">25%</span><span class="${p50}">50%</span>
+        <span class="${p75}">75%</span><span class="${p100}">100%</span>
       </div>
-
       <div class="coffre-amounts">
         <div><span class="current">${fmt(current)}</span> <span class="goal">/ ${fmt(goal)}</span></div>
         ${rest > 0 ? `<div class="rest">Reste : ${fmt(rest)}</div>` : ''}
       </div>
-
       <div class="coffre-message level-${mot.level}">${mot.msg}</div>
-
       ${c.why ? `<div class="coffre-why">"${c.why}"</div>` : ''}
       ${timeInfo}
-
       <div class="coffre-actions">
         <button class="btn-primary" style="margin:0" onclick="openDepositModal(${c.id})">+ Ajouter</button>
         <button class="btn-ghost" style="margin:0" onclick="openCoffreModal(${c.id})">✏️ Modifier</button>
@@ -445,10 +722,7 @@ function renderCoffres(){
       const rest = Number(c.goal) - Number(c.current);
       const pct  = (Number(c.current) / Number(c.goal) * 100).toFixed(0);
       const msg  = c.why ? `Rappelle-toi : "${c.why}"` : `Tu es à ${pct}%. Ne lâche pas.`;
-      return `<div class="insight bad">
-        <div class="title">🛑 ${c.name} — encore ${fmt(rest)}</div>
-        <div>${msg}</div>
-      </div>`;
+      return `<div class="insight bad"><div class="title">🛑 ${c.name} — encore ${fmt(rest)}</div><div>${msg}</div></div>`;
     }).join('');
   }
 }
@@ -588,10 +862,7 @@ async function saveShoot(){
     if(custom) type = custom;
   }
 
-  const data = {
-    client_id: clientId ? parseInt(clientId) : null,
-    type, location, photo_count, date, price, payment, notes
-  };
+  const data = {client_id: clientId ? parseInt(clientId) : null, type, location, photo_count, date, price, payment, notes};
   if(editingShootId){
     const result = await dbUpdate('shoots', editingShootId, data);
     if(!result) return;
@@ -665,7 +936,7 @@ function renderPhotoStats(){
 }
 
 // ============================================================
-// DASHBOARD ENRICHI
+// DASHBOARD
 // ============================================================
 function renderOverview(){
   const ym = monthKey();
@@ -707,16 +978,9 @@ function renderHealthScore(){
   else color = 'var(--red)';
   el.style.background = `conic-gradient(${color} 0% ${score}%, var(--card2) ${score}% 100%)`;
   el.innerHTML = `<span>${score}</span>`;
-  if(score >= 75){
-    title.textContent = '🌟 Excellente santé';
-    text.textContent = 'Tu es sur la bonne voie. Continue comme ça !';
-  } else if(score >= 50){
-    title.textContent = '👍 Bonne santé';
-    text.textContent = 'Quelques ajustements pour passer au niveau supérieur.';
-  } else {
-    title.textContent = '⚠ À améliorer';
-    text.textContent = 'Concentre-toi sur ton épargne et tes revenus.';
-  }
+  if(score >= 75){ title.textContent = '🌟 Excellente santé'; text.textContent = 'Tu es sur la bonne voie. Continue !'; }
+  else if(score >= 50){ title.textContent = '👍 Bonne santé'; text.textContent = 'Quelques ajustements pour progresser.'; }
+  else { title.textContent = '⚠ À améliorer'; text.textContent = 'Concentre-toi sur ton épargne et tes revenus.'; }
 }
 
 function renderRevDepDonut(){
@@ -735,25 +999,15 @@ function renderRevDepDonut(){
   donut.style.background = `conic-gradient(var(--green) 0% ${pctIn}%, var(--red) ${pctIn}% 100%)`;
   centerText.innerHTML = `<div><div style="font-size:14px">${Math.round(pctIn)}%</div><div style="font-size:9px;color:var(--muted)">Revenus</div></div>`;
   legend.innerHTML = `
-    <div class="legend-item">
-      <div class="legend-dot" style="background:var(--green)"></div>
-      <div class="legend-label">Revenus</div>
-      <div class="legend-value" style="color:var(--green)">${fmt(s.totalIn)}</div>
-    </div>
-    <div class="legend-item">
-      <div class="legend-dot" style="background:var(--red)"></div>
-      <div class="legend-label">Dépenses</div>
-      <div class="legend-value" style="color:var(--red)">${fmt(s.totalOut)}</div>
-    </div>
-  `;
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>
+      <div class="legend-label">Revenus</div><div class="legend-value" style="color:var(--green)">${fmt(s.totalIn)}</div></div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>
+      <div class="legend-label">Dépenses</div><div class="legend-value" style="color:var(--red)">${fmt(s.totalOut)}</div></div>`;
 }
 
 function renderShootTypesChart(){
   const el = document.getElementById('shootTypesChart');
-  if(shoots.length === 0){
-    el.innerHTML = '<div class="empty">Aucune séance enregistrée</div>';
-    return;
-  }
+  if(shoots.length === 0){ el.innerHTML = '<div class="empty">Aucune séance enregistrée</div>'; return; }
   const byType = {};
   shoots.forEach(s => { byType[s.type] = (byType[s.type] || 0) + 1; });
   const entries = Object.entries(byType).sort((a,b) => b[1] - a[1]);
@@ -762,8 +1016,7 @@ function renderShootTypesChart(){
     const pct = (count / total) * 100;
     return `<div class="cat-row">
       <div class="top"><span>📸 ${type}</span><span>${count} séance${count>1?'s':''} · ${pct.toFixed(0)}%</span></div>
-      <div class="bar"><div style="width:${pct}%;background:var(--pink)"></div></div>
-    </div>`;
+      <div class="bar"><div style="width:${pct}%;background:var(--pink)"></div></div></div>`;
   }).join('');
 }
 
@@ -775,9 +1028,7 @@ function renderBars6m(){
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = d.toISOString().slice(0,7);
     const label = d.toLocaleDateString('fr-FR', {month:'short'});
-    const total = txs
-      .filter(t => t.type === 'revenu' && t.date.startsWith(key))
-      .reduce((a,b) => a + Number(b.amount), 0);
+    const total = txs.filter(t => t.type === 'revenu' && t.date.startsWith(key)).reduce((a,b) => a + Number(b.amount), 0);
     months.push({ label, total });
   }
   const max = Math.max(...months.map(m => m.total), 1);
@@ -786,8 +1037,7 @@ function renderBars6m(){
     return `<div class="bar-6m">
       <div class="bar-value">${m.total > 0 ? Math.round(m.total/1000)+'k' : '0'}</div>
       <div class="bar-fill" style="height:${height}%"></div>
-      <div class="bar-label">${m.label}</div>
-    </div>`;
+      <div class="bar-label">${m.label}</div></div>`;
   }).join('');
 }
 
@@ -799,37 +1049,19 @@ function renderSuggestions(){
   if(s.totalIn > 0 && s.savingsRate < SAVINGS_TARGET){
     const missing = (s.totalIn * SAVINGS_TARGET) - (s.totalIn * s.savingsRate);
     suggestions.push({icon:'💰', title:'Augmente ton épargne',
-      body:`Tu peux encore épargner ${fmt(missing)} ce mois pour atteindre ton objectif de ${(SAVINGS_TARGET*100)}%.`});
+      body:`Tu peux encore épargner ${fmt(missing)} ce mois.`});
   }
   const pending = shoots.filter(s => s.payment === 'impaye').reduce((a,b) => a + Number(b.price), 0);
-  if(pending > 0){
-    suggestions.push({icon:'📞', title:'Relance tes clients',
-      body:`Tu as ${fmt(pending)} à encaisser. Un petit message peut accélérer le paiement.`});
-  }
-  if(clients.length === 0){
-    suggestions.push({icon:'👥', title:'Commence par tes clients',
-      body:'Ajoute tes clients existants pour suivre leurs séances et paiements.'});
-  }
-  if(coffres.length === 0){
-    suggestions.push({icon:'🎯', title:'Crée ton premier objectif',
-      body:'Un objectif d\'épargne te motive à mettre de côté. Commence petit : 50 000 FCFA.'});
-  }
-  if(s.sortedCats[0]){
-    const pct = (s.sortedCats[0][1] / s.totalOut * 100);
-    if(pct > 40){
-      suggestions.push({icon:'🎯', title:`Attention à "${s.sortedCats[0][0]}"`,
-        body:`Ce poste représente ${pct.toFixed(0)}% de tes dépenses. Essaie de le réduire de 10%.`});
-    }
-  }
-  if(shoots.length > 0 && s.totalIn > 0){
-    const photoRevenue = shoots.filter(s => s.payment === 'paye').reduce((a,b) => a + Number(b.price), 0);
-    if(photoRevenue < s.totalIn * 0.3){
-      suggestions.push({icon:'💡', title:'Développe ton activité photo',
-        body:'La photo représente moins de 30% de tes revenus. Pense à des mini-sessions ou partenariats.'});
-    }
-  }
+  if(pending > 0) suggestions.push({icon:'📞', title:'Relance tes clients',
+    body:`${fmt(pending)} à encaisser. Un message peut accélérer.`});
+
+  if(clients.length === 0) suggestions.push({icon:'👥', title:'Commence par tes clients',
+    body:'Ajoute tes clients existants.'});
+  if(coffres.length === 0) suggestions.push({icon:'🎯', title:'Crée ton premier objectif',
+    body:'Commence petit : 50 000 FCFA.'});
+
   if(suggestions.length === 0){
-    el.innerHTML = '<div class="empty">Tout est en ordre ! Continue comme ça. 🎉</div>';
+    el.innerHTML = '<div class="empty">Tout est en ordre ! 🎉</div>';
     return;
   }
   el.innerHTML = suggestions.slice(0, 5).map(sg => `
@@ -837,12 +1069,11 @@ function renderSuggestions(){
       <div class="icon">${sg.icon}</div>
       <div class="title">${sg.title}</div>
       <div class="body">${sg.body}</div>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
 // ============================================================
-// MODULE HISTORIQUE
+// HISTORIQUE
 // ============================================================
 let selectedTxIds = new Set();
 
@@ -887,7 +1118,6 @@ function getFilteredTx(){
 
 function renderHistory(){
   const filtered = getFilteredTx();
-
   const totalIn  = filtered.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount), 0);
   const totalOut = filtered.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount), 0);
   document.getElementById('histCount').textContent = filtered.length;
@@ -940,16 +1170,10 @@ function toggleSelectAll(){
 }
 
 async function deleteSelected(){
-  if(selectedTxIds.size === 0){
-    alert("Aucune transaction sélectionnée");
-    return;
-  }
+  if(selectedTxIds.size === 0){ alert("Aucune transaction sélectionnée"); return; }
   if(!confirm(`Supprimer ${selectedTxIds.size} transaction(s) ?`)) return;
-
   const ids = [...selectedTxIds];
-  for(const id of ids){
-    await dbDelete('transactions', id);
-  }
+  for(const id of ids) await dbDelete('transactions', id);
   txs = txs.filter(t => !selectedTxIds.has(t.id));
   selectedTxIds.clear();
   populateHistFilters();
@@ -959,16 +1183,10 @@ async function deleteSelected(){
 
 async function deleteAllFiltered(){
   const filtered = getFilteredTx();
-  if(filtered.length === 0){
-    alert("Aucune transaction à supprimer");
-    return;
-  }
+  if(filtered.length === 0){ alert("Aucune transaction à supprimer"); return; }
   if(!confirm(`⚠ Supprimer ${filtered.length} transaction(s) ?`)) return;
   if(!confirm(`Confirmer la suppression définitive ?`)) return;
-
-  for(const t of filtered){
-    await dbDelete('transactions', t.id);
-  }
+  for(const t of filtered) await dbDelete('transactions', t.id);
   const ids = new Set(filtered.map(t => t.id));
   txs = txs.filter(t => !ids.has(t.id));
   selectedTxIds.clear();
@@ -1003,13 +1221,11 @@ function downloadFile(content, filename, mimeType){
 function exportHistoryCSV(){
   const filtered = getFilteredTx();
   if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
-
   const header = "Date;Type;Catégorie;Montant;Note\n";
   const rows = filtered.map(t => {
     const note = (t.note || '').replace(/;/g, ',').replace(/"/g, '""');
     return `${t.date};${t.type};${t.category};${t.amount};"${note}"`;
   }).join('\n');
-
   downloadFile(header + rows, `transactions-${todayStr()}.csv`, 'text/csv;charset=utf-8;');
 }
 
@@ -1023,12 +1239,10 @@ function exportHistoryJSON(){
 function exportHistoryPDF(){
   const filtered = getFilteredTx();
   if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
-
   if(!window.jspdf || !window.jspdf.jsPDF){
-    alert("La bibliothèque PDF n'est pas encore chargée. Attends 2 secondes et réessaie.");
+    alert("La bibliothèque PDF n'est pas encore chargée.");
     return;
   }
-
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
@@ -1047,11 +1261,7 @@ function exportHistoryPDF(){
   const month  = document.getElementById('histMonth').value;
   const type   = document.getElementById('histType').value;
   const cat    = document.getElementById('histCategory').value;
-  const filterLines = [];
-  filterLines.push("Mois : " + (month === 'all' ? 'Tous' : month));
-  filterLines.push("Type : " + (type === 'all' ? 'Tous' : (type === 'revenu' ? 'Revenus' : 'Dépenses')));
-  filterLines.push("Catégorie : " + (cat === 'all' ? 'Toutes' : cat));
-  doc.text(filterLines.join("   |   "), 14, 40);
+  doc.text(`Mois : ${month === 'all' ? 'Tous' : month} | Type : ${type === 'all' ? 'Tous' : type} | Catégorie : ${cat === 'all' ? 'Toutes' : cat}`, 14, 40);
 
   const totalIn  = filtered.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount), 0);
   const totalOut = filtered.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount), 0);
@@ -1081,13 +1291,7 @@ function exportHistoryPDF(){
     headStyles: {fillColor: [108, 140, 255], textColor: 255, fontStyle: 'bold'},
     bodyStyles: {fontSize: 9, textColor: 40},
     alternateRowStyles: {fillColor: [245, 247, 250]},
-    columnStyles: {
-      0: {cellWidth: 22},
-      1: {cellWidth: 20},
-      2: {cellWidth: 35},
-      3: {cellWidth: 30, halign: 'right'},
-      4: {cellWidth: 'auto'}
-    }
+    columnStyles: {0: {cellWidth: 22}, 1: {cellWidth: 20}, 2: {cellWidth: 35}, 3: {cellWidth: 30, halign: 'right'}, 4: {cellWidth: 'auto'}}
   });
 
   const pageCount = doc.internal.getNumberOfPages();
@@ -1095,18 +1299,13 @@ function exportHistoryPDF(){
     doc.setPage(i);
     doc.setFontSize(9);
     doc.setTextColor(140, 140, 140);
-    doc.text(
-      `Page ${i} / ${pageCount}  —  Ma Super App`,
-      14,
-      doc.internal.pageSize.height - 10
-    );
+    doc.text(`Page ${i} / ${pageCount}  —  Ma Super App`, 14, doc.internal.pageSize.height - 10);
   }
-
   doc.save(`historique-${todayStr()}.pdf`);
 }
 
 // ============================================================
-// MODULE BUSINESS — IDÉES LOCALES
+// BUSINESS
 // ============================================================
 function generateIdeas(){
   const shuffled = [...LOCAL_IDEAS].sort(() => Math.random() - 0.5).slice(0, 5);
@@ -1146,23 +1345,15 @@ function renderSavedIdeas(){
 }
 
 // ============================================================
-// IDÉES IA — AVEC SAUVEGARDE + BOUTONS (comme l'analyse)
+// IDÉES IA
 // ============================================================
-
-// Formate le texte des idées IA en cartes propres
 function formatIdeasText(text){
   if(!text) return '<div class="empty">Pas de contenu</div>';
-
-  let safe = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
+  let safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const lines = safe.split('\n');
   let sections = [];
   let currentSection = null;
   let currentContent = [];
-
   const sectionRegex = /^\s*(\d+)\s*[.)]\s*(.+?)$/;
   const boldRegex    = /\*\*(.+?)\*\*/g;
 
@@ -1170,10 +1361,7 @@ function formatIdeasText(text){
     const match = line.match(sectionRegex);
     if(match){
       if(currentSection !== null || currentContent.length > 0){
-        sections.push({
-          num: currentSection,
-          content: currentContent.join('\n').trim()
-        });
+        sections.push({num: currentSection, content: currentContent.join('\n').trim()});
       }
       currentSection = match[1];
       currentContent = [match[2]];
@@ -1181,25 +1369,16 @@ function formatIdeasText(text){
       currentContent.push(line);
     }
   });
-
   if(currentSection !== null || currentContent.length > 0){
-    sections.push({
-      num: currentSection,
-      content: currentContent.join('\n').trim()
-    });
+    sections.push({num: currentSection, content: currentContent.join('\n').trim()});
   }
-
   sections = sections.filter(s => s.content);
-
-  if(sections.length === 0){
-    sections = [{num: null, content: safe}];
-  }
+  if(sections.length === 0) sections = [{num: null, content: safe}];
 
   return sections.map(s => {
     let content = s.content;
     let title = '';
     let body  = content;
-
     const titleMatch = content.match(/^([^:\n]{2,100}?)(?:\s*:\s*|\n)([\s\S]+)$/);
     if(titleMatch){
       title = titleMatch[1].replace(/\*\*/g, '').trim();
@@ -1208,10 +1387,7 @@ function formatIdeasText(text){
       title = content.replace(/\*\*/g, '').substring(0, 100);
       body = '';
     }
-
-    body = body.replace(boldRegex, '<strong>$1</strong>');
-    body = body.replace(/→/g, '•');
-
+    body = body.replace(boldRegex, '<strong>$1</strong>').replace(/→/g, '•');
     return `<div class="ai-section">
       ${s.num ? `<div class="ai-section-title"><span class="ai-section-num">${s.num}</span>${title}</div>` : ''}
       ${!s.num && title ? `<div class="ai-section-title">${title}</div>` : ''}
@@ -1220,84 +1396,53 @@ function formatIdeasText(text){
   }).join('');
 }
 
-// Charge les idées IA sauvegardées
 async function loadIdeasAI(){
   try {
     const user = await getCurrentUser();
     if(!user) return;
-
-    const { data, error } = await sb
-      .from('user_settings')
-      .select('ideas_ai, ideas_ai_date')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
+    const { data, error } = await sb.from('user_settings')
+      .select('ideas_ai, ideas_ai_date').eq('user_id', user.id).maybeSingle();
     if(error){ console.warn('loadIdeasAI:', error.message); return; }
     if(!data || !data.ideas_ai) return;
-
     localStorage.setItem('ideas_ai_last', data.ideas_ai);
     localStorage.setItem('ideas_ai_last_date', data.ideas_ai_date || '');
-
     document.getElementById('ideasAIOutput').innerHTML = formatIdeasText(data.ideas_ai);
     document.getElementById('ideasCopyBtn').disabled = false;
     document.getElementById('ideasPdfBtn').disabled = false;
     document.getElementById('ideasClearBtn').disabled = false;
-
     if(data.ideas_ai_date){
       const dateEl = document.getElementById('ideasLastUpdate');
       dateEl.textContent = '🕐 Dernière génération : ' + data.ideas_ai_date;
       dateEl.classList.add('visible');
     }
-  } catch(e){
-    console.warn('loadIdeasAI error:', e);
-  }
+  } catch(e){ console.warn('loadIdeasAI error:', e); }
 }
 
-// Sauvegarde les idées IA
 async function saveIdeasAI(text){
   const dateStr = new Date().toLocaleString('fr-FR', {
-    day:'2-digit', month:'long', year:'numeric',
-    hour:'2-digit', minute:'2-digit'
+    day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
   });
-
   localStorage.setItem('ideas_ai_last', text);
   localStorage.setItem('ideas_ai_last_date', dateStr);
-
   try {
     const user = await getCurrentUser();
     if(!user) return;
-
-    const { error } = await sb
-      .from('user_settings')
-      .upsert(
-        { user_id: user.id, ideas_ai: text, ideas_ai_date: dateStr },
-        { onConflict: 'user_id' }
-      );
-
+    const { error } = await sb.from('user_settings')
+      .upsert({ user_id: user.id, ideas_ai: text, ideas_ai_date: dateStr }, { onConflict: 'user_id' });
     if(error) console.warn('saveIdeasAI Supabase:', error.message);
-  } catch(e){
-    console.warn('saveIdeasAI error:', e);
-  }
+  } catch(e){ console.warn('saveIdeasAI error:', e); }
 }
 
-// Efface les idées IA
 async function clearIdeasAI(){
   if(!confirm('Effacer les idées IA ?')) return;
-
   localStorage.removeItem('ideas_ai_last');
   localStorage.removeItem('ideas_ai_last_date');
-
   try {
     const user = await getCurrentUser();
     if(user){
-      await sb.from('user_settings')
-        .update({ ideas_ai: null, ideas_ai_date: null })
-        .eq('user_id', user.id);
+      await sb.from('user_settings').update({ ideas_ai: null, ideas_ai_date: null }).eq('user_id', user.id);
     }
-  } catch(e){
-    console.warn('clearIdeasAI error:', e);
-  }
-
+  } catch(e){ console.warn('clearIdeasAI error:', e); }
   document.getElementById('ideasAIOutput').innerHTML =
     '<div class="empty">Clique sur <strong>Générer</strong> pour obtenir 5 idées de business personnalisées.</div>';
   document.getElementById('ideasLastUpdate').classList.remove('visible');
@@ -1306,11 +1451,9 @@ async function clearIdeasAI(){
   document.getElementById('ideasClearBtn').disabled = true;
 }
 
-// Copie les idées IA
 async function copyIdeasAI(){
   const text = localStorage.getItem('ideas_ai_last');
   if(!text){ alert('Aucune idée à copier'); return; }
-
   try {
     await navigator.clipboard.writeText(text);
     const btn = document.getElementById('ideasCopyBtn');
@@ -1329,20 +1472,16 @@ async function copyIdeasAI(){
   }
 }
 
-// Export PDF des idées IA
 function exportIdeasAIPDF(){
   const text = localStorage.getItem('ideas_ai_last');
   const date = localStorage.getItem('ideas_ai_last_date');
   if(!text){ alert('Aucune idée à exporter'); return; }
-
   if(!window.jspdf || !window.jspdf.jsPDF){
-    alert('La bibliothèque PDF n\'est pas encore chargée. Attends 2 secondes et réessaie.');
+    alert('La bibliothèque PDF n\'est pas encore chargée.');
     return;
   }
-
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-
   doc.setFillColor(255, 107, 157);
   doc.rect(0, 0, 210, 32, 'F');
   doc.setTextColor(255, 255, 255);
@@ -1352,50 +1491,33 @@ function exportIdeasAIPDF(){
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   if(date) doc.text(date, 14, 24);
-
   const cleanText = text.replace(/\*\*/g, '').replace(/→/g, '•');
-
   doc.setTextColor(40, 40, 40);
   doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
-
   const splitText = doc.splitTextToSize(cleanText, 180);
   let y = 42;
   const pageHeight = doc.internal.pageSize.height - 15;
-
   splitText.forEach(line => {
-    if(y > pageHeight){
-      doc.addPage();
-      y = 15;
-    }
+    if(y > pageHeight){ doc.addPage(); y = 15; }
     doc.text(line, 14, y);
     y += 6;
   });
-
   const pageCount = doc.internal.getNumberOfPages();
   for(let i = 1; i <= pageCount; i++){
     doc.setPage(i);
     doc.setFontSize(9);
     doc.setTextColor(140, 140, 140);
-    doc.text(
-      `Page ${i} / ${pageCount}  —  Ma Super App`,
-      14,
-      doc.internal.pageSize.height - 8
-    );
+    doc.text(`Page ${i} / ${pageCount}  —  Ma Super App`, 14, doc.internal.pageSize.height - 8);
   }
-
   doc.save(`idees-ia-${todayStr()}.pdf`);
 }
 
-// Fonction principale (bouton "🤖 Générer")
 async function generateAIIdeas(){
   let cfg = null;
   try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
   if(!cfg || !cfg.key){ alert("Configure ta clé dans l'onglet IA"); return; }
-
   const out = document.getElementById('ideasAIOutput');
   out.innerHTML = '<div class="empty">⏳ Génération en cours... (5 à 15 secondes)</div>';
-
   const summary = buildSummary();
   const prompt = `Voici le profil financier et photo d'une personne :
 
@@ -1412,27 +1534,22 @@ Format strict, chaque idée sur un numéro :
 (etc. pour les 5)
 
 N'utilise PAS d'astérisques. Sois concret et chiffré.`;
-
   try {
     const text = await callAI(prompt);
     if(!text || !text.trim()){
-      out.innerHTML = '<div class="empty">❌ Pas de réponse de l\'IA. Réessaie.</div>';
+      out.innerHTML = '<div class="empty">❌ Pas de réponse de l\'IA.</div>';
       return;
     }
-
     await saveIdeasAI(text);
     out.innerHTML = formatIdeasText(text);
-
     document.getElementById('ideasCopyBtn').disabled = false;
     document.getElementById('ideasPdfBtn').disabled = false;
     document.getElementById('ideasClearBtn').disabled = false;
-
     const dateEl = document.getElementById('ideasLastUpdate');
     dateEl.textContent = '🕐 Dernière génération : ' + new Date().toLocaleString('fr-FR', {
       day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
     });
     dateEl.classList.add('visible');
-
   } catch(e){
     out.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
   }
@@ -1443,14 +1560,12 @@ N'utilise PAS d'astérisques. Sois concret et chiffré.`;
 // ============================================================
 function newQuote(){
   const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-
   const emoji1 = document.getElementById('quoteEmoji');
   const text1  = document.getElementById('quoteText');
   const auth1  = document.getElementById('quoteAuthor');
   if(emoji1) emoji1.textContent = q.e;
   if(text1)  text1.textContent  = '"' + q.q + '"';
   if(auth1)  auth1.textContent  = '— ' + q.a;
-
   const emoji2 = document.getElementById('dashQuoteEmoji');
   const text2  = document.getElementById('dashQuoteText');
   const auth2  = document.getElementById('dashQuoteAuthor');
@@ -1460,164 +1575,40 @@ function newQuote(){
 }
 
 // ============================================================
-// NOTIFICATIONS GLOBALES AUTOMATIQUES
+// NOTIFICATIONS GLOBALES
 // ============================================================
 const NOTIF_MESSAGES = {
   morning: [
-    {i:'🌅', t:'Bonjour !', m:'Nouvelle journée, nouvelle opportunité. Chaque petit effort compte.'},
+    {i:'🌅', t:'Bonjour !', m:'Nouvelle journée, nouvelle opportunité.'},
     {i:'☀️', t:'C\'est le matin !', m:'La discipline du matin fait la réussite du soir.'},
-    {i:'🚀', t:'Debout !', m:'Les gagnants se lèvent avant les autres. Tu es un gagnant.'},
-    {i:'💪', t:'Coucou !', m:'Aujourd\'hui, sois meilleur que hier. C\'est tout.'},
-    {i:'🔥', t:'Allez !', m:'Ta seule limite, c\'est toi-même. Fonce.'},
+    {i:'🚀', t:'Debout !', m:'Les gagnants se lèvent avant les autres.'},
+    {i:'💪', t:'Coucou !', m:'Aujourd\'hui, sois meilleur que hier.'},
+    {i:'🔥', t:'Allez !', m:'Ta seule limite, c\'est toi-même.'},
     {i:'⭐', t:'Bon réveil !', m:'Un petit pas aujourd\'hui vaut mieux qu\'un grand demain.'},
-    {i:'🌱', t:'Nouveau jour', m:'Plante aujourd\'hui ce que tu veux récolter dans 1 an.'},
-    {i:'🎯', t:'Objectif du jour', m:'Décide maintenant de ce que tu vas accomplir aujourd\'hui.'},
-    {i:'🏆', t:'Champion', m:'Les champions sont ceux qui se lèvent quand les autres dorment.'},
-    {i:'💎', t:'Réveil précieux', m:'Ton temps est ta ressource la plus précieuse. Utilise-le bien.'},
-    {i:'🌞', t:'Bonjour soleil', m:'Chaque matin est une chance de recommencer. Saisis-la.'},
-    {i:'📸', t:'Photographe', m:'Ton regard unique mérite d\'être partagé. Prépare-toi à créer.'},
-    {i:'💼', t:'Homme d\'affaires', m:'Pense comme un entrepreneur dès le matin. Agis en conséquence.'},
-    {i:'🎨', t:'Créativité', m:'Ton imagination est ta meilleure alliée aujourd\'hui.'},
-    {i:'🌟', t:'Brille !', m:'Le monde a besoin de ce que tu as à offrir. Aujourd\'hui, offre-le.'},
-    {i:'⚡', t:'Énergie', m:'Booste ton corps et ton esprit. Tu vas réussir.'},
-    {i:'🧠', t:'Esprit clair', m:'Un esprit préparé attire les meilleures opportunités.'},
-    {i:'🎁', t:'Cadeau du jour', m:'Aujourd\'hui est un cadeau. Ne le gaspille pas.'},
-    {i:'🚴', t:'Avance !', m:'Le succès n\'est pas une ligne droite, mais chaque pas compte.'},
-    {i:'🦁', t:'Fier', m:'Sois fier de qui tu es et de ce que tu fais. Continue.'},
-    {i:'📈', t:'Croissance', m:'La croissance commence par l\'inconfort. Sors de ta zone aujourd\'hui.'},
-    {i:'🌍', t:'Ton monde', m:'Tu es le maître de ton destin. Agis en conséquence.'},
-    {i:'⏰', t:'Chaque minute', m:'Chaque minute bien utilisée est une brique de ton succès.'},
-    {i:'🌻', t:'Épanouis-toi', m:'Comme une fleur, ouvre-toi à la lumière du jour.'},
-    {i:'🎵', t:'Harmonie', m:'Trouve ton rythme aujourd\'hui et danse avec la vie.'},
-    {i:'🧗', t:'Grimpe !', m:'Chaque petit pas te rapproche du sommet. Ne t\'arrête pas.'},
-    {i:'🔥', t:'Feu intérieur', m:'Cette flamme en toi, c\'est ton moteur. Alimente-la.'},
-    {i:'🌊', t:'Grand large', m:'Navigue vers tes rêves. Le vent est avec toi ce matin.'},
-    {i:'💡', t:'Idée du jour', m:'Une idée lumineuse peut changer ta journée. Cherche-la.'},
-    {i:'🛤️', t:'Ta route', m:'Tu es sur le bon chemin. Continue à avancer avec confiance.'},
-    {i:'🎬', t:'Action !', m:'Le film de ta réussite commence maintenant. À toi de jouer.'},
-    {i:'🌸', t:'Fraîcheur', m:'Commence cette journée avec un esprit frais et ouvert.'},
-    {i:'🏗️', t:'Construction', m:'Tu construis ton empire. Chaque jour compte.'},
-    {i:'💫', t:'Étoile', m:'Tu es unique. Personne ne peut faire ce que tu fais comme toi.'},
-    {i:'🧭', t:'Boussole', m:'Rappelle-toi pourquoi tu fais tout ça. Puis avance.'},
-    {i:'🥇', t:'Premier', m:'Sois le premier à agir aujourd\'hui, pas le dernier.'},
-    {i:'🌺', t:'Beauté', m:'Crée quelque chose de beau aujourd\'hui, même petit.'},
-    {i:'🎓', t:'Apprends', m:'Chaque jour est une leçon. Sois attentif à ce qu\'il t\'enseigne.'},
-    {i:'🦋', t:'Transformation', m:'Tu évolues chaque jour. Aujourd\'hui, sois la meilleure version de toi.'},
-    {i:'🌄', t:'Aube', m:'Un nouveau lever de soleil, un nouveau départ. Profite-en.'},
-    {i:'⭐', t:'Brille', m:'Ta lumière intérieure attire le succès. Laisse-la éclater.'},
-    {i:'🎯', t:'Précision', m:'Vise juste, tire fort, reste concentré.'},
-    {i:'💪', t:'Force', m:'Ta force est en toi. Réveille-la aujourd\'hui.'},
-    {i:'🌈', t:'Après la pluie', m:'Même les jours difficiles mènent à un arc-en-ciel. Persévère.'},
-    {i:'🎪', t:'Ta scène', m:'Le monde est ta scène. Aujourd\'hui, donne ton meilleur show.'},
-    {i:'🕊️', t:'Paix', m:'Commence la journée avec calme. La paix attire la clarté.'},
-    {i:'🎁', t:'Surprise', m:'Attends-toi à du positif aujourd\'hui. Il arrive souvent quand on l\'accueille.'},
-    {i:'🌳', t:'Racines', m:'Tes efforts d\'hier sont tes racines d\'aujourd\'hui. Grandis.'},
-    {i:'🔑', t:'Clé', m:'La clé du succès, c\'est la constance. Sois constant aujourd\'hui.'},
-    {i:'⚓', t:'Ancre', m:'Reste ancré dans tes valeurs, peu importe les tempêtes.'}
+    {i:'🌱', t:'Nouveau jour', m:'Plante aujourd\'hui ce que tu veux récolter.'},
+    {i:'🎯', t:'Objectif du jour', m:'Décide maintenant ce que tu vas accomplir.'},
+    {i:'🏆', t:'Champion', m:'Les champions se lèvent quand les autres dorment.'},
+    {i:'💎', t:'Réveil précieux', m:'Ton temps est ta ressource la plus précieuse.'}
   ],
   midday: [
-    {i:'💰', t:'Conseil finance', m:'Avant chaque achat, demande-toi : "En ai-je VRAIMENT besoin ?"'},
-    {i:'📸', t:'Astuce photo', m:'Publie 1 photo de ton travail aujourd\'hui. La visibilité, c\'est du business.'},
-    {i:'💡', t:'Idée business', m:'Un client satisfait = 3 recommandations potentielles. Soigne tes relations.'},
-    {i:'🎯', t:'Focus', m:'Écris tes 3 priorités de la journée. Fais-les avant tout le reste.'},
-    {i:'📊', t:'Conseil', m:'Note tes dépenses du jour. La conscience est le 1er pas vers la liberté.'},
-    {i:'💼', t:'Business', m:'Propose un mini-shooting à 3 anciens clients cette semaine.'},
-    {i:'💎', t:'Conseil', m:'Épargner 1000 FCFA/jour = 30 000 FCFA/mois. Commence petit.'},
-    {i:'💵', t:'Rappel', m:'Mets 20% de chaque revenu de côté AVANT de dépenser.'},
-    {i:'🎬', t:'Prospection', m:'Contacte 1 nouveau client aujourd\'hui. Le succès demande de l\'audace.'},
-    {i:'📱', t:'Marketing', m:'Poste 1 story sur ton activité. Gratuit et puissant.'},
-    {i:'🧾', t:'Comptabilité', m:'Note tous tes paiements. La mémoire oublie, les chiffres non.'},
-    {i:'🌟', t:'Témoignage', m:'Demande à un client satisfait de te recommander. C\'est gratuit.'},
-    {i:'🏪', t:'Marché', m:'Connais-tu la concurrence ? Regarde ce que font les autres pros.'},
-    {i:'📝', t:'Idée', m:'Note 1 idée business qui te vient à l\'esprit. Elle vaut de l\'or.'},
-    {i:'💡', t:'Astuce tarif', m:'Ne brade pas tes prix. La qualité a un coût, c\'est normal.'},
-    {i:'🎁', t:'Fidélisation', m:'Un petit cadeau à un client fidèle = un client à vie.'},
-    {i:'🕐', t:'Pause', m:'Fais une vraie pause. La productivité aime les esprits reposés.'},
-    {i:'🔍', t:'Veille', m:'Renseigne-toi sur les nouvelles tendances photo.'},
-    {i:'🎓', t:'Formation', m:'Apprends 1 nouvelle compétence par mois. Aujourd\'hui, commence.'},
-    {i:'💬', t:'Communication', m:'Réponds vite à tes messages clients. La réactivité gagne.'},
-    {i:'📈', t:'Croissance', m:'Analyse tes chiffres du mois. Où peux-tu améliorer ?'},
-    {i:'🤝', t:'Réseau', m:'Contacte 1 professionnel pour échanger des idées.'},
-    {i:'🎨', t:'Style', m:'Développe ton style unique. C\'est ce qui te différencie.'},
-    {i:'📷', t:'Matériel', m:'Entretiens ton matériel. Un outil propre = un travail propre.'},
-    {i:'🗂️', t:'Organisation', m:'Trie tes fichiers photos. Le désordre coûte du temps.'},
-    {i:'💼', t:'Devis', m:'Suis 1 devis envoyé mais sans réponse. Relance poliment.'},
-    {i:'🎯', t:'Ciblage', m:'Quel est ton client idéal ? Adapte ton offre à lui.'},
-    {i:'🌐', t:'En ligne', m:'Ton portfolio est-il à jour ? Mets-y tes 3 meilleures photos.'},
-    {i:'📢', t:'Publicité', m:'Investis 5 000 FCFA dans une pub Facebook ciblée. Teste.'},
-    {i:'💰', t:'Épargne', m:'Ouvre un coffre Mobile Money dédié à ton épargne. Sépare-la.'},
-    {i:'🎁', t:'Offre', m:'Crée une offre packagée (ex : mariage + retouches) pour vendre plus.'},
-    {i:'⏱️', t:'Efficacité', m:'Regroupe tes tâches similaires. Tu gagneras 30% de temps.'},
-    {i:'📚', t:'Lecture', m:'Lis 10 pages d\'un livre de business aujourd\'hui.'},
-    {i:'🎥', t:'Coulisses', m:'Filme-toi en train de travailler. Le public adore l\'authentique.'},
-    {i:'🎯', t:'Objectif', m:'Ton objectif du mois est-il encore clair ? Sinon, réajuste.'},
-    {i:'🤖', t:'Automatisation', m:'Peux-tu automatiser une tâche répétitive ? Gagne du temps.'},
-    {i:'🌟', t:'Avis', m:'Demande un avis Google à un client récent. Ça booste ton SEO.'},
-    {i:'💎', t:'Qualité', m:'Ne sacrifie jamais la qualité pour la rapidité.'},
-    {i:'📊', t:'Analyse', m:'Quel type de séance te rapporte le plus ? Concentre-toi dessus.'},
-    {i:'🛠️', t:'Compétences', m:'Le montage vidéo est demandé. Forme-toi si tu peux.'},
-    {i:'💬', t:'Client', m:'Demande toujours un feedback après une prestation.'},
-    {i:'📸', t:'Instagram', m:'Utilise 5 hashtags locaux pertinents. Ça change tout.'},
-    {i:'🎬', t:'Storytelling', m:'Raconte une histoire derrière chaque photo. Les gens adorent.'},
-    {i:'🎁', t:'Bonus', m:'Offre un petit extra à ton prochain client. Il se souviendra.'},
-    {i:'🚀', t:'Innovation', m:'Essaie une nouvelle technique photo cette semaine.'},
-    {i:'💰', t:'Cash-flow', m:'Un acompte de 50% protège ton travail. Exige-le.'},
-    {i:'⏰', t:'Priorités', m:'Le plus important d\'abord, le reste après. Toujours.'},
-    {i:'🎓', t:'Mentor', m:'Identifie 1 photographe pro que tu admires et étudie son parcours.'},
-    {i:'💼', t:'Partenariats', m:'Propose un partenariat à un wedding planner ou un traiteur.'},
-    {i:'🌟', t:'Excellence', m:'Vise l\'excellence, pas la perfection. La première est atteignable.'}
+    {i:'💰', t:'Conseil finance', m:'Avant chaque achat, demande-toi : "En ai-je vraiment besoin ?"'},
+    {i:'📸', t:'Astuce photo', m:'Publie 1 photo de ton travail aujourd\'hui.'},
+    {i:'💡', t:'Idée business', m:'Un client satisfait = 3 recommandations.'},
+    {i:'🎯', t:'Focus', m:'Écris tes 3 priorités du jour.'},
+    {i:'📊', t:'Conseil', m:'Note tes dépenses. La conscience est le 1er pas.'},
+    {i:'💼', t:'Business', m:'Propose un mini-shooting à 3 anciens clients.'},
+    {i:'💎', t:'Conseil', m:'Épargner 1000 FCFA/jour = 30 000 FCFA/mois.'},
+    {i:'💵', t:'Rappel', m:'Mets 20% de chaque revenu de côté AVANT de dépenser.'}
   ],
   evening: [
-    {i:'🌙', t:'Bilan du jour', m:'As-tu épargné quelque chose aujourd\'hui ? Même 500 FCFA compte.'},
-    {i:'💰', t:'Pense à épargner', m:'Ouvre ton app et ajoute tes transactions du jour.'},
-    {i:'🎯', t:'Objectifs', m:'Chaque jour sans épargne est un jour de retard sur tes rêves.'},
-    {i:'🔥', t:'Discipline', m:'Le succès n\'est pas un hasard, c\'est un choix quotidien.'},
-    {i:'📸', t:'Bilan photo', m:'As-tu relancé tes clients impayés aujourd\'hui ?'},
-    {i:'⭐', t:'Bien joué', m:'Tu as survécu à une journée de plus. Demain sera meilleur.'},
+    {i:'🌙', t:'Bilan du jour', m:'As-tu épargné quelque chose aujourd\'hui ?'},
+    {i:'💰', t:'Pense à épargner', m:'Ouvre ton app et ajoute tes transactions.'},
+    {i:'🎯', t:'Objectifs', m:'Chaque jour sans épargne est un jour de retard.'},
+    {i:'🔥', t:'Discipline', m:'Le succès est un choix quotidien.'},
+    {i:'📸', t:'Bilan photo', m:'As-tu relancé tes clients impayés ?'},
+    {i:'⭐', t:'Bien joué', m:'Tu as survécu à une journée de plus.'},
     {i:'💪', t:'Repose-toi', m:'Le repos est aussi productif que le travail.'},
-    {i:'📖', t:'Bilan', m:'Note 3 choses positives qui sont arrivées aujourd\'hui.'},
-    {i:'🧘', t:'Calme', m:'Avant de dormir, respire profondément 5 fois. Demain sera clair.'},
-    {i:'💭', t:'Réflexion', m:'Qu\'as-tu appris aujourd\'hui ? La leçon est partout.'},
-    {i:'🎬', t:'Cinéma', m:'Quelle scène de ta journée mériterait d\'être dans un film ?'},
-    {i:'🌌', t:'Nuit', m:'La nuit porte conseil. Laisse tes idées venir.'},
-    {i:'🎯', t:'Demain', m:'Écris tes 3 priorités de demain avant de dormir.'},
-    {i:'💎', t:'Gratitude', m:'Remercie pour 1 chose qui t\'est arrivée aujourd\'hui.'},
-    {i:'📊', t:'Chiffres', m:'Combien as-tu gagné et dépensé aujourd\'hui ? Fais le calcul.'},
-    {i:'🌙', t:'Coucher', m:'Le sommeil est ta meilleure arme pour réussir demain.'},
-    {i:'🔥', t:'Motivation', m:'Même si la journée était dure, tu as tenu. Bravo.'},
-    {i:'📝', t:'Journal', m:'Note une idée qui t\'est venue aujourd\'hui. Elle est précieuse.'},
-    {i:'💤', t:'Repos', m:'Un corps reposé crée un esprit vif. Dors bien.'},
-    {i:'⭐', t:'Fierté', m:'Sois fier du chemin parcouru, peu importe où tu en es.'},
-    {i:'🎁', t:'Demain', m:'Demain est une nouvelle chance. Ce soir, prépare-toi à la saisir.'},
-    {i:'🏆', t:'Victoire', m:'Chaque jour est une victoire si tu continues d\'avancer.'},
-    {i:'📸', t:'Photos', m:'Range tes photos du jour. Ton futur toi te remerciera.'},
-    {i:'💰', t:'Argent', m:'Fais le point sur ton solde du jour. Sois honnête avec toi-même.'},
-    {i:'🎯', t:'Objectif', m:'Ton objectif du mois avance-t-il ? Sinon, décide d\'un plan.'},
-    {i:'💭', t:'Rêves', m:'Un rêve sans plan reste un rêve. Pense à ton plan ce soir.'},
-    {i:'🌜', t:'Douce nuit', m:'Laisse tes soucis au placard. Ils seront là demain.'},
-    {i:'💪', t:'Fierté', m:'Tu as fait de ton mieux aujourd\'hui. C\'est ce qui compte.'},
-    {i:'🕯️', t:'Lumière', m:'Même petit, ton impact est réel. Continue.'},
-    {i:'🎓', t:'Leçon', m:'Quelle leçon retiens-tu de ta journée ? Note-la.'},
-    {i:'💼', t:'Business', m:'As-tu pensé à ton business aujourd\'hui ? Sinon, 5 minutes avant de dormir.'},
-    {i:'🌊', t:'Lâcher-prise', m:'Ce qui est fait est fait. Ce qui vient viendra. Repose-toi.'},
-    {i:'🎬', t:'Bilan vidéo', m:'Si tu devais résumer ta journée en 30 secondes, tu dirais quoi ?'},
-    {i:'🌟', t:'Étoile', m:'Même les nuages cachent le soleil. Il revient toujours. Toi aussi.'},
-    {i:'😌', t:'Détente', m:'Pas d\'écran 1h avant de dormir. Ton cerveau te remerciera.'},
-    {i:'🎯', t:'Cap', m:'Garde le cap. Même lent, tu avances.'},
-    {i:'🚀', t:'Demain', m:'Demain sera meilleur. Prépare-toi, champion.'},
-    {i:'💎', t:'Valeur', m:'Ce que tu as fait aujourd\'hui a de la valeur. Ne l\'oublie pas.'},
-    {i:'📖', t:'Histoire', m:'Tu écris ton histoire chaque jour. Ce soir, relis le chapitre.'},
-    {i:'🌙', t:'Nuit', m:'Bonne nuit, futur(e) grand(e). Dors bien.'},
-    {i:'💤', t:'Sommeil', m:'8 heures de sommeil = cerveau au top demain. Priorité.'},
-    {i:'🎁', t:'Cadeau', m:'Aujourd\'hui était un cadeau. Demain en sera un autre.'},
-    {i:'🔥', t:'Flamme', m:'Garde la flamme allumée. Le succès se construit dans le temps.'},
-    {i:'💪', t:'Force', m:'Tu es plus fort(e) que tu ne le penses. Repose-toi en paix.'},
-    {i:'🌠', t:'Étoiles', m:'Regarde les étoiles si tu peux. Elles te rappellent ton immensité.'},
-    {i:'🎯', t:'Focus', m:'Demain matin, réveille-toi avec ton objectif en tête.'},
-    {i:'💭', t:'Vision', m:'Visualise ta réussite. Ton esprit attire ce que tu imagines.'},
-    {i:'🌿', t:'Paix', m:'Termine la journée en paix avec toi-même. Tu le mérites.'},
-    {i:'💎', t:'Précieux', m:'Chaque heure de ta vie est précieuse. Pardonne-toi les erreurs.'},
-    {i:'🌟', t:'Demain', m:'Un nouveau jour, une nouvelle chance. À demain, champion.'}
+    {i:'📖', t:'Bilan', m:'Note 3 choses positives qui sont arrivées.'}
   ]
 };
 
@@ -1627,46 +1618,33 @@ function getNotificationMessage(type){
   return messages[dayIndex % messages.length];
 }
 
-function isNotifEnabled(){
-  return localStorage.getItem('notif_enabled') === '1';
-}
-
 async function toggleNotifications(){
   if(isNotifEnabled()){
     localStorage.removeItem('notif_enabled');
     updateNotifButton();
     return;
   }
-
   if(!('Notification' in window)){
     document.getElementById('notifStatus').textContent = '❌ Non supporté sur ce navigateur';
     return;
   }
-
   const permission = await Notification.requestPermission();
   if(permission !== 'granted'){
-    document.getElementById('notifStatus').textContent = '❌ Permission refusée. Autorise dans les réglages du navigateur.';
+    document.getElementById('notifStatus').textContent = '❌ Permission refusée.';
     return;
   }
-
   try {
     const OneSignal = window.OneSignal;
     if(OneSignal){
       await OneSignal.User.PushSubscription.optIn();
       const user = await getCurrentUser();
-      if(user && user.email){
-        await OneSignal.login(user.email);
-      }
+      if(user && user.email) await OneSignal.login(user.email);
     }
     localStorage.setItem('notif_enabled', '1');
     updateNotifButton();
-
     setTimeout(registerOneSignalPlayer, 2000);
-
-    await showLocalNotification(
-      '🔥 Notifications activées',
-      'Tu recevras tes rappels sur tous tes appareils, même app fermée 💪'
-    );
+    await showLocalNotification('🔥 Notifications activées',
+      'Tu recevras tes rappels sur tous tes appareils, même app fermée 💪');
   } catch(e){
     console.error('OneSignal error:', e);
     document.getElementById('notifStatus').textContent = '❌ Erreur : ' + e.message;
@@ -1674,10 +1652,7 @@ async function toggleNotifications(){
 }
 
 async function testerNotification(){
-  if(!isNotifEnabled()){
-    alert('Active d\'abord les notifications');
-    return;
-  }
+  if(!isNotifEnabled()){ alert('Active d\'abord les notifications'); return; }
   const msg = getNotificationMessage('midday');
   await showLocalNotification(msg.i + ' ' + msg.t, msg.m);
 }
@@ -1685,10 +1660,9 @@ async function testerNotification(){
 async function checkAutomaticNotifications(){
   if(!isNotifEnabled()) return;
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
-
   const now = new Date();
-  const hh  = now.getHours();
-  const mm  = now.getMinutes();
+  const hh = now.getHours();
+  const mm = now.getMinutes();
   const todayKey = now.toISOString().slice(0,10);
 
   if(hh === 8 && mm >= 0 && mm < 5){
@@ -1717,28 +1691,21 @@ async function checkAutomaticNotifications(){
   }
 }
 
-function enableNotifications(){
-  toggleNotifications();
-}
+function enableNotifications(){ toggleNotifications(); }
 
 async function checkDailyReminders(){
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
   if(!isNotifEnabled()) return;
-
   const today  = todayStr();
   const now    = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
-
   for(const r of reminders){
-    // Ignore les rappels déjà envoyés par le serveur
     if(r.sent) continue;
-    // Ignore les rappels qui ont une due_date (gérés côté serveur)
     if(r.due_date) continue;
-
     if(!r.time) continue;
     const [h, m] = r.time.split(':').map(Number);
-    const rMin   = h * 60 + m;
-    const key    = `reminder_${r.id}_${today}`;
+    const rMin = h * 60 + m;
+    const key = `reminder_${r.id}_${today}`;
     if(!localStorage.getItem(key) && Math.abs(nowMin - rMin) <= 5){
       await showLocalNotification("⏰ Rappel", r.text);
       localStorage.setItem(key, '1');
@@ -1746,29 +1713,26 @@ async function checkDailyReminders(){
   }
 }
 
-// Liste des types fixes (pour distinguer des types perso)
+// ============================================================
+// MODULE RAPPELS
+// ============================================================
 const REMINDER_TYPES_FIXES = ['perso','rdv','appel','paiement','Autre'];
 
-// Affiche/cache le champ "Précise le type"
 function onReminderTypeChange(){
   const val = document.getElementById('reminderType').value;
   const wrap = document.getElementById('reminderCustomTypeWrap');
   if(wrap) wrap.style.display = (val === 'Autre') ? 'block' : 'none';
 }
 
-// Ouvre la modale (création OU modification)
 function openReminderModal(id){
   editingReminderId = id || null;
-
   const r = id ? reminders.find(x => x.id === id) : null;
-
   document.getElementById('reminderModalTitle').textContent =
     r ? '✏️ Modifier le rappel' : '⏰ Nouveau rappel';
   document.getElementById('reminderSubmit').textContent =
     r ? '💾 Enregistrer les modifications' : '➕ Créer le rappel';
 
   if(r){
-    // Mode modification : pré-remplit les champs
     let savedType = r.type || 'perso';
     if(REMINDER_TYPES_FIXES.includes(savedType)){
       document.getElementById('reminderType').value = savedType;
@@ -1777,9 +1741,7 @@ function openReminderModal(id){
       document.getElementById('reminderType').value = 'Autre';
       document.getElementById('reminderCustomType').value = savedType;
     }
-
     document.getElementById('reminderText').value = r.text || '';
-
     if(r.due_date){
       const d = new Date(r.due_date);
       document.getElementById('reminderDate').value = d.toISOString().slice(0,10);
@@ -1790,19 +1752,16 @@ function openReminderModal(id){
       document.getElementById('reminderTime').value = r.time || '09:00';
     }
   } else {
-    // Mode création : valeurs par défaut
     document.getElementById('reminderType').value = 'perso';
     document.getElementById('reminderCustomType').value = '';
     document.getElementById('reminderText').value = '';
     document.getElementById('reminderDate').value = new Date().toISOString().slice(0,10);
     document.getElementById('reminderTime').value = '09:00';
   }
-
   onReminderTypeChange();
   document.getElementById('reminderModalBg').classList.add('show');
 }
 
-// Ferme et réinitialise l'ID d'édition
 function closeReminderModal(){
   document.getElementById('reminderModalBg').classList.remove('show');
   editingReminderId = null;
@@ -1818,88 +1777,53 @@ async function saveReminder(){
   if(!date){ alert("Choisis une date"); return; }
   if(!time){ alert("Choisis une heure"); return; }
 
-  // Si "Autre" est choisi, on prend la valeur personnalisée
   if(type === 'Autre'){
     const custom = document.getElementById('reminderCustomType').value.trim();
-    if(custom){
-      type = custom;
-    } else {
-      alert("Précise le type (ou choisis-en un dans la liste)");
-      return;
-    }
+    if(custom) type = custom;
+    else { alert("Précise le type"); return; }
   }
 
-  // Construit la date complète au format ISO
   const dueDate = new Date(date + 'T' + time + ':00').toISOString();
 
-  // MODIFICATION
   if(editingReminderId){
     const result = await dbUpdate('reminders', editingReminderId, {
-      text: text,
-      time: time,
-      type: type,
-      due_date: dueDate,
-      sent: false  // On remet à false car la date a peut-être changé
+      text, time, type, due_date: dueDate, sent: false
     });
     if(!result) return;
-
     const idx = reminders.findIndex(r => r.id === editingReminderId);
     if(idx >= 0) reminders[idx] = result;
-
     closeReminderModal();
     refreshAll();
-
-    alert('✅ Rappel modifié !\nNouveau rendez-vous : ' +
-      new Date(dueDate).toLocaleString('fr-FR', {
-        weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
-      })
-    );
+    alert('✅ Rappel modifié !\n' + new Date(dueDate).toLocaleString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+    }));
     return;
   }
 
-  // CRÉATION
-  const result = await dbInsert('reminders', {
-    text: text,
-    time: time,
-    type: type,
-    due_date: dueDate,
-    sent: false
-  });
+  const result = await dbInsert('reminders', {text, time, type, due_date: dueDate, sent: false});
   if(!result) return;
-
   reminders.push(result);
   closeReminderModal();
   refreshAll();
-
-  alert('✅ Rappel créé !\nTu recevras une notification le ' +
-    new Date(dueDate).toLocaleString('fr-FR', {
-      weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
-    }) +
-    '\n\nMême si l\'app est fermée 🔔'
-  );
+  alert('✅ Rappel créé !\n' + new Date(dueDate).toLocaleString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+  }) + '\n\nMême app fermée 🔔');
 }
+
 async function delReminder(id){
   const ok = await dbDelete('reminders', id);
   if(!ok) return;
   reminders = reminders.filter(r => r.id !== id);
   refreshAll();
 }
+
 function renderReminders(){
   const el = document.getElementById('remindersList');
   if(reminders.length === 0){
     el.innerHTML = '<div class="empty">Aucun rappel. Crées-en un !</div>';
     return;
   }
-
-  const fixedIcons = {
-    perso:    '🔔',
-    rdv:      '📅',
-    appel:    '📞',
-    paiement: '💰',
-    Autre:    '✏️'
-  };
-
-  // Trie par date (les plus proches en premier)
+  const fixedIcons = {perso:'🔔', rdv:'📅', appel:'📞', paiement:'💰', Autre:'✏️'};
   const sorted = [...reminders].sort((a,b) => {
     const da = a.due_date || a.created_at || '';
     const db_ = b.due_date || b.created_at || '';
@@ -1907,39 +1831,25 @@ function renderReminders(){
   });
 
   el.innerHTML = sorted.map(r => {
-    // Type fixe ou personnalisé
     const icon = fixedIcons[r.type] || '✏️';
     const now = new Date();
     const due = r.due_date ? new Date(r.due_date) : null;
-
     let statusBadge = '';
     let statusClass = '';
 
-    if(r.sent){
-      statusBadge = '✅ Envoyé';
-      statusClass = 'sent';
-    } else if(due && due < now){
-      statusBadge = '⏱ En cours';
-      statusClass = 'pending';
-    } else if(due){
+    if(r.sent){ statusBadge = '✅ Envoyé'; statusClass = 'sent'; }
+    else if(due && due < now){ statusBadge = '⏱ En cours'; statusClass = 'pending'; }
+    else if(due){
       const diff = due - now;
       const hours = Math.floor(diff / 3600000);
       const days = Math.floor(hours / 24);
-
-      if(hours < 1){
-        statusBadge = '⏱ Moins d\'1h';
-      } else if(hours < 24){
-        statusBadge = `⏱ Dans ${hours}h`;
-      } else {
-        statusBadge = `📅 Dans ${days}j`;
-      }
+      if(hours < 1) statusBadge = '⏱ Moins d\'1h';
+      else if(hours < 24) statusBadge = `⏱ Dans ${hours}h`;
+      else statusBadge = `📅 Dans ${days}j`;
     }
 
     const dateStr = due
-      ? due.toLocaleString('fr-FR', {
-          day: '2-digit', month: 'short',
-          hour: '2-digit', minute: '2-digit'
-        })
+      ? due.toLocaleString('fr-FR', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})
       : r.time || '';
 
     return `<div class="reminder ${statusClass}">
@@ -1959,119 +1869,9 @@ function renderReminders(){
   }).join('');
 }
 
-// Ouvre l'app quand on clique sur une notification locale
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.addEventListener('message', (event) => {
-    if(event.data && event.data.type === 'notification-click'){
-      window.focus();
-      if(event.data.url) window.location.href = event.data.url;
-    }
-  });
-}
-
-setInterval(() => {
-  checkAutomaticNotifications();
-  checkDailyReminders();
-}, 60000);
 // ============================================================
-// HELPER NOTIFICATION (marche PC + mobile)
+// MODULE IA
 // ============================================================
-async function showLocalNotification(title, body, url){
-  try {
-    // Essaie via Service Worker (obligatoire sur mobile)
-    if('serviceWorker' in navigator){
-      const reg = await navigator.serviceWorker.getRegistration();
-      if(reg && reg.showNotification){
-        await reg.showNotification(title, {
-          body: body,
-          icon: '/favicon.ico',
-          badge: '/favicon.ico',
-          data: { url: url || 'https://hyperapp-henzo.vercel.app' }
-        });
-        return true;
-      }
-    }
-    // Fallback : notification classique (PC uniquement)
-    if('Notification' in window && Notification.permission === 'granted'){
-      new Notification(title, { body: body });
-      return true;
-    }
-    return false;
-  } catch(e){
-    console.warn('showLocalNotification error:', e);
-    return false;
-  }
-}
-
-// ============================================================
-// ÉTAT DES NOTIFICATIONS
-// ============================================================
-function isNotifEnabled(){
-  return localStorage.getItem('notif_enabled') === '1';
-}
-
-function updateNotifButton(){
-  const btn = document.getElementById('notifBtn');
-  const status = document.getElementById('notifStatus');
-  if(!btn) return;
-
-  if(isNotifEnabled()){
-    btn.classList.add('active');
-    btn.textContent = '✅ Notifications activées';
-    if(status) status.textContent = 'Tu recevras tes rappels sur tous tes appareils';
-  } else {
-    btn.classList.remove('active');
-    btn.textContent = '🔔 Activer les notifications';
-    if(status) status.textContent = '';
-  }
-}
-
-// ============================================================
-// ENREGISTREMENT DU PLAYER ID ONESIGNAL
-// ============================================================
-async function registerOneSignalPlayer(){
-  try {
-    const user = await getCurrentUser();
-    if(!user) return;
-
-    const OneSignal = window.OneSignal;
-    if(!OneSignal) return;
-
-    // Attends que le SDK soit prêt
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    const sub = OneSignal.User?.PushSubscription;
-    if(!sub) return;
-
-    const playerId = sub.id;
-    if(!playerId) return;
-
-    // Vérifie si déjà enregistré
-    const { data: existing } = await sb
-      .from('push_subscriptions')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('player_id', playerId)
-      .maybeSingle();
-
-    if(existing) return; // déjà enregistré
-
-    // Insère
-    await sb.from('push_subscriptions').insert({
-      user_id: user.id,
-      player_id: playerId
-    });
-
-    console.log('✅ Player ID enregistré pour les rappels:', playerId);
-
-  } catch(e){
-    console.warn('registerOneSignalPlayer:', e);
-  }
-}
-// ============================================================
-// MODULE IA — ANALYSE SYNCHRONISÉE (Supabase + local)
-// ============================================================
-
 function toggleAiConfig(){
   const body  = document.getElementById('aiConfigBody');
   const arrow = document.getElementById('aiConfigArrow');
@@ -2080,20 +1880,13 @@ function toggleAiConfig(){
   arrow.classList.toggle('open', !isOpen);
 }
 
-// Convertit le markdown brut en HTML propre avec cartes numérotées
 function formatAnalysisText(text){
   if(!text) return '<div class="empty">Pas de contenu</div>';
-
-  let safe = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
+  let safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const lines = safe.split('\n');
   let sections = [];
   let currentSection = null;
   let currentContent = [];
-
   const sectionRegex = /^\s*(\d+)\s*[.)]\s*(.+?)$/;
   const boldRegex    = /\*\*(.+?)\*\*/g;
 
@@ -2101,10 +1894,7 @@ function formatAnalysisText(text){
     const match = line.match(sectionRegex);
     if(match){
       if(currentSection !== null || currentContent.length > 0){
-        sections.push({
-          num: currentSection,
-          content: currentContent.join('\n').trim()
-        });
+        sections.push({num: currentSection, content: currentContent.join('\n').trim()});
       }
       currentSection = match[1];
       currentContent = [match[2]];
@@ -2112,19 +1902,11 @@ function formatAnalysisText(text){
       currentContent.push(line);
     }
   });
-
   if(currentSection !== null || currentContent.length > 0){
-    sections.push({
-      num: currentSection,
-      content: currentContent.join('\n').trim()
-    });
+    sections.push({num: currentSection, content: currentContent.join('\n').trim()});
   }
-
   sections = sections.filter(s => s.content);
-
-  if(sections.length === 0){
-    sections = [{num: null, content: safe}];
-  }
+  if(sections.length === 0) sections = [{num: null, content: safe}];
 
   function detectColor(content){
     const lower = content.toLowerCase();
@@ -2138,7 +1920,6 @@ function formatAnalysisText(text){
     let content = s.content;
     let title = '';
     let body  = content;
-
     const titleMatch = content.match(/^([^:]{2,80}?)\s*:\s*([\s\S]+)$/);
     if(titleMatch){
       title = titleMatch[1].replace(/\*\*/g, '').trim();
@@ -2153,10 +1934,8 @@ function formatAnalysisText(text){
         body = '';
       }
     }
-
     body = body.replace(boldRegex, '<strong>$1</strong>');
     const color = detectColor(s.content);
-
     return `<div class="ai-section ${color}">
       ${s.num ? `<div class="ai-section-title"><span class="ai-section-num">${s.num}</span>${title}</div>` : ''}
       ${!s.num && title ? `<div class="ai-section-title">${title}</div>` : ''}
@@ -2165,85 +1944,53 @@ function formatAnalysisText(text){
   }).join('');
 }
 
-// Charge l'analyse sauvegardée depuis Supabase
 async function loadSavedAnalysis(){
   try {
     const user = await getCurrentUser();
     if(!user) return;
-
-    const { data, error } = await sb
-      .from('user_settings')
-      .select('ai_analysis, ai_analysis_date')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
+    const { data, error } = await sb.from('user_settings')
+      .select('ai_analysis, ai_analysis_date').eq('user_id', user.id).maybeSingle();
     if(error){ console.warn('loadSavedAnalysis:', error.message); return; }
     if(!data || !data.ai_analysis) return;
-
     localStorage.setItem('ai_last_analysis', data.ai_analysis);
     localStorage.setItem('ai_last_analysis_date', data.ai_analysis_date || '');
-
-    const html = formatAnalysisText(data.ai_analysis);
-    document.getElementById('aiOutput').innerHTML = html;
+    document.getElementById('aiOutput').innerHTML = formatAnalysisText(data.ai_analysis);
     document.getElementById('aiCopyBtn').disabled = false;
     document.getElementById('aiPdfBtn').disabled = false;
     document.getElementById('aiClearBtn').disabled = false;
-
     if(data.ai_analysis_date){
       const dateEl = document.getElementById('aiLastUpdate');
       dateEl.textContent = '🕐 Dernière analyse : ' + data.ai_analysis_date;
       dateEl.classList.add('visible');
     }
-  } catch(e){
-    console.warn('loadSavedAnalysis error:', e);
-  }
+  } catch(e){ console.warn('loadSavedAnalysis error:', e); }
 }
 
-// Sauvegarde l'analyse dans Supabase + cache local
 async function saveAnalysis(text){
   const dateStr = new Date().toLocaleString('fr-FR', {
-    day:'2-digit', month:'long', year:'numeric',
-    hour:'2-digit', minute:'2-digit'
+    day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
   });
-
   localStorage.setItem('ai_last_analysis', text);
   localStorage.setItem('ai_last_analysis_date', dateStr);
-
   try {
     const user = await getCurrentUser();
     if(!user) return;
-
-    const { error } = await sb
-      .from('user_settings')
-      .upsert(
-        { user_id: user.id, ai_analysis: text, ai_analysis_date: dateStr },
-        { onConflict: 'user_id' }
-      );
-
+    const { error } = await sb.from('user_settings')
+      .upsert({ user_id: user.id, ai_analysis: text, ai_analysis_date: dateStr }, { onConflict: 'user_id' });
     if(error) console.warn('saveAnalysis Supabase:', error.message);
-  } catch(e){
-    console.warn('saveAnalysis error:', e);
-  }
+  } catch(e){ console.warn('saveAnalysis error:', e); }
 }
 
-// Efface l'analyse
 async function clearAnalysis(){
   if(!confirm('Effacer l\'analyse ?')) return;
-
   localStorage.removeItem('ai_last_analysis');
   localStorage.removeItem('ai_last_analysis_date');
-
   try {
     const user = await getCurrentUser();
     if(user){
-      await sb.from('user_settings')
-        .update({ ai_analysis: null, ai_analysis_date: null })
-        .eq('user_id', user.id);
+      await sb.from('user_settings').update({ ai_analysis: null, ai_analysis_date: null }).eq('user_id', user.id);
     }
-  } catch(e){
-    console.warn('clearAnalysis error:', e);
-  }
-
+  } catch(e){ console.warn('clearAnalysis error:', e); }
   document.getElementById('aiOutput').innerHTML =
     '<div class="empty">Clique sur <strong>Analyser</strong> pour obtenir ton bilan personnalisé.</div>';
   document.getElementById('aiLastUpdate').classList.remove('visible');
@@ -2255,7 +2002,6 @@ async function clearAnalysis(){
 async function copyAnalysis(){
   const text = localStorage.getItem('ai_last_analysis');
   if(!text){ alert('Aucune analyse à copier'); return; }
-
   try {
     await navigator.clipboard.writeText(text);
     const btn = document.getElementById('aiCopyBtn');
@@ -2278,15 +2024,12 @@ function exportAnalysisPDF(){
   const text = localStorage.getItem('ai_last_analysis');
   const date = localStorage.getItem('ai_last_analysis_date');
   if(!text){ alert('Aucune analyse à exporter'); return; }
-
   if(!window.jspdf || !window.jspdf.jsPDF){
-    alert('La bibliothèque PDF n\'est pas encore chargée. Attends 2 secondes et réessaie.');
+    alert('La bibliothèque PDF n\'est pas encore chargée.');
     return;
   }
-
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-
   doc.setFillColor(108, 140, 255);
   doc.rect(0, 0, 210, 32, 'F');
   doc.setTextColor(255, 255, 255);
@@ -2296,44 +2039,27 @@ function exportAnalysisPDF(){
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   if(date) doc.text(date, 14, 24);
-
   const cleanText = text.replace(/\*\*/g, '');
-
   doc.setTextColor(40, 40, 40);
   doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
-
   const splitText = doc.splitTextToSize(cleanText, 180);
   let y = 42;
   const pageHeight = doc.internal.pageSize.height - 15;
-
   splitText.forEach(line => {
-    if(y > pageHeight){
-      doc.addPage();
-      y = 15;
-    }
+    if(y > pageHeight){ doc.addPage(); y = 15; }
     doc.text(line, 14, y);
     y += 6;
   });
-
   const pageCount = doc.internal.getNumberOfPages();
   for(let i = 1; i <= pageCount; i++){
     doc.setPage(i);
     doc.setFontSize(9);
     doc.setTextColor(140, 140, 140);
-    doc.text(
-      `Page ${i} / ${pageCount}  —  Ma Super App`,
-      14,
-      doc.internal.pageSize.height - 8
-    );
+    doc.text(`Page ${i} / ${pageCount}  —  Ma Super App`, 14, doc.internal.pageSize.height - 8);
   }
-
   doc.save(`analyse-ia-${todayStr()}.pdf`);
 }
 
-// ============================================================
-// CONFIG IA
-// ============================================================
 function saveAiConfig(){
   const provider = document.getElementById('aiProvider').value;
   const key      = document.getElementById('aiKey').value.trim();
@@ -2377,9 +2103,7 @@ function buildSummary(){
   if(s.prevOut || s.prevIn) lines.push(`Mois-1 — rev: ${Math.round(s.prevIn)}, dép: ${Math.round(s.prevOut)}`);
   if(coffres.length){
     lines.push("Objectifs d'épargne:");
-    coffres.forEach(c => lines.push(
-      `- ${c.name}: ${Math.round(c.current)}/${Math.round(c.goal)} (${((c.current/c.goal)*100).toFixed(0)}%)`
-    ));
+    coffres.forEach(c => lines.push(`- ${c.name}: ${Math.round(c.current)}/${Math.round(c.goal)} (${((c.current/c.goal)*100).toFixed(0)}%)`));
   }
   if(shoots.length){
     const ym = monthKey();
@@ -2396,6 +2120,7 @@ function buildSummary(){
     const cities = [...new Set(clients.map(c => c.city).filter(x => x))];
     if(cities.length) lines.push(`Villes clients: ${cities.join(', ')}`);
   }
+  if(inspirations.length) lines.push(`Inspirations suivies: ${inspirations.length}`);
   const recent = [...txs].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 15);
   if(recent.length){
     lines.push('Transactions récentes:');
@@ -2451,10 +2176,8 @@ async function askAI(){
   let cfg = null;
   try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
   if(!cfg || !cfg.key){ alert("Configure ta clé dans cette page"); return; }
-
   const out = document.getElementById('aiOutput');
   out.innerHTML = '<div class="empty">⏳ Analyse en cours... (5 à 15 secondes)</div>';
-
   const summary = buildSummary();
   const prompt = `Tu es un conseiller financier personnel, direct et bienveillant. Voici le résumé :
 
@@ -2471,31 +2194,46 @@ Analyse en français, en 8 points numérotés. Chaque point DOIT commencer par s
 8. Encouragement personnalisé
 
 Concret, chiffré, pas de blabla. N'utilise PAS d'astérisques. Écris en français simple.`;
-
   try {
     const text = await callAI(prompt);
     if(!text || !text.trim()){
       out.innerHTML = '<div class="empty">❌ Pas de réponse de l\'IA. Réessaie.</div>';
       return;
     }
-
     await saveAnalysis(text);
     out.innerHTML = formatAnalysisText(text);
-
     document.getElementById('aiCopyBtn').disabled = false;
     document.getElementById('aiPdfBtn').disabled = false;
     document.getElementById('aiClearBtn').disabled = false;
-
     const dateEl = document.getElementById('aiLastUpdate');
     dateEl.textContent = '🕐 Dernière analyse : ' + new Date().toLocaleString('fr-FR', {
       day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
     });
     dateEl.classList.add('visible');
-
   } catch(e){
     out.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
   }
 }
+
+// ============================================================
+// SERVICE WORKER MESSAGE (clic notification)
+// ============================================================
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if(event.data && event.data.type === 'notification-click'){
+      window.focus();
+      if(event.data.url) window.location.href = event.data.url;
+    }
+  });
+}
+
+// ============================================================
+// SET INTERVAL
+// ============================================================
+setInterval(() => {
+  checkAutomaticNotifications();
+  checkDailyReminders();
+}, 60000);
 
 // ============================================================
 // INITIALISATION
@@ -2511,8 +2249,8 @@ function init(){
   updateNotifButton();
   loadSavedAnalysis();
   loadIdeasAI();
+  renderInspirations();
 
-  // Enregistre le player ID OneSignal si déjà abonné
   setTimeout(registerOneSignalPlayer, 2000);
 
   setTimeout(() => {
