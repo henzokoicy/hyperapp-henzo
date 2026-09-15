@@ -867,7 +867,187 @@ Pas de blabla, sois concret.`;
     el.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
   }
 }
+// ============================================================
+// MODULE HISTORIQUE
+// ============================================================
+let selectedTxIds = new Set();
 
+function populateHistFilters(){
+  const monthSelect = document.getElementById('histMonth');
+  const catSelect   = document.getElementById('histCategory');
+  if(!monthSelect || !catSelect) return;
+
+  // Mois
+  const months = [...new Set(txs.map(t => t.date.slice(0,7)))].sort().reverse();
+  const previousMonth = monthSelect.value;
+  monthSelect.innerHTML = '<option value="all">Tous les mois</option>' +
+    months.map(m => {
+      const [y, mo] = m.split('-');
+      const label = new Date(y, mo-1, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+      return `<option value="${m}">${label}</option>`;
+    }).join('');
+  if(previousMonth && [...monthSelect.options].some(o => o.value === previousMonth)){
+    monthSelect.value = previousMonth;
+  }
+
+  // Catégories
+  const cats = [...new Set(txs.map(t => t.category))].sort();
+  const previousCat = catSelect.value;
+  catSelect.innerHTML = '<option value="all">Toutes les catégories</option>' +
+    cats.map(c => `<option value="${c}">${c}</option>`).join('');
+  if(previousCat && [...catSelect.options].some(o => o.value === previousCat)){
+    catSelect.value = previousCat;
+  }
+}
+
+function getFilteredTx(){
+  const month = document.getElementById('histMonth').value;
+  const type  = document.getElementById('histType').value;
+  const cat   = document.getElementById('histCategory').value;
+
+  return txs.filter(t => {
+    if(month !== 'all' && !t.date.startsWith(month)) return false;
+    if(type !== 'all' && t.type !== type) return false;
+    if(cat !== 'all' && t.category !== cat) return false;
+    return true;
+  }).sort((a,b) => b.date.localeCompare(a.date));
+}
+
+function renderHistory(){
+  const filtered = getFilteredTx();
+
+  const totalIn  = filtered.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount), 0);
+  const totalOut = filtered.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount), 0);
+  document.getElementById('histCount').textContent = filtered.length;
+  document.getElementById('histIn').textContent    = fmt(totalIn);
+  document.getElementById('histOut').textContent   = fmt(totalOut);
+
+  const el = document.getElementById('histList');
+  if(filtered.length === 0){
+    el.innerHTML = '<div class="empty">Aucune transaction</div>';
+    document.getElementById('histSelectAll').checked = false;
+    return;
+  }
+
+  el.innerHTML = filtered.map(t => {
+    const d = new Date(t.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'});
+    const sign = t.type === 'revenu' ? '+' : '−';
+    const cls  = t.type === 'revenu' ? 'pos' : 'neg';
+    const checked = selectedTxIds.has(t.id) ? 'checked' : '';
+    return `<div class="hist-item">
+      <input type="checkbox" class="hist-check" data-id="${t.id}" ${checked} onchange="toggleTxSelect(${t.id}, this.checked)">
+      <div class="hist-content">
+        <div class="hist-top">
+          <span class="hist-cat">${t.category}</span>
+          <span class="hist-amt ${cls}">${sign}${fmt(t.amount)}</span>
+        </div>
+        <div class="hist-bottom">${d}${t.note ? ' · ' + t.note : ''}</div>
+      </div>
+      <button class="hist-del" onclick="delTxFromHistory(${t.id})">×</button>
+    </div>`;
+  }).join('');
+
+  const allChecked = filtered.length > 0 && filtered.every(t => selectedTxIds.has(t.id));
+  document.getElementById('histSelectAll').checked = allChecked;
+}
+
+function toggleTxSelect(id, checked){
+  if(checked) selectedTxIds.add(id);
+  else selectedTxIds.delete(id);
+  const filtered = getFilteredTx();
+  const allChecked = filtered.length > 0 && filtered.every(t => selectedTxIds.has(t.id));
+  document.getElementById('histSelectAll').checked = allChecked;
+}
+
+function toggleSelectAll(){
+  const isChecked = document.getElementById('histSelectAll').checked;
+  const filtered = getFilteredTx();
+  if(isChecked) filtered.forEach(t => selectedTxIds.add(t.id));
+  else filtered.forEach(t => selectedTxIds.delete(t.id));
+  renderHistory();
+}
+
+async function deleteSelected(){
+  if(selectedTxIds.size === 0){
+    alert("Aucune transaction sélectionnée");
+    return;
+  }
+  if(!confirm(`Supprimer ${selectedTxIds.size} transaction(s) ?`)) return;
+
+  const ids = [...selectedTxIds];
+  for(const id of ids){
+    await dbDelete('transactions', id);
+  }
+  txs = txs.filter(t => !selectedTxIds.has(t.id));
+  selectedTxIds.clear();
+  populateHistFilters();
+  renderHistory();
+  refreshAll();
+}
+
+async function deleteAllFiltered(){
+  const filtered = getFilteredTx();
+  if(filtered.length === 0){
+    alert("Aucune transaction à supprimer");
+    return;
+  }
+  if(!confirm(`⚠ Supprimer ${filtered.length} transaction(s) ?`)) return;
+  if(!confirm(`Confirmer la suppression définitive ?`)) return;
+
+  for(const t of filtered){
+    await dbDelete('transactions', t.id);
+  }
+  const ids = new Set(filtered.map(t => t.id));
+  txs = txs.filter(t => !ids.has(t.id));
+  selectedTxIds.clear();
+  populateHistFilters();
+  renderHistory();
+  refreshAll();
+}
+
+async function delTxFromHistory(id){
+  if(!confirm("Supprimer cette transaction ?")) return;
+  const ok = await dbDelete('transactions', id);
+  if(!ok) return;
+  txs = txs.filter(t => t.id !== id);
+  selectedTxIds.delete(id);
+  populateHistFilters();
+  renderHistory();
+  refreshAll();
+}
+
+function downloadFile(content, filename, mimeType){
+  const blob = new Blob([content], {type: mimeType});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportHistoryCSV(){
+  const filtered = getFilteredTx();
+  if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
+
+  const header = "Date;Type;Catégorie;Montant;Note\n";
+  const rows = filtered.map(t => {
+    const note = (t.note || '').replace(/;/g, ',').replace(/"/g, '""');
+    return `${t.date};${t.type};${t.category};${t.amount};"${note}"`;
+  }).join('\n');
+
+  downloadFile(header + rows, `transactions-${todayStr()}.csv`, 'text/csv;charset=utf-8;');
+}
+
+function exportHistoryJSON(){
+  const filtered = getFilteredTx();
+  if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
+
+  const json = JSON.stringify(filtered, null, 2);
+  downloadFile(json, `transactions-${todayStr()}.json`, 'application/json');
+}
 // ============================================================
 // INITIALISATION
 // ============================================================
@@ -875,6 +1055,7 @@ function init(){
   setType('depense');
   setupAutocomplete('shootLocation', 'shootLocationList');
   setupAutocomplete('clientCity', 'clientCityList');
+  populateHistFilters();
   refreshAll();
   updateAiStatus();
   newQuote();

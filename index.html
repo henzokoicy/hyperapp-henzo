@@ -45,7 +45,8 @@
 
 <div class="tabs">
   <button class="active" onclick="showTab('dash',this)">📊 Tableau</button>
-  <button onclick="showTab('objectifs',this)">🎯 Objectifs</button>
+<button onclick="showTab('historique',this)">📜 Historique</button>
+<button onclick="showTab('objectifs',this)">🎯 Objectifs</button>
   <button onclick="showTab('photo',this)">📸 Photo</button>
   <button onclick="showTab('business',this)">💡 Business</button>
   <button onclick="showTab('motiv',this)">🔥 Motivation</button>
@@ -157,6 +158,73 @@
 <!-- ============================================================
      ONGLET OBJECTIFS
      ============================================================ -->
+     <!-- ============================================================
+     ONGLET HISTORIQUE
+     ============================================================ -->
+<div class="page" id="page-historique">
+  <div class="container">
+
+    <!-- Filtres -->
+    <div class="card">
+      <h2>🔍 Filtres</h2>
+      <div class="filters-grid">
+        <div>
+          <label>Mois</label>
+          <select id="histMonth" onchange="renderHistory()"></select>
+        </div>
+        <div>
+          <label>Type</label>
+          <select id="histType" onchange="renderHistory()">
+            <option value="all">Tous</option>
+            <option value="revenu">Revenus</option>
+            <option value="depense">Dépenses</option>
+          </select>
+        </div>
+        <div>
+          <label>Catégorie</label>
+          <select id="histCategory" onchange="renderHistory()"></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Résumé -->
+    <div class="card">
+      <h2>📊 Résumé</h2>
+      <div class="row">
+        <div class="stat"><div class="v" id="histCount">0</div><div class="l">Transactions</div></div>
+        <div class="stat"><div class="v" id="histIn" style="color:var(--green)">0</div><div class="l">Revenus</div></div>
+        <div class="stat"><div class="v" id="histOut" style="color:var(--red)">0</div><div class="l">Dépenses</div></div>
+      </div>
+    </div>
+
+    <!-- Export -->
+    <div class="card">
+      <h2>📥 Exporter</h2>
+      <div class="row">
+        <button class="btn-primary" onclick="exportHistoryCSV()">📊 CSV (Excel)</button>
+        <button class="btn-primary" onclick="exportHistoryJSON()">📦 JSON</button>
+      </div>
+    </div>
+
+    <!-- Actions groupées -->
+    <div class="card">
+      <h2>⚙️ Actions</h2>
+      <label class="checkbox-label">
+        <input type="checkbox" id="histSelectAll" onchange="toggleSelectAll()">
+        <span>Tout sélectionner (filtre actuel)</span>
+      </label>
+      <button class="btn-danger" onclick="deleteSelected()">🗑 Supprimer la sélection</button>
+      <button class="btn-danger" onclick="deleteAllFiltered()">⚠ Tout supprimer (filtre actuel)</button>
+    </div>
+
+    <!-- Liste complète -->
+    <div class="card">
+      <h2>📜 Toutes les transactions</h2>
+      <div id="histList"></div>
+    </div>
+
+  </div>
+</div>
 <div class="page" id="page-objectifs">
   <div class="container">
     <div class="card">

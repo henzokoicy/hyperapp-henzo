@@ -151,6 +151,10 @@ function showTab(name, btn){
   document.getElementById('headerTitle').textContent = titres[name] || 'Ma Super App';
   if(name === 'motiv') newQuote();
   if(name === 'dash' && typeof renderDashboard === 'function') renderDashboard();
+  if(name === 'historique'){
+  populateHistFilters();
+  renderHistory();
+}
 }
 
 // ============================================================
