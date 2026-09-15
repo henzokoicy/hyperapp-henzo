@@ -2,7 +2,7 @@
 // MODULES.JS — Objectifs, Photo, Business, Motivation, IA, Dashboard
 // ============================================================
 
-// Liste des villes de Côte d'Ivoire pour l'autocomplétion
+// Liste des villes de Côte d'Ivoire
 const VILLES_CI = [
   "Abidjan","Bouaké","Yamoussoukro","Daloa","Korhogo","San-Pédro","Man",
   "Divo","Gagnoa","Abengourou","Anyama","Grand-Bassam","Dabou","Agboville",
@@ -14,9 +14,28 @@ const VILLES_CI = [
   "Ouangolodougou","Boundiali","M'Bengué","Dikodougou","Kong","Dabakala",
   "Béoumi","Botro","Sakassou","Niakaramandougou","Prikro","Arrah","Kétesso",
   "Alépé","Oumé","Dimbokro","Bocanda","Tanda","Koun-Fao","Agnibilékrou",
-  "Abengourou","Bettié","Ayamé","Adiaké","Tiébissou","Yopougon","Cocody",
+  "Bettié","Ayamé","Adiaké","Tiébissou","Yopougon","Cocody",
   "Plateau","Marcory","Treichville","Koumassi","Adjamé","Attécoubé","Port-Bouët"
 ];
+
+// ============================================================
+// RAFRAÎCHISSEMENT GLOBAL
+// ============================================================
+function refreshAll(){
+  if(typeof renderOverview === 'function')        renderOverview();
+  if(typeof renderHealthScore === 'function')     renderHealthScore();
+  if(typeof renderRevDepDonut === 'function')     renderRevDepDonut();
+  if(typeof renderShootTypesChart === 'function') renderShootTypesChart();
+  if(typeof renderBars6m === 'function')          renderBars6m();
+  if(typeof renderSuggestions === 'function')     renderSuggestions();
+  if(typeof renderCoffres === 'function')         renderCoffres();
+  if(typeof renderClients === 'function')         renderClients();
+  if(typeof renderShoots === 'function')          renderShoots();
+  if(typeof renderPhotoStats === 'function')      renderPhotoStats();
+  if(typeof renderSavedIdeas === 'function')      renderSavedIdeas();
+  if(typeof renderReminders === 'function')       renderReminders();
+  render();
+}
 
 // ============================================================
 // AUTOCOMPLÉTION VILLES
@@ -25,7 +44,6 @@ function setupAutocomplete(inputId, listId){
   const input = document.getElementById(inputId);
   const list  = document.getElementById(listId);
   if(!input || !list) return;
-
   input.addEventListener('input', () => {
     const val = input.value.trim().toLowerCase();
     if(val.length < 1){ list.style.display='none'; list.innerHTML=''; return; }
@@ -34,12 +52,10 @@ function setupAutocomplete(inputId, listId){
     list.innerHTML = matches.map(v => `<div onclick="selectCity('${inputId}','${listId}','${v}')">${v}</div>`).join('');
     list.style.display = 'block';
   });
-
   input.addEventListener('blur', () => {
     setTimeout(() => { list.style.display='none'; }, 150);
   });
 }
-
 function selectCity(inputId, listId, city){
   document.getElementById(inputId).value = city;
   document.getElementById(listId).style.display = 'none';
@@ -83,16 +99,14 @@ async function saveCoffre(){
     coffres.unshift(result);
   }
   closeCoffreModal();
-  renderCoffres();
-  render();
+  refreshAll();
 }
 async function delCoffre(id){
   if(!confirm("Supprimer cet objectif ?")) return;
   const ok = await dbDelete('goals', id);
   if(!ok) return;
   coffres = coffres.filter(c => c.id !== id);
-  renderCoffres();
-  render();
+  refreshAll();
 }
 function openDepositModal(id){
   depositingCoffreId = id;
@@ -114,8 +128,7 @@ async function confirmDeposit(){
   if(!result) return;
   c.current = newCurrent;
   closeDepositModal();
-  renderCoffres();
-  render();
+  refreshAll();
 }
 function renderCoffres(){
   const el = document.getElementById('coffresList');
@@ -167,7 +180,6 @@ function renderCoffres(){
   }
 }
 
-
 // ============================================================
 // MODULE PHOTO — CLIENTS
 // ============================================================
@@ -207,9 +219,7 @@ async function saveClient(){
     clients.unshift(result);
   }
   closeClientModal();
-  renderClients();
-  renderShoots();
-  render();
+  refreshAll();
 }
 async function delClient(id){
   if(!confirm("Supprimer ce client ?")) return;
@@ -217,9 +227,7 @@ async function delClient(id){
   if(!ok) return;
   clients = clients.filter(c => c.id !== id);
   shoots.forEach(s => { if(s.client_id === id) s.client_id = null; });
-  renderClients();
-  renderShoots();
-  render();
+  refreshAll();
 }
 function renderClients(){
   const el = document.getElementById('clientsList');
@@ -237,7 +245,6 @@ function renderClients(){
       </div>
     </div>`).join('');
 }
-
 
 // ============================================================
 // MODULE PHOTO — SÉANCES
@@ -323,18 +330,14 @@ async function saveShoot(){
     shoots.unshift(result);
   }
   closeShootModal();
-  renderShoots();
-  renderPhotoStats();
-  render();
+  refreshAll();
 }
 async function delShoot(id){
   if(!confirm("Supprimer ?")) return;
   const ok = await dbDelete('shoots', id);
   if(!ok) return;
   shoots = shoots.filter(s => s.id !== id);
-  renderShoots();
-  renderPhotoStats();
-  render();
+  refreshAll();
 }
 async function toggleShootPayment(id){
   const s = shoots.find(x => x.id === id);
@@ -342,9 +345,7 @@ async function toggleShootPayment(id){
   const result = await dbUpdate('shoots', id, {payment: newPayment});
   if(!result) return;
   s.payment = newPayment;
-  renderShoots();
-  renderPhotoStats();
-  render();
+  refreshAll();
 }
 function renderShoots(){
   const el = document.getElementById('shootsList');
@@ -390,7 +391,6 @@ function renderPhotoStats(){
   document.getElementById('photoPending').textContent      = fmt(pending);
 }
 
-
 // ============================================================
 // DASHBOARD ENRICHI
 // ============================================================
@@ -399,7 +399,6 @@ function renderOverview(){
   const monthShoots = shoots.filter(s => s.date && s.date.startsWith(ym));
   const revenue = monthShoots.filter(s => s.payment === 'paye').reduce((sum,s) => sum + Number(s.price), 0);
   const pending = shoots.filter(s => s.payment === 'impaye').reduce((sum,s) => sum + Number(s.price), 0);
-
   document.getElementById('overviewClients').textContent    = clients.length;
   document.getElementById('overviewShoots').textContent     = monthShoots.length;
   document.getElementById('overviewPhotoRev').textContent   = fmt(revenue);
@@ -409,8 +408,6 @@ function renderOverview(){
 function computeHealthScore(){
   const s = computeStats();
   let score = 50;
-
-  // Taux d'épargne (max +30)
   if(s.totalIn > 0){
     const rate = s.savingsRate;
     if(rate >= 0.30) score += 30;
@@ -418,20 +415,11 @@ function computeHealthScore(){
     else if(rate >= 0.10) score += 10;
     else if(rate < 0) score -= 20;
   }
-
-  // Objectifs actifs (+10 si au moins 1)
   if(coffres.length > 0) score += 10;
-
-  // Revenus photo diversifiés (+10)
   if(shoots.some(s => s.payment === 'paye')) score += 10;
-
-  // Clients enregistrés (+10)
   if(clients.length >= 3) score += 10;
-
-  // Impayés (pénalité -15)
   const pendingTotal = shoots.filter(s => s.payment === 'impaye').reduce((a,b) => a + Number(b.price), 0);
   if(pendingTotal > 0 && s.totalIn > 0 && pendingTotal > s.totalIn * 0.5) score -= 15;
-
   return Math.max(0, Math.min(100, score));
 }
 
@@ -440,15 +428,12 @@ function renderHealthScore(){
   const el = document.getElementById('healthScore');
   const title = document.getElementById('healthTitle');
   const text = document.getElementById('healthText');
-
   let color = 'var(--accent)';
   if(score >= 75) color = 'var(--green)';
   else if(score >= 50) color = 'var(--yellow)';
   else color = 'var(--red)';
-
   el.style.background = `conic-gradient(${color} 0% ${score}%, var(--card2) ${score}% 100%)`;
   el.innerHTML = `<span>${score}</span>`;
-
   if(score >= 75){
     title.textContent = '🌟 Excellente santé';
     text.textContent = 'Tu es sur la bonne voie. Continue comme ça !';
@@ -467,23 +452,16 @@ function renderRevDepDonut(){
   const donut = document.getElementById('donutRevDep');
   const centerText = document.getElementById('donutRevDepText');
   const legend = document.getElementById('legendRevDep');
-
   if(total === 0){
     donut.style.background = 'conic-gradient(var(--card2) 0% 100%)';
     centerText.textContent = '--';
     legend.innerHTML = '<div class="empty" style="padding:0">Aucune donnée</div>';
     return;
   }
-
   const pctIn = (s.totalIn / total) * 100;
   const pctOut = (s.totalOut / total) * 100;
-
-  donut.style.background = `conic-gradient(
-    var(--green) 0% ${pctIn}%,
-    var(--red) ${pctIn}% 100%
-  )`;
+  donut.style.background = `conic-gradient(var(--green) 0% ${pctIn}%, var(--red) ${pctIn}% 100%)`;
   centerText.innerHTML = `<div><div style="font-size:14px">${Math.round(pctIn)}%</div><div style="font-size:9px;color:var(--muted)">Revenus</div></div>`;
-
   legend.innerHTML = `
     <div class="legend-item">
       <div class="legend-dot" style="background:var(--green)"></div>
@@ -504,15 +482,10 @@ function renderShootTypesChart(){
     el.innerHTML = '<div class="empty">Aucune séance enregistrée</div>';
     return;
   }
-
   const byType = {};
-  shoots.forEach(s => {
-    byType[s.type] = (byType[s.type] || 0) + 1;
-  });
-
+  shoots.forEach(s => { byType[s.type] = (byType[s.type] || 0) + 1; });
   const entries = Object.entries(byType).sort((a,b) => b[1] - a[1]);
   const total = shoots.length;
-
   el.innerHTML = entries.map(([type, count]) => {
     const pct = (count / total) * 100;
     return `<div class="cat-row">
@@ -526,7 +499,6 @@ function renderBars6m(){
   const el = document.getElementById('bars6m');
   const now = new Date();
   const months = [];
-
   for(let i = 5; i >= 0; i--){
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = d.toISOString().slice(0,7);
@@ -536,9 +508,7 @@ function renderBars6m(){
       .reduce((a,b) => a + Number(b.amount), 0);
     months.push({ label, total });
   }
-
   const max = Math.max(...months.map(m => m.total), 1);
-
   el.innerHTML = months.map(m => {
     const height = (m.total / max) * 100;
     return `<div class="bar-6m">
@@ -554,73 +524,42 @@ function renderSuggestions(){
   const s = computeStats();
   const suggestions = [];
 
-  // Suggestion basée sur le taux d'épargne
   if(s.totalIn > 0 && s.savingsRate < SAVINGS_TARGET){
     const missing = (s.totalIn * SAVINGS_TARGET) - (s.totalIn * s.savingsRate);
-    suggestions.push({
-      icon: '💰',
-      title: 'Augmente ton épargne',
-      body: `Tu peux encore épargner ${fmt(missing)} ce mois pour atteindre ton objectif de ${(SAVINGS_TARGET*100)}%.`
-    });
+    suggestions.push({icon:'💰', title:'Augmente ton épargne',
+      body:`Tu peux encore épargner ${fmt(missing)} ce mois pour atteindre ton objectif de ${(SAVINGS_TARGET*100)}%.`});
   }
-
-  // Suggestion si impayés
   const pending = shoots.filter(s => s.payment === 'impaye').reduce((a,b) => a + Number(b.price), 0);
   if(pending > 0){
-    suggestions.push({
-      icon: '📞',
-      title: 'Relance tes clients',
-      body: `Tu as ${fmt(pending)} à encaisser. Un petit message peut accélérer le paiement.`
-    });
+    suggestions.push({icon:'📞', title:'Relance tes clients',
+      body:`Tu as ${fmt(pending)} à encaisser. Un petit message peut accélérer le paiement.`});
   }
-
-  // Suggestion si aucun client
   if(clients.length === 0){
-    suggestions.push({
-      icon: '👥',
-      title: 'Commence par tes clients',
-      body: 'Ajoute tes clients existants pour suivre leurs séances et paiements.'
-    });
+    suggestions.push({icon:'👥', title:'Commence par tes clients',
+      body:'Ajoute tes clients existants pour suivre leurs séances et paiements.'});
   }
-
-  // Suggestion si pas d'objectif
   if(coffres.length === 0){
-    suggestions.push({
-      icon: '🎯',
-      title: 'Crée ton premier objectif',
-      body: 'Un objectif d\'épargne te motive à mettre de côté. Commence petit : 50 000 FCFA.'
-    });
+    suggestions.push({icon:'🎯', title:'Crée ton premier objectif',
+      body:'Un objectif d\'épargne te motive à mettre de côté. Commence petit : 50 000 FCFA.'});
   }
-
-  // Suggestion basée sur le top poste
   if(s.sortedCats[0]){
     const pct = (s.sortedCats[0][1] / s.totalOut * 100);
     if(pct > 40){
-      suggestions.push({
-        icon: '🎯',
-        title: `Attention à "${s.sortedCats[0][0]}"`,
-        body: `Ce poste représente ${pct.toFixed(0)}% de tes dépenses. Essaie de le réduire de 10%.`
-      });
+      suggestions.push({icon:'🎯', title:`Attention à "${s.sortedCats[0][0]}"`,
+        body:`Ce poste représente ${pct.toFixed(0)}% de tes dépenses. Essaie de le réduire de 10%.`});
     }
   }
-
-  // Suggestion business
   if(shoots.length > 0 && s.totalIn > 0){
     const photoRevenue = shoots.filter(s => s.payment === 'paye').reduce((a,b) => a + Number(b.price), 0);
     if(photoRevenue < s.totalIn * 0.3){
-      suggestions.push({
-        icon: '💡',
-        title: 'Développe ton activité photo',
-        body: 'La photo représente moins de 30% de tes revenus. Pense à des mini-sessions ou des partenariats.'
-      });
+      suggestions.push({icon:'💡', title:'Développe ton activité photo',
+        body:'La photo représente moins de 30% de tes revenus. Pense à des mini-sessions ou partenariats.'});
     }
   }
-
   if(suggestions.length === 0){
     el.innerHTML = '<div class="empty">Tout est en ordre ! Continue comme ça. 🎉</div>';
     return;
   }
-
   el.innerHTML = suggestions.slice(0, 5).map(sg => `
     <div class="suggestion">
       <div class="icon">${sg.icon}</div>
@@ -629,7 +568,6 @@ function renderSuggestions(){
     </div>
   `).join('');
 }
-
 
 // ============================================================
 // MODULE BUSINESS
@@ -651,13 +589,13 @@ async function saveIdea(idea){
   const result = await dbInsert('saved_ideas', {title: idea.t, description: idea.d, tags: idea.tags});
   if(!result) return;
   savedIdeas.unshift(result);
-  renderSavedIdeas();
+  refreshAll();
 }
 async function delSavedIdea(id){
   const ok = await dbDelete('saved_ideas', id);
   if(!ok) return;
   savedIdeas = savedIdeas.filter(i => i.id !== id);
-  renderSavedIdeas();
+  refreshAll();
 }
 function renderSavedIdeas(){
   const el = document.getElementById('savedIdeasList');
@@ -670,7 +608,6 @@ function renderSavedIdeas(){
         onclick="delSavedIdea(${i.id})">× Retirer</button>
     </div>`).join('');
 }
-
 
 // ============================================================
 // MODULE MOTIVATION
@@ -737,13 +674,13 @@ async function saveReminder(){
   if(!result) return;
   reminders.push(result);
   closeReminderModal();
-  renderReminders();
+  refreshAll();
 }
 async function delReminder(id){
   const ok = await dbDelete('reminders', id);
   if(!ok) return;
   reminders = reminders.filter(r => r.id !== id);
-  renderReminders();
+  refreshAll();
 }
 function renderReminders(){
   const el = document.getElementById('remindersList');
@@ -756,7 +693,6 @@ function renderReminders(){
     </div>`).join('');
 }
 setInterval(checkDailyReminders, 60000);
-
 
 // ============================================================
 // MODULE IA
@@ -932,7 +868,6 @@ Pas de blabla, sois concret.`;
   }
 }
 
-
 // ============================================================
 // INITIALISATION
 // ============================================================
@@ -940,13 +875,7 @@ function init(){
   setType('depense');
   setupAutocomplete('shootLocation', 'shootLocationList');
   setupAutocomplete('clientCity', 'clientCityList');
-  renderCoffres();
-  renderClients();
-  renderShoots();
-  renderPhotoStats();
-  renderSavedIdeas();
-  renderReminders();
-  render();
+  refreshAll();
   updateAiStatus();
   newQuote();
   setTimeout(checkDailyReminders, 2000);

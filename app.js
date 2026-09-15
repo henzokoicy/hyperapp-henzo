@@ -150,9 +150,7 @@ function showTab(name, btn){
   };
   document.getElementById('headerTitle').textContent = titres[name] || 'Ma Super App';
   if(name === 'motiv') newQuote();
-
-  // Rendu spécifique selon l'onglet
-  if(name === 'dash') renderDashboard();
+  if(name === 'dash' && typeof renderDashboard === 'function') renderDashboard();
 }
 
 // ============================================================
@@ -189,7 +187,7 @@ async function saveTx(){
   if(!result) return;
   txs.unshift(result);
   closeModal();
-  render();
+  refreshAll();
 }
 
 async function delTx(id){
@@ -197,7 +195,7 @@ async function delTx(id){
   const ok = await dbDelete('transactions', id);
   if(!ok) return;
   txs = txs.filter(t => t.id !== id);
-  render();
+  refreshAll();
 }
 
 // ============================================================
@@ -296,7 +294,6 @@ function buildInsights(){
 // RENDU PRINCIPAL
 // ============================================================
 function render(){
-  // Rendu du tableau de bord complet
   renderDashboard();
 }
 
@@ -306,7 +303,6 @@ function render(){
 function renderDashboard(){
   const s = computeStats();
 
-  // Solde + stats principales
   const balEl = document.getElementById('balance');
   balEl.textContent = fmt(s.bal);
   balEl.className = 'balance ' + (s.bal >= 0 ? 'pos' : 'neg');
@@ -314,28 +310,16 @@ function renderDashboard(){
   document.getElementById('totalOut').textContent    = fmt(s.totalOut);
   document.getElementById('savingsRate').textContent = (s.savingsRate * 100).toFixed(0) + '%';
 
-  // Vue d'ensemble
-  if(typeof renderOverview === 'function') renderOverview();
-
-  // Score santé
-  if(typeof renderHealthScore === 'function') renderHealthScore();
-
-  // Donut revenus/dépenses
-  if(typeof renderRevDepDonut === 'function') renderRevDepDonut();
-
-  // Séances par type
+  if(typeof renderOverview === 'function')        renderOverview();
+  if(typeof renderHealthScore === 'function')     renderHealthScore();
+  if(typeof renderRevDepDonut === 'function')     renderRevDepDonut();
   if(typeof renderShootTypesChart === 'function') renderShootTypesChart();
+  if(typeof renderBars6m === 'function')          renderBars6m();
 
-  // Barres 6 mois
-  if(typeof renderBars6m === 'function') renderBars6m();
-
-  // Insights
   document.getElementById('insights').innerHTML = buildInsights().join('');
 
-  // Suggestions
-  if(typeof renderSuggestions === 'function') renderSuggestions();
+  if(typeof renderSuggestions === 'function')     renderSuggestions();
 
-  // Répartition catégories
   const cb = document.getElementById('catBreakdown');
   if(s.sortedCats.length === 0){
     cb.innerHTML = '<div class="empty">Aucune dépense ce mois</div>';
@@ -349,7 +333,6 @@ function renderDashboard(){
     }).join('');
   }
 
-  // Liste transactions
   const tl = document.getElementById('txList');
   const sorted = [...s.monthTx].sort((a,b) => b.date.localeCompare(a.date));
   if(sorted.length === 0){
