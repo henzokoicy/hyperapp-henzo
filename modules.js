@@ -1353,7 +1353,7 @@ setInterval(() => {
 }, 60000);
 
 // ============================================================
-// MODULE IA — ANALYSE AVEC SAUVEGARDE + RENDU PROPRE
+// MODULE IA — ANALYSE SYNCHRONISÉE (Supabase + local)
 // ============================================================
 
 function toggleAiConfig(){
@@ -1368,13 +1368,11 @@ function toggleAiConfig(){
 function formatAnalysisText(text){
   if(!text) return '<div class="empty">Pas de contenu</div>';
 
-  // Échappe le HTML pour sécurité
   let safe = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-  // Découpe par sections numérotées (1. 2. 3. etc.)
   const lines = safe.split('\n');
   let sections = [];
   let currentSection = null;
@@ -1451,38 +1449,86 @@ function formatAnalysisText(text){
   }).join('');
 }
 
-function loadSavedAnalysis(){
-  const saved = localStorage.getItem('ai_last_analysis');
-  const savedDate = localStorage.getItem('ai_last_analysis_date');
+// Charge l'analyse sauvegardée depuis Supabase (synchro multi-appareils)
+async function loadSavedAnalysis(){
+  try {
+    const user = await getCurrentUser();
+    if(!user) return;
 
-  if(saved){
-    const html = formatAnalysisText(saved);
+    const { data, error } = await sb
+      .from('user_settings')
+      .select('ai_analysis, ai_analysis_date')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if(error){ console.warn('loadSavedAnalysis:', error.message); return; }
+    if(!data || !data.ai_analysis) return;
+
+    // Cache local (pour boutons Copier/PDF)
+    localStorage.setItem('ai_last_analysis', data.ai_analysis);
+    localStorage.setItem('ai_last_analysis_date', data.ai_analysis_date || '');
+
+    const html = formatAnalysisText(data.ai_analysis);
     document.getElementById('aiOutput').innerHTML = html;
     document.getElementById('aiCopyBtn').disabled = false;
     document.getElementById('aiPdfBtn').disabled = false;
     document.getElementById('aiClearBtn').disabled = false;
 
-    if(savedDate){
+    if(data.ai_analysis_date){
       const dateEl = document.getElementById('aiLastUpdate');
-      dateEl.textContent = '🕐 Dernière analyse : ' + savedDate;
+      dateEl.textContent = '🕐 Dernière analyse : ' + data.ai_analysis_date;
       dateEl.classList.add('visible');
     }
+  } catch(e){
+    console.warn('loadSavedAnalysis error:', e);
   }
 }
 
-function saveAnalysis(text){
+// Sauvegarde l'analyse dans Supabase + cache local
+async function saveAnalysis(text){
+  const dateStr = new Date().toLocaleString('fr-FR', {
+    day:'2-digit', month:'long', year:'numeric',
+    hour:'2-digit', minute:'2-digit'
+  });
+
   localStorage.setItem('ai_last_analysis', text);
-  localStorage.setItem('ai_last_analysis_date',
-    new Date().toLocaleString('fr-FR', {
-      day:'2-digit', month:'long', year:'numeric',
-      hour:'2-digit', minute:'2-digit'
-    }));
+  localStorage.setItem('ai_last_analysis_date', dateStr);
+
+  try {
+    const user = await getCurrentUser();
+    if(!user) return;
+
+    const { error } = await sb
+      .from('user_settings')
+      .upsert(
+        { user_id: user.id, ai_analysis: text, ai_analysis_date: dateStr },
+        { onConflict: 'user_id' }
+      );
+
+    if(error) console.warn('saveAnalysis Supabase:', error.message);
+  } catch(e){
+    console.warn('saveAnalysis error:', e);
+  }
 }
 
-function clearAnalysis(){
+// Efface l'analyse (Supabase + local)
+async function clearAnalysis(){
   if(!confirm('Effacer l\'analyse ?')) return;
+
   localStorage.removeItem('ai_last_analysis');
   localStorage.removeItem('ai_last_analysis_date');
+
+  try {
+    const user = await getCurrentUser();
+    if(user){
+      await sb.from('user_settings')
+        .update({ ai_analysis: null, ai_analysis_date: null })
+        .eq('user_id', user.id);
+    }
+  } catch(e){
+    console.warn('clearAnalysis error:', e);
+  }
+
   document.getElementById('aiOutput').innerHTML =
     '<div class="empty">Clique sur <strong>Analyser</strong> pour obtenir ton bilan personnalisé.</div>';
   document.getElementById('aiLastUpdate').classList.remove('visible');
@@ -1718,7 +1764,7 @@ Concret, chiffré, pas de blabla. N'utilise PAS d'astérisques. Écris en franç
       return;
     }
 
-    saveAnalysis(text);
+    await saveAnalysis(text);
     out.innerHTML = formatAnalysisText(text);
 
     document.getElementById('aiCopyBtn').disabled = false;
