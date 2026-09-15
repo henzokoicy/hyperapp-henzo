@@ -28,6 +28,34 @@ const todayStr = () => new Date().toISOString().slice(0,10);
 const monthKey = d => (d || todayStr()).slice(0,7);
 
 // ============================================================
+// PROFIL UTILISATEUR (stocké dans localStorage)
+// ============================================================
+function getProfileKey(email){
+  return 'user_profile_' + (email || 'anon');
+}
+function getUserProfile(email){
+  try {
+    const raw = localStorage.getItem(getProfileKey(email));
+    return raw ? JSON.parse(raw) : { displayName: '', bio: '', avatarEmoji: '' };
+  } catch(e){
+    return { displayName: '', bio: '', avatarEmoji: '' };
+  }
+}
+function saveUserProfile(email, profile){
+  localStorage.setItem(getProfileKey(email), JSON.stringify(profile));
+}
+
+function getInitials(email, displayName){
+  const name = displayName || email || '?';
+  if(name.includes('@')){
+    return name.charAt(0).toUpperCase();
+  }
+  const parts = name.trim().split(/\s+/);
+  if(parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.substring(0, 2).toUpperCase();
+}
+
+// ============================================================
 // AUTHENTIFICATION
 // ============================================================
 async function getCurrentUser(){
@@ -66,7 +94,10 @@ async function handleSignUp(){
 
 async function handleLogout(){
   if(!confirm('Se déconnecter ?')) return;
-  // On garde l'onglet actif pour la prochaine connexion
+  try {
+    const OneSignal = window.OneSignal;
+    if(OneSignal) await OneSignal.logout();
+  } catch(e){ console.warn(e); }
   await sb.auth.signOut();
   location.reload();
 }
@@ -125,9 +156,13 @@ async function startApp(){
   document.body.classList.remove('logged-out');
   document.getElementById('today').textContent =
     new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  // Met à jour l'affichage du profil
+  const user = await getCurrentUser();
+  if(user) updateUserDisplay(user);
+
   await loadAllData();
   init();
-  // Restaure le dernier onglet visité (après le rendu initial)
   restoreLastTab();
 }
 
@@ -136,10 +171,204 @@ function showLogin(){
 }
 
 // ============================================================
+// AFFICHAGE DU PROFIL UTILISATEUR
+// ============================================================
+function updateUserDisplay(user){
+  const email = user?.email || '';
+  const profile = getUserProfile(email);
+  const displayName = profile.displayName || email.split('@')[0] || 'Utilisateur';
+  const initials = getInitials(email, profile.displayName);
+  const avatarContent = profile.avatarEmoji || initials;
+
+  // Header
+  const av  = document.getElementById('userAvatar');
+  const nm  = document.getElementById('userNameDisplay');
+  if(av) av.textContent = avatarContent;
+  if(nm) nm.textContent = displayName;
+
+  // Dropdown
+  const avL = document.getElementById('userAvatarLarge');
+  const nmL = document.getElementById('userNameLarge');
+  const emL = document.getElementById('userEmail');
+  if(avL) avL.textContent = avatarContent;
+  if(nmL) nmL.textContent = displayName;
+  if(emL) emL.textContent = email;
+}
+
+// ============================================================
+// MENU UTILISATEUR
+// ============================================================
+function toggleUserMenu(event){
+  if(event) event.stopPropagation();
+  const dd = document.getElementById('userDropdown');
+  if(dd) dd.classList.toggle('show');
+}
+
+function closeUserMenu(){
+  const dd = document.getElementById('userDropdown');
+  if(dd) dd.classList.remove('show');
+}
+
+// Ferme le menu si on clique ailleurs
+document.addEventListener('click', (e) => {
+  const menu = document.querySelector('.user-menu');
+  if(menu && !menu.contains(e.target)){
+    closeUserMenu();
+  }
+});
+
+// ============================================================
+// AJOUT RAPIDE (bouton + dans le header)
+// ============================================================
+function openQuickAdd(){
+  closeUserMenu();
+  openModal();
+}
+
+// ============================================================
+// MODAL PROFIL
+// ============================================================
+async function openProfileModal(){
+  closeUserMenu();
+  const user = await getCurrentUser();
+  if(!user) return;
+
+  const email = user.email || '';
+  const profile = getUserProfile(email);
+
+  document.getElementById('profileName').value     = profile.displayName || '';
+  document.getElementById('profileBio').value      = profile.bio || '';
+  document.getElementById('profileEmail').value    = email;
+  document.getElementById('profileCreated').value  = user.created_at
+    ? new Date(user.created_at).toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'})
+    : '—';
+
+  const preview = document.getElementById('profileAvatarPreview');
+  preview.textContent = profile.avatarEmoji || getInitials(email, profile.displayName);
+
+  document.getElementById('profileModalBg').classList.add('show');
+}
+
+function closeProfileModal(){
+  document.getElementById('profileModalBg').classList.remove('show');
+}
+
+async function saveProfile(){
+  const user = await getCurrentUser();
+  if(!user) return;
+
+  const displayName = document.getElementById('profileName').value.trim();
+  const bio         = document.getElementById('profileBio').value.trim();
+
+  const profile = getUserProfile(user.email);
+  profile.displayName = displayName;
+  profile.bio         = bio;
+
+  saveUserProfile(user.email, profile);
+  updateUserDisplay(user);
+
+  closeProfileModal();
+  alert('✅ Profil enregistré !');
+}
+
+function changeAvatar(){
+  const emojis = ['😎','📸','🔥','🚀','💪','⭐','🎯','💎','🏆','🌟','⚡','🎨','🎬','💼','🦁','🐺','🌞','🍀','🎁','👑'];
+  const current = getUserProfile((localStorage.getItem('user_email') || '')).avatarEmoji;
+  let msg = 'Choisis un emoji (ou tape 0 pour revenir aux initiales) :\n\n';
+  emojis.forEach((e, i) => msg += (i+1) + '. ' + e + '   ');
+  msg += '\n\nNuméro (1-' + emojis.length + ') :';
+
+  const choice = prompt(msg, '');
+  if(choice === null) return;
+
+  const n = parseInt(choice);
+  if(n === 0 || choice === '0'){
+    // Reset aux initiales
+    const profile = getUserProfile('');
+    profile.avatarEmoji = '';
+    // On stocke sur toutes les clés possibles
+    // (on va plutôt passer par une fonction qui écrit sur la vraie clé)
+  }
+
+  if(n >= 1 && n <= emojis.length){
+    const newEmoji = emojis[n-1];
+    // Récupère l'email actuel
+    getCurrentUser().then(user => {
+      if(!user) return;
+      const profile = getUserProfile(user.email);
+      profile.avatarEmoji = newEmoji;
+      saveUserProfile(user.email, profile);
+      updateUserDisplay(user);
+
+      const preview = document.getElementById('profileAvatarPreview');
+      if(preview) preview.textContent = newEmoji;
+    });
+  } else if(choice === '0'){
+    getCurrentUser().then(user => {
+      if(!user) return;
+      const profile = getUserProfile(user.email);
+      profile.avatarEmoji = '';
+      saveUserProfile(user.email, profile);
+      updateUserDisplay(user);
+
+      const preview = document.getElementById('profileAvatarPreview');
+      if(preview) preview.textContent = getInitials(user.email, profile.displayName);
+    });
+  }
+}
+
+// ============================================================
+// MODAL PRÉFÉRENCES
+// ============================================================
+function openPreferencesModal(){
+  closeUserMenu();
+
+  // Charge les préférences sauvegardées
+  const prefs = JSON.parse(localStorage.getItem('user_preferences') || '{}');
+
+  document.getElementById('prefCurrency').value      = prefs.currency || CURRENCY || 'FCFA';
+  document.getElementById('prefSavingsTarget').value = prefs.savingsTarget !== undefined ? prefs.savingsTarget : 20;
+  document.getElementById('prefMorningTime').value   = prefs.morningTime || '08:00';
+  document.getElementById('prefMiddayTime').value    = prefs.middayTime  || '13:00';
+  document.getElementById('prefEveningTime').value   = prefs.eveningTime || '20:00';
+
+  document.getElementById('preferencesModalBg').classList.add('show');
+}
+
+function closePreferencesModal(){
+  document.getElementById('preferencesModalBg').classList.remove('show');
+}
+
+function savePreferences(){
+  const prefs = {
+    currency:      document.getElementById('prefCurrency').value,
+    savingsTarget: parseFloat(document.getElementById('prefSavingsTarget').value) || 20,
+    morningTime:   document.getElementById('prefMorningTime').value,
+    middayTime:    document.getElementById('prefMiddayTime').value,
+    eveningTime:   document.getElementById('prefEveningTime').value
+  };
+
+  localStorage.setItem('user_preferences', JSON.stringify(prefs));
+  closePreferencesModal();
+  alert('✅ Préférences enregistrées !\n\nNote : la devise sera appliquée dans une prochaine mise à jour.');
+}
+
+// ============================================================
+// MODAL À PROPOS
+// ============================================================
+function openAboutModal(){
+  closeUserMenu();
+  document.getElementById('aboutModalBg').classList.add('show');
+}
+
+function closeAboutModal(){
+  document.getElementById('aboutModalBg').classList.remove('show');
+}
+
+// ============================================================
 // NAVIGATION + MÉMORISATION DE L'ONGLET
 // ============================================================
 function showTab(name, btn){
-  // Sauvegarde l'onglet actif pour le restaurer après actualisation
   localStorage.setItem('active_tab', name);
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -158,8 +387,7 @@ function showTab(name, btn){
   };
   document.getElementById('headerTitle').textContent = titres[name] || 'Ma Super App';
 
-  // Rendus spécifiques à certains onglets
-  if(name === 'motiv') newQuote();
+  if(name === 'motiv' && typeof newQuote === 'function') newQuote();
   if(name === 'dash' && typeof renderDashboard === 'function') renderDashboard();
   if(name === 'historique' && typeof populateHistFilters === 'function'){
     populateHistFilters();
@@ -167,12 +395,10 @@ function showTab(name, btn){
   }
 }
 
-// Restaure le dernier onglet actif après un rafraîchissement
 function restoreLastTab(){
   const saved = localStorage.getItem('active_tab');
-  if(!saved || saved === 'dash') return; // "dash" est déjà actif par défaut
+  if(!saved || saved === 'dash') return;
 
-  // Trouve le bouton correspondant dans la barre d'onglets
   const buttons = document.querySelectorAll('.tabs button');
   for(const btn of buttons){
     const onclick = btn.getAttribute('onclick') || '';
@@ -327,9 +553,6 @@ function render(){
   renderDashboard();
 }
 
-// ============================================================
-// RENDU COMPLET DU TABLEAU DE BORD
-// ============================================================
 function renderDashboard(){
   const s = computeStats();
 

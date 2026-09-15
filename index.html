@@ -12,7 +12,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
-  <!-- OneSignal SDK -->
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -45,26 +44,89 @@
   </div>
 </div>
 
+<!-- ============================================================
+     EN-TÊTE AVEC MENU UTILISATEUR
+     ============================================================ -->
 <header>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-    <div>
+  <div class="header-content">
+    <div class="header-left">
       <h1 id="headerTitle">💰 Ma Super App</h1>
       <div class="sub" id="today"></div>
     </div>
-    <button onclick="handleLogout()" title="Se déconnecter"
-      style="background:none;border:none;font-size:20px;cursor:pointer;width:auto;color:var(--muted);padding:6px;">🚪</button>
+    <div class="header-right">
+      <button class="header-icon-btn" onclick="openQuickAdd()" title="Ajouter">➕</button>
+      <div class="user-menu">
+        <button class="user-btn" onclick="toggleUserMenu(event)">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <span class="user-name" id="userNameDisplay">Profil</span>
+          <span class="user-chevron">▼</span>
+        </button>
+        <div class="user-dropdown" id="userDropdown">
+          <div class="user-header">
+            <div class="user-avatar-large" id="userAvatarLarge">?</div>
+            <div class="user-info">
+              <div class="user-name-large" id="userNameLarge">Utilisateur</div>
+              <div class="user-email" id="userEmail">—</div>
+            </div>
+          </div>
+          <div class="user-menu-items">
+            <button onclick="openProfileModal()">
+              <span class="icon">👤</span>
+              <span>Mon profil</span>
+            </button>
+            <button onclick="openPreferencesModal()">
+              <span class="icon">⚙️</span>
+              <span>Préférences</span>
+            </button>
+            <button onclick="openAboutModal()">
+              <span class="icon">ℹ️</span>
+              <span>À propos</span>
+            </button>
+            <div class="user-divider"></div>
+            <button onclick="handleLogout()" class="user-logout">
+              <span class="icon">🚪</span>
+              <span>Se déconnecter</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </header>
 
-<div class="tabs">
-  <button class="active" onclick="showTab('dash',this)">📊 Tableau de bord</button>
-  <button onclick="showTab('historique',this)">📜 Historique</button>
-  <button onclick="showTab('objectifs',this)">🎯 Objectifs</button>
-  <button onclick="showTab('photo',this)">📸 Photo</button>
-  <button onclick="showTab('business',this)">💡 Business</button>
-  <button onclick="showTab('motiv',this)">🔥 Motivation</button>
-  <button onclick="showTab('ia',this)">🤖 IA</button>
-</div>
+<!-- ============================================================
+     BARRE DE NAVIGATION AMÉLIORÉE
+     ============================================================ -->
+<nav class="tabs" id="mainTabs">
+  <button class="tab-btn active" data-tab="dash" onclick="showTab('dash',this)">
+    <span class="tab-icon">📊</span>
+    <span class="tab-label">Tableau</span>
+  </button>
+  <button class="tab-btn" data-tab="historique" onclick="showTab('historique',this)">
+    <span class="tab-icon">📜</span>
+    <span class="tab-label">Historique</span>
+  </button>
+  <button class="tab-btn" data-tab="objectifs" onclick="showTab('objectifs',this)">
+    <span class="tab-icon">🎯</span>
+    <span class="tab-label">Objectifs</span>
+  </button>
+  <button class="tab-btn" data-tab="photo" onclick="showTab('photo',this)">
+    <span class="tab-icon">📸</span>
+    <span class="tab-label">Photo</span>
+  </button>
+  <button class="tab-btn" data-tab="business" onclick="showTab('business',this)">
+    <span class="tab-icon">💡</span>
+    <span class="tab-label">Business</span>
+  </button>
+  <button class="tab-btn" data-tab="motiv" onclick="showTab('motiv',this)">
+    <span class="tab-icon">🔥</span>
+    <span class="tab-label">Motivation</span>
+  </button>
+  <button class="tab-btn" data-tab="ia" onclick="showTab('ia',this)">
+    <span class="tab-icon">🤖</span>
+    <span class="tab-label">IA</span>
+  </button>
+</nav>
 
 <!-- ONGLET TABLEAU DE BORD -->
 <div class="page active" id="page-dash">
@@ -370,7 +432,113 @@
 
 <button class="fab" onclick="openModal()">+ Transaction</button>
 
-<!-- MODALES -->
+<!-- ============================================================
+     MODAL PROFIL
+     ============================================================ -->
+<div class="modal-bg" id="profileModalBg" onclick="if(event.target===this)closeProfileModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3>👤 Mon profil</h3>
+      <button class="close" onclick="closeProfileModal()">×</button></div>
+
+    <div style="text-align:center;margin-bottom:20px">
+      <div class="profile-avatar-big" id="profileAvatarPreview">?</div>
+      <button class="btn-ghost" style="width:auto;padding:6px 14px;font-size:13px;margin-top:10px" onclick="changeAvatar()">📷 Changer l'avatar</button>
+    </div>
+
+    <label>Nom d'affichage</label>
+    <input type="text" id="profileName" placeholder="Ex: Henzo" maxlength="30">
+
+    <label>Bio (optionnel)</label>
+    <textarea id="profileBio" rows="2" placeholder="Ex: Photographe professionnel à Abidjan" maxlength="100"></textarea>
+
+    <label>Email (non modifiable)</label>
+    <input type="email" id="profileEmail" disabled style="opacity:0.6">
+
+    <label>Date d'inscription</label>
+    <input type="text" id="profileCreated" disabled style="opacity:0.6">
+
+    <button class="btn-primary" onclick="saveProfile()">💾 Enregistrer</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL PRÉFÉRENCES
+     ============================================================ -->
+<div class="modal-bg" id="preferencesModalBg" onclick="if(event.target===this)closePreferencesModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3>⚙️ Préférences</h3>
+      <button class="close" onclick="closePreferencesModal()">×</button></div>
+
+    <label>Devise</label>
+    <select id="prefCurrency">
+      <option value="FCFA">FCFA (Franc CFA)</option>
+      <option value="€">€ (Euro)</option>
+      <option value="$">$ (Dollar)</option>
+      <option value="MAD">MAD (Dirham)</option>
+    </select>
+
+    <label>Objectif d'épargne (%)</label>
+    <input type="number" id="prefSavingsTarget" min="0" max="100" step="5" placeholder="20">
+
+    <label>Heure notification matin</label>
+    <input type="time" id="prefMorningTime" value="08:00">
+
+    <label>Heure notification midi</label>
+    <input type="time" id="prefMiddayTime" value="13:00">
+
+    <label>Heure notification soir</label>
+    <input type="time" id="prefEveningTime" value="20:00">
+
+    <button class="btn-primary" onclick="savePreferences()">💾 Enregistrer les préférences</button>
+
+    <div style="font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5">
+      ⚠️ Les préférences sont stockées localement. Pour appliquer les horaires côté serveur, contacte-moi.
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL À PROPOS
+     ============================================================ -->
+<div class="modal-bg" id="aboutModalBg" onclick="if(event.target===this)closeAboutModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3>ℹ️ À propos</h3>
+      <button class="close" onclick="closeAboutModal()">×</button></div>
+
+    <div style="text-align:center;padding:20px 0">
+      <div style="font-size:60px;margin-bottom:10px">💰</div>
+      <div style="font-size:20px;font-weight:700;margin-bottom:4px">Ma Super App</div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:20px">Version 2.0 — Henzo Édition</div>
+    </div>
+
+    <div class="about-item">
+      <strong>🎯 Fonctionnalités</strong>
+      <div>Gestion financière, clients, séances photo, objectifs d'épargne, IA, notifications push</div>
+    </div>
+
+    <div class="about-item">
+      <strong>⚙️ Technologies</strong>
+      <div>Vercel · Supabase · OneSignal · Gemini AI · jsPDF</div>
+    </div>
+
+    <div class="about-item">
+      <strong>📧 Support</strong>
+      <div>henzophotographie@gmail.com</div>
+    </div>
+
+    <div class="about-item">
+      <strong>🚀 Développé par</strong>
+      <div>Henzo Koicy — Photographe & développeur</div>
+    </div>
+
+    <button class="btn-ghost" style="margin-top:20px" onclick="closeAboutModal()">Fermer</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODALES EXISTANTES
+     ============================================================ -->
+
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-wrap"><h3>Nouvelle transaction</h3>
