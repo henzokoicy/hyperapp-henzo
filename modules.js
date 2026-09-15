@@ -2,7 +2,6 @@
 // MODULES.JS — Objectifs, Photo, Business, Motivation, IA, Dashboard
 // ============================================================
 
-// Liste des villes de Côte d'Ivoire
 const VILLES_CI = [
   "Abidjan","Bouaké","Yamoussoukro","Daloa","Korhogo","San-Pédro","Man",
   "Divo","Gagnoa","Abengourou","Anyama","Grand-Bassam","Dabou","Agboville",
@@ -64,7 +63,6 @@ function selectCity(inputId, listId, city){
 // ============================================================
 // MODULE OBJECTIFS AMÉLIORÉ
 // ============================================================
-
 function getCoffreEmoji(name){
   const n = name.toLowerCase();
   if(n.includes('urgence') || n.includes('secours')) return '🛡️';
@@ -1146,12 +1144,11 @@ function renderSavedIdeas(){
 }
 
 // ============================================================
-// MODULE MOTIVATION — CITATIONS
+// CITATIONS
 // ============================================================
 function newQuote(){
   const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
 
-  // Citation dans l'onglet Motivation
   const emoji1 = document.getElementById('quoteEmoji');
   const text1  = document.getElementById('quoteText');
   const auth1  = document.getElementById('quoteAuthor');
@@ -1159,7 +1156,6 @@ function newQuote(){
   if(text1)  text1.textContent  = '"' + q.q + '"';
   if(auth1)  auth1.textContent  = '— ' + q.a;
 
-  // Citation sur le Tableau de bord
   const emoji2 = document.getElementById('dashQuoteEmoji');
   const text2  = document.getElementById('dashQuoteText');
   const auth2  = document.getElementById('dashQuoteAuthor');
@@ -1171,7 +1167,6 @@ function newQuote(){
 // ============================================================
 // NOTIFICATIONS GLOBALES AUTOMATIQUES
 // ============================================================
-
 const NOTIF_MESSAGES = {
   morning: [
     {i:'🌅', t:'Bonjour !', m:'Nouvelle journée, nouvelle opportunité. Chaque petit effort compte.'},
@@ -1218,12 +1213,10 @@ function toggleNotifications(){
     updateNotifButton();
     return;
   }
-
   if(!('Notification' in window)){
     document.getElementById('notifStatus').textContent = '❌ Non supporté sur ce navigateur';
     return;
   }
-
   Notification.requestPermission().then(p => {
     if(p === 'granted'){
       localStorage.setItem('notif_enabled', '1');
@@ -1241,7 +1234,6 @@ function updateNotifButton(){
   const btn = document.getElementById('notifBtn');
   const status = document.getElementById('notifStatus');
   if(!btn) return;
-
   if(isNotifEnabled()){
     btn.classList.add('active');
     btn.textContent = '✅ Notifications activées';
@@ -1279,7 +1271,6 @@ function checkAutomaticNotifications(){
       localStorage.setItem(key, '1');
     }
   }
-
   if(hh === 13 && mm >= 0 && mm < 5){
     const key = `notif_midday_${todayKey}`;
     if(!localStorage.getItem(key)){
@@ -1288,7 +1279,6 @@ function checkAutomaticNotifications(){
       localStorage.setItem(key, '1');
     }
   }
-
   if(hh === 20 && mm >= 0 && mm < 5){
     const key = `notif_evening_${todayKey}`;
     if(!localStorage.getItem(key)){
@@ -1303,9 +1293,6 @@ function enableNotifications(){
   toggleNotifications();
 }
 
-// ============================================================
-// RAPPELS PERSONNALISÉS
-// ============================================================
 function checkDailyReminders(){
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
   if(!isNotifEnabled()) return;
@@ -1360,14 +1347,231 @@ function renderReminders(){
     </div>`).join('');
 }
 
-// Vérifie chaque minute
 setInterval(() => {
   checkAutomaticNotifications();
   checkDailyReminders();
 }, 60000);
 
 // ============================================================
-// MODULE IA
+// MODULE IA — ANALYSE AVEC SAUVEGARDE + RENDU PROPRE
+// ============================================================
+
+function toggleAiConfig(){
+  const body  = document.getElementById('aiConfigBody');
+  const arrow = document.getElementById('aiConfigArrow');
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  arrow.classList.toggle('open', !isOpen);
+}
+
+// Convertit le markdown brut en HTML propre avec cartes numérotées
+function formatAnalysisText(text){
+  if(!text) return '<div class="empty">Pas de contenu</div>';
+
+  // Échappe le HTML pour sécurité
+  let safe = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Découpe par sections numérotées (1. 2. 3. etc.)
+  const lines = safe.split('\n');
+  let sections = [];
+  let currentSection = null;
+  let currentContent = [];
+
+  const sectionRegex = /^\s*(\d+)\s*[.)]\s*(.+?)$/;
+  const boldRegex    = /\*\*(.+?)\*\*/g;
+
+  lines.forEach(line => {
+    const match = line.match(sectionRegex);
+    if(match){
+      if(currentSection !== null || currentContent.length > 0){
+        sections.push({
+          num: currentSection,
+          content: currentContent.join('\n').trim()
+        });
+      }
+      currentSection = match[1];
+      currentContent = [match[2]];
+    } else {
+      currentContent.push(line);
+    }
+  });
+
+  if(currentSection !== null || currentContent.length > 0){
+    sections.push({
+      num: currentSection,
+      content: currentContent.join('\n').trim()
+    });
+  }
+
+  sections = sections.filter(s => s.content);
+
+  if(sections.length === 0){
+    sections = [{num: null, content: safe}];
+  }
+
+  function detectColor(content){
+    const lower = content.toLowerCase();
+    if(/attention|danger|déficit|négatif|perte|sous-évalu|trop|⚠|🚨/i.test(content)) return 'bad';
+    if(/surveille|serré|faible|augmente/i.test(lower)) return 'warn';
+    if(/excellent|bravo|bon|félicitation|bien|progrès|solide|🏆|🌟/i.test(content)) return 'good';
+    return '';
+  }
+
+  return sections.map(s => {
+    let content = s.content;
+    let title = '';
+    let body  = content;
+
+    const titleMatch = content.match(/^([^:]{2,80}?)\s*:\s*([\s\S]+)$/);
+    if(titleMatch){
+      title = titleMatch[1].replace(/\*\*/g, '').trim();
+      body  = titleMatch[2];
+    } else {
+      const firstLineBreak = content.indexOf('\n');
+      if(firstLineBreak > 0 && firstLineBreak < 100){
+        title = content.substring(0, firstLineBreak).replace(/\*\*/g, '').trim();
+        body  = content.substring(firstLineBreak + 1);
+      } else {
+        title = content.replace(/\*\*/g, '').substring(0, 80);
+        body = '';
+      }
+    }
+
+    body = body.replace(boldRegex, '<strong>$1</strong>');
+    const color = detectColor(s.content);
+
+    return `<div class="ai-section ${color}">
+      ${s.num ? `<div class="ai-section-title"><span class="ai-section-num">${s.num}</span>${title}</div>` : ''}
+      ${!s.num && title ? `<div class="ai-section-title">${title}</div>` : ''}
+      ${body.trim() ? `<div class="ai-section-body">${body.trim().replace(/\n/g, '<br>')}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function loadSavedAnalysis(){
+  const saved = localStorage.getItem('ai_last_analysis');
+  const savedDate = localStorage.getItem('ai_last_analysis_date');
+
+  if(saved){
+    const html = formatAnalysisText(saved);
+    document.getElementById('aiOutput').innerHTML = html;
+    document.getElementById('aiCopyBtn').disabled = false;
+    document.getElementById('aiPdfBtn').disabled = false;
+    document.getElementById('aiClearBtn').disabled = false;
+
+    if(savedDate){
+      const dateEl = document.getElementById('aiLastUpdate');
+      dateEl.textContent = '🕐 Dernière analyse : ' + savedDate;
+      dateEl.classList.add('visible');
+    }
+  }
+}
+
+function saveAnalysis(text){
+  localStorage.setItem('ai_last_analysis', text);
+  localStorage.setItem('ai_last_analysis_date',
+    new Date().toLocaleString('fr-FR', {
+      day:'2-digit', month:'long', year:'numeric',
+      hour:'2-digit', minute:'2-digit'
+    }));
+}
+
+function clearAnalysis(){
+  if(!confirm('Effacer l\'analyse ?')) return;
+  localStorage.removeItem('ai_last_analysis');
+  localStorage.removeItem('ai_last_analysis_date');
+  document.getElementById('aiOutput').innerHTML =
+    '<div class="empty">Clique sur <strong>Analyser</strong> pour obtenir ton bilan personnalisé.</div>';
+  document.getElementById('aiLastUpdate').classList.remove('visible');
+  document.getElementById('aiCopyBtn').disabled = true;
+  document.getElementById('aiPdfBtn').disabled = true;
+  document.getElementById('aiClearBtn').disabled = true;
+}
+
+async function copyAnalysis(){
+  const text = localStorage.getItem('ai_last_analysis');
+  if(!text){ alert('Aucune analyse à copier'); return; }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('aiCopyBtn');
+    btn.textContent = '✅ Copié !';
+    setTimeout(() => btn.textContent = '📋 Copier', 2000);
+  } catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const btn = document.getElementById('aiCopyBtn');
+    btn.textContent = '✅ Copié !';
+    setTimeout(() => btn.textContent = '📋 Copier', 2000);
+  }
+}
+
+function exportAnalysisPDF(){
+  const text = localStorage.getItem('ai_last_analysis');
+  const date = localStorage.getItem('ai_last_analysis_date');
+  if(!text){ alert('Aucune analyse à exporter'); return; }
+
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert('La bibliothèque PDF n\'est pas encore chargée. Attends 2 secondes et réessaie.');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFillColor(108, 140, 255);
+  doc.rect(0, 0, 210, 32, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Analyse financière IA", 14, 16);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  if(date) doc.text(date, 14, 24);
+
+  const cleanText = text.replace(/\*\*/g, '');
+
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+
+  const splitText = doc.splitTextToSize(cleanText, 180);
+  let y = 42;
+  const pageHeight = doc.internal.pageSize.height - 15;
+
+  splitText.forEach(line => {
+    if(y > pageHeight){
+      doc.addPage();
+      y = 15;
+    }
+    doc.text(line, 14, y);
+    y += 6;
+  });
+
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let i = 1; i <= pageCount; i++){
+    doc.setPage(i);
+    doc.setFontSize(9);
+    doc.setTextColor(140, 140, 140);
+    doc.text(
+      `Page ${i} / ${pageCount}  —  Ma Super App`,
+      14,
+      doc.internal.pageSize.height - 8
+    );
+  }
+
+  doc.save(`analyse-ia-${todayStr()}.pdf`);
+}
+
+// ============================================================
+// CONFIG IA
 // ============================================================
 function saveAiConfig(){
   const provider = document.getElementById('aiProvider').value;
@@ -1486,29 +1690,49 @@ async function askAI(){
   let cfg = null;
   try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
   if(!cfg || !cfg.key){ alert("Configure ta clé dans cette page"); return; }
+
   const out = document.getElementById('aiOutput');
-  out.textContent = '⏳ Analyse…';
+  out.innerHTML = '<div class="empty">⏳ Analyse en cours... (5 à 15 secondes)</div>';
+
   const summary = buildSummary();
   const prompt = `Tu es un conseiller financier personnel, direct et bienveillant. Voici le résumé :
 
 ${summary}
 
-Analyse en français, 8 points numérotés :
-1. Diagnostic global (2 phrases)
-2. Taux d'épargne : bon ? que faire ?
+Analyse en français, en 8 points numérotés. Chaque point DOIT commencer par son numéro suivi d'un titre court puis deux points :
+1. Diagnostic global
+2. Taux d'épargne
 3. Poste à surveiller
 4. Prévision fin de mois
-5. Combien épargner ce mois + où le mettre
-6. Une idée de business adaptée (elle fait de la photo)
+5. Combien épargner ce mois
+6. Une idée de business adaptée
 7. Action immédiate aujourd'hui
 8. Encouragement personnalisé
 
-Concret, chiffré, pas de blabla.`;
+Concret, chiffré, pas de blabla. N'utilise PAS d'astérisques. Écris en français simple.`;
+
   try {
     const text = await callAI(prompt);
-    out.textContent = text || 'Pas de réponse';
+    if(!text || !text.trim()){
+      out.innerHTML = '<div class="empty">❌ Pas de réponse de l\'IA. Réessaie.</div>';
+      return;
+    }
+
+    saveAnalysis(text);
+    out.innerHTML = formatAnalysisText(text);
+
+    document.getElementById('aiCopyBtn').disabled = false;
+    document.getElementById('aiPdfBtn').disabled = false;
+    document.getElementById('aiClearBtn').disabled = false;
+
+    const dateEl = document.getElementById('aiLastUpdate');
+    dateEl.textContent = '🕐 Dernière analyse : ' + new Date().toLocaleString('fr-FR', {
+      day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
+    });
+    dateEl.classList.add('visible');
+
   } catch(e){
-    out.textContent = '❌ ' + e.message;
+    out.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
   }
 }
 
@@ -1552,6 +1776,7 @@ function init(){
   updateAiStatus();
   newQuote();
   updateNotifButton();
+  loadSavedAnalysis();
   setTimeout(() => {
     checkAutomaticNotifications();
     checkDailyReminders();

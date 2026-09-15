@@ -61,7 +61,6 @@
 <div class="page active" id="page-dash">
   <div class="container">
 
-    <!-- Citation du jour — VISIBLE EN PREMIER -->
     <div class="card quote-box-dash">
       <div class="emoji" id="dashQuoteEmoji">💪</div>
       <div class="q" id="dashQuoteText">Chargement…</div>
@@ -69,7 +68,6 @@
       <button class="btn-ghost" style="margin-top:12px;width:auto;padding:6px 14px;font-size:12px" onclick="newQuote()">🔄 Autre citation</button>
     </div>
 
-    <!-- Résumé financier principal -->
     <div class="card">
       <div style="color:var(--muted);font-size:13px">Solde ce mois</div>
       <div class="balance" id="balance">0 FCFA</div>
@@ -80,7 +78,6 @@
       </div>
     </div>
 
-    <!-- Vue d'ensemble -->
     <div class="card">
       <h2>🌐 Vue d'ensemble</h2>
       <div class="grid-stats">
@@ -103,7 +100,6 @@
       </div>
     </div>
 
-    <!-- Santé financière -->
     <div class="card">
       <h2>💚 Santé financière</h2>
       <div class="score-wrap">
@@ -115,7 +111,6 @@
       </div>
     </div>
 
-    <!-- Revenus vs Dépenses -->
     <div class="card">
       <h2>📊 Revenus vs Dépenses</h2>
       <div class="donut-wrap">
@@ -126,37 +121,31 @@
       </div>
     </div>
 
-    <!-- Séances par type -->
     <div class="card">
       <h2>📸 Séances par type</h2>
       <div id="shootTypesChart"><div class="empty">Aucune séance enregistrée</div></div>
     </div>
 
-    <!-- Revenus 6 derniers mois -->
     <div class="card">
       <h2>📅 Revenus sur 6 mois</h2>
       <div class="bars-6m" id="bars6m"></div>
     </div>
 
-    <!-- Analyse automatique -->
     <div class="card">
       <h2>🧠 Analyse automatique</h2>
       <div id="insights"><div class="empty">Ajoute des transactions</div></div>
     </div>
 
-    <!-- Suggestions -->
     <div class="card">
       <h2>💡 Suggestions personnalisées</h2>
       <div id="suggestions"><div class="empty">Continue à utiliser l'app pour voir des suggestions.</div></div>
     </div>
 
-    <!-- Répartition des dépenses -->
     <div class="card">
       <h2>Répartition des dépenses</h2>
       <div id="catBreakdown"><div class="empty">Aucune dépense</div></div>
     </div>
 
-    <!-- Transactions du mois -->
     <div class="card">
       <h2>Transactions du mois</h2>
       <div id="txList"><div class="empty">Aucune transaction</div></div>
@@ -235,14 +224,12 @@
 <div class="page" id="page-objectifs">
   <div class="container">
 
-    <!-- MOTIVATION DU JOUR -->
     <div class="card motivation-card">
       <div class="motiv-icon" id="motivIcon">🔥</div>
       <div class="motiv-title" id="motivTitle">Ta motivation du jour</div>
       <div class="motiv-text" id="motivText">Créé un objectif pour voir ta motivation personnalisée.</div>
     </div>
 
-    <!-- DÉFI DU JOUR -->
     <div class="card defi-card">
       <div class="defi-header">
         <span class="defi-label">🎯 DÉFI DU JOUR</span>
@@ -253,20 +240,17 @@
       <div class="defi-streak" id="defiStreak"></div>
     </div>
 
-    <!-- MES OBJECTIFS -->
     <div class="card">
       <h2>🎯 Mes objectifs d'épargne</h2>
       <div id="coffresList"><div class="empty">Aucun objectif. Crées-en un.</div></div>
       <button class="btn-ghost" onclick="openCoffreModal()">+ Créer un objectif</button>
     </div>
 
-    <!-- ANALYSE PERCUTANTE -->
     <div class="card">
       <h2>📊 Analyse percutante</h2>
       <div id="analysePercutante"><div class="empty">Crée un objectif pour voir l'analyse.</div></div>
     </div>
 
-    <!-- ZONE ANTI-TENTATION -->
     <div class="card">
       <h2>🛡️ Zone anti-tentation</h2>
       <div style="font-size:13px;color:var(--muted);margin-bottom:10px">
@@ -360,29 +344,48 @@
      ============================================================ -->
 <div class="page" id="page-ia">
   <div class="container">
+
     <div class="card">
-      <h2>🤖 Connexion IA <span class="pill" id="aiStatus">non configurée</span></h2>
-      <label>Fournisseur</label>
-      <select id="aiProvider">
-        <option value="openai">OpenAI (GPT)</option>
-        <option value="anthropic">Anthropic (Claude)</option>
-        <option value="gemini">Google (Gemini)</option>
-        <option value="custom">Autre (compatible OpenAI)</option>
-      </select>
-      <label>Clé API</label>
-      <input type="password" id="aiKey" placeholder="sk-...">
-      <label id="aiUrlLabel" style="display:none">URL de l'API</label>
-      <input type="text" id="aiUrl" placeholder="https://..." style="display:none">
-      <button class="btn-primary" onclick="saveAiConfig()">Enregistrer</button>
-      <div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5">
-        🔒 Clé stockée uniquement sur cet appareil.
+      <div class="collapsible-head" onclick="toggleAiConfig()">
+        <h2 style="margin:0">🤖 Connexion IA <span class="pill" id="aiStatus">non configurée</span></h2>
+        <span class="collapse-arrow" id="aiConfigArrow">▼</span>
+      </div>
+      <div id="aiConfigBody" style="display:none;margin-top:14px">
+        <label>Fournisseur</label>
+        <select id="aiProvider">
+          <option value="openai">OpenAI (GPT)</option>
+          <option value="anthropic">Anthropic (Claude)</option>
+          <option value="gemini">Google (Gemini)</option>
+          <option value="custom">Autre (compatible OpenAI)</option>
+        </select>
+        <label>Clé API</label>
+        <input type="password" id="aiKey" placeholder="sk-...">
+        <label id="aiUrlLabel" style="display:none">URL de l'API</label>
+        <input type="text" id="aiUrl" placeholder="https://..." style="display:none">
+        <button class="btn-primary" onclick="saveAiConfig()">Enregistrer</button>
+        <div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5">
+          🔒 Clé stockée uniquement sur cet appareil.
+        </div>
       </div>
     </div>
+
     <div class="card">
-      <h2>Analyse financière complète</h2>
-      <button class="btn-primary" onclick="askAI()">🔮 Analyser</button>
-      <div class="ai-output" id="aiOutput">L'analyse apparaîtra ici…</div>
+      <h2>🔮 Analyse financière personnalisée</h2>
+
+      <div class="ai-toolbar">
+        <button class="ai-btn ai-btn-primary" onclick="askAI()">🔮 Analyser</button>
+        <button class="ai-btn" id="aiCopyBtn" onclick="copyAnalysis()" disabled>📋 Copier</button>
+        <button class="ai-btn" id="aiPdfBtn" onclick="exportAnalysisPDF()" disabled>📄 PDF</button>
+        <button class="ai-btn ai-btn-danger" id="aiClearBtn" onclick="clearAnalysis()" disabled>🗑 Effacer</button>
+      </div>
+
+      <div id="aiLastUpdate" class="ai-last-update"></div>
+
+      <div class="ai-output-clean" id="aiOutput">
+        <div class="empty">Clique sur <strong>Analyser</strong> pour obtenir ton bilan personnalisé.</div>
+      </div>
     </div>
+
   </div>
 </div>
 
