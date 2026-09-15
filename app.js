@@ -66,6 +66,7 @@ async function handleSignUp(){
 
 async function handleLogout(){
   if(!confirm('Se déconnecter ?')) return;
+  // On garde l'onglet actif pour la prochaine connexion
   await sb.auth.signOut();
   location.reload();
 }
@@ -126,6 +127,8 @@ async function startApp(){
     new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   await loadAllData();
   init();
+  // Restaure le dernier onglet visité (après le rendu initial)
+  restoreLastTab();
 }
 
 function showLogin(){
@@ -133,15 +136,20 @@ function showLogin(){
 }
 
 // ============================================================
-// NAVIGATION
+// NAVIGATION + MÉMORISATION DE L'ONGLET
 // ============================================================
 function showTab(name, btn){
+  // Sauvegarde l'onglet actif pour le restaurer après actualisation
+  localStorage.setItem('active_tab', name);
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
-  btn.classList.add('active');
+  if(btn) btn.classList.add('active');
+
   const titres = {
     dash:'💰 Intelligence Financière',
+    historique:'📜 Historique',
     objectifs:'🎯 Mes Objectifs',
     photo:'📸 Photo & Clients',
     business:'💡 Business',
@@ -149,12 +157,30 @@ function showTab(name, btn){
     ia:'🤖 Analyse IA'
   };
   document.getElementById('headerTitle').textContent = titres[name] || 'Ma Super App';
+
+  // Rendus spécifiques à certains onglets
   if(name === 'motiv') newQuote();
   if(name === 'dash' && typeof renderDashboard === 'function') renderDashboard();
-  if(name === 'historique'){
-  populateHistFilters();
-  renderHistory();
+  if(name === 'historique' && typeof populateHistFilters === 'function'){
+    populateHistFilters();
+    if(typeof renderHistory === 'function') renderHistory();
+  }
 }
+
+// Restaure le dernier onglet actif après un rafraîchissement
+function restoreLastTab(){
+  const saved = localStorage.getItem('active_tab');
+  if(!saved || saved === 'dash') return; // "dash" est déjà actif par défaut
+
+  // Trouve le bouton correspondant dans la barre d'onglets
+  const buttons = document.querySelectorAll('.tabs button');
+  for(const btn of buttons){
+    const onclick = btn.getAttribute('onclick') || '';
+    if(onclick.includes(`'${saved}'`)){
+      showTab(saved, btn);
+      return;
+    }
+  }
 }
 
 // ============================================================
