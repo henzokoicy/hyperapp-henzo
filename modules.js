@@ -1631,17 +1631,11 @@ function isNotifEnabled(){
 
 async function toggleNotifications(){
   if(isNotifEnabled()){
-    // Désactive
     localStorage.removeItem('notif_enabled');
-    try {
-      const OneSignal = window.OneSignal;
-      if(OneSignal) await OneSignal.User.PushSubscription.optOut();
-    } catch(e){ console.warn(e); }
     updateNotifButton();
     return;
   }
 
-  // Active
   if(!('Notification' in window)){
     document.getElementById('notifStatus').textContent = '❌ Non supporté sur ce navigateur';
     return;
@@ -1657,7 +1651,6 @@ async function toggleNotifications(){
     const OneSignal = window.OneSignal;
     if(OneSignal){
       await OneSignal.User.PushSubscription.optIn();
-      // Identifie l'utilisateur avec son email
       const user = await getCurrentUser();
       if(user && user.email){
         await OneSignal.login(user.email);
@@ -1666,27 +1659,15 @@ async function toggleNotifications(){
     localStorage.setItem('notif_enabled', '1');
     updateNotifButton();
 
+    // 📝 Enregistre le player_id pour les rappels serveur
+    setTimeout(registerOneSignalPlayer, 2000);
+
     new Notification('🔥 Notifications activées', {
       body: 'Tu recevras tes rappels sur tous tes appareils, même app fermée 💪'
     });
   } catch(e){
     console.error('OneSignal error:', e);
     document.getElementById('notifStatus').textContent = '❌ Erreur : ' + e.message;
-  }
-}
-
-function updateNotifButton(){
-  const btn = document.getElementById('notifBtn');
-  const status = document.getElementById('notifStatus');
-  if(!btn) return;
-  if(isNotifEnabled()){
-    btn.classList.add('active');
-    btn.textContent = '✅ Notifications activées';
-    if(status) status.textContent = 'Tu recevras tes rappels sur tous tes appareils';
-  } else {
-    btn.classList.remove('active');
-    btn.textContent = '🔔 Activer les notifications';
-    if(status) status.textContent = '';
   }
 }
 
@@ -1760,6 +1741,8 @@ function checkDailyReminders(){
 function openReminderModal(){
   document.getElementById('reminderText').value = '';
   document.getElementById('reminderTime').value = '09:00';
+  document.getElementById('reminderDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('reminderType').value = 'perso';
   document.getElementById('reminderModalBg').classList.add('show');
 }
 function closeReminderModal(){
@@ -1768,12 +1751,36 @@ function closeReminderModal(){
 async function saveReminder(){
   const text = document.getElementById('reminderText').value.trim();
   const time = document.getElementById('reminderTime').value;
-  if(!text || !time){ alert("Message + heure requis"); return; }
-  const result = await dbInsert('reminders', {text, time});
+  const date = document.getElementById('reminderDate').value;
+  const type = document.getElementById('reminderType').value;
+
+  if(!text){ alert("Écris un message"); return; }
+  if(!date){ alert("Choisis une date"); return; }
+  if(!time){ alert("Choisis une heure"); return; }
+
+  // Construit la date complète au format ISO
+  const dueDate = new Date(date + 'T' + time + ':00').toISOString();
+
+  const result = await dbInsert('reminders', {
+    text: text,
+    time: time,
+    type: type,
+    due_date: dueDate,
+    sent: false
+  });
   if(!result) return;
+
   reminders.push(result);
   closeReminderModal();
   refreshAll();
+
+  // Confirmation
+  alert('✅ Rappel créé !\nTu recevras une notification le ' +
+    new Date(dueDate).toLocaleString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
+    }) +
+    '\n\nMême si l\'app est fermée 🔔'
+  );
 }
 async function delReminder(id){
   const ok = await dbDelete('reminders', id);
@@ -1783,13 +1790,72 @@ async function delReminder(id){
 }
 function renderReminders(){
   const el = document.getElementById('remindersList');
-  if(reminders.length === 0){ el.innerHTML = '<div class="empty">Aucun rappel</div>'; return; }
-  el.innerHTML = reminders.map(r => `
-    <div class="reminder">
-      <div class="txt">${r.text}</div>
-      <div class="time">${r.time}</div>
-      <button class="del" onclick="delReminder(${r.id})">×</button>
-    </div>`).join('');
+  if(reminders.length === 0){
+    el.innerHTML = '<div class="empty">Aucun rappel. Crées-en un !</div>';
+    return;
+  }
+
+  const icons = {
+    perso:    '🔔',
+    rdv:      '📅',
+    appel:    '📞',
+    paiement: '💰'
+  };
+
+  // Trie par date (les plus proches en premier)
+  const sorted = [...reminders].sort((a,b) => {
+    const da = a.due_date || a.created_at || '';
+    const db_ = b.due_date || b.created_at || '';
+    return da.localeCompare(db_);
+  });
+
+  el.innerHTML = sorted.map(r => {
+    const icon = icons[r.type] || '🔔';
+    const now = new Date();
+    const due = r.due_date ? new Date(r.due_date) : null;
+
+    let statusBadge = '';
+    let statusClass = '';
+
+    if(r.sent){
+      statusBadge = '✅ Envoyé';
+      statusClass = 'sent';
+    } else if(due && due < now){
+      statusBadge = '⏱ En cours';
+      statusClass = 'pending';
+    } else if(due){
+      const diff = due - now;
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(hours / 24);
+
+      if(hours < 1){
+        statusBadge = '⏱ Dans moins d\'1h';
+      } else if(hours < 24){
+        statusBadge = `⏱ Dans ${hours}h`;
+      } else {
+        statusBadge = `📅 Dans ${days}j`;
+      }
+    }
+
+    const dateStr = due
+      ? due.toLocaleString('fr-FR', {
+          day: '2-digit', month: 'short',
+          hour: '2-digit', minute: '2-digit'
+        })
+      : r.time || '';
+
+    return `<div class="reminder ${statusClass}">
+      <div class="reminder-icon">${icon}</div>
+      <div class="reminder-content">
+        <div class="reminder-text">${r.text}</div>
+        <div class="reminder-meta">
+          <span>${dateStr}</span>
+          ${statusBadge ? `<span class="reminder-badge">${statusBadge}</span>` : ''}
+        </div>
+      </div>
+      <button class="reminder-del" onclick="delReminder(${r.id})">×</button>
+    </div>`;
+  }).join('');
 }
 
 setInterval(() => {
@@ -1797,6 +1863,48 @@ setInterval(() => {
   checkDailyReminders();
 }, 60000);
 
+// ============================================================
+// ENREGISTREMENT DU PLAYER ID ONESIGNAL
+// ============================================================
+async function registerOneSignalPlayer(){
+  try {
+    const user = await getCurrentUser();
+    if(!user) return;
+
+    const OneSignal = window.OneSignal;
+    if(!OneSignal) return;
+
+    // Attends que le SDK soit prêt
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    const sub = OneSignal.User?.PushSubscription;
+    if(!sub) return;
+
+    const playerId = sub.id;
+    if(!playerId) return;
+
+    // Vérifie si déjà enregistré
+    const { data: existing } = await sb
+      .from('push_subscriptions')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('player_id', playerId)
+      .maybeSingle();
+
+    if(existing) return; // déjà enregistré
+
+    // Insère
+    await sb.from('push_subscriptions').insert({
+      user_id: user.id,
+      player_id: playerId
+    });
+
+    console.log('✅ Player ID enregistré pour les rappels:', playerId);
+
+  } catch(e){
+    console.warn('registerOneSignalPlayer:', e);
+  }
+}
 // ============================================================
 // MODULE IA — ANALYSE SYNCHRONISÉE (Supabase + local)
 // ============================================================
@@ -2240,10 +2348,14 @@ function init(){
   updateNotifButton();
   loadSavedAnalysis();
   loadIdeasAI();
+
+  // Enregistre le player ID OneSignal si déjà abonné
+  setTimeout(registerOneSignalPlayer, 2000);
+
   setTimeout(() => {
     checkAutomaticNotifications();
     checkDailyReminders();
-  }, 2000);
+  }, 2500);
 }
 
 (async function bootstrap(){

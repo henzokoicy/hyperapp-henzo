@@ -673,11 +673,31 @@
 
 <div class="modal-bg" id="reminderModalBg" onclick="if(event.target===this)closeReminderModal()">
   <div class="modal">
-    <div class="modal-wrap"><h3>Nouveau rappel</h3>
+    <div class="modal-wrap"><h3>⏰ Nouveau rappel</h3>
       <button class="close" onclick="closeReminderModal()">×</button></div>
-    <label>Message</label><input type="text" id="reminderText" placeholder="Ex: Épargner 2000 FCFA">
-    <label>Heure</label><input type="time" id="reminderTime" value="09:00">
-    <button class="btn-primary" onclick="saveReminder()">Ajouter</button>
+
+    <label>Type de rappel</label>
+    <select id="reminderType">
+      <option value="perso">🔔 Personnel</option>
+      <option value="rdv">📅 Rendez-vous / Séance</option>
+      <option value="appel">📞 Appel client</option>
+      <option value="paiement">💰 Paiement à recevoir</option>
+    </select>
+
+    <label>Message</label>
+    <input type="text" id="reminderText" placeholder="Ex: Shooting mariage Client X">
+
+    <label>Date</label>
+    <input type="date" id="reminderDate">
+
+    <label>Heure</label>
+    <input type="time" id="reminderTime" value="09:00">
+
+    <button class="btn-primary" onclick="saveReminder()">➕ Créer le rappel</button>
+
+    <div style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.5">
+      🔔 Le rappel arrivera <strong>même app fermée</strong>, sur tous tes appareils.
+    </div>
   </div>
 </div>
 

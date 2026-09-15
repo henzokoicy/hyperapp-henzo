@@ -1017,3 +1017,76 @@ body:not(.logged-out) #loginScreen{display:none;}
   .tab-label{font-size:10px;}
   .side-drawer{width:290px;}
 }
+
+/* ============================================================
+   RAPPELS AMÉLIORÉS
+   ============================================================ */
+.reminder{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  padding:14px;
+  background:var(--card2);
+  border-radius:12px;
+  margin-bottom:8px;
+  border-left:3px solid var(--accent);
+  transition:all .15s;
+}
+.reminder.sent{
+  opacity:0.5;
+  border-left-color:var(--green);
+}
+.reminder.pending{
+  border-left-color:var(--yellow);
+  background:linear-gradient(90deg,rgba(245,185,66,.1),var(--card2));
+}
+.reminder-icon{
+  font-size:22px;
+  flex-shrink:0;
+  margin-top:2px;
+}
+.reminder-content{
+  flex:1;
+  min-width:0;
+}
+.reminder-text{
+  font-size:14px;
+  font-weight:500;
+  margin-bottom:4px;
+  line-height:1.4;
+}
+.reminder-meta{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:11px;
+  color:var(--muted);
+  flex-wrap:wrap;
+}
+.reminder-badge{
+  background:var(--accent);
+  color:#fff;
+  padding:2px 8px;
+  border-radius:10px;
+  font-size:10px;
+  font-weight:600;
+}
+.reminder.pending .reminder-badge{
+  background:var(--yellow);
+  color:#000;
+}
+.reminder.sent .reminder-badge{
+  background:var(--green);
+  color:#000;
+}
+.reminder-del{
+  background:none;
+  border:none;
+  color:var(--muted);
+  font-size:20px;
+  padding:4px 8px;
+  cursor:pointer;
+  width:auto;
+  flex-shrink:0;
+}
+.reminder-del:hover{color:var(--red);}
