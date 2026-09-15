@@ -1,9 +1,49 @@
 // ============================================================
-// MODULES.JS — Objectifs, Photo, Business, Motivation, IA
-// ============================================================
-// Utilise sb. et les helpers dbInsert/dbUpdate/dbDelete définis dans app.js
+// MODULES.JS — Objectifs, Photo, Business, Motivation, IA, Dashboard
 // ============================================================
 
+// Liste des villes de Côte d'Ivoire pour l'autocomplétion
+const VILLES_CI = [
+  "Abidjan","Bouaké","Yamoussoukro","Daloa","Korhogo","San-Pédro","Man",
+  "Divo","Gagnoa","Abengourou","Anyama","Grand-Bassam","Dabou","Agboville",
+  "Bingerville","Adzopé","Aboisso","Bondoukou","Séguéla","Odienné",
+  "Ferkessédougou","Katiola","Soubré","Issia","Guiglo","Toumodi","Tiassalé",
+  "Bonoua","Sassandra","Tabou","Grand-Lahou","Jacqueville","Sikensi","Lakota",
+  "Duekoué","Danané","Bouna","Bongouanou","Daoukro","M'Bahiakro","Bouaflé",
+  "Sinfra","Vavoua","Zuénoula","Mankono","Touba","Kouto","Tengréla",
+  "Ouangolodougou","Boundiali","M'Bengué","Dikodougou","Kong","Dabakala",
+  "Béoumi","Botro","Sakassou","Niakaramandougou","Prikro","Arrah","Kétesso",
+  "Alépé","Oumé","Dimbokro","Bocanda","Tanda","Koun-Fao","Agnibilékrou",
+  "Abengourou","Bettié","Ayamé","Adiaké","Tiébissou","Yopougon","Cocody",
+  "Plateau","Marcory","Treichville","Koumassi","Adjamé","Attécoubé","Port-Bouët"
+];
+
+// ============================================================
+// AUTOCOMPLÉTION VILLES
+// ============================================================
+function setupAutocomplete(inputId, listId){
+  const input = document.getElementById(inputId);
+  const list  = document.getElementById(listId);
+  if(!input || !list) return;
+
+  input.addEventListener('input', () => {
+    const val = input.value.trim().toLowerCase();
+    if(val.length < 1){ list.style.display='none'; list.innerHTML=''; return; }
+    const matches = VILLES_CI.filter(v => v.toLowerCase().includes(val)).slice(0, 8);
+    if(matches.length === 0){ list.style.display='none'; list.innerHTML=''; return; }
+    list.innerHTML = matches.map(v => `<div onclick="selectCity('${inputId}','${listId}','${v}')">${v}</div>`).join('');
+    list.style.display = 'block';
+  });
+
+  input.addEventListener('blur', () => {
+    setTimeout(() => { list.style.display='none'; }, 150);
+  });
+}
+
+function selectCity(inputId, listId, city){
+  document.getElementById(inputId).value = city;
+  document.getElementById(listId).style.display = 'none';
+}
 
 // ============================================================
 // MODULE OBJECTIFS
@@ -138,6 +178,7 @@ function openClientModal(id){
   document.getElementById('clientName').value  = c?.name  || '';
   document.getElementById('clientPhone').value = c?.phone || '';
   document.getElementById('clientEmail').value = c?.email || '';
+  document.getElementById('clientCity').value  = c?.city  || '';
   document.getElementById('clientNotes').value = c?.notes || '';
   document.getElementById('clientModalBg').classList.add('show');
 }
@@ -152,6 +193,7 @@ async function saveClient(){
     name,
     phone: document.getElementById('clientPhone').value.trim(),
     email: document.getElementById('clientEmail').value.trim(),
+    city:  document.getElementById('clientCity').value.trim(),
     notes: document.getElementById('clientNotes').value.trim()
   };
   if(editingClientId){
@@ -167,6 +209,7 @@ async function saveClient(){
   closeClientModal();
   renderClients();
   renderShoots();
+  render();
 }
 async function delClient(id){
   if(!confirm("Supprimer ce client ?")) return;
@@ -176,6 +219,7 @@ async function delClient(id){
   shoots.forEach(s => { if(s.client_id === id) s.client_id = null; });
   renderClients();
   renderShoots();
+  render();
 }
 function renderClients(){
   const el = document.getElementById('clientsList');
@@ -185,6 +229,7 @@ function renderClients(){
       <div class="head"><div class="name">👤 ${c.name}</div></div>
       ${c.phone ? `<div class="amt"><span>📞 ${c.phone}</span></div>` : ''}
       ${c.email ? `<div class="amt"><span>✉️ ${c.email}</span></div>` : ''}
+      ${c.city  ? `<div class="amt"><span>📍 ${c.city}</span></div>` : ''}
       ${c.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">${c.notes}</div>` : ''}
       <div class="actions" style="display:flex;gap:6px;margin-top:8px">
         <button class="btn-ghost" style="margin:0;padding:6px" onclick="openClientModal(${c.id})">Modifier</button>
@@ -197,10 +242,8 @@ function renderClients(){
 // ============================================================
 // MODULE PHOTO — SÉANCES
 // ============================================================
-// Types fixes disponibles dans la liste déroulante
 const TYPES_FIXES = ['Mariage','Dot','Shooting Studio','Shoot Extérieur','Autre'];
 
-// Affiche/cache le champ "Précise le type" selon le choix
 function onShootTypeChange(){
   const t = document.getElementById('shootType').value;
   document.getElementById('shootCustomTypeWrap').style.display =
@@ -217,8 +260,6 @@ function openShootModal(id){
 
   if(s){
     sel.value = s.client_id || '';
-    // Si le type enregistré fait partie des types fixes, on le sélectionne directement
-    // Sinon, on met "Autre" et on remplit le champ personnalisé
     const savedType = s.type || 'Mariage';
     if(TYPES_FIXES.includes(savedType)){
       document.getElementById('shootType').value = savedType;
@@ -227,6 +268,8 @@ function openShootModal(id){
       document.getElementById('shootType').value = 'Autre';
       document.getElementById('shootCustomType').value = savedType;
     }
+    document.getElementById('shootLocation').value   = s.location || '';
+    document.getElementById('shootPhotoCount').value = s.photo_count || '';
     document.getElementById('shootDate').value  = s.date ? new Date(s.date).toISOString().slice(0,16) : '';
     document.getElementById('shootPrice').value = s.price || '';
     document.getElementById('shootPay').value   = s.payment || 'impaye';
@@ -235,6 +278,8 @@ function openShootModal(id){
     sel.value = '';
     document.getElementById('shootType').value = 'Mariage';
     document.getElementById('shootCustomType').value = '';
+    document.getElementById('shootLocation').value = '';
+    document.getElementById('shootPhotoCount').value = '';
     document.getElementById('shootDate').value  = new Date().toISOString().slice(0,16);
     document.getElementById('shootPrice').value = '';
     document.getElementById('shootPay').value   = 'impaye';
@@ -250,13 +295,14 @@ function closeShootModal(){
 async function saveShoot(){
   const clientId = document.getElementById('shootClient').value;
   let   type     = document.getElementById('shootType').value;
+  const location = document.getElementById('shootLocation').value.trim();
+  const photo_count = parseInt(document.getElementById('shootPhotoCount').value) || 0;
   const date     = document.getElementById('shootDate').value;
   const price    = parseFloat(document.getElementById('shootPrice').value) || 0;
   const payment  = document.getElementById('shootPay').value;
   const notes    = document.getElementById('shootNotes').value.trim();
   if(!date){ alert("Date requise"); return; }
 
-  // Si "Autre" est choisi et qu'un type personnalisé est renseigné, on l'utilise
   if(type === 'Autre'){
     const custom = document.getElementById('shootCustomType').value.trim();
     if(custom) type = custom;
@@ -264,7 +310,7 @@ async function saveShoot(){
 
   const data = {
     client_id: clientId ? parseInt(clientId) : null,
-    type, date, price, payment, notes
+    type, location, photo_count, date, price, payment, notes
   };
   if(editingShootId){
     const result = await dbUpdate('shoots', editingShootId, data);
@@ -279,6 +325,7 @@ async function saveShoot(){
   closeShootModal();
   renderShoots();
   renderPhotoStats();
+  render();
 }
 async function delShoot(id){
   if(!confirm("Supprimer ?")) return;
@@ -287,6 +334,7 @@ async function delShoot(id){
   shoots = shoots.filter(s => s.id !== id);
   renderShoots();
   renderPhotoStats();
+  render();
 }
 async function toggleShootPayment(id){
   const s = shoots.find(x => x.id === id);
@@ -296,6 +344,7 @@ async function toggleShootPayment(id){
   s.payment = newPayment;
   renderShoots();
   renderPhotoStats();
+  render();
 }
 function renderShoots(){
   const el = document.getElementById('shootsList');
@@ -306,6 +355,9 @@ function renderShoots(){
     const d = new Date(s.date);
     const dStr = d.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'}) + ' ' +
                  d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    const locInfo = s.location ? `📍 ${s.location}` : '';
+    const photoInfo = s.photo_count ? `📷 ${s.photo_count} photos` : '';
+    const metaInfo = [locInfo, photoInfo].filter(x => x).join(' · ');
     return `<div class="item-card">
       <div class="head">
         <div class="name">📸 ${s.type}${client ? ' · ' + client.name : ''}</div>
@@ -315,7 +367,8 @@ function renderShoots(){
         <span>📅 ${dStr}</span>
         <span style="color:var(--green);font-weight:600">${fmt(s.price)}</span>
       </div>
-      ${s.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">${s.notes}</div>` : ''}
+      ${metaInfo ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">${metaInfo}</div>` : ''}
+      ${s.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">${s.notes}</div>` : ''}
       <div class="actions" style="display:flex;gap:6px;margin-top:8px">
         <button class="btn-primary" style="margin:0;padding:6px;background:${s.payment==='paye'?'var(--yellow)':'var(--green)'}"
           onclick="toggleShootPayment(${s.id})">
@@ -339,6 +392,246 @@ function renderPhotoStats(){
 
 
 // ============================================================
+// DASHBOARD ENRICHI
+// ============================================================
+function renderOverview(){
+  const ym = monthKey();
+  const monthShoots = shoots.filter(s => s.date && s.date.startsWith(ym));
+  const revenue = monthShoots.filter(s => s.payment === 'paye').reduce((sum,s) => sum + Number(s.price), 0);
+  const pending = shoots.filter(s => s.payment === 'impaye').reduce((sum,s) => sum + Number(s.price), 0);
+
+  document.getElementById('overviewClients').textContent    = clients.length;
+  document.getElementById('overviewShoots').textContent     = monthShoots.length;
+  document.getElementById('overviewPhotoRev').textContent   = fmt(revenue);
+  document.getElementById('overviewPending').textContent    = fmt(pending);
+}
+
+function computeHealthScore(){
+  const s = computeStats();
+  let score = 50;
+
+  // Taux d'épargne (max +30)
+  if(s.totalIn > 0){
+    const rate = s.savingsRate;
+    if(rate >= 0.30) score += 30;
+    else if(rate >= 0.20) score += 20;
+    else if(rate >= 0.10) score += 10;
+    else if(rate < 0) score -= 20;
+  }
+
+  // Objectifs actifs (+10 si au moins 1)
+  if(coffres.length > 0) score += 10;
+
+  // Revenus photo diversifiés (+10)
+  if(shoots.some(s => s.payment === 'paye')) score += 10;
+
+  // Clients enregistrés (+10)
+  if(clients.length >= 3) score += 10;
+
+  // Impayés (pénalité -15)
+  const pendingTotal = shoots.filter(s => s.payment === 'impaye').reduce((a,b) => a + Number(b.price), 0);
+  if(pendingTotal > 0 && s.totalIn > 0 && pendingTotal > s.totalIn * 0.5) score -= 15;
+
+  return Math.max(0, Math.min(100, score));
+}
+
+function renderHealthScore(){
+  const score = computeHealthScore();
+  const el = document.getElementById('healthScore');
+  const title = document.getElementById('healthTitle');
+  const text = document.getElementById('healthText');
+
+  let color = 'var(--accent)';
+  if(score >= 75) color = 'var(--green)';
+  else if(score >= 50) color = 'var(--yellow)';
+  else color = 'var(--red)';
+
+  el.style.background = `conic-gradient(${color} 0% ${score}%, var(--card2) ${score}% 100%)`;
+  el.innerHTML = `<span>${score}</span>`;
+
+  if(score >= 75){
+    title.textContent = '🌟 Excellente santé';
+    text.textContent = 'Tu es sur la bonne voie. Continue comme ça !';
+  } else if(score >= 50){
+    title.textContent = '👍 Bonne santé';
+    text.textContent = 'Quelques ajustements pour passer au niveau supérieur.';
+  } else {
+    title.textContent = '⚠ À améliorer';
+    text.textContent = 'Concentre-toi sur ton épargne et tes revenus.';
+  }
+}
+
+function renderRevDepDonut(){
+  const s = computeStats();
+  const total = s.totalIn + s.totalOut;
+  const donut = document.getElementById('donutRevDep');
+  const centerText = document.getElementById('donutRevDepText');
+  const legend = document.getElementById('legendRevDep');
+
+  if(total === 0){
+    donut.style.background = 'conic-gradient(var(--card2) 0% 100%)';
+    centerText.textContent = '--';
+    legend.innerHTML = '<div class="empty" style="padding:0">Aucune donnée</div>';
+    return;
+  }
+
+  const pctIn = (s.totalIn / total) * 100;
+  const pctOut = (s.totalOut / total) * 100;
+
+  donut.style.background = `conic-gradient(
+    var(--green) 0% ${pctIn}%,
+    var(--red) ${pctIn}% 100%
+  )`;
+  centerText.innerHTML = `<div><div style="font-size:14px">${Math.round(pctIn)}%</div><div style="font-size:9px;color:var(--muted)">Revenus</div></div>`;
+
+  legend.innerHTML = `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:var(--green)"></div>
+      <div class="legend-label">Revenus</div>
+      <div class="legend-value" style="color:var(--green)">${fmt(s.totalIn)}</div>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:var(--red)"></div>
+      <div class="legend-label">Dépenses</div>
+      <div class="legend-value" style="color:var(--red)">${fmt(s.totalOut)}</div>
+    </div>
+  `;
+}
+
+function renderShootTypesChart(){
+  const el = document.getElementById('shootTypesChart');
+  if(shoots.length === 0){
+    el.innerHTML = '<div class="empty">Aucune séance enregistrée</div>';
+    return;
+  }
+
+  const byType = {};
+  shoots.forEach(s => {
+    byType[s.type] = (byType[s.type] || 0) + 1;
+  });
+
+  const entries = Object.entries(byType).sort((a,b) => b[1] - a[1]);
+  const total = shoots.length;
+
+  el.innerHTML = entries.map(([type, count]) => {
+    const pct = (count / total) * 100;
+    return `<div class="cat-row">
+      <div class="top"><span>📸 ${type}</span><span>${count} séance${count>1?'s':''} · ${pct.toFixed(0)}%</span></div>
+      <div class="bar"><div style="width:${pct}%;background:var(--pink)"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderBars6m(){
+  const el = document.getElementById('bars6m');
+  const now = new Date();
+  const months = [];
+
+  for(let i = 5; i >= 0; i--){
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = d.toISOString().slice(0,7);
+    const label = d.toLocaleDateString('fr-FR', {month:'short'});
+    const total = txs
+      .filter(t => t.type === 'revenu' && t.date.startsWith(key))
+      .reduce((a,b) => a + Number(b.amount), 0);
+    months.push({ label, total });
+  }
+
+  const max = Math.max(...months.map(m => m.total), 1);
+
+  el.innerHTML = months.map(m => {
+    const height = (m.total / max) * 100;
+    return `<div class="bar-6m">
+      <div class="bar-value">${m.total > 0 ? Math.round(m.total/1000)+'k' : '0'}</div>
+      <div class="bar-fill" style="height:${height}%"></div>
+      <div class="bar-label">${m.label}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderSuggestions(){
+  const el = document.getElementById('suggestions');
+  const s = computeStats();
+  const suggestions = [];
+
+  // Suggestion basée sur le taux d'épargne
+  if(s.totalIn > 0 && s.savingsRate < SAVINGS_TARGET){
+    const missing = (s.totalIn * SAVINGS_TARGET) - (s.totalIn * s.savingsRate);
+    suggestions.push({
+      icon: '💰',
+      title: 'Augmente ton épargne',
+      body: `Tu peux encore épargner ${fmt(missing)} ce mois pour atteindre ton objectif de ${(SAVINGS_TARGET*100)}%.`
+    });
+  }
+
+  // Suggestion si impayés
+  const pending = shoots.filter(s => s.payment === 'impaye').reduce((a,b) => a + Number(b.price), 0);
+  if(pending > 0){
+    suggestions.push({
+      icon: '📞',
+      title: 'Relance tes clients',
+      body: `Tu as ${fmt(pending)} à encaisser. Un petit message peut accélérer le paiement.`
+    });
+  }
+
+  // Suggestion si aucun client
+  if(clients.length === 0){
+    suggestions.push({
+      icon: '👥',
+      title: 'Commence par tes clients',
+      body: 'Ajoute tes clients existants pour suivre leurs séances et paiements.'
+    });
+  }
+
+  // Suggestion si pas d'objectif
+  if(coffres.length === 0){
+    suggestions.push({
+      icon: '🎯',
+      title: 'Crée ton premier objectif',
+      body: 'Un objectif d\'épargne te motive à mettre de côté. Commence petit : 50 000 FCFA.'
+    });
+  }
+
+  // Suggestion basée sur le top poste
+  if(s.sortedCats[0]){
+    const pct = (s.sortedCats[0][1] / s.totalOut * 100);
+    if(pct > 40){
+      suggestions.push({
+        icon: '🎯',
+        title: `Attention à "${s.sortedCats[0][0]}"`,
+        body: `Ce poste représente ${pct.toFixed(0)}% de tes dépenses. Essaie de le réduire de 10%.`
+      });
+    }
+  }
+
+  // Suggestion business
+  if(shoots.length > 0 && s.totalIn > 0){
+    const photoRevenue = shoots.filter(s => s.payment === 'paye').reduce((a,b) => a + Number(b.price), 0);
+    if(photoRevenue < s.totalIn * 0.3){
+      suggestions.push({
+        icon: '💡',
+        title: 'Développe ton activité photo',
+        body: 'La photo représente moins de 30% de tes revenus. Pense à des mini-sessions ou des partenariats.'
+      });
+    }
+  }
+
+  if(suggestions.length === 0){
+    el.innerHTML = '<div class="empty">Tout est en ordre ! Continue comme ça. 🎉</div>';
+    return;
+  }
+
+  el.innerHTML = suggestions.slice(0, 5).map(sg => `
+    <div class="suggestion">
+      <div class="icon">${sg.icon}</div>
+      <div class="title">${sg.title}</div>
+      <div class="body">${sg.body}</div>
+    </div>
+  `).join('');
+}
+
+
+// ============================================================
 // MODULE BUSINESS
 // ============================================================
 function generateIdeas(){
@@ -355,11 +648,7 @@ function generateIdeas(){
 }
 async function saveIdea(idea){
   if(savedIdeas.some(x => x.title === idea.t)){ alert("Déjà sauvegardée"); return; }
-  const result = await dbInsert('saved_ideas', {
-    title: idea.t,
-    description: idea.d,
-    tags: idea.tags
-  });
+  const result = await dbInsert('saved_ideas', {title: idea.t, description: idea.d, tags: idea.tags});
   if(!result) return;
   savedIdeas.unshift(result);
   renderSavedIdeas();
@@ -516,7 +805,7 @@ function buildSummary(){
   if(coffres.length){
     lines.push("Objectifs d'épargne:");
     coffres.forEach(c => lines.push(
-      `- ${c.name}: ${Math.round(c.current)}/${Math.round(c.goal)} (${((c.current/c.goal)*100).toFixed(0)}%)${c.target_date?` date ${c.target_date}`:''}${c.why?` raison: ${c.why}`:''}`
+      `- ${c.name}: ${Math.round(c.current)}/${Math.round(c.goal)} (${((c.current/c.goal)*100).toFixed(0)}%)`
     ));
   }
   if(shoots.length){
@@ -525,8 +814,15 @@ function buildSummary(){
     lines.push(`Séances photo ce mois: ${ms.length}`);
     const r = ms.filter(s => s.payment === 'paye').reduce((a,b) => a + Number(b.price), 0);
     lines.push(`Revenus photo: ${Math.round(r)}`);
+    const types = {};
+    shoots.forEach(sh => types[sh.type] = (types[sh.type]||0)+1);
+    lines.push('Types de séances: ' + Object.entries(types).map(([t,c])=>`${t}=${c}`).join(', '));
   }
-  if(clients.length) lines.push(`Clients: ${clients.length}`);
+  if(clients.length){
+    lines.push(`Clients: ${clients.length}`);
+    const cities = [...new Set(clients.map(c => c.city).filter(x => x))];
+    if(cities.length) lines.push(`Villes clients: ${cities.join(', ')}`);
+  }
   const recent = [...txs].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 15);
   if(recent.length){
     lines.push('Transactions récentes:');
@@ -549,10 +845,8 @@ async function callAI(prompt){
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
-      body: JSON.stringify({
-        model: AI_MODELS.anthropic, max_tokens: 1500,
-        messages: [{role: 'user', content: prompt}]
-      })
+      body: JSON.stringify({model: AI_MODELS.anthropic, max_tokens: 1500,
+        messages: [{role: 'user', content: prompt}]})
     });
     const j = await r.json();
     if(j.error) throw new Error(j.error.message);
@@ -571,14 +865,9 @@ async function callAI(prompt){
   const r = await fetch(url, {
     method: 'POST',
     headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}`},
-    body: JSON.stringify({
-      model: AI_MODELS.openai,
-      messages: [
-        {role: 'system', content: 'Tu es un conseiller financier personnel direct.'},
-        {role: 'user', content: prompt}
-      ],
-      temperature: 0.7
-    })
+    body: JSON.stringify({model: AI_MODELS.openai,
+      messages: [{role: 'system', content: 'Tu es un conseiller financier personnel direct.'},
+                {role: 'user', content: prompt}], temperature: 0.7})
   });
   const j = await r.json();
   if(j.error) throw new Error(j.error.message);
@@ -649,6 +938,8 @@ Pas de blabla, sois concret.`;
 // ============================================================
 function init(){
   setType('depense');
+  setupAutocomplete('shootLocation', 'shootLocationList');
+  setupAutocomplete('clientCity', 'clientCityList');
   renderCoffres();
   renderClients();
   renderShoots();
@@ -661,9 +952,6 @@ function init(){
   setTimeout(checkDailyReminders, 2000);
 }
 
-// ============================================================
-// DÉMARRAGE AUTOMATIQUE
-// ============================================================
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
