@@ -9,18 +9,19 @@
   <title>Ma Super App</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- OneSignal SDK -->
-<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-<script>
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  OneSignalDeferred.push(async function(OneSignal) {
-    await OneSignal.init({
-      appId: "ffeae1bd-248e-42b4-8b54-8d370f9ec4a0",
-    });
-  });
-</script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- OneSignal SDK -->
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async function(OneSignal) {
+      await OneSignal.init({
+        appId: "ffeae1bd-248e-42b4-8b54-8d370f9ec4a0",
+      });
+    });
+  </script>
 </head>
 <body class="logged-out">
 
@@ -65,12 +66,9 @@
   <button onclick="showTab('ia',this)">🤖 IA</button>
 </div>
 
-<!-- ============================================================
-     ONGLET TABLEAU DE BORD
-     ============================================================ -->
+<!-- ONGLET TABLEAU DE BORD -->
 <div class="page active" id="page-dash">
   <div class="container">
-
     <div class="card quote-box-dash">
       <div class="emoji" id="dashQuoteEmoji">💪</div>
       <div class="q" id="dashQuoteText">Chargement…</div>
@@ -91,22 +89,10 @@
     <div class="card">
       <h2>🌐 Vue d'ensemble</h2>
       <div class="grid-stats">
-        <div class="mini-stat">
-          <div class="num" id="overviewClients">0</div>
-          <div class="lbl">👥 Clients</div>
-        </div>
-        <div class="mini-stat">
-          <div class="num" id="overviewShoots">0</div>
-          <div class="lbl">📸 Séances (mois)</div>
-        </div>
-        <div class="mini-stat">
-          <div class="num" id="overviewPhotoRev" style="color:var(--green)">0</div>
-          <div class="lbl">💰 CA photo</div>
-        </div>
-        <div class="mini-stat">
-          <div class="num" id="overviewPending" style="color:var(--yellow)">0</div>
-          <div class="lbl">⏳ À encaisser</div>
-        </div>
+        <div class="mini-stat"><div class="num" id="overviewClients">0</div><div class="lbl">👥 Clients</div></div>
+        <div class="mini-stat"><div class="num" id="overviewShoots">0</div><div class="lbl">📸 Séances (mois)</div></div>
+        <div class="mini-stat"><div class="num" id="overviewPhotoRev" style="color:var(--green)">0</div><div class="lbl">💰 CA photo</div></div>
+        <div class="mini-stat"><div class="num" id="overviewPending" style="color:var(--yellow)">0</div><div class="lbl">⏳ À encaisser</div></div>
       </div>
     </div>
 
@@ -124,9 +110,7 @@
     <div class="card">
       <h2>📊 Revenus vs Dépenses</h2>
       <div class="donut-wrap">
-        <div class="donut" id="donutRevDep">
-          <div class="donut-center" id="donutRevDepText">--</div>
-        </div>
+        <div class="donut" id="donutRevDep"><div class="donut-center" id="donutRevDepText">--</div></div>
         <div class="legend" id="legendRevDep"></div>
       </div>
     </div>
@@ -160,35 +144,24 @@
       <h2>Transactions du mois</h2>
       <div id="txList"><div class="empty">Aucune transaction</div></div>
     </div>
-
   </div>
 </div>
 
-<!-- ============================================================
-     ONGLET HISTORIQUE
-     ============================================================ -->
+<!-- ONGLET HISTORIQUE -->
 <div class="page" id="page-historique">
   <div class="container">
-
     <div class="card">
       <h2>🔍 Filtres</h2>
       <div class="filters-grid">
-        <div>
-          <label>Mois</label>
-          <select id="histMonth" onchange="renderHistory()"></select>
-        </div>
-        <div>
-          <label>Type</label>
+        <div><label>Mois</label><select id="histMonth" onchange="renderHistory()"></select></div>
+        <div><label>Type</label>
           <select id="histType" onchange="renderHistory()">
             <option value="all">Tous</option>
             <option value="revenu">Revenus</option>
             <option value="depense">Dépenses</option>
           </select>
         </div>
-        <div>
-          <label>Catégorie</label>
-          <select id="histCategory" onchange="renderHistory()"></select>
-        </div>
+        <div><label>Catégorie</label><select id="histCategory" onchange="renderHistory()"></select></div>
       </div>
     </div>
 
@@ -224,16 +197,12 @@
       <h2>📜 Toutes les transactions</h2>
       <div id="histList"></div>
     </div>
-
   </div>
 </div>
 
-<!-- ============================================================
-     ONGLET OBJECTIFS
-     ============================================================ -->
+<!-- ONGLET OBJECTIFS -->
 <div class="page" id="page-objectifs">
   <div class="container">
-
     <div class="card motivation-card">
       <div class="motiv-icon" id="motivIcon">🔥</div>
       <div class="motiv-title" id="motivTitle">Ta motivation du jour</div>
@@ -268,13 +237,10 @@
       </div>
       <div id="antiTemptation"></div>
     </div>
-
   </div>
 </div>
 
-<!-- ============================================================
-     ONGLET PHOTO
-     ============================================================ -->
+<!-- ONGLET PHOTO -->
 <div class="page" id="page-photo">
   <div class="container">
     <div class="card">
@@ -298,49 +264,37 @@
   </div>
 </div>
 
-<!-- ============================================================
-     ONGLET BUSINESS
-     ============================================================ -->
+<!-- ONGLET BUSINESS -->
 <div class="page" id="page-business">
   <div class="container">
-
-    <!-- Idées locales -->
     <div class="card">
       <h2>💡 Générateur d'idées</h2>
       <button class="btn-primary" onclick="generateIdeas()">🎲 Générer des idées</button>
       <div id="ideasList" style="margin-top:14px"></div>
     </div>
 
-    <!-- Idées IA personnalisées -->
     <div class="card">
       <h2>🤖 Idées personnalisées par IA</h2>
-
       <div class="ai-toolbar">
         <button class="ai-btn ai-btn-primary" onclick="generateAIIdeas()">🤖 Générer</button>
         <button class="ai-btn" id="ideasCopyBtn" onclick="copyIdeasAI()" disabled>📋 Copier</button>
         <button class="ai-btn" id="ideasPdfBtn" onclick="exportIdeasAIPDF()" disabled>📄 PDF</button>
         <button class="ai-btn ai-btn-danger" id="ideasClearBtn" onclick="clearIdeasAI()" disabled>🗑 Effacer</button>
       </div>
-
       <div id="ideasLastUpdate" class="ai-last-update"></div>
-
       <div class="ai-output-clean" id="ideasAIOutput">
         <div class="empty">Clique sur <strong>Générer</strong> pour obtenir 5 idées de business personnalisées.</div>
       </div>
     </div>
 
-    <!-- Idées sauvegardées manuellement -->
     <div class="card">
       <h2>🚀 Mes idées sauvegardées</h2>
       <div id="savedIdeasList"><div class="empty">Aucune idée sauvegardée</div></div>
     </div>
-
   </div>
 </div>
 
-<!-- ============================================================
-     ONGLET MOTIVATION
-     ============================================================ -->
+<!-- ONGLET MOTIVATION -->
 <div class="page" id="page-motiv">
   <div class="container">
     <div class="quote-box">
@@ -371,12 +325,9 @@
   </div>
 </div>
 
-<!-- ============================================================
-     ONGLET IA
-     ============================================================ -->
+<!-- ONGLET IA -->
 <div class="page" id="page-ia">
   <div class="container">
-
     <div class="card">
       <div class="collapsible-head" onclick="toggleAiConfig()">
         <h2 style="margin:0">🤖 Connexion IA <span class="pill" id="aiStatus">non configurée</span></h2>
@@ -403,30 +354,23 @@
 
     <div class="card">
       <h2>🔮 Analyse financière personnalisée</h2>
-
       <div class="ai-toolbar">
         <button class="ai-btn ai-btn-primary" onclick="askAI()">🔮 Analyser</button>
         <button class="ai-btn" id="aiCopyBtn" onclick="copyAnalysis()" disabled>📋 Copier</button>
         <button class="ai-btn" id="aiPdfBtn" onclick="exportAnalysisPDF()" disabled>📄 PDF</button>
         <button class="ai-btn ai-btn-danger" id="aiClearBtn" onclick="clearAnalysis()" disabled>🗑 Effacer</button>
       </div>
-
       <div id="aiLastUpdate" class="ai-last-update"></div>
-
       <div class="ai-output-clean" id="aiOutput">
         <div class="empty">Clique sur <strong>Analyser</strong> pour obtenir ton bilan personnalisé.</div>
       </div>
     </div>
-
   </div>
 </div>
 
 <button class="fab" onclick="openModal()">+ Transaction</button>
 
-<!-- ============================================================
-     MODALES
-     ============================================================ -->
-
+<!-- MODALES -->
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-wrap"><h3>Nouvelle transaction</h3>
@@ -470,45 +414,27 @@
   <div class="modal">
     <div class="modal-wrap"><h3 id="shootModalTitle">Nouvelle séance</h3>
       <button class="close" onclick="closeShootModal()">×</button></div>
-
-    <label>Client</label>
-    <select id="shootClient"></select>
-
+    <label>Client</label><select id="shootClient"></select>
     <label>Type de prestation</label>
     <select id="shootType" onchange="onShootTypeChange()">
-      <option>Mariage</option>
-      <option>Dot</option>
-      <option>Shooting Studio</option>
-      <option>Shoot Extérieur</option>
-      <option>Autre</option>
+      <option>Mariage</option><option>Dot</option><option>Shooting Studio</option>
+      <option>Shoot Extérieur</option><option>Autre</option>
     </select>
-
     <div id="shootCustomTypeWrap" style="display:none;">
       <label>Précise le type (facultatif)</label>
       <input type="text" id="shootCustomType">
     </div>
-
     <label>Lieu de la séance</label>
     <div class="autocomplete-wrap">
       <input type="text" id="shootLocation" placeholder="Tape une ville..." autocomplete="off">
       <div class="autocomplete-list" id="shootLocationList"></div>
     </div>
-
-    <label>Nombre de photos</label>
-    <input type="number" id="shootPhotoCount" inputmode="numeric" placeholder="0">
-
-    <label>Date & heure</label>
-    <input type="datetime-local" id="shootDate">
-
-    <label>Prix (FCFA)</label>
-    <input type="number" id="shootPrice" inputmode="decimal">
-
+    <label>Nombre de photos</label><input type="number" id="shootPhotoCount" inputmode="numeric" placeholder="0">
+    <label>Date & heure</label><input type="datetime-local" id="shootDate">
+    <label>Prix (FCFA)</label><input type="number" id="shootPrice" inputmode="decimal">
     <label>Statut paiement</label>
     <select id="shootPay"><option value="impaye">Impayé</option><option value="paye">Payé</option></select>
-
-    <label>Notes</label>
-    <input type="text" id="shootNotes" placeholder="Détails supplémentaires...">
-
+    <label>Notes</label><input type="text" id="shootNotes" placeholder="Détails supplémentaires...">
     <button class="btn-primary" style="background:var(--pink)" onclick="saveShoot()">Enregistrer</button>
   </div>
 </div>
@@ -520,13 +446,11 @@
     <label>Nom complet</label><input type="text" id="clientName">
     <label>Téléphone</label><input type="tel" id="clientPhone">
     <label>Email</label><input type="email" id="clientEmail">
-
     <label>Ville</label>
     <div class="autocomplete-wrap">
       <input type="text" id="clientCity" placeholder="Tape une ville..." autocomplete="off">
       <div class="autocomplete-list" id="clientCityList"></div>
     </div>
-
     <label>Notes</label><input type="text" id="clientNotes">
     <button class="btn-primary" style="background:var(--pink)" onclick="saveClient()">Enregistrer</button>
   </div>
