@@ -1009,8 +1009,6 @@ function renderShoots(){
   if(!el) return;
 
   // === Statistiques rapides ===
-  const now = new Date();
-  now.setHours(0,0,0,0);
   const statsEl = document.getElementById('shootStatsRow');
   if(statsEl){
     const planifies = shoots.filter(s => s.status === 'planifie' || s.status === 'encours').length;
@@ -1056,7 +1054,7 @@ function renderShoots(){
     return;
   }
 
-  // Icônes et labels de statut
+  // Infos statut
   const statusInfo = {
     'planifie': { label: '📅 Planifié', class: 'planifie' },
     'encours':  { label: '🟠 En cours', class: 'encours' },
@@ -1067,7 +1065,7 @@ function renderShoots(){
   el.innerHTML = sorted.map(s => {
     const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
     const d = new Date(s.date);
-    const dStr = d.toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year: 'numeric'}) + ' à ' +
+    const dStr = d.toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'}) + ' à ' +
                  d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
     const locInfo = s.location ? `📍 ${s.location}` : '';
     const photoInfo = s.photo_count ? `📷 ${s.photo_count} photos` : '';
@@ -1078,26 +1076,31 @@ function renderShoots(){
     const isDone = s.status === 'shoote';
     const itemClass = isCancelled ? 'cancelled' : (isDone ? 'done' : '');
 
-    // Boutons selon le statut
+    // ============================================================
+    // BOUTONS D'ACTION
+    // ============================================================
     let actionButtons = '';
 
-     if(isCancelled){
+    if(isCancelled){
+      // === SÉANCE ANNULÉE ===
+      // On peut : Réactiver + Modifier + Supprimer définitivement
       actionButtons = `
         <button class="btn-ghost" style="margin:0;padding:6px;background:rgba(46,204,113,.15);color:var(--green);border-color:var(--green);flex:1" onclick="reactivateShoot(${s.id})">🔄 Réactiver</button>
         <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})" title="Modifier">✏️</button>
         <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--red);color:var(--red)" onclick="delShoot(${s.id})" title="Supprimer définitivement">🗑</button>
       `;
-    }
     } else {
-        actionButtons = `
-        <button class="btn-primary" style="margin:0;padding:6px;background:${s.payment==='paye'?'var(--yellow)':'var(--green)'};flex:1"
-          onclick="toggleShootPayment(${s.id})">
+      // === SÉANCE ACTIVE ===
+      // On peut : Marquer payé/impayé + Modifier + Annuler (garde historique) + Supprimer définitivement
+      actionButtons = `
+        <button class="btn-primary" style="margin:0;padding:6px;background:${s.payment==='paye'?'var(--yellow)':'var(--green)'};flex:1" onclick="toggleShootPayment(${s.id})">
           ${s.payment === 'paye' ? '💸 Impayé' : '✓ Payé'}
         </button>
         <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})" title="Modifier">✏️</button>
-        <button class="btn-ghost shoot-cancel-btn" style="margin:0;padding:6px" onclick="cancelShoot(${s.id})" title="Annuler la séance (garde l'historique)">🚫 Annuler</button>
+        <button class="btn-ghost shoot-cancel-btn" style="margin:0;padding:6px" onclick="cancelShoot(${s.id})" title="Annuler (garde dans l'historique)">🚫 Annuler</button>
         <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--red);color:var(--red)" onclick="delShoot(${s.id})" title="Supprimer définitivement">🗑</button>
       `;
+    }
 
     return `<div class="item-card ${itemClass}">
       <div class="head">
