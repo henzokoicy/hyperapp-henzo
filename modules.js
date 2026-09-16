@@ -1088,16 +1088,15 @@ function renderShoots(){
         <button class="btn-ghost" style="margin:0;padding:6px" onclick="delShoot(${s.id})">×</button>
       `;
     } else {
-      actionButtons = `
-        <button class="btn-primary" style="margin:0;padding:6px;background:${s.payment==='paye'?'var(--yellow)':'var(--green)'}"
+        actionButtons = `
+        <button class="btn-primary" style="margin:0;padding:6px;background:${s.payment==='paye'?'var(--yellow)':'var(--green)'};flex:1"
           onclick="toggleShootPayment(${s.id})">
-          ${s.payment === 'paye' ? 'Marquer impayé' : '✓ Payé'}
+          ${s.payment === 'paye' ? '💸 Impayé' : '✓ Payé'}
         </button>
-        <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})">✏️</button>
-        <button class="btn-ghost shoot-cancel-btn" style="margin:0;padding:6px" onclick="cancelShoot(${s.id})">❌</button>
-        <button class="btn-ghost" style="margin:0;padding:6px" onclick="delShoot(${s.id})">×</button>
+        <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})" title="Modifier">✏️</button>
+        <button class="btn-ghost shoot-cancel-btn" style="margin:0;padding:6px" onclick="cancelShoot(${s.id})" title="Annuler la séance (garde l'historique)">🚫 Annuler</button>
+        <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--red);color:var(--red)" onclick="delShoot(${s.id})" title="Supprimer définitivement">🗑</button>
       `;
-    }
 
     return `<div class="item-card ${itemClass}">
       <div class="head">
