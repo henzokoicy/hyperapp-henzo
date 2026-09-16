@@ -3670,16 +3670,26 @@ function ouvrirAppWave() {
   const ua = navigator.userAgent.toLowerCase();
   const isAndroid = ua.includes('android');
   const isIOS = /iphone|ipad|ipod/.test(ua);
-  showToast('📱 Ouvre Wave, fais ton virement, puis reviens ici');
+
+  showToast('📱 Fais ton virement dans Wave puis reviens ici');
 
   if(isAndroid) {
-    window.location.href = 'intent://#Intent;package=com.wave.personal;S.browser_fallback_url=https://play.google.com/store/apps/details?id=com.wave.personal;end';
+    // Essaie d'ouvrir l'app Wave via l'intent Android
+    // Si l'app n'est pas installée, ouvre le site Wave (pas le Play Store)
+    const intentUrl = 'intent://#Intent;scheme=https;package=com.wave.personal;S.browser_fallback_url=https%3A%2F%2Fwww.wave.com;end';
+    window.location.href = intentUrl;
   } else if(isIOS) {
+    // iOS : essaie d'ouvrir Wave via le scheme de l'app
+    // Wave sur iOS utilise "wave://" ou reste sur Safari
     window.location.href = 'wave://';
+    // Fallback vers le site après 1.5s
     setTimeout(() => {
-      if(!document.hidden) window.location.href = 'https://apps.apple.com/app/wave-mobile-money/id1170717251';
+      if(!document.hidden) {
+        window.location.href = 'https://www.wave.com';
+      }
     }, 1500);
   } else {
+    // Desktop : nouvel onglet vers Wave
     window.open('https://www.wave.com', '_blank');
   }
 }
