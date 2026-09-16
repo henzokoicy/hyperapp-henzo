@@ -77,6 +77,10 @@
       <span class="quick-icon" style="background:rgba(108,140,255,.2);color:var(--accent)">🎯</span>
       <span>Créer un objectif</span>
     </button>
+    <button class="drawer-quick" onclick="drawerAction('addNote')">
+      <span class="quick-icon" style="background:rgba(108,140,255,.2);color:var(--accent)">📝</span>
+      <span>Ajouter une note</span>
+    </button>
     <button class="drawer-quick" onclick="drawerAction('analyze')">
       <span class="quick-icon" style="background:rgba(245,185,66,.2);color:var(--yellow)">🤖</span>
       <span>Analyser avec l'IA</span>
@@ -101,11 +105,11 @@
       <span class="nav-icon">💡</span><span>Business</span>
     </button>
     <button class="drawer-nav" data-tab="inspiration" onclick="drawerNavigate('inspiration')">
-  <span class="nav-icon">💫</span><span>Inspiration</span>
-</button>
-<button class="drawer-nav" data-tab="notes" onclick="drawerNavigate('notes')">
-  <span class="nav-icon">📝</span><span>Notes & À faire</span>
-</button>
+      <span class="nav-icon">💫</span><span>Inspiration</span>
+    </button>
+    <button class="drawer-nav" data-tab="notes" onclick="drawerNavigate('notes')">
+      <span class="nav-icon">📝</span><span>Notes & À faire</span>
+    </button>
     <button class="drawer-nav" data-tab="motiv" onclick="drawerNavigate('motiv')">
       <span class="nav-icon">🔥</span><span>Motivation</span>
     </button>
@@ -198,11 +202,11 @@
     <span class="tab-icon">💡</span><span class="tab-label">Business</span>
   </button>
   <button class="tab-btn" data-tab="inspiration" onclick="showTab('inspiration',this)">
-  <span class="tab-icon">💫</span><span class="tab-label">Inspiration</span>
-</button>
-<button class="tab-btn" data-tab="notes" onclick="showTab('notes',this)">
-  <span class="tab-icon">📝</span><span class="tab-label">Notes</span>
-</button>
+    <span class="tab-icon">💫</span><span class="tab-label">Inspiration</span>
+  </button>
+  <button class="tab-btn" data-tab="notes" onclick="showTab('notes',this)">
+    <span class="tab-icon">📝</span><span class="tab-label">Notes</span>
+  </button>
   <button class="tab-btn" data-tab="motiv" onclick="showTab('motiv',this)">
     <span class="tab-icon">🔥</span><span class="tab-label">Motivation</span>
   </button>
@@ -214,11 +218,17 @@
 <!-- ONGLET TABLEAU DE BORD -->
 <div class="page active" id="page-dash">
   <div class="container">
+
     <div class="card quote-box-dash">
       <div class="emoji" id="dashQuoteEmoji">💪</div>
       <div class="q" id="dashQuoteText">Chargement…</div>
       <div class="a" id="dashQuoteAuthor"></div>
       <button class="btn-ghost" style="margin-top:12px;width:auto;padding:6px 14px;font-size:12px" onclick="newQuote()">🔄 Autre citation</button>
+    </div>
+
+    <div class="card" id="alertsCard" style="display:none">
+      <h2>🔔 Alertes du jour</h2>
+      <div id="alertsList"></div>
     </div>
 
     <div class="card">
@@ -232,12 +242,113 @@
     </div>
 
     <div class="card">
+      <h2>⚡ Actions rapides</h2>
+      <div class="quick-actions">
+        <button class="quick-action" onclick="openModal()">
+          <div class="quick-icon" style="background:rgba(46,204,113,.15);color:var(--green)">💸</div>
+          <div class="quick-label">Transaction</div>
+        </button>
+        <button class="quick-action" onclick="openNoteModal()">
+          <div class="quick-icon" style="background:rgba(108,140,255,.15);color:var(--accent)">📝</div>
+          <div class="quick-label">Note</div>
+        </button>
+        <button class="quick-action" onclick="drawerNavigate('photo');setTimeout(()=>openShootModal(),200)">
+          <div class="quick-icon" style="background:rgba(255,107,157,.15);color:var(--pink)">📸</div>
+          <div class="quick-label">Séance</div>
+        </button>
+        <button class="quick-action" onclick="openChat()">
+          <div class="quick-icon" style="background:rgba(245,185,66,.15);color:var(--yellow)">🤖</div>
+          <div class="quick-label">IA</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- 🌍 VUE GLOBALE -->
+    <div class="card">
+      <h2>🌍 Vue globale de ta vie</h2>
+      <div class="grid-stats" style="grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div class="mini-stat">
+          <div class="num" id="globalTotalIn" style="color:var(--green)">0</div>
+          <div class="lbl">💰 Revenus totaux</div>
+        </div>
+        <div class="mini-stat">
+          <div class="num" id="globalTotalOut" style="color:var(--red)">0</div>
+          <div class="lbl">💸 Dépenses totales</div>
+        </div>
+        <div class="mini-stat">
+          <div class="num" id="globalBalance" style="color:var(--accent)">0</div>
+          <div class="lbl">📊 Balance</div>
+        </div>
+        <div class="mini-stat">
+          <div class="num" id="globalSaved" style="color:var(--green)">0</div>
+          <div class="lbl">🎯 Total épargné</div>
+        </div>
+        <div class="mini-stat">
+          <div class="num" id="globalGoalsDone" style="color:var(--yellow)">0</div>
+          <div class="lbl">🏆 Objectifs atteints</div>
+        </div>
+        <div class="mini-stat">
+          <div class="num" id="globalClients" style="color:var(--pink)">0</div>
+          <div class="lbl">👥 Clients</div>
+        </div>
+      </div>
+      <div id="globalAnalysis" style="margin-top:14px"></div>
+    </div>
+
+    <!-- 💡 CONSEIL DU JOUR -->
+    <div class="card">
+      <h2>💡 Conseil & motivation du jour</h2>
+      <div id="dailyTip" class="goal-suggestion"></div>
+    </div>
+
+    <!-- ⏰ APERÇU RAPPELS D'OBJECTIFS -->
+    <div class="card" id="dashboardGoalRemindersCard" style="display:none">
+      <h2>⏰ Rappels d'épargne actifs</h2>
+      <div id="dashboardGoalRemindersList"></div>
+      <button class="btn-ghost" onclick="showTab('objectifs', null)" style="margin-top:10px;width:100%">+ Gérer mes rappels</button>
+    </div>
+
+    <!-- 🎯 APERÇU OBJECTIFS -->
+    <div class="card" id="dashboardGoalsCard" style="display:none">
+      <h2>🎯 Mes objectifs en cours</h2>
+      <div id="dashboardGoalsList"></div>
+    </div>
+
+    <div class="card">
       <h2>🌐 Vue d'ensemble</h2>
       <div class="grid-stats">
-        <div class="mini-stat"><div class="num" id="overviewClients">0</div><div class="lbl">👥 Clients</div></div>
-        <div class="mini-stat"><div class="num" id="overviewShoots">0</div><div class="lbl">📸 Séances (mois)</div></div>
-        <div class="mini-stat"><div class="num" id="overviewPhotoRev" style="color:var(--green)">0</div><div class="lbl">💰 CA photo</div></div>
-        <div class="mini-stat"><div class="num" id="overviewPending" style="color:var(--yellow)">0</div><div class="lbl">⏳ À encaisser</div></div>
+        <div class="mini-stat" onclick="drawerNavigate('photo')" style="cursor:pointer">
+          <div class="num" id="overviewClients">0</div>
+          <div class="lbl">👥 Clients</div>
+        </div>
+        <div class="mini-stat" onclick="drawerNavigate('photo')" style="cursor:pointer">
+          <div class="num" id="overviewShoots">0</div>
+          <div class="lbl">📸 Séances (mois)</div>
+        </div>
+        <div class="mini-stat" onclick="drawerNavigate('photo')" style="cursor:pointer">
+          <div class="num" id="overviewPhotoRev" style="color:var(--green)">0</div>
+          <div class="lbl">💰 CA photo</div>
+        </div>
+        <div class="mini-stat" onclick="drawerNavigate('photo')" style="cursor:pointer">
+          <div class="num" id="overviewPending" style="color:var(--yellow)">0</div>
+          <div class="lbl">⏳ À encaisser</div>
+        </div>
+        <div class="mini-stat" onclick="drawerNavigate('objectifs')" style="cursor:pointer">
+          <div class="num" id="overviewGoals" style="color:var(--accent)">0</div>
+          <div class="lbl">🎯 Objectifs</div>
+        </div>
+        <div class="mini-stat" onclick="drawerNavigate('notes')" style="cursor:pointer">
+          <div class="num" id="overviewNotes" style="color:var(--accent)">0</div>
+          <div class="lbl">📝 Notes actives</div>
+        </div>
+        <div class="mini-stat" onclick="drawerNavigate('inspiration')" style="cursor:pointer">
+          <div class="num" id="overviewInsp" style="color:var(--pink)">0</div>
+          <div class="lbl">💫 Inspirations</div>
+        </div>
+        <div class="mini-stat" onclick="drawerNavigate('motiv')" style="cursor:pointer">
+          <div class="num" id="overviewReminders" style="color:var(--yellow)">0</div>
+          <div class="lbl">⏰ Rappels</div>
+        </div>
       </div>
     </div>
 
@@ -252,17 +363,27 @@
       </div>
     </div>
 
+    <div class="card" id="upcomingShootsCard" style="display:none">
+      <h2>📅 Prochaines séances</h2>
+      <div id="upcomingShootsList"></div>
+    </div>
+
+    <div class="card" id="urgentNotesCard" style="display:none">
+      <h2>📌 Notes à traiter</h2>
+      <div id="urgentNotesList"></div>
+    </div>
+
+    <div class="card" id="topGoalsCard" style="display:none">
+      <h2>🎯 Mes objectifs</h2>
+      <div id="topGoalsList"></div>
+    </div>
+
     <div class="card">
       <h2>📊 Revenus vs Dépenses</h2>
       <div class="donut-wrap">
         <div class="donut" id="donutRevDep"><div class="donut-center" id="donutRevDepText">--</div></div>
         <div class="legend" id="legendRevDep"></div>
       </div>
-    </div>
-
-    <div class="card">
-      <h2>📸 Séances par type</h2>
-      <div id="shootTypesChart"><div class="empty">Aucune séance enregistrée</div></div>
     </div>
 
     <div class="card">
@@ -277,7 +398,7 @@
 
     <div class="card">
       <h2>💡 Suggestions personnalisées</h2>
-      <div id="suggestions"><div class="empty">Continue à utiliser l'app pour voir des suggestions.</div></div>
+      <div id="suggestions"><div class="empty">Continue à utiliser l'app.</div></div>
     </div>
 
     <div class="card">
@@ -289,6 +410,7 @@
       <h2>Transactions du mois</h2>
       <div id="txList"><div class="empty">Aucune transaction</div></div>
     </div>
+
   </div>
 </div>
 
@@ -322,20 +444,20 @@
     <div class="card">
       <h2>📥 Exporter</h2>
       <div class="row" style="margin-bottom:8px">
-        <button class="btn-primary" onclick="exportHistoryCSV()">📊 CSV (Excel)</button>
+        <button class="btn-primary" onclick="exportHistoryCSV()">📊 CSV</button>
         <button class="btn-primary" onclick="exportHistoryJSON()">📦 JSON</button>
       </div>
-      <button class="btn-primary" style="background:var(--pink);width:100%" onclick="exportHistoryPDF()">📄 PDF (rapport imprimable)</button>
+      <button class="btn-primary" style="background:var(--pink);width:100%" onclick="exportHistoryPDF()">📄 PDF</button>
     </div>
 
     <div class="card">
       <h2>⚙️ Actions</h2>
       <label class="checkbox-label">
         <input type="checkbox" id="histSelectAll" onchange="toggleSelectAll()">
-        <span>Tout sélectionner (filtre actuel)</span>
+        <span>Tout sélectionner</span>
       </label>
       <button class="btn-danger" onclick="deleteSelected()">🗑 Supprimer la sélection</button>
-      <button class="btn-danger" onclick="deleteAllFiltered()">⚠ Tout supprimer (filtre actuel)</button>
+      <button class="btn-danger" onclick="deleteAllFiltered()">⚠ Tout supprimer</button>
     </div>
 
     <div class="card">
@@ -348,6 +470,7 @@
 <!-- ONGLET OBJECTIFS -->
 <div class="page" id="page-objectifs">
   <div class="container">
+
     <div class="card motivation-card">
       <div class="motiv-icon" id="motivIcon">🔥</div>
       <div class="motiv-title" id="motivTitle">Ta motivation du jour</div>
@@ -364,6 +487,15 @@
       <div class="defi-streak" id="defiStreak"></div>
     </div>
 
+    <div class="card" id="goalStatsCard">
+      <h2>📊 Mes statistiques d'épargne</h2>
+      <div class="row">
+        <div class="stat"><div class="v" id="goalStatTotal" style="color:var(--green)">0</div><div class="l">Total épargné</div></div>
+        <div class="stat"><div class="v" id="goalStatGoal" style="color:var(--accent)">0</div><div class="l">Objectif total</div></div>
+        <div class="stat"><div class="v" id="goalStatPct" style="color:var(--yellow)">0%</div><div class="l">Progression</div></div>
+      </div>
+    </div>
+
     <div class="card">
       <h2>🎯 Mes objectifs d'épargne</h2>
       <div id="coffresList"><div class="empty">Aucun objectif. Crées-en un.</div></div>
@@ -375,13 +507,28 @@
       <div id="analysePercutante"><div class="empty">Crée un objectif pour voir l'analyse.</div></div>
     </div>
 
+    <div class="card" id="goalSuggestionsCard">
+      <h2>💡 Suggestions pour toi</h2>
+      <div id="goalSuggestions"><div class="empty">Crée un objectif pour voir les suggestions.</div></div>
+    </div>
+
+    <div class="card">
+      <h2>⏰ Mes rappels d'épargne</h2>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+        Crée des rappels pour ne jamais oublier d'épargner. Ils arrivent même app fermée.
+      </div>
+      <div id="goalRemindersList"><div class="empty">Aucun rappel. Crées-en un !</div></div>
+      <button class="btn-ghost" onclick="openGoalReminderModal()">+ Ajouter un rappel d'épargne</button>
+    </div>
+
     <div class="card">
       <h2>🛡️ Zone anti-tentation</h2>
       <div style="font-size:13px;color:var(--muted);margin-bottom:10px">
-        Ces messages te rappellent POURQUOI tu épargnes. Ne touche pas.
+        Ces messages te rappellent POURQUOI tu épargnes.
       </div>
       <div id="antiTemptation"></div>
     </div>
+
   </div>
 </div>
 
@@ -396,23 +543,18 @@
         <div class="stat"><div class="v" id="photoPending" style="color:var(--yellow)">0</div><div class="l">À encaisser</div></div>
       </div>
     </div>
- <div class="card">
-  <h2>📅 Séances & Rendez-vous</h2>
-
-  <!-- Stats rapides -->
-  <div class="shoot-stats-row" id="shootStatsRow"></div>
-
-  <!-- Filtres -->
-  <div class="shoot-filter-row" id="shootFilterRow">
-    <button class="shoot-filter-btn active" data-filter="all" onclick="filterShoots('all', this)">Toutes</button>
-    <button class="shoot-filter-btn" data-filter="planifie" onclick="filterShoots('planifie', this)">📅 Planifiées</button>
-    <button class="shoot-filter-btn" data-filter="shoote" onclick="filterShoots('shoote', this)">✅ Shootées</button>
-    <button class="shoot-filter-btn" data-filter="annule" onclick="filterShoots('annule', this)">❌ Annulées</button>
-  </div>
-
-  <div id="shootsList"><div class="empty">Aucune séance planifiée</div></div>
-  <button class="btn-pink" style="margin-top:10px" onclick="openShootModal()">+ Nouvelle séance</button>
-</div>
+    <div class="card">
+      <h2>📅 Séances & Rendez-vous</h2>
+      <div class="shoot-stats-row" id="shootStatsRow"></div>
+      <div class="shoot-filter-row" id="shootFilterRow">
+        <button class="shoot-filter-btn active" data-filter="all" onclick="filterShoots('all', this)">Toutes</button>
+        <button class="shoot-filter-btn" data-filter="planifie" onclick="filterShoots('planifie', this)">📅 Planifiées</button>
+        <button class="shoot-filter-btn" data-filter="shoote" onclick="filterShoots('shoote', this)">✅ Shootées</button>
+        <button class="shoot-filter-btn" data-filter="annule" onclick="filterShoots('annule', this)">❌ Annulées</button>
+      </div>
+      <div id="shootsList"><div class="empty">Aucune séance planifiée</div></div>
+      <button class="btn-pink" style="margin-top:10px" onclick="openShootModal()">+ Nouvelle séance</button>
+    </div>
     <div class="card">
       <h2>👥 Clients</h2>
       <div id="clientsList"><div class="empty">Aucun client enregistré</div></div>
@@ -420,13 +562,38 @@
     </div>
   </div>
 </div>
-<!-- ============================================================
-     ONGLET INSPIRATION
-     ============================================================ -->
+
+<!-- ONGLET BUSINESS -->
+<div class="page" id="page-business">
+  <div class="container">
+    <div class="card">
+      <h2>💡 Générateur d'idées</h2>
+      <button class="btn-primary" onclick="generateIdeas()">🎲 Générer des idées</button>
+      <div id="ideasList" style="margin-top:14px"></div>
+    </div>
+    <div class="card">
+      <h2>🤖 Idées personnalisées par IA</h2>
+      <div class="ai-toolbar">
+        <button class="ai-btn ai-btn-primary" onclick="generateAIIdeas()">🤖 Générer</button>
+        <button class="ai-btn" id="ideasCopyBtn" onclick="copyIdeasAI()" disabled>📋 Copier</button>
+        <button class="ai-btn" id="ideasPdfBtn" onclick="exportIdeasAIPDF()" disabled>📄 PDF</button>
+        <button class="ai-btn ai-btn-danger" id="ideasClearBtn" onclick="clearIdeasAI()" disabled>🗑 Effacer</button>
+      </div>
+      <div id="ideasLastUpdate" class="ai-last-update"></div>
+      <div class="ai-output-clean" id="ideasAIOutput">
+        <div class="empty">Clique sur <strong>Générer</strong> pour obtenir 5 idées.</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🚀 Mes idées sauvegardées</h2>
+      <div id="savedIdeasList"><div class="empty">Aucune idée sauvegardée</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ONGLET INSPIRATION -->
 <div class="page" id="page-inspiration">
   <div class="container">
-
-    <!-- Stats -->
     <div class="card">
       <h2>💫 Mes inspirations</h2>
       <div class="row">
@@ -435,49 +602,30 @@
         <div class="stat"><div class="v" id="inspCategories" style="color:var(--accent)">0</div><div class="l">Catégories</div></div>
       </div>
     </div>
-
-    <!-- Filtres -->
     <div class="card">
       <h2>🔍 Filtrer</h2>
       <div class="filters-grid">
-        <div>
-          <label>Catégorie</label>
-          <select id="inspFilterCategory" onchange="renderInspirations()">
-            <option value="all">Toutes</option>
-          </select>
-        </div>
-        <div>
-          <label>Favoris</label>
+        <div><label>Catégorie</label><select id="inspFilterCategory" onchange="renderInspirations()"></select></div>
+        <div><label>Favoris</label>
           <select id="inspFilterFav" onchange="renderInspirations()">
             <option value="all">Tous</option>
-            <option value="fav">⭐ Favoris uniquement</option>
+            <option value="fav">⭐ Favoris</option>
           </select>
         </div>
-        <div>
-          <label>Rechercher</label>
-          <input type="text" id="inspSearch" placeholder="Nom, tag, ville..." oninput="renderInspirations()">
-        </div>
+        <div><label>Rechercher</label><input type="text" id="inspSearch" placeholder="Nom, tag, ville..." oninput="renderInspirations()"></div>
       </div>
     </div>
-
-    <!-- Liste -->
     <div class="card">
       <h2>📋 Toutes mes inspirations</h2>
-      <div id="inspirationsList">
-        <div class="empty">Aucune inspiration. Ajoute ta première !</div>
-      </div>
+      <div id="inspirationsList"><div class="empty">Aucune inspiration.</div></div>
       <button class="btn-pink" style="margin-top:12px;width:100%" onclick="openInspirationModal()">+ Ajouter une inspiration</button>
     </div>
-
   </div>
 </div>
-<!-- ============================================================
-     ONGLET NOTES & À FAIRE
-     ============================================================ -->
+
+<!-- ONGLET NOTES -->
 <div class="page" id="page-notes">
   <div class="container">
-
-    <!-- Stats -->
     <div class="card">
       <h2>📝 Mes notes</h2>
       <div class="row">
@@ -486,8 +634,6 @@
         <div class="stat"><div class="v" id="notesUrgent" style="color:var(--red)">0</div><div class="l">Urgentes</div></div>
       </div>
     </div>
-
-    <!-- Filtres -->
     <div class="card">
       <h2>🔍 Filtrer</h2>
       <div class="filters-grid">
@@ -512,49 +658,13 @@
             <option value="archived">🗄️ Archivées</option>
           </select>
         </div>
-        <div>
-          <label>Recherche</label>
-          <input type="text" id="notesSearch" placeholder="Mot-clé, tag..." oninput="renderNotes()">
-        </div>
+        <div><label>Recherche</label><input type="text" id="notesSearch" placeholder="Mot-clé, tag..." oninput="renderNotes()"></div>
       </div>
     </div>
-
-    <!-- Liste -->
     <div class="card">
       <h2>📋 Toutes mes notes</h2>
       <div id="notesList"><div class="empty">Aucune note. Crée ta première !</div></div>
       <button class="btn-primary" style="margin-top:12px;width:100%" onclick="openNoteModal()">+ Nouvelle note</button>
-    </div>
-
-  </div>
-</div>
-
-<!-- ONGLET BUSINESS -->
-<div class="page" id="page-business">
-  <div class="container">
-    <div class="card">
-      <h2>💡 Générateur d'idées</h2>
-      <button class="btn-primary" onclick="generateIdeas()">🎲 Générer des idées</button>
-      <div id="ideasList" style="margin-top:14px"></div>
-    </div>
-
-    <div class="card">
-      <h2>🤖 Idées personnalisées par IA</h2>
-      <div class="ai-toolbar">
-        <button class="ai-btn ai-btn-primary" onclick="generateAIIdeas()">🤖 Générer</button>
-        <button class="ai-btn" id="ideasCopyBtn" onclick="copyIdeasAI()" disabled>📋 Copier</button>
-        <button class="ai-btn" id="ideasPdfBtn" onclick="exportIdeasAIPDF()" disabled>📄 PDF</button>
-        <button class="ai-btn ai-btn-danger" id="ideasClearBtn" onclick="clearIdeasAI()" disabled>🗑 Effacer</button>
-      </div>
-      <div id="ideasLastUpdate" class="ai-last-update"></div>
-      <div class="ai-output-clean" id="ideasAIOutput">
-        <div class="empty">Clique sur <strong>Générer</strong> pour obtenir 5 idées de business personnalisées.</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>🚀 Mes idées sauvegardées</h2>
-      <div id="savedIdeasList"><div class="empty">Aucune idée sauvegardée</div></div>
     </div>
   </div>
 </div>
@@ -574,7 +684,7 @@
       <div style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6">
         Active les notifications pour recevoir automatiquement :
         <br>🌅 <strong>Matin (8h)</strong> : motivation
-        <br>☀️ <strong>Midi (13h)</strong> : conseil financier, business ou photo
+        <br>☀️ <strong>Midi (13h)</strong> : conseil
         <br>🌙 <strong>Soir (20h)</strong> : rappel d'épargner
       </div>
       <button class="btn-primary" id="notifBtn" onclick="toggleNotifications()">🔔 Activer les notifications</button>
@@ -677,9 +787,9 @@
     <input type="time" id="prefMiddayTime" value="13:00">
     <label>Heure notification soir</label>
     <input type="time" id="prefEveningTime" value="20:00">
-    <button class="btn-primary" onclick="savePreferences()">💾 Enregistrer les préférences</button>
+    <button class="btn-primary" onclick="savePreferences()">💾 Enregistrer</button>
     <div style="font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5">
-      ⚠️ Les préférences sont stockées localement.
+      ⚠️ Synchronisé partout via ton compte.
     </div>
   </div>
 </div>
@@ -696,7 +806,7 @@
     </div>
     <div class="about-item">
       <strong>🎯 Fonctionnalités</strong>
-      <div>Gestion financière, clients, séances photo, objectifs, IA, notifications push</div>
+      <div>Finances, clients, séances photo, objectifs, IA, notifications push</div>
     </div>
     <div class="about-item">
       <strong>⚙️ Technologies</strong>
@@ -709,9 +819,245 @@
     <button class="btn-ghost" style="margin-top:20px" onclick="closeAboutModal()">Fermer</button>
   </div>
 </div>
-<!-- ============================================================
-     MODAL CHAT IA
-     ============================================================ -->
+
+<!-- MODAL TRANSACTION -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3>Nouvelle transaction</h3>
+      <button class="close" onclick="closeModal()">×</button></div>
+    <div class="type-toggle">
+      <button id="btnRevenu" data-type="revenu" onclick="setType('revenu')">Revenu</button>
+      <button id="btnDepense" data-type="depense" class="active" onclick="setType('depense')">Dépense</button>
+    </div>
+    <label>Montant</label><input type="number" id="amount" inputmode="decimal" placeholder="0">
+    <label>Catégorie</label>
+    <select id="category" onchange="onTxCategoryChange()"></select>
+    <div id="txCustomCategoryWrap" style="display:none;">
+      <label>Précise la catégorie</label>
+      <input type="text" id="txCustomCategory" placeholder="Ex: Coiffure, Cadeau...">
+    </div>
+    <label>Note</label><input type="text" id="note" placeholder="Ex: courses, shooting...">
+    <label>Date</label><input type="date" id="date">
+    <button class="btn-primary" onclick="saveTx()">Enregistrer</button>
+  </div>
+</div>
+
+<!-- MODAL OBJECTIF -->
+<div class="modal-bg" id="coffreModalBg" onclick="if(event.target===this)closeCoffreModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3 id="coffreModalTitle">Nouvel objectif</h3>
+      <button class="close" onclick="closeCoffreModal()">×</button></div>
+    <label>Nom</label><input type="text" id="coffreName" placeholder="Ex: Fonds d'urgence">
+    <label>Montant à atteindre</label><input type="number" id="coffreGoal" inputmode="decimal" placeholder="0">
+    <label>Déjà épargné</label><input type="number" id="coffreCurrent" inputmode="decimal" placeholder="0">
+    <label>Date cible (optionnel)</label><input type="date" id="coffreDate">
+    <label>Pourquoi cet objectif ?</label>
+    <textarea id="coffreWhy" rows="2" placeholder="Ex: pour être libre..."></textarea>
+    <button class="btn-primary" id="coffreSubmit" onclick="saveCoffre()">Créer</button>
+  </div>
+</div>
+
+<!-- MODAL DÉPÔT OBJECTIF -->
+<div class="modal-bg" id="depositModalBg" onclick="if(event.target===this)closeDepositModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3>Ajouter à <span id="depositCoffreName"></span></h3>
+      <button class="close" onclick="closeDepositModal()">×</button></div>
+    <label>Montant</label><input type="number" id="depositAmount" inputmode="decimal" placeholder="0">
+    <button class="btn-primary" onclick="confirmDeposit()">Ajouter</button>
+  </div>
+</div>
+
+<!-- MODAL SÉANCE -->
+<div class="modal-bg" id="shootModalBg" onclick="if(event.target===this)closeShootModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3 id="shootModalTitle">Nouvelle séance</h3>
+      <button class="close" onclick="closeShootModal()">×</button></div>
+    <label>Client</label><select id="shootClient"></select>
+    <label>Type de prestation</label>
+    <select id="shootType" onchange="onShootTypeChange()">
+      <option>Mariage</option><option>Dot</option><option>Shooting Studio</option>
+      <option>Shoot Extérieur</option><option>Autre</option>
+    </select>
+    <div id="shootCustomTypeWrap" style="display:none;">
+      <label>Précise le type (facultatif)</label>
+      <input type="text" id="shootCustomType">
+    </div>
+    <label>Lieu de la séance</label>
+    <div class="autocomplete-wrap">
+      <input type="text" id="shootLocation" placeholder="Tape une ville..." autocomplete="off">
+      <div class="autocomplete-list" id="shootLocationList"></div>
+    </div>
+    <label>Nombre de photos</label><input type="number" id="shootPhotoCount" inputmode="numeric" placeholder="0">
+    <label>Date & heure</label><input type="datetime-local" id="shootDate">
+    <label>Prix (FCFA)</label><input type="number" id="shootPrice" inputmode="decimal">
+    <label>Statut paiement</label>
+    <select id="shootPay"><option value="impaye">Impayé</option><option value="paye">Payé</option></select>
+    <label>Notes</label><input type="text" id="shootNotes" placeholder="Détails...">
+    <button class="btn-primary" style="background:var(--pink)" onclick="saveShoot()">Enregistrer</button>
+  </div>
+</div>
+
+<!-- MODAL CLIENT -->
+<div class="modal-bg" id="clientModalBg" onclick="if(event.target===this)closeClientModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3 id="clientModalTitle">Nouveau client</h3>
+      <button class="close" onclick="closeClientModal()">×</button></div>
+    <label>Nom complet</label><input type="text" id="clientName">
+    <label>Téléphone</label><input type="tel" id="clientPhone">
+    <label>Email</label><input type="email" id="clientEmail">
+    <label>Ville</label>
+    <div class="autocomplete-wrap">
+      <input type="text" id="clientCity" placeholder="Tape une ville..." autocomplete="off">
+      <div class="autocomplete-list" id="clientCityList"></div>
+    </div>
+    <label>Notes</label><input type="text" id="clientNotes">
+    <button class="btn-primary" style="background:var(--pink)" onclick="saveClient()">Enregistrer</button>
+  </div>
+</div>
+
+<!-- MODAL RAPPEL -->
+<div class="modal-bg" id="reminderModalBg" onclick="if(event.target===this)closeReminderModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3 id="reminderModalTitle">⏰ Nouveau rappel</h3>
+      <button class="close" onclick="closeReminderModal()">×</button></div>
+    <label>Type de rappel</label>
+    <select id="reminderType" onchange="onReminderTypeChange()">
+      <option value="perso">🔔 Personnel</option>
+      <option value="rdv">📅 Rendez-vous</option>
+      <option value="appel">📞 Appel client</option>
+      <option value="paiement">💰 Paiement</option>
+      <option value="Autre">✏️ Autre</option>
+    </select>
+    <div id="reminderCustomTypeWrap" style="display:none;">
+      <label>Précise le type</label>
+      <input type="text" id="reminderCustomType">
+    </div>
+    <label>Message</label><input type="text" id="reminderText">
+    <label>Date</label><input type="date" id="reminderDate">
+    <label>Heure</label><input type="time" id="reminderTime" value="09:00">
+    <button class="btn-primary" id="reminderSubmit" onclick="saveReminder()">➕ Créer</button>
+  </div>
+</div>
+
+<!-- MODAL INSPIRATION -->
+<div class="modal-bg" id="inspirationModalBg" onclick="if(event.target===this)closeInspirationModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3 id="inspirationModalTitle">💫 Nouvelle inspiration</h3>
+      <button class="close" onclick="closeInspirationModal()">×</button></div>
+    <label>Nom / Pseudo</label><input type="text" id="inspName">
+    <label>Catégorie</label>
+    <select id="inspCategory" onchange="onInspCategoryChange()">
+      <option value="Photographe">📸 Photographe</option>
+      <option value="Artiste">🎨 Artiste</option>
+      <option value="Mentor">🧠 Mentor</option>
+      <option value="Business">💼 Business</option>
+      <option value="Client potentiel">🤝 Client potentiel</option>
+      <option value="Ami">👥 Ami</option>
+      <option value="Autre">✏️ Autre</option>
+    </select>
+    <div id="inspCustomCategoryWrap" style="display:none;">
+      <label>Précise la catégorie</label>
+      <input type="text" id="inspCustomCategory">
+    </div>
+    <label>Plateforme</label>
+    <select id="inspPlatform">
+      <option value="">-- Choisir --</option>
+      <option value="Instagram">📷 Instagram</option>
+      <option value="TikTok">🎵 TikTok</option>
+      <option value="YouTube">▶️ YouTube</option>
+      <option value="Facebook">📘 Facebook</option>
+      <option value="Twitter/X">🐦 Twitter / X</option>
+      <option value="LinkedIn">💼 LinkedIn</option>
+      <option value="Site web">🌐 Site web</option>
+      <option value="Pinterest">📌 Pinterest</option>
+      <option value="Behance">🎨 Behance</option>
+    </select>
+    <label>Lien (URL)</label><input type="url" id="inspLink" placeholder="https://instagram.com/...">
+    <label>Téléphone (optionnel)</label><input type="tel" id="inspPhone">
+    <label>Email (optionnel)</label><input type="email" id="inspEmail">
+    <label>Ville</label><input type="text" id="inspCity">
+    <label>Pourquoi ça t'inspire ?</label>
+    <textarea id="inspWhy" rows="2"></textarea>
+    <label>Tags (séparés par virgules)</label><input type="text" id="inspTags">
+    <label class="checkbox-label" style="margin-top:14px">
+      <input type="checkbox" id="inspFavorite">
+      <span>⭐ Marquer comme favori</span>
+    </label>
+    <button class="btn-primary" id="inspSubmit" onclick="saveInspiration()">💾 Enregistrer</button>
+  </div>
+</div>
+
+<!-- MODAL NOTE -->
+<div class="modal-bg" id="noteModalBg" onclick="if(event.target===this)closeNoteModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3 id="noteModalTitle">📝 Nouvelle note</h3>
+      <button class="close" onclick="closeNoteModal()">×</button></div>
+    <label>Titre (optionnel)</label>
+    <input type="text" id="noteTitle" placeholder="Ex: Appeler client" maxlength="80">
+    <label>Contenu</label>
+    <textarea id="noteContent" rows="5" placeholder="Ex: Appeler M. Kouassi demain à 14h pour le mariage à 150 000 FCFA" oninput="analyzeNoteLive()"></textarea>
+    <div id="noteAnalysis" class="note-analysis"></div>
+    <label>Catégorie</label>
+    <select id="noteCategory">
+      <option value="note">📝 Note</option>
+      <option value="idee">💡 Idée</option>
+      <option value="todo">✅ À faire</option>
+      <option value="appel">📞 Appel</option>
+      <option value="rdv">📅 RDV</option>
+      <option value="achat">🛒 Achat</option>
+      <option value="business">💼 Business</option>
+    </select>
+    <label>Priorité</label>
+    <select id="notePriority">
+      <option value="basse">🟢 Basse</option>
+      <option value="normale" selected>🟡 Normale</option>
+      <option value="haute">🟠 Haute</option>
+      <option value="urgente">🔴 Urgente</option>
+    </select>
+    <label>Rappel (optionnel)</label>
+    <input type="datetime-local" id="noteReminder">
+    <label>Tags (séparés par virgules)</label>
+    <input type="text" id="noteTags" placeholder="Ex: kouassi, mariage, urgent">
+    <button class="btn-primary" id="noteSubmit" onclick="saveNote()">💾 Enregistrer</button>
+  </div>
+</div>
+
+<!-- MODAL RAPPEL D'OBJECTIF -->
+<div class="modal-bg" id="goalReminderModalBg" onclick="if(event.target===this)closeGoalReminderModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3 id="goalReminderModalTitle">⏰ Nouveau rappel d'épargne</h3>
+      <button class="close" onclick="closeGoalReminderModal()">×</button></div>
+    <label>Objectif concerné</label>
+    <select id="goalReminderGoal"></select>
+    <label>Message de motivation</label>
+    <input type="text" id="goalReminderMessage" placeholder="Ex: Épargne pour ton fonds d'urgence 💪" maxlength="120">
+    <label>Fréquence</label>
+    <select id="goalReminderFrequency" onchange="onGoalFrequencyChange()">
+      <option value="daily">🔁 Tous les jours</option>
+      <option value="weekly">📅 Chaque semaine</option>
+    </select>
+    <label>Heure</label>
+    <input type="time" id="goalReminderTime" value="20:00">
+    <div id="goalReminderDayWrap" style="display:none">
+      <label>Jour de la semaine</label>
+      <select id="goalReminderDay">
+        <option value="1">Lundi</option>
+        <option value="2">Mardi</option>
+        <option value="3">Mercredi</option>
+        <option value="4">Jeudi</option>
+        <option value="5">Vendredi</option>
+        <option value="6">Samedi</option>
+        <option value="0">Dimanche</option>
+      </select>
+    </div>
+    <button class="btn-primary" id="goalReminderSubmit" onclick="saveGoalReminder()">💾 Enregistrer</button>
+    <div style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.5">
+      🔔 Le rappel arrive même app fermée, sur tous tes appareils.
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CHAT IA -->
 <div class="modal-bg" id="chatModalBg" onclick="if(event.target===this)closeChat()">
   <div class="modal chat-modal">
     <div class="chat-header">
@@ -741,250 +1087,9 @@
     </div>
 
     <div class="chat-actions">
-      <button onclick="exportChatPDF()" title="Exporter en PDF">📄 Exporter</button>
-      <button onclick="copyFullChat()" title="Copier tout">📋 Copier tout</button>
-      <button onclick="clearChat()" title="Effacer la conversation" style="color:var(--red)">🗑 Effacer</button>
-    </div>
-  </div>
-</div>
-<!-- ============================================================
-     MODAL NOTE
-     ============================================================ -->
-<div class="modal-bg" id="noteModalBg" onclick="if(event.target===this)closeNoteModal()">
-  <div class="modal">
-    <div class="modal-wrap"><h3 id="noteModalTitle">📝 Nouvelle note</h3>
-      <button class="close" onclick="closeNoteModal()">×</button></div>
-
-    <label>Titre (optionnel)</label>
-    <input type="text" id="noteTitle" placeholder="Ex: Appeler client" maxlength="80">
-
-    <label>Contenu</label>
-    <textarea id="noteContent" rows="5" placeholder="Ex: Appeler M. Kouassi demain à 14h pour le mariage à 150 000 FCFA" oninput="analyzeNoteLive()"></textarea>
-
-    <div id="noteAnalysis" class="note-analysis"></div>
-
-    <label>Catégorie</label>
-    <select id="noteCategory">
-      <option value="note">📝 Note</option>
-      <option value="idee">💡 Idée</option>
-      <option value="todo">✅ À faire</option>
-      <option value="appel">📞 Appel</option>
-      <option value="rdv">📅 RDV</option>
-      <option value="achat">🛒 Achat</option>
-      <option value="business">💼 Business</option>
-    </select>
-
-    <label>Priorité</label>
-    <select id="notePriority">
-      <option value="basse">🟢 Basse</option>
-      <option value="normale" selected>🟡 Normale</option>
-      <option value="haute">🟠 Haute</option>
-      <option value="urgente">🔴 Urgente</option>
-    </select>
-
-    <label>Rappel (optionnel)</label>
-    <input type="datetime-local" id="noteReminder">
-
-    <label>Tags (séparés par virgules)</label>
-    <input type="text" id="noteTags" placeholder="Ex: kouassi, mariage, urgent">
-
-    <button class="btn-primary" id="noteSubmit" onclick="saveNote()">💾 Enregistrer</button>
-  </div>
-</div>
-
-<!-- MODAL INSPIRATION -->
-<div class="modal-bg" id="inspirationModalBg" onclick="if(event.target===this)closeInspirationModal()">
-  <div class="modal">
-    <div class="modal-wrap"><h3 id="inspirationModalTitle">💫 Nouvelle inspiration</h3>
-      <button class="close" onclick="closeInspirationModal()">×</button></div>
-
-    <label>Nom / Pseudo</label>
-    <input type="text" id="inspName" placeholder="Ex: Sarah Bahbah, @john.doe...">
-
-    <label>Catégorie</label>
-    <select id="inspCategory" onchange="onInspCategoryChange()">
-      <option value="Photographe">📸 Photographe</option>
-      <option value="Artiste">🎨 Artiste</option>
-      <option value="Mentor">🧠 Mentor</option>
-      <option value="Business">💼 Business</option>
-      <option value="Client potentiel">🤝 Client potentiel</option>
-      <option value="Ami">👥 Ami</option>
-      <option value="Autre">✏️ Autre</option>
-    </select>
-
-    <div id="inspCustomCategoryWrap" style="display:none;">
-      <label>Précise la catégorie</label>
-      <input type="text" id="inspCustomCategory" placeholder="Ex: Cinéaste, Mannequin...">
-    </div>
-
-    <label>Plateforme</label>
-    <select id="inspPlatform">
-      <option value="">-- Choisir --</option>
-      <option value="Instagram">📷 Instagram</option>
-      <option value="TikTok">🎵 TikTok</option>
-      <option value="YouTube">▶️ YouTube</option>
-      <option value="Facebook">📘 Facebook</option>
-      <option value="Twitter/X">🐦 Twitter / X</option>
-      <option value="LinkedIn">💼 LinkedIn</option>
-      <option value="Site web">🌐 Site web</option>
-      <option value="Pinterest">📌 Pinterest</option>
-      <option value="Behance">🎨 Behance</option>
-      <option value="Autre">✏️ Autre</option>
-    </select>
-
-    <label>Lien (URL)</label>
-    <input type="url" id="inspLink" placeholder="https://instagram.com/...">
-
-    <label>Téléphone (optionnel)</label>
-    <input type="tel" id="inspPhone" placeholder="+225 ...">
-
-    <label>Email (optionnel)</label>
-    <input type="email" id="inspEmail" placeholder="email@exemple.com">
-
-    <label>Ville / Pays</label>
-    <input type="text" id="inspCity" placeholder="Ex: Abidjan, Paris...">
-
-    <label>Pourquoi ça t'inspire ?</label>
-    <textarea id="inspWhy" rows="2" placeholder="Ex: Son style de portrait, son business model..."></textarea>
-
-    <label>Tags (séparés par des virgules)</label>
-    <input type="text" id="inspTags" placeholder="Ex: portrait, lumière naturelle, business">
-
-    <label class="checkbox-label" style="margin-top:14px">
-      <input type="checkbox" id="inspFavorite">
-      <span>⭐ Marquer comme favori</span>
-    </label>
-
-    <button class="btn-primary" id="inspSubmit" onclick="saveInspiration()">💾 Enregistrer</button>
-  </div>
-</div>
-
-<!-- MODAL TRANSACTION (avec catégorie personnalisée) -->
-<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
-  <div class="modal">
-    <div class="modal-wrap"><h3>Nouvelle transaction</h3>
-      <button class="close" onclick="closeModal()">×</button></div>
-    <div class="type-toggle">
-      <button id="btnRevenu" data-type="revenu" onclick="setType('revenu')">Revenu</button>
-      <button id="btnDepense" data-type="depense" class="active" onclick="setType('depense')">Dépense</button>
-    </div>
-    <label>Montant</label><input type="number" id="amount" inputmode="decimal" placeholder="0">
-
-    <label>Catégorie</label>
-    <select id="category" onchange="onTxCategoryChange()"></select>
-    <div id="txCustomCategoryWrap" style="display:none;">
-      <label>Précise la catégorie</label>
-      <input type="text" id="txCustomCategory" placeholder="Ex: Coiffure, Cadeau, Épargne...">
-    </div>
-
-    <label>Note</label><input type="text" id="note" placeholder="Ex: courses, shooting...">
-    <label>Date</label><input type="date" id="date">
-    <button class="btn-primary" onclick="saveTx()">Enregistrer</button>
-  </div>
-</div>
-
-<!-- AUTRES MODALES -->
-<div class="modal-bg" id="coffreModalBg" onclick="if(event.target===this)closeCoffreModal()">
-  <div class="modal">
-    <div class="modal-wrap"><h3 id="coffreModalTitle">Nouvel objectif</h3>
-      <button class="close" onclick="closeCoffreModal()">×</button></div>
-    <label>Nom</label><input type="text" id="coffreName" placeholder="Ex: Fonds d'urgence">
-    <label>Montant à atteindre</label><input type="number" id="coffreGoal" inputmode="decimal" placeholder="0">
-    <label>Déjà épargné</label><input type="number" id="coffreCurrent" inputmode="decimal" placeholder="0">
-    <label>Date cible (optionnel)</label><input type="date" id="coffreDate">
-    <label>Pourquoi cet objectif ?</label>
-    <textarea id="coffreWhy" rows="2" placeholder="Ex: pour être libre..."></textarea>
-    <button class="btn-primary" id="coffreSubmit" onclick="saveCoffre()">Créer</button>
-  </div>
-</div>
-
-<div class="modal-bg" id="depositModalBg" onclick="if(event.target===this)closeDepositModal()">
-  <div class="modal">
-    <div class="modal-wrap"><h3>Ajouter à <span id="depositCoffreName"></span></h3>
-      <button class="close" onclick="closeDepositModal()">×</button></div>
-    <label>Montant</label><input type="number" id="depositAmount" inputmode="decimal" placeholder="0">
-    <button class="btn-primary" onclick="confirmDeposit()">Ajouter</button>
-  </div>
-</div>
-
-<div class="modal-bg" id="shootModalBg" onclick="if(event.target===this)closeShootModal()">
-  <div class="modal">
-    <div class="modal-wrap"><h3 id="shootModalTitle">Nouvelle séance</h3>
-      <button class="close" onclick="closeShootModal()">×</button></div>
-    <label>Client</label><select id="shootClient"></select>
-    <label>Type de prestation</label>
-    <select id="shootType" onchange="onShootTypeChange()">
-      <option>Mariage</option><option>Dot</option><option>Shooting Studio</option>
-      <option>Shoot Extérieur</option><option>Autre</option>
-    </select>
-    <div id="shootCustomTypeWrap" style="display:none;">
-      <label>Précise le type (facultatif)</label>
-      <input type="text" id="shootCustomType">
-    </div>
-    <label>Lieu de la séance</label>
-    <div class="autocomplete-wrap">
-      <input type="text" id="shootLocation" placeholder="Tape une ville..." autocomplete="off">
-      <div class="autocomplete-list" id="shootLocationList"></div>
-    </div>
-    <label>Nombre de photos</label><input type="number" id="shootPhotoCount" inputmode="numeric" placeholder="0">
-    <label>Date & heure</label><input type="datetime-local" id="shootDate">
-    <label>Prix (FCFA)</label><input type="number" id="shootPrice" inputmode="decimal">
-    <label>Statut paiement</label>
-    <select id="shootPay"><option value="impaye">Impayé</option><option value="paye">Payé</option></select>
-    <label>Notes</label><input type="text" id="shootNotes" placeholder="Détails supplémentaires...">
-    <button class="btn-primary" style="background:var(--pink)" onclick="saveShoot()">Enregistrer</button>
-  </div>
-</div>
-
-<div class="modal-bg" id="clientModalBg" onclick="if(event.target===this)closeClientModal()">
-  <div class="modal">
-    <div class="modal-wrap"><h3 id="clientModalTitle">Nouveau client</h3>
-      <button class="close" onclick="closeClientModal()">×</button></div>
-    <label>Nom complet</label><input type="text" id="clientName">
-    <label>Téléphone</label><input type="tel" id="clientPhone">
-    <label>Email</label><input type="email" id="clientEmail">
-    <label>Ville</label>
-    <div class="autocomplete-wrap">
-      <input type="text" id="clientCity" placeholder="Tape une ville..." autocomplete="off">
-      <div class="autocomplete-list" id="clientCityList"></div>
-    </div>
-    <label>Notes</label><input type="text" id="clientNotes">
-    <button class="btn-primary" style="background:var(--pink)" onclick="saveClient()">Enregistrer</button>
-  </div>
-</div>
-
-<div class="modal-bg" id="reminderModalBg" onclick="if(event.target===this)closeReminderModal()">
-  <div class="modal">
-    <div class="modal-wrap"><h3 id="reminderModalTitle">⏰ Nouveau rappel</h3>
-      <button class="close" onclick="closeReminderModal()">×</button></div>
-
-    <label>Type de rappel</label>
-    <select id="reminderType" onchange="onReminderTypeChange()">
-      <option value="perso">🔔 Personnel</option>
-      <option value="rdv">📅 Rendez-vous / Séance</option>
-      <option value="appel">📞 Appel client</option>
-      <option value="paiement">💰 Paiement à recevoir</option>
-      <option value="Autre">✏️ Autre</option>
-    </select>
-
-    <div id="reminderCustomTypeWrap" style="display:none;">
-      <label>Précise le type</label>
-      <input type="text" id="reminderCustomType" placeholder="Ex: Livraison, Retouche, Relance...">
-    </div>
-
-    <label>Message</label>
-    <input type="text" id="reminderText" placeholder="Ex: Shooting mariage Client X">
-
-    <label>Date</label>
-    <input type="date" id="reminderDate">
-
-    <label>Heure</label>
-    <input type="time" id="reminderTime" value="09:00">
-
-    <button class="btn-primary" id="reminderSubmit" onclick="saveReminder()">➕ Créer le rappel</button>
-
-    <div style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.5">
-      🔔 Le rappel arrivera <strong>même app fermée</strong>, sur tous tes appareils.
+      <button onclick="exportChatPDF()">📄 Exporter</button>
+      <button onclick="copyFullChat()">📋 Copier tout</button>
+      <button onclick="clearChat()" style="color:var(--red)">🗑 Effacer</button>
     </div>
   </div>
 </div>

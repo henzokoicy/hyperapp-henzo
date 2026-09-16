@@ -15,6 +15,7 @@ let reminders    = [];
 let savedIdeas   = [];
 let inspirations = [];
 let notes        = [];
+let goalReminders = [];
 
 let currentType        = 'depense';
 let editingCoffreId    = null;
@@ -54,17 +55,13 @@ function getInitials(email, displayName){
   return name.substring(0, 2).toUpperCase();
 }
 
-// Charge le profil depuis Supabase
 async function loadProfileFromSupabase(){
   try {
     const user = await getCurrentUser();
     if(!user) return;
-
     const { data, error } = await sb.from('user_settings')
       .select('user_profile').eq('user_id', user.id).maybeSingle();
-
     if(error || !data || !data.user_profile) return;
-
     const profile = data.user_profile;
     localStorage.setItem(getProfileKey(user.email), JSON.stringify(profile));
     updateUserDisplay(user);
@@ -125,7 +122,7 @@ async function handleLogout(){
 async function loadAllData(){
   const user = await getCurrentUser();
   if(!user) return;
-  const [txRes, goalRes, clientRes, shootRes, reminderRes, ideaRes, inspRes, noteRes] = await Promise.all([
+  const [txRes, goalRes, clientRes, shootRes, reminderRes, ideaRes, inspRes, noteRes, goalRemRes] = await Promise.all([
     sb.from('transactions').select('*').order('date', {ascending:false}),
     sb.from('goals').select('*').order('created_at', {ascending:false}),
     sb.from('clients').select('*').order('created_at', {ascending:false}),
@@ -133,16 +130,18 @@ async function loadAllData(){
     sb.from('reminders').select('*').order('created_at', {ascending:true}),
     sb.from('saved_ideas').select('*').order('created_at', {ascending:false}),
     sb.from('inspirations').select('*').order('created_at', {ascending:false}),
-    sb.from('notes').select('*').order('created_at', {ascending:false})
+    sb.from('notes').select('*').order('created_at', {ascending:false}),
+    sb.from('goal_reminders').select('*').order('created_at', {ascending:false})
   ]);
-  txs          = txRes.data       || [];
-  coffres      = goalRes.data     || [];
-  clients      = clientRes.data   || [];
-  shoots       = shootRes.data    || [];
-  reminders    = reminderRes.data || [];
-  savedIdeas   = ideaRes.data     || [];
-  inspirations = inspRes.data     || [];
-  notes        = noteRes.data     || [];
+  txs           = txRes.data        || [];
+  coffres       = goalRes.data      || [];
+  clients       = clientRes.data    || [];
+  shoots        = shootRes.data     || [];
+  reminders     = reminderRes.data  || [];
+  savedIdeas    = ideaRes.data      || [];
+  inspirations  = inspRes.data      || [];
+  notes         = noteRes.data      || [];
+  goalReminders = goalRemRes.data   || [];
 }
 
 // ============================================================
@@ -180,7 +179,6 @@ async function startApp(){
 
   const user = await getCurrentUser();
   if(user){
-    // Synchronise le profil depuis Supabase avant d'afficher
     await loadProfileFromSupabase();
     updateUserDisplay(user);
   }
@@ -306,9 +304,6 @@ function drawerAction(action){
   }, 250);
 }
 
-// ============================================================
-// AJOUT RAPIDE
-// ============================================================
 function openQuickAdd(){
   closeUserMenu();
   openModal();
@@ -352,11 +347,9 @@ async function saveProfile(){
   profile.displayName = displayName;
   profile.bio         = bio;
 
-  // Local
   saveUserProfile(user.email, profile);
   updateUserDisplay(user);
 
-  // Supabase
   try {
     await sb.from('user_settings').upsert(
       { user_id: user.id, user_profile: profile },
@@ -392,11 +385,9 @@ function changeAvatar(){
       }
     }
 
-    // Local
     saveUserProfile(user.email, profile);
     updateUserDisplay(user);
 
-    // Supabase
     try {
       await sb.from('user_settings').upsert(
         { user_id: user.id, user_profile: profile },
@@ -415,7 +406,6 @@ function changeAvatar(){
 async function openPreferencesModal(){
   closeUserMenu();
 
-  // Charge depuis Supabase si dispo, sinon local
   let prefs = {};
   try {
     const user = await getCurrentUser();
@@ -426,7 +416,6 @@ async function openPreferencesModal(){
     }
   } catch(e){ console.warn(e); }
 
-  // Fallback local
   if(!prefs.currency && !prefs.savingsTarget){
     prefs = JSON.parse(localStorage.getItem('user_preferences') || '{}');
   }
@@ -452,10 +441,8 @@ async function savePreferences(){
     eveningTime:   document.getElementById('prefEveningTime').value
   };
 
-  // Local
   localStorage.setItem('user_preferences', JSON.stringify(prefs));
 
-  // Supabase
   try {
     const user = await getCurrentUser();
     if(user){
@@ -516,6 +503,9 @@ function showTab(name, btn){
   }
   if(name === 'notes' && typeof renderNotes === 'function'){
     renderNotes();
+  }
+  if(name === 'objectifs' && typeof renderCoffres === 'function'){
+    renderCoffres();
   }
 
   syncDrawerActive();
@@ -696,7 +686,7 @@ function buildInsights(){
 }
 
 // ============================================================
-// RENDU
+// RENDU DASHBOARD ENRICHI
 // ============================================================
 function render(){
   renderDashboard();
@@ -712,15 +702,22 @@ function renderDashboard(){
   document.getElementById('totalOut').textContent    = fmt(s.totalOut);
   document.getElementById('savingsRate').textContent = (s.savingsRate * 100).toFixed(0) + '%';
 
-  if(typeof renderOverview === 'function')        renderOverview();
-  if(typeof renderHealthScore === 'function')     renderHealthScore();
-  if(typeof renderRevDepDonut === 'function')     renderRevDepDonut();
-  if(typeof renderShootTypesChart === 'function') renderShootTypesChart();
-  if(typeof renderBars6m === 'function')          renderBars6m();
+  // Blocs enrichis (définis dans modules.js)
+  if(typeof renderDashboardAlerts === 'function')       renderDashboardAlerts();
+  if(typeof renderDashboardOverview === 'function')     renderDashboardOverview();
+  if(typeof renderDashboardUpcoming === 'function')     renderDashboardUpcoming();
+  if(typeof renderDashboardUrgentNotes === 'function')  renderDashboardUrgentNotes();
+  if(typeof renderDashboardTopGoals === 'function')     renderDashboardTopGoals();
+
+  if(typeof renderOverview === 'function')              renderOverview();
+  if(typeof renderHealthScore === 'function')           renderHealthScore();
+  if(typeof renderRevDepDonut === 'function')           renderRevDepDonut();
+  if(typeof renderShootTypesChart === 'function')       renderShootTypesChart();
+  if(typeof renderBars6m === 'function')                renderBars6m();
 
   document.getElementById('insights').innerHTML = buildInsights().join('');
 
-  if(typeof renderSuggestions === 'function')     renderSuggestions();
+  if(typeof renderSuggestions === 'function')           renderSuggestions();
 
   const cb = document.getElementById('catBreakdown');
   if(s.sortedCats.length === 0){
