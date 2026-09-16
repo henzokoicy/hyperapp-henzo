@@ -14,7 +14,7 @@ let shoots       = [];
 let reminders    = [];
 let savedIdeas   = [];
 let inspirations = [];
-let notes = [];
+let notes        = [];
 
 let currentType        = 'depense';
 let editingCoffreId    = null;
@@ -52,6 +52,24 @@ function getInitials(email, displayName){
   const parts = name.trim().split(/\s+/);
   if(parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return name.substring(0, 2).toUpperCase();
+}
+
+// Charge le profil depuis Supabase
+async function loadProfileFromSupabase(){
+  try {
+    const user = await getCurrentUser();
+    if(!user) return;
+
+    const { data, error } = await sb.from('user_settings')
+      .select('user_profile').eq('user_id', user.id).maybeSingle();
+
+    if(error || !data || !data.user_profile) return;
+
+    const profile = data.user_profile;
+    localStorage.setItem(getProfileKey(user.email), JSON.stringify(profile));
+    updateUserDisplay(user);
+    console.log('✅ Profil synchronisé depuis Supabase');
+  } catch(e){ console.warn('loadProfileFromSupabase:', e); }
 }
 
 // ============================================================
@@ -107,7 +125,7 @@ async function handleLogout(){
 async function loadAllData(){
   const user = await getCurrentUser();
   if(!user) return;
-    const [txRes, goalRes, clientRes, shootRes, reminderRes, ideaRes, inspRes, noteRes] = await Promise.all([
+  const [txRes, goalRes, clientRes, shootRes, reminderRes, ideaRes, inspRes, noteRes] = await Promise.all([
     sb.from('transactions').select('*').order('date', {ascending:false}),
     sb.from('goals').select('*').order('created_at', {ascending:false}),
     sb.from('clients').select('*').order('created_at', {ascending:false}),
@@ -126,6 +144,7 @@ async function loadAllData(){
   inspirations = inspRes.data     || [];
   notes        = noteRes.data     || [];
 }
+
 // ============================================================
 // HELPERS SUPABASE
 // ============================================================
@@ -160,7 +179,11 @@ async function startApp(){
     new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
   const user = await getCurrentUser();
-  if(user) updateUserDisplay(user);
+  if(user){
+    // Synchronise le profil depuis Supabase avant d'afficher
+    await loadProfileFromSupabase();
+    updateUserDisplay(user);
+  }
 
   await loadAllData();
   init();
@@ -273,6 +296,7 @@ function drawerAction(action){
       case 'addClient':    openClientModal(); break;
       case 'addShoot':     openShootModal(); break;
       case 'addGoal':      openCoffreModal(); break;
+      case 'addNote':      openNoteModal(); break;
       case 'analyze':      drawerNavigate('ia'); break;
       case 'profile':      openProfileModal(); break;
       case 'preferences':  openPreferencesModal(); break;
@@ -316,6 +340,7 @@ async function openProfileModal(){
 function closeProfileModal(){
   document.getElementById('profileModalBg').classList.remove('show');
 }
+
 async function saveProfile(){
   const user = await getCurrentUser();
   if(!user) return;
@@ -327,11 +352,20 @@ async function saveProfile(){
   profile.displayName = displayName;
   profile.bio         = bio;
 
+  // Local
   saveUserProfile(user.email, profile);
   updateUserDisplay(user);
 
+  // Supabase
+  try {
+    await sb.from('user_settings').upsert(
+      { user_id: user.id, user_profile: profile },
+      { onConflict: 'user_id' }
+    );
+  } catch(e){ console.warn('saveProfile sync:', e); }
+
   closeProfileModal();
-  alert('✅ Profil enregistré !');
+  alert('✅ Profil enregistré et synchronisé !');
 }
 
 function changeAvatar(){
@@ -343,7 +377,7 @@ function changeAvatar(){
   const choice = prompt(msg, '');
   if(choice === null) return;
 
-  getCurrentUser().then(user => {
+  getCurrentUser().then(async (user) => {
     if(!user) return;
     const profile = getUserProfile(user.email);
 
@@ -358,8 +392,17 @@ function changeAvatar(){
       }
     }
 
+    // Local
     saveUserProfile(user.email, profile);
     updateUserDisplay(user);
+
+    // Supabase
+    try {
+      await sb.from('user_settings').upsert(
+        { user_id: user.id, user_profile: profile },
+        { onConflict: 'user_id' }
+      );
+    } catch(e){ console.warn('changeAvatar sync:', e); }
 
     const preview = document.getElementById('profileAvatarPreview');
     if(preview) preview.textContent = profile.avatarEmoji || getInitials(user.email, profile.displayName);
@@ -369,9 +412,24 @@ function changeAvatar(){
 // ============================================================
 // MODAL PRÉFÉRENCES
 // ============================================================
-function openPreferencesModal(){
+async function openPreferencesModal(){
   closeUserMenu();
-  const prefs = JSON.parse(localStorage.getItem('user_preferences') || '{}');
+
+  // Charge depuis Supabase si dispo, sinon local
+  let prefs = {};
+  try {
+    const user = await getCurrentUser();
+    if(user){
+      const { data } = await sb.from('user_settings')
+        .select('user_preferences').eq('user_id', user.id).maybeSingle();
+      if(data && data.user_preferences) prefs = data.user_preferences;
+    }
+  } catch(e){ console.warn(e); }
+
+  // Fallback local
+  if(!prefs.currency && !prefs.savingsTarget){
+    prefs = JSON.parse(localStorage.getItem('user_preferences') || '{}');
+  }
 
   document.getElementById('prefCurrency').value      = prefs.currency || CURRENCY || 'FCFA';
   document.getElementById('prefSavingsTarget').value = prefs.savingsTarget !== undefined ? prefs.savingsTarget : 20;
@@ -384,7 +442,8 @@ function openPreferencesModal(){
 function closePreferencesModal(){
   document.getElementById('preferencesModalBg').classList.remove('show');
 }
-function savePreferences(){
+
+async function savePreferences(){
   const prefs = {
     currency:      document.getElementById('prefCurrency').value,
     savingsTarget: parseFloat(document.getElementById('prefSavingsTarget').value) || 20,
@@ -392,9 +451,23 @@ function savePreferences(){
     middayTime:    document.getElementById('prefMiddayTime').value,
     eveningTime:   document.getElementById('prefEveningTime').value
   };
+
+  // Local
   localStorage.setItem('user_preferences', JSON.stringify(prefs));
+
+  // Supabase
+  try {
+    const user = await getCurrentUser();
+    if(user){
+      await sb.from('user_settings').upsert(
+        { user_id: user.id, user_preferences: prefs },
+        { onConflict: 'user_id' }
+      );
+    }
+  } catch(e){ console.warn('savePreferences sync:', e); }
+
   closePreferencesModal();
-  alert('✅ Préférences enregistrées !');
+  alert('✅ Préférences enregistrées et synchronisées !');
 }
 
 // ============================================================
@@ -426,6 +499,7 @@ function showTab(name, btn){
     photo:'📸 Photo & Clients',
     business:'💡 Business',
     inspiration:'💫 Inspiration',
+    notes:'📝 Notes & À faire',
     motiv:'🔥 Motivation',
     ia:'🤖 Analyse IA'
   };
@@ -443,6 +517,7 @@ function showTab(name, btn){
   if(name === 'notes' && typeof renderNotes === 'function'){
     renderNotes();
   }
+
   syncDrawerActive();
 }
 
@@ -502,7 +577,7 @@ async function saveTx(){
     if(custom){
       category = custom;
     } else {
-      alert("Précise la catégorie (ou choisis-en une dans la liste)");
+      alert("Précise la catégorie");
       return;
     }
   }
@@ -573,11 +648,11 @@ function buildInsights(){
     const pct = (s.savingsRate * 100).toFixed(0);
     if(s.savingsRate >= SAVINGS_TARGET){
       ins.push({cls:'good', t:'✅ Taux d\'épargne sain',
-        m:`Tu épargnes ${pct}% de tes revenus ce mois. Excellent.`});
+        m:`Tu épargnes ${pct}% de tes revenus ce mois.`});
     } else if(s.savingsRate >= 0){
       const missing = (s.totalIn * SAVINGS_TARGET) - (s.totalIn * s.savingsRate);
       ins.push({cls:'warn', t:'⚠ Épargne un peu faible',
-        m:`${pct}% épargné. Objectif ${(SAVINGS_TARGET*100)}%. Il te manque ${fmt(missing)} ce mois.`});
+        m:`${pct}% épargné. Objectif ${(SAVINGS_TARGET*100)}%. Il te manque ${fmt(missing)}.`});
     } else {
       ins.push({cls:'bad', t:'🚨 Dépenses > Revenus',
         m:`Déficit de ${fmt(Math.abs(s.bal))} ce mois.`});
@@ -610,7 +685,7 @@ function buildInsights(){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
       if(days > 0 && days <= 90){
         ins.push({cls:'warn', t:`⏱ "${c.name}"`,
-          m:`Reste ${fmt(rest)} en ${days} jours. Soit ${fmt(rest/days)}/jour.`});
+          m:`Reste ${fmt(rest)} en ${days} jours.`});
       }
     }
   });

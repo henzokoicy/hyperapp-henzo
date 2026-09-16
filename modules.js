@@ -1,9 +1,10 @@
 // ============================================================
-// MODULES.JS — Objectifs, Photo, Business, Inspiration, Motivation, IA
+// MODULES.JS — Objectifs, Photo, Business, Inspiration, Notes, Motivation, IA
 // ============================================================
 
 let editingReminderId = null;
 let editingInspirationId = null;
+let editingNoteId = null;
 
 const VILLES_CI = [
   "Abidjan","Bouaké","Yamoussoukro","Daloa","Korhogo","San-Pédro","Man",
@@ -66,6 +67,385 @@ function selectCity(inputId, listId, city){
 }
 
 // ============================================================
+// MODULE NOTES INTELLIGENTES
+// ============================================================
+function analyzeNoteContent(text){
+  const result = {
+    category: null, priority: null, date: null, dateLabel: null,
+    amount: null, phone: null, tags: []
+  };
+  if(!text) return result;
+  const lower = text.toLowerCase();
+
+  // Catégorie
+  if(/\b(appel|appeler|téléphon|joindre|contacter)/i.test(text)) result.category = 'appel';
+  else if(/\b(rdv|rendez-vous|rencard|voir|rencontrer|passer chez)/i.test(text)) result.category = 'rdv';
+  else if(/\b(acheter|achat|commander|commande|shop)/i.test(text)) result.category = 'achat';
+  else if(/\b(devis|facture|client|business|contrat|shoot|mariage|séance|vente)/i.test(text)) result.category = 'business';
+  else if(/\b(idée|idee|inspiration|concept|réfléchir)/i.test(text)) result.category = 'idee';
+  else if(/\b(faire|terminer|finir|à faire|todo|n'?oublie pas|pense à)/i.test(text)) result.category = 'todo';
+
+  // Priorité
+  if(/\b(urgent|urgente|asap|tout de suite|maintenant|vite|impératif)/i.test(text)) result.priority = 'urgente';
+  else if(/\b(important|prioritaire|ne pas oublier|absolument|critique)/i.test(text)) result.priority = 'haute';
+  else if(/\b(quand possible|bientôt|à voir|peut-être|un jour)/i.test(text)) result.priority = 'basse';
+  else result.priority = 'normale';
+
+  // Montant
+  const amountMatch = text.match(/(\d[\d\s.,]{2,})\s*(fcfa|francs?|€|euros?|\$|dollars?)/i);
+  if(amountMatch){
+    const num = parseFloat(amountMatch[1].replace(/[\s.]/g, '').replace(',', '.'));
+    if(!isNaN(num)) result.amount = num;
+  }
+
+  // Téléphone
+  const phoneMatch = text.match(/(\+?\d[\d\s]{7,}\d)/);
+  if(phoneMatch) result.phone = phoneMatch[1].replace(/\s/g, '');
+
+  // Tags #
+  const tagsFound = text.match(/#[\wÀ-ÿ-]+/g);
+  if(tagsFound) result.tags = tagsFound.map(t => t.replace('#','').toLowerCase());
+
+  // Date
+  const now = new Date();
+  let reminderDate = null;
+  let label = null;
+
+  const dansMatch = lower.match(/dans\s+(\d+)\s+(jour|jours|heure|heures|h|minute|minutes|min|semaine|semaines)/);
+  if(dansMatch){
+    const n = parseInt(dansMatch[1]);
+    const unit = dansMatch[2];
+    reminderDate = new Date(now);
+    if(unit.startsWith('jour')) reminderDate.setDate(now.getDate() + n);
+    else if(unit.startsWith('heure') || unit === 'h') reminderDate.setHours(now.getHours() + n);
+    else if(unit.startsWith('minute') || unit === 'min') reminderDate.setMinutes(now.getMinutes() + n);
+    else if(unit.startsWith('semaine')) reminderDate.setDate(now.getDate() + n*7);
+    label = `dans ${n} ${unit}`;
+  }
+
+  if(!reminderDate){
+    if(/\baprès[- ]demain\b/i.test(text)){
+      reminderDate = new Date(now); reminderDate.setDate(now.getDate() + 2); label = 'après-demain';
+    } else if(/\bdemain\b/i.test(text)){
+      reminderDate = new Date(now); reminderDate.setDate(now.getDate() + 1); label = 'demain';
+    } else if(/\bce soir\b/i.test(text)){
+      reminderDate = new Date(now); reminderDate.setHours(20,0,0,0); label = 'ce soir';
+    } else if(/\bce matin\b/i.test(text)){
+      reminderDate = new Date(now); reminderDate.setHours(9,0,0,0); label = 'ce matin';
+    } else if(/\bcet? après[- ]midi\b/i.test(text)){
+      reminderDate = new Date(now); reminderDate.setHours(15,0,0,0); label = 'cet après-midi';
+    } else if(/\b(cette semaine)\b/i.test(text)){
+      reminderDate = new Date(now); reminderDate.setDate(now.getDate() + 3); label = 'cette semaine';
+    }
+  }
+
+  const timeMatch = lower.match(/\b(\d{1,2})\s*[h:]\s*(\d{2})?\b/);
+  if(timeMatch){
+    const h = parseInt(timeMatch[1]);
+    const m = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+    if(h >= 0 && h <= 23){
+      if(!reminderDate) reminderDate = new Date(now);
+      reminderDate.setHours(h, m, 0, 0);
+      if(!label) label = `${h}h${m ? m.toString().padStart(2,'0') : ''}`;
+      else label += ` à ${h}h${m ? m.toString().padStart(2,'0') : ''}`;
+    }
+  }
+
+  const dateMatch = lower.match(/\b(?:le\s+)?(\d{1,2})[\/\-\.](\d{1,2})(?:[\/\-\.](\d{2,4}))?\b/);
+  if(dateMatch){
+    const day = parseInt(dateMatch[1]);
+    const month = parseInt(dateMatch[2]) - 1;
+    const year = dateMatch[3] ? parseInt(dateMatch[3]) : now.getFullYear();
+    const fullYear = year < 100 ? 2000 + year : year;
+    if(day >= 1 && day <= 31 && month >= 0 && month <= 11){
+      if(!reminderDate) reminderDate = new Date(now);
+      reminderDate.setFullYear(fullYear, month, day);
+      label = `le ${day}/${month+1}`;
+    }
+  }
+
+  if(reminderDate && reminderDate > now){
+    result.date = reminderDate.toISOString();
+    result.dateLabel = label || reminderDate.toLocaleString('fr-FR', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
+  }
+
+  return result;
+}
+
+function analyzeNoteLive(){
+  const text = document.getElementById('noteContent').value;
+  const analysisEl = document.getElementById('noteAnalysis');
+  if(!text || text.length < 5){
+    analysisEl.classList.remove('show');
+    return;
+  }
+  const a = analyzeNoteContent(text);
+  const lines = [];
+
+  if(a.category){
+    const catIcons = {appel:'📞', rdv:'📅', achat:'🛒', business:'💼', idee:'💡', todo:'✅'};
+    const catLabels = {appel:'Appel', rdv:'Rendez-vous', achat:'Achat', business:'Business', idee:'Idée', todo:'À faire'};
+    lines.push(`<div class="ai-line"><strong>${catIcons[a.category]||'📝'}</strong> Catégorie : ${catLabels[a.category]}</div>`);
+  }
+  if(a.priority && a.priority !== 'normale'){
+    const prioIcons = {urgente:'🔴', haute:'🟠', basse:'🟢'};
+    lines.push(`<div class="ai-line"><strong>${prioIcons[a.priority]}</strong> Priorité : ${a.priority}</div>`);
+  }
+  if(a.dateLabel){
+    lines.push(`<div class="ai-line"><strong>📅</strong> Date : <span style="color:var(--yellow)">${a.dateLabel}</span></div>`);
+  }
+  if(a.amount){
+    lines.push(`<div class="ai-line"><strong>💰</strong> Montant : ${fmt(a.amount)}</div>`);
+  }
+  if(a.phone){
+    lines.push(`<div class="ai-line"><strong>📞</strong> Téléphone : ${a.phone}</div>`);
+  }
+  if(a.tags.length){
+    lines.push(`<div class="ai-line"><strong>🏷️</strong> Tags : ${a.tags.join(', ')}</div>`);
+  }
+
+  if(lines.length === 0){
+    analysisEl.classList.remove('show');
+    return;
+  }
+  analysisEl.innerHTML = lines.join('');
+  analysisEl.classList.add('show');
+}
+
+function openNoteModal(id){
+  editingNoteId = id || null;
+  const n = id ? notes.find(x => x.id === id) : null;
+
+  document.getElementById('noteModalTitle').textContent = n ? '✏️ Modifier' : '📝 Nouvelle note';
+  document.getElementById('noteSubmit').textContent = n ? '💾 Enregistrer' : '💾 Enregistrer';
+
+  if(n){
+    document.getElementById('noteTitle').value = n.title || '';
+    document.getElementById('noteContent').value = n.content || '';
+    document.getElementById('noteCategory').value = n.category || 'note';
+    document.getElementById('notePriority').value = n.priority || 'normale';
+    document.getElementById('noteTags').value = (n.tags || []).join(', ');
+    if(n.reminder_date){
+      const d = new Date(n.reminder_date);
+      const localISO = new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+      document.getElementById('noteReminder').value = localISO;
+    } else {
+      document.getElementById('noteReminder').value = '';
+    }
+  } else {
+    document.getElementById('noteTitle').value = '';
+    document.getElementById('noteContent').value = '';
+    document.getElementById('noteCategory').value = 'note';
+    document.getElementById('notePriority').value = 'normale';
+    document.getElementById('noteTags').value = '';
+    document.getElementById('noteReminder').value = '';
+  }
+
+  document.getElementById('noteAnalysis').classList.remove('show');
+  document.getElementById('noteModalBg').classList.add('show');
+  setTimeout(() => document.getElementById('noteContent').focus(), 200);
+}
+
+function closeNoteModal(){
+  document.getElementById('noteModalBg').classList.remove('show');
+  editingNoteId = null;
+}
+
+function autoFillFromContent(){
+  const text = document.getElementById('noteContent').value;
+  if(!text || text.length < 5) return;
+  const a = analyzeNoteContent(text);
+  const catSelect = document.getElementById('noteCategory');
+  const prioSelect = document.getElementById('notePriority');
+  const remInput = document.getElementById('noteReminder');
+  if(catSelect.value === 'note' && a.category) catSelect.value = a.category;
+  if(prioSelect.value === 'normale' && a.priority) prioSelect.value = a.priority;
+  if(!remInput.value && a.date) remInput.value = a.date.slice(0,16);
+}
+
+async function saveNote(){
+  const content = document.getElementById('noteContent').value.trim();
+  if(!content){ alert("Écris du contenu"); return; }
+  autoFillFromContent();
+
+  const title = document.getElementById('noteTitle').value.trim();
+  let category = document.getElementById('noteCategory').value;
+  let priority = document.getElementById('notePriority').value;
+  const reminderInput = document.getElementById('noteReminder').value;
+  const tagsRaw = document.getElementById('noteTags').value.trim();
+  const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+  const a = analyzeNoteContent(content);
+  if(category === 'note' && a.category) category = a.category;
+  if(priority === 'normale' && a.priority) priority = a.priority;
+
+  const data = {
+    title: title || null,
+    content,
+    category,
+    priority,
+    reminder_date: reminderInput ? new Date(reminderInput).toISOString() : (a.date || null),
+    tags: tags.length ? tags : null
+  };
+
+  if(editingNoteId){
+    const result = await dbUpdate('notes', editingNoteId, data);
+    if(!result) return;
+    const idx = notes.findIndex(x => x.id === editingNoteId);
+    if(idx >= 0) notes[idx] = result;
+    closeNoteModal();
+    renderNotes();
+    showToast('✅ Note modifiée');
+  } else {
+    const result = await dbInsert('notes', data);
+    if(!result) return;
+    notes.unshift(result);
+    closeNoteModal();
+    renderNotes();
+    showToast('✅ Note créée' + (data.reminder_date ? ' avec rappel' : ''));
+  }
+  refreshAll();
+}
+
+async function delNote(id){
+  if(!confirm('Supprimer cette note ?')) return;
+  const ok = await dbDelete('notes', id);
+  if(!ok) return;
+  notes = notes.filter(n => n.id !== id);
+  renderNotes();
+  refreshAll();
+}
+
+async function toggleNoteDone(id){
+  const n = notes.find(x => x.id === id);
+  if(!n) return;
+  const newArchived = !n.archived;
+  const result = await dbUpdate('notes', id, {archived: newArchived});
+  if(!result) return;
+  n.archived = newArchived;
+  renderNotes();
+  showToast(newArchived ? '🗄️ Note archivée' : '📌 Note réactivée');
+}
+
+function renderNotes(){
+  const el = document.getElementById('notesList');
+  if(!el) return;
+
+  const total = notes.filter(n => !n.archived).length;
+  const withReminder = notes.filter(n => n.reminder_date && !n.reminder_sent && !n.archived).length;
+  const urgent = notes.filter(n => (n.priority === 'urgente' || n.priority === 'haute') && !n.archived).length;
+  document.getElementById('notesCount').textContent = total;
+  document.getElementById('notesReminders').textContent = withReminder;
+  document.getElementById('notesUrgent').textContent = urgent;
+
+  const catFilter = document.getElementById('notesFilterCategory').value;
+  const statusFilter = document.getElementById('notesFilterStatus').value;
+  const search = (document.getElementById('notesSearch').value || '').trim().toLowerCase();
+
+  let filtered = notes.filter(n => {
+    if(statusFilter === 'active' && n.archived) return false;
+    if(statusFilter === 'archived' && !n.archived) return false;
+    if(catFilter !== 'all' && n.category !== catFilter) return false;
+    if(search){
+      const haystack = [n.title, n.content, (n.tags||[]).join(' ')].filter(Boolean).join(' ').toLowerCase();
+      if(!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+
+  const prioOrder = {urgente: 0, haute: 1, normale: 2, basse: 3};
+  filtered.sort((a,b) => {
+    if(a.archived !== b.archived) return a.archived ? 1 : -1;
+    const pa = prioOrder[a.priority] ?? 2;
+    const pb = prioOrder[b.priority] ?? 2;
+    if(pa !== pb) return pa - pb;
+    return (b.created_at || '').localeCompare(a.created_at || '');
+  });
+
+  if(filtered.length === 0){
+    el.innerHTML = '<div class="empty">Aucune note trouvée</div>';
+    return;
+  }
+
+  const catIcons = {note:'📝', idee:'💡', todo:'✅', appel:'📞', rdv:'📅', achat:'🛒', business:'💼'};
+  const catLabels = {note:'Note', idee:'Idée', todo:'À faire', appel:'Appel', rdv:'RDV', achat:'Achat', business:'Business'};
+
+  el.innerHTML = filtered.map(n => {
+    const icon = catIcons[n.category] || '📝';
+    const catLabel = catLabels[n.category] || 'Note';
+
+    let reminderHtml = '';
+    if(n.reminder_date){
+      const d = new Date(n.reminder_date);
+      const dateStr = d.toLocaleString('fr-FR', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
+      const isDone = n.reminder_sent;
+      const cls = isDone ? 'done' : '';
+      reminderHtml = `<span class="note-reminder-tag ${cls}">${isDone ? '✅' : '⏰'} ${dateStr}</span>`;
+    }
+
+    const createdStr = n.created_at
+      ? new Date(n.created_at).toLocaleDateString('fr-FR', {day:'2-digit', month:'short'})
+      : '';
+
+    const priorityBadge = n.priority && n.priority !== 'normale'
+      ? `<span class="note-priority-badge ${n.priority}">${n.priority}</span>`
+      : '';
+
+    return `<div class="note-card priority-${n.priority || 'normale'} ${n.archived ? 'archived' : ''}">
+      <div class="note-header">
+        <div style="flex:1;min-width:0;">
+          <div class="note-title">
+            ${icon} ${n.title || (n.content || '').substring(0, 40)}
+            <span class="note-category-badge">${catLabel}</span>
+            ${priorityBadge}
+          </div>
+        </div>
+      </div>
+
+      ${n.content ? `<div class="note-content">${(n.content || '').replace(/\n/g, '<br>')}</div>` : ''}
+
+      <div class="note-meta">
+        ${createdStr ? `<span>📅 ${createdStr}</span>` : ''}
+        ${reminderHtml}
+      </div>
+
+      ${(n.tags && n.tags.length) ? `<div class="note-tags">${n.tags.map(t => `<span class="note-tag">#${t}</span>`).join('')}</div>` : ''}
+
+      <div class="note-actions">
+        <button class="note-btn-done" onclick="toggleNoteDone(${n.id})">
+          ${n.archived ? '📌 Réactiver' : '✅ Terminer'}
+        </button>
+        <button class="note-btn-edit" onclick="openNoteModal(${n.id})">✏️ Modifier</button>
+        <button class="note-btn-del" onclick="delNote(${n.id})">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function checkNoteReminders(){
+  const now = new Date();
+  let changed = false;
+
+  for(const n of notes){
+    if(n.reminder_sent) continue;
+    if(!n.reminder_date) continue;
+    if(n.archived) continue;
+
+    const reminderTime = new Date(n.reminder_date);
+    if(reminderTime <= now){
+      const title = '📝 ' + (n.title || 'Rappel de note');
+      const body = (n.content || '').substring(0, 100);
+      await showLocalNotification(title, body);
+      await dbUpdate('notes', n.id, {reminder_sent: true});
+      n.reminder_sent = true;
+      changed = true;
+    }
+  }
+
+  if(changed) renderNotes();
+}
+
+// ============================================================
 // MODULE INSPIRATION
 // ============================================================
 const INSP_CATEGORIES_FIXES = ['Photographe','Artiste','Mentor','Business','Client potentiel','Ami','Autre'];
@@ -81,7 +461,7 @@ function openInspirationModal(id){
   const i = id ? inspirations.find(x => x.id === id) : null;
 
   document.getElementById('inspirationModalTitle').textContent = i ? '✏️ Modifier' : '💫 Nouvelle inspiration';
-  document.getElementById('inspSubmit').textContent = i ? '💾 Enregistrer les modifications' : '💾 Enregistrer';
+  document.getElementById('inspSubmit').textContent = i ? '💾 Enregistrer' : '💾 Enregistrer';
 
   if(i){
     let savedCat = i.category || 'Photographe';
@@ -518,8 +898,7 @@ function renderAnalysePercutante(){
         items.push({cls:'', title:`📊 ${c.name}`, text:`Il te faut ${fmt(perMonth)}/mois.`});
       }
     } else {
-      items.push({cls:'', title:`📊 ${c.name} — ${pct.toFixed(0)}%`,
-        text:`Reste ${fmt(rest)}.`});
+      items.push({cls:'', title:`📊 ${c.name} — ${pct.toFixed(0)}%`, text:`Reste ${fmt(rest)}.`});
     }
   });
   el.innerHTML = items.map(i => `<div class="analyse-item ${i.cls}">
@@ -2086,15 +2465,29 @@ function exportAnalysisPDF(){
   doc.save(`analyse-ia-${todayStr()}.pdf`);
 }
 
-function saveAiConfig(){
+async function saveAiConfig(){
   const provider = document.getElementById('aiProvider').value;
   const key      = document.getElementById('aiKey').value.trim();
   const url      = document.getElementById('aiUrl').value.trim();
   if(!key){ alert("Colle ta clé"); return; }
-  localStorage.setItem('aiConfig', JSON.stringify({provider, key, url}));
+
+  const cfg = {provider, key, url};
+  localStorage.setItem('aiConfig', JSON.stringify(cfg));
+
+  try {
+    const user = await getCurrentUser();
+    if(user){
+      await sb.from('user_settings').upsert(
+        { user_id: user.id, ai_config: cfg },
+        { onConflict: 'user_id' }
+      );
+    }
+  } catch(e){ console.warn('saveAiConfig sync:', e); }
+
   updateAiStatus();
-  alert("✅ Enregistré");
+  alert("✅ Enregistré et synchronisé !");
 }
+
 function updateAiStatus(){
   let cfg = null;
   try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
@@ -2111,6 +2504,23 @@ function updateAiStatus(){
   }
   toggleCustomUrl();
 }
+
+async function loadAiConfigFromSupabase(){
+  try {
+    const user = await getCurrentUser();
+    if(!user) return;
+
+    const { data, error } = await sb.from('user_settings')
+      .select('ai_config').eq('user_id', user.id).maybeSingle();
+
+    if(error || !data || !data.ai_config) return;
+
+    localStorage.setItem('aiConfig', JSON.stringify(data.ai_config));
+    updateAiStatus();
+    console.log('✅ Config IA synchronisée depuis Supabase');
+  } catch(e){ console.warn('loadAiConfigFromSupabase:', e); }
+}
+
 function toggleCustomUrl(){
   const isCustom = document.getElementById('aiProvider').value === 'custom';
   document.getElementById('aiUrlLabel').style.display = isCustom ? 'block' : 'none';
@@ -2139,6 +2549,7 @@ function buildSummary(){
   }
   if(clients.length) lines.push(`Clients: ${clients.length}`);
   if(inspirations.length) lines.push(`Inspirations: ${inspirations.length}`);
+  if(notes.length) lines.push(`Notes: ${notes.length}`);
   const recent = [...txs].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 15);
   if(recent.length){
     lines.push('Transactions récentes:');
@@ -2387,6 +2798,14 @@ function buildChatContext(){
     });
   }
 
+  if(notes.length > 0){
+    lines.push('');
+    lines.push(`=== NOTES (${notes.filter(n => !n.archived).length} actives) ===`);
+    notes.filter(n => !n.archived).slice(0, 8).forEach(n => {
+      lines.push(`• [${n.category}] ${n.title || n.content.substring(0,60)}`);
+    });
+  }
+
   const recentTx = [...txs].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 15);
   if(recentTx.length > 0){
     lines.push('');
@@ -2627,424 +3046,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
-// ============================================================
-// MODULE NOTES INTELLIGENTES
-// ============================================================
-
-let editingNoteId = null;
-
-// ---------- ANALYSE INTELLIGENTE (local, sans IA) ----------
-function analyzeNoteContent(text){
-  const result = {
-    category: null,
-    priority: null,
-    date: null,
-    dateLabel: null,
-    amount: null,
-    phone: null,
-    tags: []
-  };
-  if(!text) return result;
-  const lower = text.toLowerCase();
-
-  // === Catégorie ===
-  if(/\b(appel|appeler|téléphon|joindre|contacter)/i.test(text)) result.category = 'appel';
-  else if(/\b(rdv|rendez-vous|rencard|voir|rencontrer|passer chez)/i.test(text)) result.category = 'rdv';
-  else if(/\b(acheter|achat|commander|commande|shop)/i.test(text)) result.category = 'achat';
-  else if(/\b(devis|facture|client|business|contrat|shoot|mariage|séance|vente)/i.test(text)) result.category = 'business';
-  else if(/\b(idée|idee|inspiration|concept|réfléchir)/i.test(text)) result.category = 'idee';
-  else if(/\b(faire|terminer|finir|à faire|todo|n'?oublie pas|pense à)/i.test(text)) result.category = 'todo';
-
-  // === Priorité ===
-  if(/\b(urgent|urgente|asap|tout de suite|maintenant|vite|impératif)/i.test(text)) result.priority = 'urgente';
-  else if(/\b(important|prioritaire|ne pas oublier|absolument|critique)/i.test(text)) result.priority = 'haute';
-  else if(/\b(quand possible|bientôt|à voir|peut-être|un jour)/i.test(text)) result.priority = 'basse';
-  else result.priority = 'normale';
-
-  // === Montants (FCFA, €, $) ===
-  const amountMatch = text.match(/(\d[\d\s.,]{2,})\s*(fcfa|francs?|€|euros?|\$|dollars?)/i);
-  if(amountMatch){
-    const num = parseFloat(amountMatch[1].replace(/[\s.]/g, '').replace(',', '.'));
-    if(!isNaN(num)) result.amount = num;
-  }
-
-  // === Téléphone ===
-  const phoneMatch = text.match(/(\+?\d[\d\s]{7,}\d)/);
-  if(phoneMatch) result.phone = phoneMatch[1].replace(/\s/g, '');
-
-  // === Tags # ===
-  const tagsFound = text.match(/#[\wÀ-ÿ-]+/g);
-  if(tagsFound) result.tags = tagsFound.map(t => t.replace('#','').toLowerCase());
-
-  // === Date / Heure ===
-  const now = new Date();
-  let reminderDate = null;
-  let label = null;
-
-  // "dans X jours/heures/minutes"
-  const dansMatch = lower.match(/dans\s+(\d+)\s+(jour|jours|heure|heures|h|minute|minutes|min|semaine|semaines)/);
-  if(dansMatch){
-    const n = parseInt(dansMatch[1]);
-    const unit = dansMatch[2];
-    reminderDate = new Date(now);
-    if(unit.startsWith('jour')) reminderDate.setDate(now.getDate() + n);
-    else if(unit.startsWith('heure') || unit === 'h') reminderDate.setHours(now.getHours() + n);
-    else if(unit.startsWith('minute') || unit === 'min') reminderDate.setMinutes(now.getMinutes() + n);
-    else if(unit.startsWith('semaine')) reminderDate.setDate(now.getDate() + n*7);
-    label = `dans ${n} ${unit}`;
-  }
-
-  // "demain", "après-demain", "ce soir", "ce matin", "cet après-midi"
-  if(!reminderDate){
-    if(/\baprès[- ]demain\b/i.test(text)){
-      reminderDate = new Date(now); reminderDate.setDate(now.getDate() + 2); label = 'après-demain';
-    } else if(/\bdemain\b/i.test(text)){
-      reminderDate = new Date(now); reminderDate.setDate(now.getDate() + 1); label = 'demain';
-    } else if(/\bce soir\b/i.test(text)){
-      reminderDate = new Date(now); reminderDate.setHours(20,0,0,0); label = 'ce soir';
-    } else if(/\bce matin\b/i.test(text)){
-      reminderDate = new Date(now); reminderDate.setHours(9,0,0,0); label = 'ce matin';
-    } else if(/\bcet? après[- ]midi\b/i.test(text)){
-      reminderDate = new Date(now); reminderDate.setHours(15,0,0,0); label = 'cet après-midi';
-    } else if(/\b(cette semaine)\b/i.test(text)){
-      reminderDate = new Date(now); reminderDate.setDate(now.getDate() + 3); label = 'cette semaine';
-    }
-  }
-
-  // Heure "14h" ou "14h30" ou "9:00" ou "à 14 h"
-  const timeMatch = lower.match(/\b(\d{1,2})\s*[h:]\s*(\d{2})?\b/);
-  if(timeMatch){
-    const h = parseInt(timeMatch[1]);
-    const m = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
-    if(h >= 0 && h <= 23){
-      if(!reminderDate) reminderDate = new Date(now);
-      reminderDate.setHours(h, m, 0, 0);
-      if(!label) label = `${h}h${m ? m.toString().padStart(2,'0') : ''}`;
-      else label += ` à ${h}h${m ? m.toString().padStart(2,'0') : ''}`;
-    }
-  }
-
-  // Date "le 25/09" ou "le 25"
-  const dateMatch = lower.match(/\b(?:le\s+)?(\d{1,2})[\/\-\.](\d{1,2})(?:[\/\-\.](\d{2,4}))?\b/);
-  if(dateMatch){
-    const day = parseInt(dateMatch[1]);
-    const month = parseInt(dateMatch[2]) - 1;
-    const year = dateMatch[3] ? parseInt(dateMatch[3]) : now.getFullYear();
-    const fullYear = year < 100 ? 2000 + year : year;
-    if(day >= 1 && day <= 31 && month >= 0 && month <= 11){
-      if(!reminderDate) reminderDate = new Date(now);
-      reminderDate.setFullYear(fullYear, month, day);
-      label = `le ${day}/${month+1}`;
-    }
-  }
-
-  if(reminderDate && reminderDate > now){
-    result.date = reminderDate.toISOString();
-    result.dateLabel = label || reminderDate.toLocaleString('fr-FR', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
-  }
-
-  return result;
-}
-
-// Affiche l'analyse en direct dans la modale
-function analyzeNoteLive(){
-  const text = document.getElementById('noteContent').value;
-  const analysisEl = document.getElementById('noteAnalysis');
-  if(!text || text.length < 5){
-    analysisEl.classList.remove('show');
-    return;
-  }
-
-  const a = analyzeNoteContent(text);
-  const lines = [];
-
-  if(a.category){
-    const catIcons = {appel:'📞', rdv:'📅', achat:'🛒', business:'💼', idee:'💡', todo:'✅'};
-    const catLabels = {appel:'Appel', rdv:'Rendez-vous', achat:'Achat', business:'Business', idee:'Idée', todo:'À faire'};
-    lines.push(`<div class="ai-line"><strong>${catIcons[a.category]||'📝'}</strong> Catégorie détectée : ${catLabels[a.category]}</div>`);
-  }
-  if(a.priority && a.priority !== 'normale'){
-    const prioIcons = {urgente:'🔴', haute:'🟠', basse:'🟢'};
-    lines.push(`<div class="ai-line"><strong>${prioIcons[a.priority]}</strong> Priorité : ${a.priority}</div>`);
-  }
-  if(a.dateLabel){
-    lines.push(`<div class="ai-line"><strong>📅</strong> Date détectée : <span style="color:var(--yellow)">${a.dateLabel}</span></div>`);
-  }
-  if(a.amount){
-    lines.push(`<div class="ai-line"><strong>💰</strong> Montant : ${fmt(a.amount)}</div>`);
-  }
-  if(a.phone){
-    lines.push(`<div class="ai-line"><strong>📞</strong> Téléphone : ${a.phone}</div>`);
-  }
-  if(a.tags.length){
-    lines.push(`<div class="ai-line"><strong>🏷️</strong> Tags : ${a.tags.join(', ')}</div>`);
-  }
-
-  if(lines.length === 0){
-    analysisEl.classList.remove('show');
-    return;
-  }
-
-  analysisEl.innerHTML = lines.join('');
-  analysisEl.classList.add('show');
-}
-
-// Ouvre la modale (création ou modification)
-function openNoteModal(id){
-  editingNoteId = id || null;
-  const n = id ? notes.find(x => x.id === id) : null;
-
-  document.getElementById('noteModalTitle').textContent =
-    n ? '✏️ Modifier la note' : '📝 Nouvelle note';
-  document.getElementById('noteSubmit').textContent =
-    n ? '💾 Enregistrer les modifications' : '💾 Enregistrer';
-
-  if(n){
-    document.getElementById('noteTitle').value = n.title || '';
-    document.getElementById('noteContent').value = n.content || '';
-    document.getElementById('noteCategory').value = n.category || 'note';
-    document.getElementById('notePriority').value = n.priority || 'normale';
-    document.getElementById('noteTags').value = (n.tags || []).join(', ');
-    if(n.reminder_date){
-      const d = new Date(n.reminder_date);
-      const localISO = new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
-      document.getElementById('noteReminder').value = localISO;
-    } else {
-      document.getElementById('noteReminder').value = '';
-    }
-  } else {
-    document.getElementById('noteTitle').value = '';
-    document.getElementById('noteContent').value = '';
-    document.getElementById('noteCategory').value = 'note';
-    document.getElementById('notePriority').value = 'normale';
-    document.getElementById('noteTags').value = '';
-    document.getElementById('noteReminder').value = '';
-  }
-
-  document.getElementById('noteAnalysis').classList.remove('show');
-  document.getElementById('noteModalBg').classList.add('show');
-  setTimeout(() => document.getElementById('noteContent').focus(), 200);
-}
-
-function closeNoteModal(){
-  document.getElementById('noteModalBg').classList.remove('show');
-  editingNoteId = null;
-}
-
-// Détecte automatiquement la catégorie et priorité si l'utilisateur n'a pas touché
-function autoFillFromContent(){
-  const text = document.getElementById('noteContent').value;
-  if(!text || text.length < 5) return;
-  const a = analyzeNoteContent(text);
-
-  const catSelect = document.getElementById('noteCategory');
-  const prioSelect = document.getElementById('notePriority');
-  const remInput = document.getElementById('noteReminder');
-
-  // On ne remplit que si c'est encore la valeur par défaut
-  if(catSelect.value === 'note' && a.category) catSelect.value = a.category;
-  if(prioSelect.value === 'normale' && a.priority) prioSelect.value = a.priority;
-  if(!remInput.value && a.date) remInput.value = a.date.slice(0,16);
-}
-
-async function saveNote(){
-  const content = document.getElementById('noteContent').value.trim();
-  if(!content){ alert("Écris du contenu"); return; }
-
-  // Remplissage auto intelligent avant sauvegarde
-  autoFillFromContent();
-
-  const title = document.getElementById('noteTitle').value.trim();
-  let category = document.getElementById('noteCategory').value;
-  let priority = document.getElementById('notePriority').value;
-  const reminderInput = document.getElementById('noteReminder').value;
-  const tagsRaw = document.getElementById('noteTags').value.trim();
-  const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
-
-  // Analyse intelligente pour enrichir
-  const a = analyzeNoteContent(content);
-  if(category === 'note' && a.category) category = a.category;
-  if(priority === 'normale' && a.priority) priority = a.priority;
-
-  const data = {
-    title: title || null,
-    content,
-    category,
-    priority,
-    reminder_date: reminderInput ? new Date(reminderInput).toISOString() : (a.date || null),
-    tags: tags.length ? tags : null
-  };
-
-  if(editingNoteId){
-    const result = await dbUpdate('notes', editingNoteId, data);
-    if(!result) return;
-    const idx = notes.findIndex(x => x.id === editingNoteId);
-    if(idx >= 0) notes[idx] = result;
-    closeNoteModal();
-    renderNotes();
-    showToast('✅ Note modifiée');
-  } else {
-    const result = await dbInsert('notes', data);
-    if(!result) return;
-    notes.unshift(result);
-    closeNoteModal();
-    renderNotes();
-    showToast('✅ Note créée' + (data.reminder_date ? ' avec rappel' : ''));
-  }
-  refreshAll();
-}
-
-async function delNote(id){
-  if(!confirm('Supprimer cette note ?')) return;
-  const ok = await dbDelete('notes', id);
-  if(!ok) return;
-  notes = notes.filter(n => n.id !== id);
-  renderNotes();
-  refreshAll();
-}
-
-async function toggleNoteDone(id){
-  const n = notes.find(x => x.id === id);
-  if(!n) return;
-  const newArchived = !n.archived;
-  const result = await dbUpdate('notes', id, {archived: newArchived});
-  if(!result) return;
-  n.archived = newArchived;
-  renderNotes();
-  showToast(newArchived ? '🗄️ Note archivée' : '📌 Note réactivée');
-}
-
-function renderNotes(){
-  const el = document.getElementById('notesList');
-  if(!el) return;
-
-  // Stats
-  const total = notes.filter(n => !n.archived).length;
-  const withReminder = notes.filter(n => n.reminder_date && !n.reminder_sent && !n.archived).length;
-  const urgent = notes.filter(n => (n.priority === 'urgente' || n.priority === 'haute') && !n.archived).length;
-  document.getElementById('notesCount').textContent = total;
-  document.getElementById('notesReminders').textContent = withReminder;
-  document.getElementById('notesUrgent').textContent = urgent;
-
-  // Filtres
-  const catFilter = document.getElementById('notesFilterCategory').value;
-  const statusFilter = document.getElementById('notesFilterStatus').value;
-  const search = (document.getElementById('notesSearch').value || '').trim().toLowerCase();
-
-  let filtered = notes.filter(n => {
-    if(statusFilter === 'active' && n.archived) return false;
-    if(statusFilter === 'archived' && !n.archived) return false;
-    if(catFilter !== 'all' && n.category !== catFilter) return false;
-    if(search){
-      const haystack = [n.title, n.content, (n.tags||[]).join(' ')].filter(Boolean).join(' ').toLowerCase();
-      if(!haystack.includes(search)) return false;
-    }
-    return true;
-  });
-
-  // Tri : priorités hautes d'abord, puis par date de rappel
-  const prioOrder = {urgente: 0, haute: 1, normale: 2, basse: 3};
-  filtered.sort((a,b) => {
-    if(a.archived !== b.archived) return a.archived ? 1 : -1;
-    const pa = prioOrder[a.priority] ?? 2;
-    const pb = prioOrder[b.priority] ?? 2;
-    if(pa !== pb) return pa - pb;
-    return (b.created_at || '').localeCompare(a.created_at || '');
-  });
-
-  if(filtered.length === 0){
-    el.innerHTML = '<div class="empty">Aucune note trouvée</div>';
-    return;
-  }
-
-  const catIcons = {note:'📝', idee:'💡', todo:'✅', appel:'📞', rdv:'📅', achat:'🛒', business:'💼'};
-  const catLabels = {note:'Note', idee:'Idée', todo:'À faire', appel:'Appel', rdv:'RDV', achat:'Achat', business:'Business'};
-
-  el.innerHTML = filtered.map(n => {
-    const icon = catIcons[n.category] || '📝';
-    const catLabel = catLabels[n.category] || 'Note';
-
-    // Rappel
-    let reminderHtml = '';
-    if(n.reminder_date){
-      const d = new Date(n.reminder_date);
-      const dateStr = d.toLocaleString('fr-FR', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
-      const isPast = d < new Date();
-      const isDone = n.reminder_sent;
-      const cls = isDone ? 'done' : '';
-      reminderHtml = `<span class="note-reminder-tag ${cls}">${isDone ? '✅' : '⏰'} ${dateStr}</span>`;
-    }
-
-    // Date de création
-    const createdStr = n.created_at
-      ? new Date(n.created_at).toLocaleDateString('fr-FR', {day:'2-digit', month:'short'})
-      : '';
-
-    const priorityBadge = n.priority && n.priority !== 'normale'
-      ? `<span class="note-priority-badge ${n.priority}">${n.priority}</span>`
-      : '';
-
-    return `<div class="note-card priority-${n.priority || 'normale'} ${n.archived ? 'archived' : ''}">
-      <div class="note-header">
-        <div style="flex:1;min-width:0;">
-          <div class="note-title">
-            ${icon} ${n.title || (n.content || '').substring(0, 40)}
-            <span class="note-category-badge">${catLabel}</span>
-            ${priorityBadge}
-          </div>
-        </div>
-      </div>
-
-      ${n.content ? `<div class="note-content">${(n.content || '').replace(/\n/g, '<br>')}</div>` : ''}
-
-      <div class="note-meta">
-        ${createdStr ? `<span>📅 ${createdStr}</span>` : ''}
-        ${reminderHtml}
-      </div>
-
-      ${(n.tags && n.tags.length) ? `<div class="note-tags">${n.tags.map(t => `<span class="note-tag">#${t}</span>`).join('')}</div>` : ''}
-
-      <div class="note-actions">
-        <button class="note-btn-done" onclick="toggleNoteDone(${n.id})">
-          ${n.archived ? '📌 Réactiver' : '✅ Terminer'}
-        </button>
-        <button class="note-btn-edit" onclick="openNoteModal(${n.id})">✏️ Modifier</button>
-        <button class="note-btn-del" onclick="delNote(${n.id})">🗑</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// Vérifie les notes dont le rappel est arrivé
-async function checkNoteReminders(){
-  const now = new Date();
-  let changed = false;
-
-  for(const n of notes){
-    if(n.reminder_sent) continue;
-    if(!n.reminder_date) continue;
-    if(n.archived) continue;
-
-    const reminderTime = new Date(n.reminder_date);
-    // Si le rappel est dans le passé (ou maintenant)
-    if(reminderTime <= now){
-      // Affiche une notification locale
-      const title = '📝 ' + (n.title || 'Rappel de note');
-      const body = (n.content || '').substring(0, 100);
-      await showLocalNotification(title, body);
-
-      // Marque comme envoyé
-      await dbUpdate('notes', n.id, {reminder_sent: true});
-      n.reminder_sent = true;
-      changed = true;
-    }
-  }
-
-  if(changed) renderNotes();
-}
-
-// Vérifie les notes toutes les minutes
-setInterval(checkNoteReminders, 60000);
 
 // ============================================================
 // SERVICE WORKER MESSAGE
@@ -3064,6 +3065,7 @@ if('serviceWorker' in navigator){
 setInterval(() => {
   checkAutomaticNotifications();
   checkDailyReminders();
+  checkNoteReminders();
 }, 60000);
 
 // ============================================================
@@ -3080,12 +3082,16 @@ function init(){
   updateNotifButton();
   loadSavedAnalysis();
   loadIdeasAI();
-    renderInspirations();
+  renderInspirations();
   renderNotes();
 
+  // Charge la config IA depuis Supabase (sync multi-appareils)
+  loadAiConfigFromSupabase();
+
   setTimeout(updateShootStatuses, 1500);
-  setTimeout(checkNoteReminders, 3000);
   setTimeout(registerOneSignalPlayer, 2000);
+  setTimeout(checkNoteReminders, 3000);
+
   setTimeout(() => {
     checkAutomaticNotifications();
     checkDailyReminders();
