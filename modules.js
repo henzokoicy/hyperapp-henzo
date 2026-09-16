@@ -2,10 +2,7 @@
 // MODULES.JS — Objectifs, Photo, Business, Inspiration, Motivation, IA
 // ============================================================
 
-// ID du rappel en cours de modification (null = création)
 let editingReminderId = null;
-
-// ID de l'inspiration en cours de modification
 let editingInspirationId = null;
 
 const VILLES_CI = [
@@ -82,10 +79,8 @@ function openInspirationModal(id){
   editingInspirationId = id || null;
   const i = id ? inspirations.find(x => x.id === id) : null;
 
-  document.getElementById('inspirationModalTitle').textContent =
-    i ? '✏️ Modifier' : '💫 Nouvelle inspiration';
-  document.getElementById('inspSubmit').textContent =
-    i ? '💾 Enregistrer les modifications' : '💾 Enregistrer';
+  document.getElementById('inspirationModalTitle').textContent = i ? '✏️ Modifier' : '💫 Nouvelle inspiration';
+  document.getElementById('inspSubmit').textContent = i ? '💾 Enregistrer les modifications' : '💾 Enregistrer';
 
   if(i){
     let savedCat = i.category || 'Photographe';
@@ -118,7 +113,6 @@ function openInspirationModal(id){
     document.getElementById('inspTags').value     = '';
     document.getElementById('inspFavorite').checked = false;
   }
-
   onInspCategoryChange();
   document.getElementById('inspirationModalBg').classList.add('show');
 }
@@ -142,13 +136,10 @@ async function saveInspiration(){
   const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
 
   let link = document.getElementById('inspLink').value.trim();
-  if(link && !/^https?:\/\//i.test(link)){
-    link = 'https://' + link;
-  }
+  if(link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
 
   const data = {
-    name,
-    category,
+    name, category,
     platform: document.getElementById('inspPlatform').value || null,
     link: link || null,
     phone: document.getElementById('inspPhone').value.trim() || null,
@@ -164,15 +155,13 @@ async function saveInspiration(){
     if(!result) return;
     const idx = inspirations.findIndex(x => x.id === editingInspirationId);
     if(idx >= 0) inspirations[idx] = result;
-    closeInspirationModal();
-    renderInspirations();
   } else {
     const result = await dbInsert('inspirations', data);
     if(!result) return;
     inspirations.unshift(result);
-    closeInspirationModal();
-    renderInspirations();
   }
+  closeInspirationModal();
+  renderInspirations();
 }
 
 async function delInspiration(id){
@@ -202,15 +191,8 @@ function inspInitials(name){
 
 function inspPlatformIcon(platform){
   const icons = {
-    'Instagram': '📷',
-    'TikTok': '🎵',
-    'YouTube': '▶️',
-    'Facebook': '📘',
-    'Twitter/X': '🐦',
-    'LinkedIn': '💼',
-    'Site web': '🌐',
-    'Pinterest': '📌',
-    'Behance': '🎨'
+    'Instagram': '📷','TikTok': '🎵','YouTube': '▶️','Facebook': '📘',
+    'Twitter/X': '🐦','LinkedIn': '💼','Site web': '🌐','Pinterest': '📌','Behance': '🎨'
   };
   return icons[platform] || '🔗';
 }
@@ -263,7 +245,6 @@ function renderInspirations(){
   el.innerHTML = filtered.map(i => {
     const initials = inspInitials(i.name);
     const isFav = i.favorite ? 'favorite' : '';
-
     const metaParts = [];
     if(i.platform) metaParts.push(inspPlatformIcon(i.platform) + ' ' + i.platform);
     if(i.city) metaParts.push('📍 ' + i.city);
@@ -271,16 +252,12 @@ function renderInspirations(){
     if(i.email) metaParts.push('✉️ ' + i.email);
 
     const actions = [];
-    if(i.link){
-      actions.push(`<a href="${i.link}" target="_blank" rel="noopener" class="insp-btn-link">🔗 Voir sa page</a>`);
-    }
+    if(i.link) actions.push(`<a href="${i.link}" target="_blank" rel="noopener" class="insp-btn-link">🔗 Voir sa page</a>`);
     if(i.phone){
       const cleanPhone = i.phone.replace(/[^0-9+]/g, '');
       actions.push(`<a href="tel:${cleanPhone}" class="insp-btn-call">📞 Appeler</a>`);
     }
-    if(i.email){
-      actions.push(`<a href="mailto:${i.email}" class="insp-btn-mail">✉️ Mail</a>`);
-    }
+    if(i.email) actions.push(`<a href="mailto:${i.email}" class="insp-btn-mail">✉️ Mail</a>`);
     actions.push(`<button class="insp-btn-edit" onclick="openInspirationModal(${i.id})">✏️ Modifier</button>`);
     actions.push(`<button class="insp-btn-del" onclick="delInspiration(${i.id})">🗑</button>`);
 
@@ -288,10 +265,7 @@ function renderInspirations(){
       <div class="insp-card-header">
         <div class="insp-avatar">${initials}</div>
         <div class="insp-title">
-          <div class="insp-name">
-            ${i.name}
-            ${i.favorite ? '<span class="insp-fav-star">⭐</span>' : ''}
-          </div>
+          <div class="insp-name">${i.name}${i.favorite ? ' <span class="insp-fav-star">⭐</span>' : ''}</div>
           <div><span class="insp-category">${i.category || 'Autre'}</span></div>
           ${metaParts.length ? `<div class="insp-meta">${metaParts.map(m => `<span>${m}</span>`).join('')}</div>` : ''}
         </div>
@@ -330,7 +304,7 @@ function updateNotifButton(){
 }
 
 // ============================================================
-// HELPER NOTIFICATION (marche PC + mobile)
+// HELPER NOTIFICATION
 // ============================================================
 async function showLocalNotification(title, body, url){
   try {
@@ -358,42 +332,26 @@ async function showLocalNotification(title, body, url){
 }
 
 // ============================================================
-// ENREGISTREMENT DU PLAYER ID ONESIGNAL
+// PLAYER ID ONESIGNAL
 // ============================================================
 async function registerOneSignalPlayer(){
   try {
     const user = await getCurrentUser();
     if(!user) return;
-
     const OneSignal = window.OneSignal;
     if(!OneSignal) return;
-
     await new Promise(resolve => setTimeout(resolve, 1500));
-
     const sub = OneSignal.User?.PushSubscription;
     if(!sub) return;
-
     const playerId = sub.id;
     if(!playerId) return;
-
     const { data: existing } = await sb
-      .from('push_subscriptions')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('player_id', playerId)
-      .maybeSingle();
-
+      .from('push_subscriptions').select('id')
+      .eq('user_id', user.id).eq('player_id', playerId).maybeSingle();
     if(existing) return;
-
-    await sb.from('push_subscriptions').insert({
-      user_id: user.id,
-      player_id: playerId
-    });
-
-    console.log('✅ Player ID enregistré pour les rappels:', playerId);
-  } catch(e){
-    console.warn('registerOneSignalPlayer:', e);
-  }
+    await sb.from('push_subscriptions').insert({ user_id: user.id, player_id: playerId });
+    console.log('✅ Player ID enregistré:', playerId);
+  } catch(e){ console.warn('registerOneSignalPlayer:', e); }
 }
 
 // ============================================================
@@ -417,12 +375,12 @@ function getCoffreEmoji(name){
 }
 
 function getMotivationMessage(pct){
-  if(pct >= 100) return {level:5, msg:'🎉 OBJECTIF ATTEINT ! Tu es une machine !'};
-  if(pct >= 75) return {level:4, msg:'🔥 Tu y es presque ! Plus que quelques efforts.'};
-  if(pct >= 50) return {level:3, msg:'💪 À mi-chemin ! Le plus dur est derrière toi.'};
-  if(pct >= 25) return {level:2, msg:'⚡ Bon démarrage ! Garde le rythme.'};
-  if(pct > 0)   return {level:1, msg:'🌱 C\'est parti ! Chaque franc compte.'};
-  return {level:1, msg:'🎯 C\'est le moment de commencer !'};
+  if(pct >= 100) return {level:5, msg:'🎉 OBJECTIF ATTEINT !'};
+  if(pct >= 75) return {level:4, msg:'🔥 Tu y es presque !'};
+  if(pct >= 50) return {level:3, msg:'💪 À mi-chemin !'};
+  if(pct >= 25) return {level:2, msg:'⚡ Bon démarrage !'};
+  if(pct > 0)   return {level:1, msg:'🌱 C\'est parti !'};
+  return {level:1, msg:'🎯 Commence !'};
 }
 
 function getProgressionColor(pct){
@@ -437,7 +395,6 @@ function renderMotivationJour(){
   const totalGoal = coffres.reduce((s,c) => s + Number(c.goal || 0), 0);
   const totalCurrent = coffres.reduce((s,c) => s + Number(c.current || 0), 0);
   const globalPct = totalGoal > 0 ? (totalCurrent / totalGoal) * 100 : 0;
-
   const icons = ['🔥','💪','🚀','⭐','💎','🏆','🌟','⚡'];
   const today = new Date().getDate();
   const icon = icons[today % icons.length];
@@ -445,25 +402,25 @@ function renderMotivationJour(){
   let title, text;
   if(coffres.length === 0){
     title = '🚀 Lance-toi !';
-    text = 'Crée ton premier objectif et commence à épargner. Chaque grand voyage commence par un petit pas.';
+    text = 'Crée ton premier objectif.';
   } else if(globalPct >= 100){
     title = '🏆 Champion !';
-    text = 'Tu as atteint 100% de tes objectifs. Fais-toi plaisir, tu l\'as mérité !';
+    text = 'Tous tes objectifs atteints !';
   } else if(globalPct >= 75){
     title = '🔥 Tu y es presque !';
-    text = `Tu es à ${globalPct.toFixed(0)}% de tes objectifs. Encore un petit effort.`;
+    text = `Tu es à ${globalPct.toFixed(0)}%.`;
   } else if(globalPct >= 50){
     title = '💪 À mi-chemin !';
-    text = `Tu as complété ${globalPct.toFixed(0)}% de tes objectifs. Continue !`;
+    text = `Tu as complété ${globalPct.toFixed(0)}%.`;
   } else if(globalPct >= 25){
     title = '⚡ Bon démarrage !';
-    text = `Tu es à ${globalPct.toFixed(0)}%. Garde ce rythme !`;
+    text = `Tu es à ${globalPct.toFixed(0)}%.`;
   } else if(globalPct > 0){
     title = '🌱 C\'est parti !';
-    text = `Chaque franc épargné te rapproche de ton but. Tiens bon !`;
+    text = 'Tiens bon !';
   } else {
     title = '🎯 À toi de jouer !';
-    text = 'Commence par un petit montant aujourd\'hui, même 1000 FCFA.';
+    text = 'Commence par 1000 FCFA.';
   }
 
   const icon1 = document.getElementById('motivIcon');
@@ -475,21 +432,21 @@ function renderMotivationJour(){
 }
 
 const DEFIS = [
-  "Aujourd'hui, n'achète rien d'impulsif. Avant chaque achat, demande-toi : 'Est-ce que j'en ai VRAIMENT besoin ?'",
-  "Épargne 1000 FCFA aujourd'hui, même si c'est symbolique.",
-  "Note TOUS tes achats de la journée, même un simple café.",
-  "Prépare ton repas maison au lieu de commander.",
-  "Évite les réseaux sociaux pendant 2h et réfléchis à un revenu supplémentaire.",
-  "Contacte un ancien client pour prendre de ses nouvelles.",
+  "Aujourd'hui, n'achète rien d'impulsif.",
+  "Épargne 1000 FCFA aujourd'hui.",
+  "Note TOUS tes achats de la journée.",
+  "Prépare ton repas maison.",
+  "Évite les réseaux sociaux pendant 2h.",
+  "Contacte un ancien client.",
   "Aujourd'hui, utilise uniquement du cash.",
-  "Range ton espace de travail. Un esprit clair attire plus d'opportunités.",
-  "Envoie un message à 3 clients passés pour leur proposer une mini-session.",
-  "Fais le point sur tes abonnements : y en a-t-il un que tu peux annuler ?",
-  "Aujourd'hui, pas de livraison. Va chercher toi-même ce dont tu as besoin.",
-  "Prends 15 minutes pour écrire tes 3 objectifs financiers des 3 prochains mois.",
-  "Poste une de tes meilleures photos avec un prix 'à partir de'.",
-  "Contacte un photographe pro pour échanger des conseils.",
-  "Aujourd'hui, dis non à une dépense qui ne sert pas ton futur."
+  "Range ton espace de travail.",
+  "Propose une mini-session à 3 clients.",
+  "Vérifie tes abonnements.",
+  "Pas de livraison aujourd'hui.",
+  "Écris tes 3 objectifs financiers.",
+  "Poste une de tes meilleures photos.",
+  "Contacte un photographe pro.",
+  "Dis non à une dépense inutile."
 ];
 
 function renderDefiDuJour(){
@@ -550,27 +507,18 @@ function renderAnalysePercutante(){
     const pct = (current / goal) * 100;
 
     if(pct >= 100){
-      items.push({cls:'good', title:`✅ ${c.name} — Terminé !`,
-        text:`Tu as réussi à épargner ${fmt(goal)}. Félicitations !`});
+      items.push({cls:'good', title:`✅ ${c.name} — Terminé !`, text:`Tu as réussi !`});
       return;
     }
     if(c.target_date){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
       if(days > 0){
         const perMonth = (rest / days) * 30;
-        const s = computeStats();
-        const monthlyCapacity = s.bal > 0 ? s.bal : (s.totalIn * SAVINGS_TARGET);
-        if(monthlyCapacity >= perMonth){
-          items.push({cls:'good', title:`🎯 ${c.name} est faisable !`,
-            text:`Il te faut ${fmt(perMonth)}/mois. À ton rythme c'est faisable.`});
-        } else {
-          items.push({cls:'warn', title:`⚠ ${c.name} — Rythme serré`,
-            text:`Il te faudrait ${fmt(perMonth)}/mois. Capacité estimée : ${fmt(monthlyCapacity)}.`});
-        }
+        items.push({cls:'', title:`📊 ${c.name}`, text:`Il te faut ${fmt(perMonth)}/mois.`});
       }
     } else {
       items.push({cls:'', title:`📊 ${c.name} — ${pct.toFixed(0)}%`,
-        text:`Il te reste ${fmt(rest)}. À 5000 FCFA/semaine : ${Math.ceil(rest / 5000)} semaines.`});
+        text:`Reste ${fmt(rest)}.`});
     }
   });
   el.innerHTML = items.map(i => `<div class="analyse-item ${i.cls}">
@@ -670,7 +618,7 @@ function renderCoffres(){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
       if(days > 0){
         const perWeek = (rest / days) * 7;
-        timeInfo = `<div class="coffre-next"><span>⏱ ${days} jours restants</span><span>${fmt(perWeek)}/semaine</span></div>`;
+        timeInfo = `<div class="coffre-next"><span>⏱ ${days} jours</span><span>${fmt(perWeek)}/semaine</span></div>`;
       } else {
         timeInfo = `<div class="coffre-next"><span style="color:var(--red)">⚠ Date dépassée</span></div>`;
       }
@@ -721,7 +669,7 @@ function renderCoffres(){
     at.innerHTML = active.slice(0, 3).map(c => {
       const rest = Number(c.goal) - Number(c.current);
       const pct  = (Number(c.current) / Number(c.goal) * 100).toFixed(0);
-      const msg  = c.why ? `Rappelle-toi : "${c.why}"` : `Tu es à ${pct}%. Ne lâche pas.`;
+      const msg  = c.why ? `Rappelle-toi : "${c.why}"` : `Tu es à ${pct}%.`;
       return `<div class="insight bad"><div class="title">🛑 ${c.name} — encore ${fmt(rest)}</div><div>${msg}</div></div>`;
     }).join('');
   }
@@ -797,11 +745,11 @@ function renderClients(){
 // MODULE PHOTO — SÉANCES
 // ============================================================
 const TYPES_FIXES = ['Mariage','Dot','Shooting Studio','Shoot Extérieur','Autre'];
+let currentShootFilter = 'all';
 
 function onShootTypeChange(){
   const t = document.getElementById('shootType').value;
-  document.getElementById('shootCustomTypeWrap').style.display =
-    (t === 'Autre') ? 'block' : 'none';
+  document.getElementById('shootCustomTypeWrap').style.display = (t === 'Autre') ? 'block' : 'none';
 }
 
 function openShootModal(id){
@@ -862,13 +810,13 @@ async function saveShoot(){
     if(custom) type = custom;
   }
 
-    const data = {client_id: clientId ? parseInt(clientId) : null, type, location, photo_count, date, price, payment, notes};
+  const data = {client_id: clientId ? parseInt(clientId) : null, type, location, photo_count, date, price, payment, notes};
 
-  // Si création, on met un statut par défaut
   if(!editingShootId){
     data.status = 'planifie';
     data.status_updated_at = new Date().toISOString();
   }
+
   if(editingShootId){
     const result = await dbUpdate('shoots', editingShootId, data);
     if(!result) return;
@@ -897,11 +845,6 @@ async function toggleShootPayment(id){
   s.payment = newPayment;
   refreshAll();
 }
-// ============================================================
-// STATUTS DES SÉANCES (auto + manuel)
-// ============================================================
-
-let currentShootFilter = 'all';
 
 function filterShoots(filter, btn){
   currentShootFilter = filter;
@@ -910,70 +853,49 @@ function filterShoots(filter, btn){
   renderShoots();
 }
 
-// Met à jour automatiquement les statuts selon la date
 async function updateShootStatuses(){
   const today = new Date();
   today.setHours(0,0,0,0);
   let hasChanges = false;
 
   for(const s of shoots){
-    // On ne touche pas aux annulés
     if(s.status === 'annule') continue;
-
     const shootDate = new Date(s.date);
     shootDate.setHours(0,0,0,0);
-
-    // Le lendemain du shooting → "shooté"
     const dayAfter = new Date(shootDate);
     dayAfter.setDate(dayAfter.getDate() + 1);
 
     if(today >= dayAfter && s.status !== 'shoote'){
       s.status = 'shoote';
       s.status_updated_at = new Date().toISOString();
-      await dbUpdate('shoots', s.id, {
-        status: 'shoote',
-        status_updated_at: s.status_updated_at
-      });
+      await dbUpdate('shoots', s.id, {status: 'shoote', status_updated_at: s.status_updated_at});
       hasChanges = true;
     }
-    // Jour même → "en cours"
     else if(today.getTime() === shootDate.getTime() && s.status !== 'encours'){
       s.status = 'encours';
       await dbUpdate('shoots', s.id, {status: 'encours'});
       hasChanges = true;
     }
   }
-
   if(hasChanges) renderShoots();
 }
 
-// Annule une séance (avec raison)
 async function cancelShoot(id){
   const s = shoots.find(x => x.id === id);
   if(!s) return;
-
-  const reason = prompt(
-    `Annuler la séance "${s.type}" ?\n\nRaison de l'annulation (optionnel) :`,
-    ''
-  );
-  if(reason === null) return; // L'utilisateur a annulé
-
+  const reason = prompt(`Annuler la séance "${s.type}" ?\n\nRaison (optionnel) :`, '');
+  if(reason === null) return;
   const result = await dbUpdate('shoots', id, {
-    status: 'annule',
-    cancel_reason: reason.trim() || null,
+    status: 'annule', cancel_reason: reason.trim() || null,
     status_updated_at: new Date().toISOString()
   });
   if(!result) return;
-
   s.status = 'annule';
   s.cancel_reason = reason.trim() || null;
-  s.status_updated_at = result.status_updated_at;
-
   refreshAll();
   showToast('❌ Séance annulée');
 }
 
-// Réactive une séance annulée
 async function reactivateShoot(id){
   const s = shoots.find(x => x.id === id);
   if(!s) return;
@@ -983,21 +905,18 @@ async function reactivateShoot(id){
   today.setHours(0,0,0,0);
   const shootDate = new Date(s.date);
   shootDate.setHours(0,0,0,0);
-
-  // On détermine le nouveau statut selon la date
-  let newStatus = 'planifie';
   const dayAfter = new Date(shootDate);
   dayAfter.setDate(dayAfter.getDate() + 1);
+
+  let newStatus = 'planifie';
   if(today >= dayAfter) newStatus = 'shoote';
   else if(today.getTime() === shootDate.getTime()) newStatus = 'encours';
 
   const result = await dbUpdate('shoots', id, {
-    status: newStatus,
-    cancel_reason: null,
+    status: newStatus, cancel_reason: null,
     status_updated_at: new Date().toISOString()
   });
   if(!result) return;
-
   s.status = newStatus;
   s.cancel_reason = null;
   refreshAll();
@@ -1008,7 +927,6 @@ function renderShoots(){
   const el = document.getElementById('shootsList');
   if(!el) return;
 
-  // === Statistiques rapides ===
   const statsEl = document.getElementById('shootStatsRow');
   if(statsEl){
     const planifies = shoots.filter(s => s.status === 'planifie' || s.status === 'encours').length;
@@ -1038,7 +956,6 @@ function renderShoots(){
     `;
   }
 
-  // === Filtre ===
   let list = [...shoots];
   if(currentShootFilter !== 'all'){
     if(currentShootFilter === 'planifie'){
@@ -1054,7 +971,6 @@ function renderShoots(){
     return;
   }
 
-  // Infos statut
   const statusInfo = {
     'planifie': { label: '📅 Planifié', class: 'planifie' },
     'encours':  { label: '🟠 En cours', class: 'encours' },
@@ -1076,29 +992,22 @@ function renderShoots(){
     const isDone = s.status === 'shoote';
     const itemClass = isCancelled ? 'cancelled' : (isDone ? 'done' : '');
 
-    // ============================================================
-    // BOUTONS D'ACTION
-    // ============================================================
     let actionButtons = '';
 
     if(isCancelled){
-      // === SÉANCE ANNULÉE ===
-      // On peut : Réactiver + Modifier + Supprimer définitivement
       actionButtons = `
         <button class="btn-ghost" style="margin:0;padding:6px;background:rgba(46,204,113,.15);color:var(--green);border-color:var(--green);flex:1" onclick="reactivateShoot(${s.id})">🔄 Réactiver</button>
         <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})" title="Modifier">✏️</button>
-        <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--red);color:var(--red)" onclick="delShoot(${s.id})" title="Supprimer définitivement">🗑</button>
+        <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--red);color:var(--red)" onclick="delShoot(${s.id})" title="Supprimer">🗑</button>
       `;
     } else {
-      // === SÉANCE ACTIVE ===
-      // On peut : Marquer payé/impayé + Modifier + Annuler (garde historique) + Supprimer définitivement
       actionButtons = `
         <button class="btn-primary" style="margin:0;padding:6px;background:${s.payment==='paye'?'var(--yellow)':'var(--green)'};flex:1" onclick="toggleShootPayment(${s.id})">
           ${s.payment === 'paye' ? '💸 Impayé' : '✓ Payé'}
         </button>
         <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})" title="Modifier">✏️</button>
-        <button class="btn-ghost shoot-cancel-btn" style="margin:0;padding:6px" onclick="cancelShoot(${s.id})" title="Annuler (garde dans l'historique)">🚫 Annuler</button>
-        <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--red);color:var(--red)" onclick="delShoot(${s.id})" title="Supprimer définitivement">🗑</button>
+        <button class="btn-ghost shoot-cancel-btn" style="margin:0;padding:6px" onclick="cancelShoot(${s.id})" title="Annuler">🚫 Annuler</button>
+        <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--red);color:var(--red)" onclick="delShoot(${s.id})" title="Supprimer">🗑</button>
       `;
     }
 
@@ -1123,6 +1032,7 @@ function renderShoots(){
     </div>`;
   }).join('');
 }
+
 function renderPhotoStats(){
   const ym = monthKey();
   const monthShoots = shoots.filter(s => s.date && s.date.startsWith(ym));
@@ -1176,9 +1086,9 @@ function renderHealthScore(){
   else color = 'var(--red)';
   el.style.background = `conic-gradient(${color} 0% ${score}%, var(--card2) ${score}% 100%)`;
   el.innerHTML = `<span>${score}</span>`;
-  if(score >= 75){ title.textContent = '🌟 Excellente santé'; text.textContent = 'Tu es sur la bonne voie. Continue !'; }
-  else if(score >= 50){ title.textContent = '👍 Bonne santé'; text.textContent = 'Quelques ajustements pour progresser.'; }
-  else { title.textContent = '⚠ À améliorer'; text.textContent = 'Concentre-toi sur ton épargne et tes revenus.'; }
+  if(score >= 75){ title.textContent = '🌟 Excellente santé'; text.textContent = 'Continue !'; }
+  else if(score >= 50){ title.textContent = '👍 Bonne santé'; text.textContent = 'Quelques ajustements.'; }
+  else { title.textContent = '⚠ À améliorer'; text.textContent = 'Concentre-toi sur l\'épargne.'; }
 }
 
 function renderRevDepDonut(){
@@ -1213,7 +1123,7 @@ function renderShootTypesChart(){
   el.innerHTML = entries.map(([type, count]) => {
     const pct = (count / total) * 100;
     return `<div class="cat-row">
-      <div class="top"><span>📸 ${type}</span><span>${count} séance${count>1?'s':''} · ${pct.toFixed(0)}%</span></div>
+      <div class="top"><span>📸 ${type}</span><span>${count} · ${pct.toFixed(0)}%</span></div>
       <div class="bar"><div style="width:${pct}%;background:var(--pink)"></div></div></div>`;
   }).join('');
 }
@@ -1246,17 +1156,12 @@ function renderSuggestions(){
 
   if(s.totalIn > 0 && s.savingsRate < SAVINGS_TARGET){
     const missing = (s.totalIn * SAVINGS_TARGET) - (s.totalIn * s.savingsRate);
-    suggestions.push({icon:'💰', title:'Augmente ton épargne',
-      body:`Tu peux encore épargner ${fmt(missing)} ce mois.`});
+    suggestions.push({icon:'💰', title:'Augmente ton épargne', body:`Encore ${fmt(missing)}.`});
   }
   const pending = shoots.filter(s => s.payment === 'impaye').reduce((a,b) => a + Number(b.price), 0);
-  if(pending > 0) suggestions.push({icon:'📞', title:'Relance tes clients',
-    body:`${fmt(pending)} à encaisser. Un message peut accélérer.`});
-
-  if(clients.length === 0) suggestions.push({icon:'👥', title:'Commence par tes clients',
-    body:'Ajoute tes clients existants.'});
-  if(coffres.length === 0) suggestions.push({icon:'🎯', title:'Crée ton premier objectif',
-    body:'Commence petit : 50 000 FCFA.'});
+  if(pending > 0) suggestions.push({icon:'📞', title:'Relance tes clients', body:`${fmt(pending)} à encaisser.`});
+  if(clients.length === 0) suggestions.push({icon:'👥', title:'Ajoute tes clients', body:'Commence par tes clients.'});
+  if(coffres.length === 0) suggestions.push({icon:'🎯', title:'Crée un objectif', body:'50 000 FCFA pour commencer.'});
 
   if(suggestions.length === 0){
     el.innerHTML = '<div class="empty">Tout est en ordre ! 🎉</div>';
@@ -1383,7 +1288,7 @@ async function deleteAllFiltered(){
   const filtered = getFilteredTx();
   if(filtered.length === 0){ alert("Aucune transaction à supprimer"); return; }
   if(!confirm(`⚠ Supprimer ${filtered.length} transaction(s) ?`)) return;
-  if(!confirm(`Confirmer la suppression définitive ?`)) return;
+  if(!confirm(`Confirmer ?`)) return;
   for(const t of filtered) await dbDelete('transactions', t.id);
   const ids = new Set(filtered.map(t => t.id));
   txs = txs.filter(t => !ids.has(t.id));
@@ -1437,10 +1342,7 @@ function exportHistoryJSON(){
 function exportHistoryPDF(){
   const filtered = getFilteredTx();
   if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
-  if(!window.jspdf || !window.jspdf.jsPDF){
-    alert("La bibliothèque PDF n'est pas encore chargée.");
-    return;
-  }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert("PDF non chargé"); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
@@ -1454,24 +1356,13 @@ function exportHistoryPDF(){
   doc.setFont('helvetica', 'normal');
   doc.text("Ma Super App — " + new Date().toLocaleDateString('fr-FR'), 14, 23);
 
-  doc.setTextColor(60, 60, 60);
-  doc.setFontSize(10);
-  const month  = document.getElementById('histMonth').value;
-  const type   = document.getElementById('histType').value;
-  const cat    = document.getElementById('histCategory').value;
-  doc.text(`Mois : ${month === 'all' ? 'Tous' : month} | Type : ${type === 'all' ? 'Tous' : type} | Catégorie : ${cat === 'all' ? 'Toutes' : cat}`, 14, 40);
-
   const totalIn  = filtered.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount), 0);
   const totalOut = filtered.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount), 0);
   const solde    = totalIn - totalOut;
 
+  doc.setTextColor(60, 60, 60);
   doc.setFontSize(11);
-  doc.setTextColor(46, 204, 113);
-  doc.text(`Revenus : ${fmt(totalIn)}`, 14, 50);
-  doc.setTextColor(255, 92, 92);
-  doc.text(`Dépenses : ${fmt(totalOut)}`, 80, 50);
-  doc.setTextColor(solde >= 0 ? 46 : 255, solde >= 0 ? 204 : 92, solde >= 0 ? 113 : 92);
-  doc.text(`Solde : ${fmt(solde)}`, 146, 50);
+  doc.text(`Revenus : ${fmt(totalIn)}  |  Dépenses : ${fmt(totalOut)}  |  Solde : ${fmt(solde)}`, 14, 45);
 
   const rows = filtered.map(t => [
     new Date(t.date).toLocaleDateString('fr-FR'),
@@ -1482,23 +1373,14 @@ function exportHistoryPDF(){
   ]);
 
   doc.autoTable({
-    startY: 58,
+    startY: 52,
     head: [['Date', 'Type', 'Catégorie', 'Montant', 'Note']],
     body: rows,
     theme: 'striped',
     headStyles: {fillColor: [108, 140, 255], textColor: 255, fontStyle: 'bold'},
-    bodyStyles: {fontSize: 9, textColor: 40},
-    alternateRowStyles: {fillColor: [245, 247, 250]},
-    columnStyles: {0: {cellWidth: 22}, 1: {cellWidth: 20}, 2: {cellWidth: 35}, 3: {cellWidth: 30, halign: 'right'}, 4: {cellWidth: 'auto'}}
+    bodyStyles: {fontSize: 9, textColor: 40}
   });
 
-  const pageCount = doc.internal.getNumberOfPages();
-  for(let i = 1; i <= pageCount; i++){
-    doc.setPage(i);
-    doc.setFontSize(9);
-    doc.setTextColor(140, 140, 140);
-    doc.text(`Page ${i} / ${pageCount}  —  Ma Super App`, 14, doc.internal.pageSize.height - 10);
-  }
   doc.save(`historique-${todayStr()}.pdf`);
 }
 
@@ -1627,7 +1509,7 @@ async function saveIdeasAI(text){
     if(!user) return;
     const { error } = await sb.from('user_settings')
       .upsert({ user_id: user.id, ideas_ai: text, ideas_ai_date: dateStr }, { onConflict: 'user_id' });
-    if(error) console.warn('saveIdeasAI Supabase:', error.message);
+    if(error) console.warn('saveIdeasAI:', error.message);
   } catch(e){ console.warn('saveIdeasAI error:', e); }
 }
 
@@ -1637,12 +1519,9 @@ async function clearIdeasAI(){
   localStorage.removeItem('ideas_ai_last_date');
   try {
     const user = await getCurrentUser();
-    if(user){
-      await sb.from('user_settings').update({ ideas_ai: null, ideas_ai_date: null }).eq('user_id', user.id);
-    }
+    if(user) await sb.from('user_settings').update({ ideas_ai: null, ideas_ai_date: null }).eq('user_id', user.id);
   } catch(e){ console.warn('clearIdeasAI error:', e); }
-  document.getElementById('ideasAIOutput').innerHTML =
-    '<div class="empty">Clique sur <strong>Générer</strong> pour obtenir 5 idées de business personnalisées.</div>';
+  document.getElementById('ideasAIOutput').innerHTML = '<div class="empty">Clique sur <strong>Générer</strong>.</div>';
   document.getElementById('ideasLastUpdate').classList.remove('visible');
   document.getElementById('ideasCopyBtn').disabled = true;
   document.getElementById('ideasPdfBtn').disabled = true;
@@ -1674,10 +1553,7 @@ function exportIdeasAIPDF(){
   const text = localStorage.getItem('ideas_ai_last');
   const date = localStorage.getItem('ideas_ai_last_date');
   if(!text){ alert('Aucune idée à exporter'); return; }
-  if(!window.jspdf || !window.jspdf.jsPDF){
-    alert('La bibliothèque PDF n\'est pas encore chargée.');
-    return;
-  }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('PDF non chargé'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   doc.setFillColor(255, 107, 157);
@@ -1687,7 +1563,6 @@ function exportIdeasAIPDF(){
   doc.setFont('helvetica', 'bold');
   doc.text("Idées de business IA", 14, 16);
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
   if(date) doc.text(date, 14, 24);
   const cleanText = text.replace(/\*\*/g, '').replace(/→/g, '•');
   doc.setTextColor(40, 40, 40);
@@ -1700,13 +1575,6 @@ function exportIdeasAIPDF(){
     doc.text(line, 14, y);
     y += 6;
   });
-  const pageCount = doc.internal.getNumberOfPages();
-  for(let i = 1; i <= pageCount; i++){
-    doc.setPage(i);
-    doc.setFontSize(9);
-    doc.setTextColor(140, 140, 140);
-    doc.text(`Page ${i} / ${pageCount}  —  Ma Super App`, 14, doc.internal.pageSize.height - 8);
-  }
   doc.save(`idees-ia-${todayStr()}.pdf`);
 }
 
@@ -1715,38 +1583,27 @@ async function generateAIIdeas(){
   try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
   if(!cfg || !cfg.key){ alert("Configure ta clé dans l'onglet IA"); return; }
   const out = document.getElementById('ideasAIOutput');
-  out.innerHTML = '<div class="empty">⏳ Génération en cours... (5 à 15 secondes)</div>';
+  out.innerHTML = '<div class="empty">⏳ Génération en cours...</div>';
   const summary = buildSummary();
-  const prompt = `Voici le profil financier et photo d'une personne :
+  const prompt = `Voici le profil : ${summary}\n\nGénère 5 idées de business CONCRÈTES et ADAPTÉES (photographe).
+Format strict :
+1. [Titre]
+   → [Description]
+   → Revenu potentiel: [fourchette FCFA]
+   → Difficulté: Facile/Moyenne/Difficile
+(etc.)
 
-${summary}
-
-Génère 5 idées de business CONCRÈTES et ADAPTÉES à ce profil (photographe, veut diversifier ses revenus).
-Format strict, chaque idée sur un numéro :
-1. [Titre court]
-   → [Description en 2 lignes]
-   → Revenu potentiel: [fourchette en FCFA]
-   → Difficulté: Facile / Moyenne / Difficile
-2. [Titre]
-   → ...
-(etc. pour les 5)
-
-N'utilise PAS d'astérisques. Sois concret et chiffré.`;
+N'utilise PAS d'astérisques.`;
   try {
     const text = await callAI(prompt);
-    if(!text || !text.trim()){
-      out.innerHTML = '<div class="empty">❌ Pas de réponse de l\'IA.</div>';
-      return;
-    }
+    if(!text || !text.trim()){ out.innerHTML = '<div class="empty">❌ Pas de réponse.</div>'; return; }
     await saveIdeasAI(text);
     out.innerHTML = formatIdeasText(text);
     document.getElementById('ideasCopyBtn').disabled = false;
     document.getElementById('ideasPdfBtn').disabled = false;
     document.getElementById('ideasClearBtn').disabled = false;
     const dateEl = document.getElementById('ideasLastUpdate');
-    dateEl.textContent = '🕐 Dernière génération : ' + new Date().toLocaleString('fr-FR', {
-      day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
-    });
+    dateEl.textContent = '🕐 Dernière génération : ' + new Date().toLocaleString('fr-FR');
     dateEl.classList.add('visible');
   } catch(e){
     out.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
@@ -1780,33 +1637,22 @@ const NOTIF_MESSAGES = {
     {i:'🌅', t:'Bonjour !', m:'Nouvelle journée, nouvelle opportunité.'},
     {i:'☀️', t:'C\'est le matin !', m:'La discipline du matin fait la réussite du soir.'},
     {i:'🚀', t:'Debout !', m:'Les gagnants se lèvent avant les autres.'},
-    {i:'💪', t:'Coucou !', m:'Aujourd\'hui, sois meilleur que hier.'},
-    {i:'🔥', t:'Allez !', m:'Ta seule limite, c\'est toi-même.'},
-    {i:'⭐', t:'Bon réveil !', m:'Un petit pas aujourd\'hui vaut mieux qu\'un grand demain.'},
-    {i:'🌱', t:'Nouveau jour', m:'Plante aujourd\'hui ce que tu veux récolter.'},
-    {i:'🎯', t:'Objectif du jour', m:'Décide maintenant ce que tu vas accomplir.'},
-    {i:'🏆', t:'Champion', m:'Les champions se lèvent quand les autres dorment.'},
-    {i:'💎', t:'Réveil précieux', m:'Ton temps est ta ressource la plus précieuse.'}
+    {i:'💪', t:'Coucou !', m:'Sois meilleur que hier.'},
+    {i:'🔥', t:'Allez !', m:'Ta seule limite, c\'est toi-même.'}
   ],
   midday: [
     {i:'💰', t:'Conseil finance', m:'Avant chaque achat, demande-toi : "En ai-je vraiment besoin ?"'},
     {i:'📸', t:'Astuce photo', m:'Publie 1 photo de ton travail aujourd\'hui.'},
     {i:'💡', t:'Idée business', m:'Un client satisfait = 3 recommandations.'},
     {i:'🎯', t:'Focus', m:'Écris tes 3 priorités du jour.'},
-    {i:'📊', t:'Conseil', m:'Note tes dépenses. La conscience est le 1er pas.'},
-    {i:'💼', t:'Business', m:'Propose un mini-shooting à 3 anciens clients.'},
-    {i:'💎', t:'Conseil', m:'Épargner 1000 FCFA/jour = 30 000 FCFA/mois.'},
-    {i:'💵', t:'Rappel', m:'Mets 20% de chaque revenu de côté AVANT de dépenser.'}
+    {i:'💎', t:'Conseil', m:'Épargner 1000 FCFA/jour = 30 000 FCFA/mois.'}
   ],
   evening: [
     {i:'🌙', t:'Bilan du jour', m:'As-tu épargné quelque chose aujourd\'hui ?'},
     {i:'💰', t:'Pense à épargner', m:'Ouvre ton app et ajoute tes transactions.'},
     {i:'🎯', t:'Objectifs', m:'Chaque jour sans épargne est un jour de retard.'},
     {i:'🔥', t:'Discipline', m:'Le succès est un choix quotidien.'},
-    {i:'📸', t:'Bilan photo', m:'As-tu relancé tes clients impayés ?'},
-    {i:'⭐', t:'Bien joué', m:'Tu as survécu à une journée de plus.'},
-    {i:'💪', t:'Repose-toi', m:'Le repos est aussi productif que le travail.'},
-    {i:'📖', t:'Bilan', m:'Note 3 choses positives qui sont arrivées.'}
+    {i:'💪', t:'Repose-toi', m:'Le repos est aussi productif que le travail.'}
   ]
 };
 
@@ -1823,7 +1669,7 @@ async function toggleNotifications(){
     return;
   }
   if(!('Notification' in window)){
-    document.getElementById('notifStatus').textContent = '❌ Non supporté sur ce navigateur';
+    document.getElementById('notifStatus').textContent = '❌ Non supporté';
     return;
   }
   const permission = await Notification.requestPermission();
@@ -1842,10 +1688,10 @@ async function toggleNotifications(){
     updateNotifButton();
     setTimeout(registerOneSignalPlayer, 2000);
     await showLocalNotification('🔥 Notifications activées',
-      'Tu recevras tes rappels sur tous tes appareils, même app fermée 💪');
+      'Tu recevras tes rappels sur tous tes appareils 💪');
   } catch(e){
     console.error('OneSignal error:', e);
-    document.getElementById('notifStatus').textContent = '❌ Erreur : ' + e.message;
+    document.getElementById('notifStatus').textContent = '❌ ' + e.message;
   }
 }
 
@@ -1925,10 +1771,8 @@ function onReminderTypeChange(){
 function openReminderModal(id){
   editingReminderId = id || null;
   const r = id ? reminders.find(x => x.id === id) : null;
-  document.getElementById('reminderModalTitle').textContent =
-    r ? '✏️ Modifier le rappel' : '⏰ Nouveau rappel';
-  document.getElementById('reminderSubmit').textContent =
-    r ? '💾 Enregistrer les modifications' : '➕ Créer le rappel';
+  document.getElementById('reminderModalTitle').textContent = r ? '✏️ Modifier' : '⏰ Nouveau rappel';
+  document.getElementById('reminderSubmit').textContent = r ? '💾 Enregistrer' : '➕ Créer';
 
   if(r){
     let savedType = r.type || 'perso';
@@ -1992,9 +1836,7 @@ async function saveReminder(){
     if(idx >= 0) reminders[idx] = result;
     closeReminderModal();
     refreshAll();
-    alert('✅ Rappel modifié !\n' + new Date(dueDate).toLocaleString('fr-FR', {
-      weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
-    }));
+    alert('✅ Rappel modifié !');
     return;
   }
 
@@ -2003,9 +1845,7 @@ async function saveReminder(){
   reminders.push(result);
   closeReminderModal();
   refreshAll();
-  alert('✅ Rappel créé !\n' + new Date(dueDate).toLocaleString('fr-FR', {
-    weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'
-  }) + '\n\nMême app fermée 🔔');
+  alert('✅ Rappel créé !\nMême app fermée 🔔');
 }
 
 async function delReminder(id){
@@ -2175,7 +2015,7 @@ async function saveAnalysis(text){
     if(!user) return;
     const { error } = await sb.from('user_settings')
       .upsert({ user_id: user.id, ai_analysis: text, ai_analysis_date: dateStr }, { onConflict: 'user_id' });
-    if(error) console.warn('saveAnalysis Supabase:', error.message);
+    if(error) console.warn('saveAnalysis:', error.message);
   } catch(e){ console.warn('saveAnalysis error:', e); }
 }
 
@@ -2185,12 +2025,10 @@ async function clearAnalysis(){
   localStorage.removeItem('ai_last_analysis_date');
   try {
     const user = await getCurrentUser();
-    if(user){
-      await sb.from('user_settings').update({ ai_analysis: null, ai_analysis_date: null }).eq('user_id', user.id);
-    }
+    if(user) await sb.from('user_settings').update({ ai_analysis: null, ai_analysis_date: null }).eq('user_id', user.id);
   } catch(e){ console.warn('clearAnalysis error:', e); }
   document.getElementById('aiOutput').innerHTML =
-    '<div class="empty">Clique sur <strong>Analyser</strong> pour obtenir ton bilan personnalisé.</div>';
+    '<div class="empty">Clique sur <strong>Analyser</strong>.</div>';
   document.getElementById('aiLastUpdate').classList.remove('visible');
   document.getElementById('aiCopyBtn').disabled = true;
   document.getElementById('aiPdfBtn').disabled = true;
@@ -2222,10 +2060,7 @@ function exportAnalysisPDF(){
   const text = localStorage.getItem('ai_last_analysis');
   const date = localStorage.getItem('ai_last_analysis_date');
   if(!text){ alert('Aucune analyse à exporter'); return; }
-  if(!window.jspdf || !window.jspdf.jsPDF){
-    alert('La bibliothèque PDF n\'est pas encore chargée.');
-    return;
-  }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('PDF non chargé'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   doc.setFillColor(108, 140, 255);
@@ -2235,7 +2070,6 @@ function exportAnalysisPDF(){
   doc.setFont('helvetica', 'bold');
   doc.text("Analyse financière IA", 14, 16);
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
   if(date) doc.text(date, 14, 24);
   const cleanText = text.replace(/\*\*/g, '');
   doc.setTextColor(40, 40, 40);
@@ -2248,13 +2082,6 @@ function exportAnalysisPDF(){
     doc.text(line, 14, y);
     y += 6;
   });
-  const pageCount = doc.internal.getNumberOfPages();
-  for(let i = 1; i <= pageCount; i++){
-    doc.setPage(i);
-    doc.setFontSize(9);
-    doc.setTextColor(140, 140, 140);
-    doc.text(`Page ${i} / ${pageCount}  —  Ma Super App`, 14, doc.internal.pageSize.height - 8);
-  }
   doc.save(`analyse-ia-${todayStr()}.pdf`);
 }
 
@@ -2298,9 +2125,8 @@ function buildSummary(){
     `Solde: ${Math.round(s.bal)}`, `Taux épargne: ${(s.savingsRate * 100).toFixed(1)}%`
   ];
   if(s.sortedCats.length) lines.push('Répartition: '+s.sortedCats.map(([c,a])=>`${c}=${Math.round(a)}`).join(', '));
-  if(s.prevOut || s.prevIn) lines.push(`Mois-1 — rev: ${Math.round(s.prevIn)}, dép: ${Math.round(s.prevOut)}`);
   if(coffres.length){
-    lines.push("Objectifs d'épargne:");
+    lines.push("Objectifs:");
     coffres.forEach(c => lines.push(`- ${c.name}: ${Math.round(c.current)}/${Math.round(c.goal)} (${((c.current/c.goal)*100).toFixed(0)}%)`));
   }
   if(shoots.length){
@@ -2309,16 +2135,9 @@ function buildSummary(){
     lines.push(`Séances photo ce mois: ${ms.length}`);
     const r = ms.filter(s => s.payment === 'paye').reduce((a,b) => a + Number(b.price), 0);
     lines.push(`Revenus photo: ${Math.round(r)}`);
-    const types = {};
-    shoots.forEach(sh => types[sh.type] = (types[sh.type]||0)+1);
-    lines.push('Types de séances: ' + Object.entries(types).map(([t,c])=>`${t}=${c}`).join(', '));
   }
-  if(clients.length){
-    lines.push(`Clients: ${clients.length}`);
-    const cities = [...new Set(clients.map(c => c.city).filter(x => x))];
-    if(cities.length) lines.push(`Villes clients: ${cities.join(', ')}`);
-  }
-  if(inspirations.length) lines.push(`Inspirations suivies: ${inspirations.length}`);
+  if(clients.length) lines.push(`Clients: ${clients.length}`);
+  if(inspirations.length) lines.push(`Inspirations: ${inspirations.length}`);
   const recent = [...txs].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 15);
   if(recent.length){
     lines.push('Transactions récentes:');
@@ -2375,13 +2194,13 @@ async function askAI(){
   try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
   if(!cfg || !cfg.key){ alert("Configure ta clé dans cette page"); return; }
   const out = document.getElementById('aiOutput');
-  out.innerHTML = '<div class="empty">⏳ Analyse en cours... (5 à 15 secondes)</div>';
+  out.innerHTML = '<div class="empty">⏳ Analyse en cours...</div>';
   const summary = buildSummary();
-  const prompt = `Tu es un conseiller financier personnel, direct et bienveillant. Voici le résumé :
+  const prompt = `Tu es un conseiller financier personnel. Voici le résumé :
 
 ${summary}
 
-Analyse en français, en 8 points numérotés. Chaque point DOIT commencer par son numéro suivi d'un titre court puis deux points :
+Analyse en français, en 8 points numérotés :
 1. Diagnostic global
 2. Taux d'épargne
 3. Poste à surveiller
@@ -2391,67 +2210,54 @@ Analyse en français, en 8 points numérotés. Chaque point DOIT commencer par s
 7. Action immédiate aujourd'hui
 8. Encouragement personnalisé
 
-Concret, chiffré, pas de blabla. N'utilise PAS d'astérisques. Écris en français simple.`;
+Concret, chiffré. N'utilise PAS d'astérisques.`;
   try {
     const text = await callAI(prompt);
-    if(!text || !text.trim()){
-      out.innerHTML = '<div class="empty">❌ Pas de réponse de l\'IA. Réessaie.</div>';
-      return;
-    }
+    if(!text || !text.trim()){ out.innerHTML = '<div class="empty">❌ Pas de réponse.</div>'; return; }
     await saveAnalysis(text);
     out.innerHTML = formatAnalysisText(text);
     document.getElementById('aiCopyBtn').disabled = false;
     document.getElementById('aiPdfBtn').disabled = false;
     document.getElementById('aiClearBtn').disabled = false;
     const dateEl = document.getElementById('aiLastUpdate');
-    dateEl.textContent = '🕐 Dernière analyse : ' + new Date().toLocaleString('fr-FR', {
-      day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
-    });
+    dateEl.textContent = '🕐 Dernière analyse : ' + new Date().toLocaleString('fr-FR');
     dateEl.classList.add('visible');
   } catch(e){
     out.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
   }
 }
+
 // ============================================================
 // CHAT IA
 // ============================================================
-
-let chatHistory = [];       // [{ role: 'user'|'assistant', content, ts }]
+let chatHistory = [];
 let chatSending = false;
 
-// Clé unique par utilisateur
 async function getChatStorageKey(){
   const user = await getCurrentUser();
   return 'chat_history_' + (user?.email || 'anon');
 }
 
-// Charge l'historique depuis localStorage
 async function loadChatHistory(){
   try {
     const key = await getChatStorageKey();
     const raw = localStorage.getItem(key);
     chatHistory = raw ? JSON.parse(raw) : [];
-  } catch(e){
-    chatHistory = [];
-  }
+  } catch(e){ chatHistory = []; }
 }
 
-// Sauvegarde l'historique
 async function saveChatHistory(){
   try {
     const key = await getChatStorageKey();
-    // On garde max 100 messages pour ne pas exploser localStorage
     const toSave = chatHistory.slice(-100);
     localStorage.setItem(key, JSON.stringify(toSave));
   } catch(e){ console.warn(e); }
 }
 
-// Ouvre le chat
 async function openChat(){
   await loadChatHistory();
   document.getElementById('chatModalBg').classList.add('show');
 
-  // Si pas d'historique, message de bienvenue
   if(chatHistory.length === 0){
     const user = await getCurrentUser();
     const s = computeStats();
@@ -2464,13 +2270,9 @@ Je suis ton assistant IA. Je connais déjà ta situation :
 • Revenus : ${fmt(s.totalIn)} | Dépenses : ${fmt(s.totalOut)}
 • ${clients.length} clients · ${shoots.length} séances · ${coffres.length} objectifs
 
-Pose-moi n'importe quelle question : sur tes dépenses, tes économies, tes clients, un plan d'action... Je suis là pour t'aider concrètement. 💪`;
+Pose-moi n'importe quelle question ! 💪`;
 
-    chatHistory.push({
-      role: 'assistant',
-      content: welcome,
-      ts: Date.now()
-    });
+    chatHistory.push({ role: 'assistant', content: welcome, ts: Date.now() });
     await saveChatHistory();
   }
 
@@ -2482,7 +2284,6 @@ function closeChat(){
   document.getElementById('chatModalBg').classList.remove('show');
 }
 
-// Envoie un message suggéré
 function sendSuggestion(text){
   const input = document.getElementById('chatInput');
   if(input){
@@ -2491,20 +2292,17 @@ function sendSuggestion(text){
   }
 }
 
-// Envoie un message
 async function sendChatMessage(){
   if(chatSending) return;
-
   const input = document.getElementById('chatInput');
   const btn = document.getElementById('chatSendBtn');
   const text = (input?.value || '').trim();
   if(!text) return;
 
-  // Vérifie la config IA
   let cfg = null;
   try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
   if(!cfg || !cfg.key){
-    alert("Configure d'abord ta clé API IA dans cette page (bloc en haut).");
+    alert("Configure d'abord ta clé API IA.");
     return;
   }
 
@@ -2513,12 +2311,10 @@ async function sendChatMessage(){
   input.style.height = 'auto';
   btn.disabled = true;
 
-  // Ajoute le message utilisateur
   chatHistory.push({ role: 'user', content: text, ts: Date.now() });
   await saveChatHistory();
   renderChatMessages();
 
-  // Message de "chargement"
   const loadingMsg = document.createElement('div');
   loadingMsg.className = 'chat-msg assistant typing';
   loadingMsg.id = 'chatLoading';
@@ -2528,21 +2324,13 @@ async function sendChatMessage(){
 
   try {
     const response = await callChatAI(text);
-
-    // Retire le message de chargement
     document.getElementById('chatLoading')?.remove();
-
-    // Ajoute la réponse
     chatHistory.push({ role: 'assistant', content: response, ts: Date.now() });
     await saveChatHistory();
     renderChatMessages();
   } catch(e){
     document.getElementById('chatLoading')?.remove();
-    chatHistory.push({
-      role: 'assistant',
-      content: '❌ Erreur : ' + e.message,
-      ts: Date.now()
-    });
+    chatHistory.push({ role: 'assistant', content: '❌ Erreur : ' + e.message, ts: Date.now() });
     renderChatMessages();
   } finally {
     chatSending = false;
@@ -2550,7 +2338,6 @@ async function sendChatMessage(){
   }
 }
 
-// Construit le contexte complet de l'utilisateur
 function buildChatContext(){
   const s = computeStats();
   const lines = [];
@@ -2561,23 +2348,22 @@ function buildChatContext(){
   lines.push(`Dépenses : ${Math.round(s.totalOut)} ${CURRENCY}`);
   lines.push(`Solde : ${Math.round(s.bal)} ${CURRENCY}`);
   lines.push(`Taux d'épargne : ${(s.savingsRate * 100).toFixed(1)}%`);
-  lines.push(`Prévision fin de mois : ${Math.round(s.projectedBal)} ${CURRENCY}`);
 
   if(s.sortedCats.length > 0){
     lines.push('');
-    lines.push('=== RÉPARTITION DÉPENSES (ce mois) ===');
+    lines.push('=== DÉPENSES PAR CATÉGORIE ===');
     s.sortedCats.slice(0, 8).forEach(([cat, amt]) => {
       const pct = (amt / s.totalOut * 100).toFixed(0);
-      lines.push(`• ${cat} : ${Math.round(amt)} ${CURRENCY} (${pct}%)`);
+      lines.push(`• ${cat} : ${Math.round(amt)} (${pct}%)`);
     });
   }
 
   if(coffres.length > 0){
     lines.push('');
-    lines.push('=== OBJECTIFS D\'ÉPARGNE ===');
+    lines.push('=== OBJECTIFS ===');
     coffres.forEach(c => {
       const pct = ((c.current / c.goal) * 100).toFixed(0);
-      lines.push(`• ${c.name} : ${Math.round(c.current)}/${Math.round(c.goal)} ${CURRENCY} (${pct}%)${c.target_date ? ' — cible ' + c.target_date : ''}`);
+      lines.push(`• ${c.name} : ${Math.round(c.current)}/${Math.round(c.goal)} (${pct}%)`);
     });
   }
 
@@ -2596,28 +2382,23 @@ function buildChatContext(){
     sorted.forEach(sh => {
       const client = sh.client_id ? clients.find(c => c.id === sh.client_id) : null;
       const dateStr = sh.date ? new Date(sh.date).toLocaleDateString('fr-FR') : '?';
-      lines.push(`• ${dateStr} — ${sh.type}${client ? ' avec ' + client.name : ''} — ${Math.round(sh.price)} ${CURRENCY} — ${sh.payment === 'paye' ? 'payé' : 'impayé'}`);
+      lines.push(`• ${dateStr} — ${sh.type}${client ? ' avec ' + client.name : ''} — ${Math.round(sh.price)} — ${sh.payment === 'paye' ? 'payé' : 'impayé'}`);
     });
-    const pending = shoots.filter(sh => sh.payment === 'impaye').reduce((a,b) => a + Number(b.price), 0);
-    if(pending > 0){
-      lines.push(`Total à encaisser : ${Math.round(pending)} ${CURRENCY}`);
-    }
   }
 
   const recentTx = [...txs].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 15);
   if(recentTx.length > 0){
     lines.push('');
-    lines.push('=== 15 DERNIÈRES TRANSACTIONS ===');
+    lines.push('=== TRANSACTIONS RÉCENTES ===');
     recentTx.forEach(t => {
       const sign = t.type === 'revenu' ? '+' : '-';
-      lines.push(`• ${t.date} ${sign}${Math.round(t.amount)} ${CURRENCY} — ${t.category}${t.note ? ' (' + t.note + ')' : ''}`);
+      lines.push(`• ${t.date} ${sign}${Math.round(t.amount)} — ${t.category}${t.note ? ' (' + t.note + ')' : ''}`);
     });
   }
 
   return lines.join('\n');
 }
 
-// Appel IA spécifique au chat (avec contexte complet + historique)
 async function callChatAI(userMessage){
   let cfg = null;
   try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
@@ -2625,43 +2406,35 @@ async function callChatAI(userMessage){
 
   const context = buildChatContext();
 
-  // Construit l'historique au format messages pour l'IA
-  // On garde les 10 derniers échanges (20 messages max)
   const recentHistory = chatHistory
     .filter(m => m.role === 'user' || m.role === 'assistant')
     .slice(-20)
     .map(m => ({ role: m.role, content: m.content }));
 
-  // Retire le dernier message (c'est celui qu'on vient d'ajouter et qu'on veut envoyer avec le contexte)
   if(recentHistory.length > 0 && recentHistory[recentHistory.length - 1].role === 'user'){
     recentHistory.pop();
   }
 
-  const systemPrompt = `Tu es un assistant financier personnel, direct, bienveillant et concret.
+  const systemPrompt = `Tu es un assistant financier personnel, direct et concret.
 
-Voici TOUTES les données actuelles de l'utilisateur :
+Voici TOUTES les données de l'utilisateur :
 
 ${context}
 
 RÈGLES :
-- Réponds toujours en français, de façon claire et amicale.
-- Base-toi UNIQUEMENT sur ces données réelles. Ne les invente pas.
-- Donne des conseils CONCRETS et CHIFFRÉS quand c'est possible.
-- Si l'utilisateur demande un plan, propose des étapes simples.
-- Utilise des emojis avec modération pour rendre ça vivant.
-- Ne fais pas de longs discours. Va à l'essentiel.
-- Si on te demande quelque chose que tu ne sais pas, dis-le honnêtement.
-- N'utilise PAS d'astérisques ** dans tes réponses.`;
+- Réponds en français, clair et amical.
+- Base-toi sur ces données réelles.
+- Conseils CONCRETS et CHIFFRÉS.
+- Emojis avec modération.
+- N'utilise PAS d'astérisques **.`;
 
-  // Construit le tableau complet de messages
   const messages = [
-    { role: 'user', content: systemPrompt + '\n\nCompris ? Réponds juste "OK" pour confirmer.' },
-    { role: 'assistant', content: 'OK, je suis prêt à t\'aider avec tes données réelles.' },
+    { role: 'user', content: systemPrompt + '\n\nRéponds juste "OK".' },
+    { role: 'assistant', content: 'OK.' },
     ...recentHistory,
     { role: 'user', content: userMessage }
   ];
 
-  // ==== ANTHROPIC ====
   if(cfg.provider === 'anthropic'){
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -2672,10 +2445,8 @@ RÈGLES :
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: AI_MODELS.anthropic,
-        max_tokens: 1500,
-        system: systemPrompt,
-        messages: messages.slice(2) // on retire le fake system
+        model: AI_MODELS.anthropic, max_tokens: 1500,
+        system: systemPrompt, messages: messages.slice(2)
       })
     });
     const j = await r.json();
@@ -2683,45 +2454,32 @@ RÈGLES :
     return j.content?.[0]?.text || 'Pas de réponse';
   }
 
-  // ==== GEMINI ====
   if(cfg.provider === 'gemini'){
-    // Gemini : on préfixe le contexte au premier message
     const geminiMessages = messages.map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }]
     }));
-
     const r = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.gemini}:generateContent?key=${cfg.key}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: geminiMessages })
-      }
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: geminiMessages }) }
     );
     const j = await r.json();
     if(j.error) throw new Error(j.error.message);
     return j.candidates?.[0]?.content?.parts?.[0]?.text || 'Pas de réponse';
   }
 
-  // ==== OPENAI / CUSTOM ====
   const url = cfg.provider === 'custom' && cfg.url ? cfg.url : 'https://api.openai.com/v1/chat/completions';
   const r = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
-    body: JSON.stringify({
-      model: AI_MODELS.openai,
-      messages: messages,
-      temperature: 0.7,
-      max_tokens: 1500
-    })
+    body: JSON.stringify({ model: AI_MODELS.openai, messages, temperature: 0.7, max_tokens: 1500 })
   });
   const j = await r.json();
   if(j.error) throw new Error(j.error.message);
   return j.choices?.[0]?.message?.content || 'Pas de réponse';
 }
 
-// Affiche les messages
 function renderChatMessages(){
   const el = document.getElementById('chatMessages');
   if(!el) return;
@@ -2750,18 +2508,13 @@ function scrollChatToBottom(){
   if(el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
 }
 
-// Copie un message spécifique
 function copyChatMessage(idx){
   const m = chatHistory[idx];
   if(!m) return;
   const text = m.content;
   if(navigator.clipboard){
-    navigator.clipboard.writeText(text).then(() => {
-      // Petit feedback visuel
-      const btns = document.querySelectorAll('.chat-msg-btn');
-      // On ne sait pas exactement lequel, donc on affiche un toast
-      showToast('✅ Copié !');
-    }).catch(() => fallbackCopy(text));
+    navigator.clipboard.writeText(text).then(() => showToast('✅ Copié !'))
+      .catch(() => fallbackCopy(text));
   } else {
     fallbackCopy(text);
   }
@@ -2776,7 +2529,6 @@ function fallbackCopy(text){
   showToast('✅ Copié !');
 }
 
-// Copie TOUT le chat
 function copyFullChat(){
   if(chatHistory.length === 0){ alert('Aucun message'); return; }
   const text = chatHistory.map(m => {
@@ -2792,31 +2544,24 @@ function copyFullChat(){
   }
 }
 
-// Efface tout le chat
 async function clearChat(){
   if(!confirm('Effacer toute la conversation ?')) return;
   chatHistory = [];
   await saveChatHistory();
   renderChatMessages();
-  // Rouvre avec le message d'accueil
   closeChat();
   setTimeout(() => openChat(), 200);
 }
 
-// Export PDF de la conversation
 function exportChatPDF(){
   if(chatHistory.length === 0){ alert('Aucun message à exporter'); return; }
-  if(!window.jspdf || !window.jspdf.jsPDF){
-    alert('Bibliothèque PDF non chargée');
-    return;
-  }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('PDF non chargé'); return; }
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   const pageWidth = 190;
   let y = 20;
 
-  // En-tête
   doc.setFillColor(108, 140, 255);
   doc.rect(0, 0, 210, 28, 'F');
   doc.setTextColor(255, 255, 255);
@@ -2833,7 +2578,6 @@ function exportChatPDF(){
     const who = isUser ? '👤 TOI' : '🤖 IA';
     const dateStr = m.ts ? new Date(m.ts).toLocaleString('fr-FR', {hour: '2-digit', minute: '2-digit'}) : '';
 
-    // Auteur
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(isUser ? 108 : 46, isUser ? 140 : 180, isUser ? 255 : 100);
@@ -2841,7 +2585,6 @@ function exportChatPDF(){
     doc.text(who + (dateStr ? ' — ' + dateStr : ''), 14, y);
     y += 6;
 
-    // Contenu
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(40, 40, 40);
     doc.setFontSize(10);
@@ -2851,22 +2594,12 @@ function exportChatPDF(){
       doc.text(line, 14, y);
       y += 5;
     });
-    y += 6; // espace entre messages
+    y += 6;
   });
-
-  // Numérotation
-  const pageCount = doc.internal.getNumberOfPages();
-  for(let i = 1; i <= pageCount; i++){
-    doc.setPage(i);
-    doc.setFontSize(9);
-    doc.setTextColor(140, 140, 140);
-    doc.text(`Page ${i} / ${pageCount}  —  Ma Super App`, 14, doc.internal.pageSize.height - 8);
-  }
 
   doc.save(`chat-ia-${todayStr()}.pdf`);
 }
 
-// Petit toast (message temporaire en haut)
 function showToast(message){
   const toast = document.createElement('div');
   toast.textContent = message;
@@ -2875,7 +2608,6 @@ function showToast(message){
     background: var(--green); color: #000; padding: 10px 20px;
     border-radius: 20px; font-size: 13px; font-weight: 700;
     z-index: 999; box-shadow: 0 4px 20px rgba(0,0,0,.3);
-    animation: toastIn .2s ease-out;
   `;
   document.body.appendChild(toast);
   setTimeout(() => {
@@ -2885,7 +2617,6 @@ function showToast(message){
   }, 1500);
 }
 
-// Auto-resize du textarea
 document.addEventListener('DOMContentLoaded', () => {
   const input = document.getElementById('chatInput');
   if(input){
@@ -2897,7 +2628,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================
-// SERVICE WORKER MESSAGE (clic notification)
+// SERVICE WORKER MESSAGE
 // ============================================================
 if('serviceWorker' in navigator){
   navigator.serviceWorker.addEventListener('message', (event) => {
@@ -2931,12 +2662,8 @@ function init(){
   loadSavedAnalysis();
   loadIdeasAI();
   renderInspirations();
-
-  // Met à jour les statuts de séances automatiquement
   setTimeout(updateShootStatuses, 1500);
-
   setTimeout(registerOneSignalPlayer, 2000);
-
   setTimeout(() => {
     checkAutomaticNotifications();
     checkDailyReminders();
