@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/p/:ref", "destination": "/pay.html?ref=:ref" }
+  ]
+}
