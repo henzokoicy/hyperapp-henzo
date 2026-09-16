@@ -3668,29 +3668,80 @@ function setEpargneMontant(m) {
 
 function ouvrirAppWave() {
   const ua = navigator.userAgent.toLowerCase();
-  const isAndroid = ua.includes('android');
-  const isIOS = /iphone|ipad|ipod/.test(ua);
-  const isMobile = isAndroid || isIOS;
+  const isMobile = /android|iphone|ipad|ipod/.test(ua);
 
-  showToast('📱 Fais ton virement Wave puis reviens ici');
+  // Modale d'instructions
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'waveInstructionsModal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>📱 Ouvre l'app Wave</h3>
+        <button class="close" onclick="fermerInstructionsWave()">×</button>
+      </div>
 
-  if(isAndroid) {
-    // Android : tente d'ouvrir l'app, sinon ouvre l'espace client web
-    window.location.href = 'intent://#Intent;scheme=wave;package=com.wave.personal;S.browser_fallback_url=https%3A%2F%2Fapp.wave.com;end';
-  } 
-  else if(isIOS) {
-    // iOS : tente d'ouvrir l'app, sinon espace client web
+      <div style="text-align:center;padding:20px 0 10px">
+        <div style="font-size:60px;margin-bottom:12px">💙</div>
+        <div style="font-size:15px;color:var(--muted);line-height:1.6;margin-bottom:20px">
+          Pour faire ton virement, ouvre <strong>manuellement</strong> l'application Wave sur ton téléphone, puis :
+        </div>
+      </div>
+
+      <div style="background:var(--card2);border-radius:12px;padding:16px;margin-bottom:16px">
+        <div style="display:flex;gap:12px;margin-bottom:12px">
+          <div style="font-size:22px;font-weight:700;color:var(--accent)">1</div>
+          <div style="font-size:14px;line-height:1.5">Ouvre l'app <strong>Wave</strong> sur ton écran d'accueil</div>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:12px">
+          <div style="font-size:22px;font-weight:700;color:var(--accent)">2</div>
+          <div style="font-size:14px;line-height:1.5">Va dans ton <strong>Coffre</strong> (icône rose)</div>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:12px">
+          <div style="font-size:22px;font-weight:700;color:var(--accent)">3</div>
+          <div style="font-size:14px;line-height:1.5">Fais ton <strong>virement</strong> du montant souhaité</div>
+        </div>
+        <div style="display:flex;gap:12px">
+          <div style="font-size:22px;font-weight:700;color:var(--green)">4</div>
+          <div style="font-size:14px;line-height:1.5">Reviens ici et clique sur <strong>"✅ J'ai épargné"</strong></div>
+        </div>
+      </div>
+
+      ${isMobile ? `
+        <button class="btn-primary" style="background:var(--wave);color:#000;font-weight:700;width:100%;margin-bottom:8px" 
+                onclick="tenterOuvrirWave()">
+          📲 Essayer d'ouvrir Wave
+        </button>
+      ` : `
+        <div style="background:rgba(245,185,66,.15);border-radius:10px;padding:12px;font-size:13px;color:var(--yellow);text-align:center;margin-bottom:12px">
+          ⚠️ Cette action fonctionne uniquement depuis un téléphone
+        </div>
+      `}
+
+      <button class="btn-ghost" style="width:100%;margin:0" onclick="fermerInstructionsWave()">
+        J'ai compris
+      </button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function tenterOuvrirWave() {
+  // Dernier espoir : essayer d'ouvrir via scheme
+  try {
     window.location.href = 'wave://';
-    setTimeout(() => {
-      if(!document.hidden) {
-        window.location.href = 'https://app.wave.com';
-      }
-    }, 1500);
-  } 
-  else {
-    // Desktop : ouvre directement l'espace client Wave (connexion)
-    window.open('https://app.wave.com', '_blank');
+  } catch(e) {
+    console.log('Wave scheme non supporté');
   }
+  // On ferme la modale d'instructions
+  setTimeout(() => {
+    fermerInstructionsWave();
+  }, 800);
+}
+
+function fermerInstructionsWave() {
+  const modal = document.getElementById('waveInstructionsModal');
+  if(modal) modal.remove();
 }
 
 function fermerEpargnePerso() {
