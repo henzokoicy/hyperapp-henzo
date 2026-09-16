@@ -1039,7 +1039,7 @@ function renderCoffres(){
       ${c.why ? `<div class="coffre-why">"${c.why}"</div>` : ''}
       ${timeInfo}
       <div class="coffre-actions">
-        <button class="btn-primary" style="margin:0" onclick="openDepositModal(${c.id})">+ Ajouter</button>
+        <button class="btn-primary" style="margin:0;background:var(--green)" onclick="ouvrirEpargnePerso(${c.id})">🎯 Épargner</button>
         <button class="btn-ghost" style="margin:0" onclick="openCoffreModal(${c.id})">✏️ Modifier</button>
         <button class="btn-ghost" style="margin:0" onclick="delCoffre(${c.id})">🗑</button>
       </div>
@@ -1385,16 +1385,19 @@ function renderShoots(){
         <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})" title="Modifier">✏️</button>
         <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--red);color:var(--red)" onclick="delShoot(${s.id})" title="Supprimer">🗑</button>
       `;
-    } else {
-      actionButtons = `
-        <button class="btn-primary" style="margin:0;padding:6px;background:${s.payment==='paye'?'var(--yellow)':'var(--green)'};flex:1" onclick="toggleShootPayment(${s.id})">
-          ${s.payment === 'paye' ? '💸 Impayé' : '✓ Payé'}
-        </button>
-        <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})" title="Modifier">✏️</button>
-        <button class="btn-ghost shoot-cancel-btn" style="margin:0;padding:6px" onclick="cancelShoot(${s.id})" title="Annuler">🚫 Annuler</button>
-        <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--red);color:var(--red)" onclick="delShoot(${s.id})" title="Supprimer">🗑</button>
-      `;
-    }
+} else {
+  actionButtons = `
+    <button class="btn-primary" style="margin:0;padding:6px;background:${s.payment==='paye'?'var(--yellow)':'var(--green)'};flex:1" onclick="toggleShootPayment(${s.id})">
+      ${s.payment === 'paye' ? '💸 Impayé' : '✓ Payé'}
+    </button>
+    ${s.payment === 'impaye' ? `
+      <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--wave);color:var(--wave)" onclick="genererLienPaiementClient(${s.id})" title="Envoyer lien de paiement">📤 Lien</button>
+    ` : ''}
+    <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})" title="Modifier">✏️</button>
+    <button class="btn-ghost shoot-cancel-btn" style="margin:0;padding:6px" onclick="cancelShoot(${s.id})" title="Annuler">🚫 Annuler</button>
+    <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--red);color:var(--red)" onclick="delShoot(${s.id})" title="Supprimer">🗑</button>
+  `;
+}
 
     return `<div class="item-card ${itemClass}">
       <div class="head">
@@ -3567,6 +3570,7 @@ function init(){
     checkDailyReminders();
     checkGoalReminders();
   }, 2500);
+    setTimeout(verifierEpargneEnCours, 2000);
 }
 
 (async function bootstrap(){
@@ -3579,3 +3583,231 @@ function init(){
     showLogin();
   }
 })();
+// ============================================================
+// ============================================================
+// MODULE ÉPARGNE PERSO + LIEN CLIENT WAVE
+// ============================================================
+// ============================================================
+
+const APP_URL = 'https://hyperapp-henzo.vercel.app';
+const WAVE_MERCHANT_ID = 'M_ci_gF0f5OK6l1I2';
+
+// ---------- ÉPARGNE PERSO ----------
+
+function ouvrirEpargnePerso(coffreId) {
+  const coffre = coffres.find(c => c.id === coffreId);
+  if(!coffre) return;
+  localStorage.setItem('epargne_en_cours', JSON.stringify({coffreId: coffreId, ts: Date.now()}));
+  afficherModalEpargne(coffreId);
+}
+
+function afficherModalEpargne(coffreId) {
+  const coffre = coffres.find(c => c.id === coffreId);
+  if(!coffre) return;
+  const existing = document.getElementById('epargnePersoModal');
+  if(existing) existing.remove();
+  const rest = Number(coffre.goal) - Number(coffre.current);
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'epargnePersoModal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>🎯 Épargner dans "${coffre.name}"</h3>
+        <button class="close" onclick="fermerEpargnePerso()">×</button>
+      </div>
+
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:14px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Progression actuelle</div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:16px;font-weight:700;color:var(--green)">${fmt(coffre.current)}</div>
+          <div style="font-size:13px;color:var(--muted)">/ ${fmt(coffre.goal)}</div>
+        </div>
+        <div style="font-size:12px;color:var(--yellow);margin-top:6px">Reste : ${fmt(rest)}</div>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(29,200,255,.15),rgba(108,140,255,.08));border-radius:12px;padding:14px;margin-bottom:14px;border:1px solid var(--wave)">
+        <div style="font-weight:700;font-size:14px;margin-bottom:8px">📱 Étape 1 — Ouvre Wave</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px">
+          Fais ton virement de ton compte Wave vers ton <strong>Coffre Wave</strong>. Puis reviens ici pour enregistrer.
+        </div>
+        <button class="btn-primary" style="margin:0;width:100%;background:var(--wave);color:#000;font-weight:700" onclick="ouvrirAppWave()">
+          📲 Ouvrir Wave
+        </button>
+      </div>
+
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:14px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:8px">✅ Étape 2 — J'ai épargné</div>
+        <label>Combien as-tu épargné ? (FCFA)</label>
+        <input type="number" id="epargneMontant" placeholder="Ex: 5000" inputmode="decimal" autofocus>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px">
+          <button class="btn-ghost" style="margin:0;padding:8px;font-size:12px" onclick="setEpargneMontant(1000)">1 000</button>
+          <button class="btn-ghost" style="margin:0;padding:8px;font-size:12px" onclick="setEpargneMontant(2000)">2 000</button>
+          <button class="btn-ghost" style="margin:0;padding:8px;font-size:12px" onclick="setEpargneMontant(5000)">5 000</button>
+          <button class="btn-ghost" style="margin:0;padding:8px;font-size:12px" onclick="setEpargneMontant(10000)">10 000</button>
+          <button class="btn-ghost" style="margin:0;padding:8px;font-size:12px" onclick="setEpargneMontant(25000)">25 000</button>
+          <button class="btn-ghost" style="margin:0;padding:8px;font-size:12px" onclick="setEpargneMontant(${Math.round(rest)})">Reste</button>
+        </div>
+        <button class="btn-primary" style="margin-top:14px;background:var(--green);width:100%" onclick="validerEpargnePerso(${coffreId})">
+          ✅ J'ai épargné
+        </button>
+      </div>
+
+      <button class="btn-ghost" onclick="fermerEpargnePerso()">Annuler</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  setTimeout(() => document.getElementById('epargneMontant')?.focus(), 300);
+}
+
+function setEpargneMontant(m) {
+  const input = document.getElementById('epargneMontant');
+  if(input) { input.value = m; input.focus(); }
+}
+
+function ouvrirAppWave() {
+  const ua = navigator.userAgent.toLowerCase();
+  const isAndroid = ua.includes('android');
+  const isIOS = /iphone|ipad|ipod/.test(ua);
+  showToast('📱 Ouvre Wave, fais ton virement, puis reviens ici');
+
+  if(isAndroid) {
+    window.location.href = 'intent://#Intent;package=com.wave.personal;S.browser_fallback_url=https://play.google.com/store/apps/details?id=com.wave.personal;end';
+  } else if(isIOS) {
+    window.location.href = 'wave://';
+    setTimeout(() => {
+      if(!document.hidden) window.location.href = 'https://apps.apple.com/app/wave-mobile-money/id1170717251';
+    }, 1500);
+  } else {
+    window.open('https://www.wave.com', '_blank');
+  }
+}
+
+function fermerEpargnePerso() {
+  const modal = document.getElementById('epargnePersoModal');
+  if(modal) modal.remove();
+  localStorage.removeItem('epargne_en_cours');
+}
+
+async function validerEpargnePerso(coffreId) {
+  const montant = parseFloat(document.getElementById('epargneMontant').value);
+  if(!montant || montant <= 0){ alert('Entre un montant valide'); return; }
+  const coffre = coffres.find(c => c.id === coffreId);
+  if(!coffre) return;
+
+  const newCurrent = Number(coffre.current || 0) + montant;
+  const result = await dbUpdate('goals', coffreId, {current: newCurrent});
+  if(!result){ alert('Erreur lors de la mise à jour'); return; }
+
+  coffre.current = newCurrent;
+  fermerEpargnePerso();
+  refreshAll();
+  showToast('✅ ' + fmt(montant) + ' épargné dans "' + coffre.name + '"');
+
+  if(newCurrent >= Number(coffre.goal)) {
+    setTimeout(() => alert('🎉 FÉLICITATIONS !\nTu as atteint ton objectif "' + coffre.name + '" !'), 500);
+  }
+}
+
+function verifierEpargneEnCours() {
+  const saved = localStorage.getItem('epargne_en_cours');
+  if(!saved) return;
+  try {
+    const data = JSON.parse(saved);
+    if(Date.now() - data.ts < 30 * 60 * 1000) {
+      if(typeof coffres !== 'undefined' && coffres.length > 0) {
+        setTimeout(() => {
+          afficherModalEpargne(data.coffreId);
+          showToast('💡 Reprends ton épargne là où tu t\'étais arrêté');
+        }, 1000);
+      }
+    } else {
+      localStorage.removeItem('epargne_en_cours');
+    }
+  } catch(e) { localStorage.removeItem('epargne_en_cours'); }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible') {
+    const saved = localStorage.getItem('epargne_en_cours');
+    if(saved) {
+      const modal = document.getElementById('epargnePersoModal');
+      if(!modal) verifierEpargneEnCours();
+    }
+  }
+});
+
+// ---------- LIEN DE PAIEMENT CLIENT ----------
+
+function genererLienPaiementClient(shootId) {
+  const shoot = shoots.find(s => s.id === shootId);
+  if(!shoot) return;
+  const client = shoot.client_id ? clients.find(c => c.id === shoot.client_id) : null;
+  const clientName = client ? client.name : 'Client';
+
+  const ref = 'SH-' + String(shoot.id).padStart(4, '0');
+  const desc = encodeURIComponent(shoot.type + (clientName !== 'Client' ? ' — ' + clientName : ''));
+  const amount = Math.round(shoot.price);
+  const dateFormatted = shoot.date ? new Date(shoot.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'}) : '';
+
+  const lien = `${APP_URL}/pay.html?amount=${amount}&desc=${desc}&ref=${ref}`;
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'sendLinkModal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>📤 Envoyer le lien de paiement</h3>
+        <button class="close" onclick="fermerSendLink()">×</button>
+      </div>
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Client</div>
+        <div style="font-weight:700;margin-bottom:10px">${clientName}</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Prestation</div>
+        <div style="font-weight:600;margin-bottom:10px">${shoot.type}</div>
+        ${dateFormatted ? `<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Date</div><div style="font-weight:600;margin-bottom:10px">${dateFormatted}</div>` : ''}
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Montant</div>
+        <div style="font-weight:700;color:var(--green);font-size:20px">${fmt(amount)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;margin-top:10px">Référence</div>
+        <div style="font-family:monospace;font-weight:600">${ref}</div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.5">
+        Envoyez ce lien à votre client. Il verra une page sécurisée avec vos informations.
+      </div>
+      <div style="display:grid;gap:8px">
+        <button class="btn-primary" style="margin:0;background:var(--green);width:100%" onclick="envoyerWhatsApp('${lien}', '${clientName}', '${shoot.type}', ${amount})">💬 Envoyer via WhatsApp</button>
+        <button class="btn-ghost" style="margin:0;width:100%" onclick="copierLien('${lien}')">📋 Copier le lien</button>
+        <button class="btn-ghost" style="margin:0;width:100%" onclick="window.open('${lien}', '_blank')">👁️ Aperçu</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function fermerSendLink() {
+  const modal = document.getElementById('sendLinkModal');
+  if(modal) modal.remove();
+}
+
+function envoyerWhatsApp(lien, clientName, type, montant) {
+  const message = `Bonjour ${clientName} 👋,\n\nVoici votre lien de paiement sécurisé pour votre ${type} :\n\n💳 ${fmt(montant)}\n\n${lien}\n\nMerci pour votre confiance !\nHENZO PHOTOGRAPHIE`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+  fermerSendLink();
+}
+
+function copierLien(lien) {
+  if(navigator.clipboard) {
+    navigator.clipboard.writeText(lien).then(() => { showToast('✅ Lien copié'); fermerSendLink(); });
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = lien;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('✅ Lien copié');
+    fermerSendLink();
+  }
+}

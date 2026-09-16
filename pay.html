@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#0f1115">
+  <title>Paiement sécurisé — Henzo Photographie</title>
+  <style>
+    :root {
+      --bg: #0f1115; --card: #1a1d24; --card2: #232830;
+      --text: #e8eaf0; --muted: #8b93a7; --accent: #6c8cff;
+      --green: #2ecc71; --pink: #ff6b9d; --border: #2a2f3a; --wave: #1DC8FF;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; min-height: 100vh; display: flex; flex-direction: column; padding: 20px; }
+    .container { max-width: 480px; width: 100%; margin: 0 auto; }
+    .brand { text-align: center; margin-bottom: 24px; padding-top: 20px; }
+    .brand-logo { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--pink)); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 40px; margin-bottom: 12px; box-shadow: 0 8px 32px rgba(108,140,255,.3); }
+    .brand h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .brand p { color: var(--muted); font-size: 13px; }
+    .verified { display: inline-flex; align-items: center; gap: 5px; background: rgba(46,204,113,.15); color: var(--green); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card { background: var(--card); border-radius: 20px; padding: 24px; border: 1px solid var(--border); margin-bottom: 16px; }
+    .ref-line { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+    .ref-line span:last-child { font-family: monospace; color: var(--text); font-weight: 600; }
+    .amount-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+    .amount { font-size: 38px; font-weight: 700; color: var(--green); margin-bottom: 20px; letter-spacing: -1px; }
+    .details { background: var(--card2); border-radius: 12px; padding: 14px; margin-bottom: 20px; }
+    .details-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 6px 0; }
+    .details-row:not(:last-child) { border-bottom: 1px solid var(--border); }
+    .details-row span:first-child { color: var(--muted); }
+    .details-row span:last-child { font-weight: 600; }
+    .btn-wave { width: 100%; background: var(--wave); color: #000; border: none; padding: 18px; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all .15s; box-shadow: 0 6px 24px rgba(29,200,255,.3); font-family: inherit; }
+    .btn-wave:active { transform: scale(.98); }
+    .trust { text-align: center; font-size: 12px; color: var(--muted); margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .footer { text-align: center; padding: 24px 0; font-size: 13px; color: var(--muted); }
+    .footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+    .steps { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 20px; }
+    .step { flex: 1; text-align: center; padding: 12px 8px; background: var(--card2); border-radius: 10px; font-size: 11px; color: var(--muted); }
+    .step strong { display: block; color: var(--accent); font-size: 16px; margin-bottom: 4px; }
+    .error-msg { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .error-msg h2 { color: var(--text); margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<div class="container" id="mainContent" style="display:none">
+  <div class="brand">
+    <div class="brand-logo">📸</div>
+    <h1>Henzo Photographie</h1>
+    <p>Photographe professionnel · Abidjan, CI</p>
+    <div class="verified">✓ Marchand vérifié</div>
+  </div>
+
+  <div class="card">
+    <div class="ref-line">
+      <span>Référence</span>
+      <span id="refDisplay">—</span>
+    </div>
+
+    <div class="amount-label">Montant à régler</div>
+    <div class="amount" id="amountDisplay">0 FCFA</div>
+
+    <div class="details">
+      <div class="details-row">
+        <span>Prestation</span>
+        <span id="descDisplay">Séance photo</span>
+      </div>
+      <div class="details-row">
+        <span>Destinataire</span>
+        <span>HENZO PHOTOGRAPHIE</span>
+      </div>
+      <div class="details-row">
+        <span>Mode de paiement</span>
+        <span>Wave · Côte d'Ivoire</span>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step"><strong>1</strong>Cliquez sur Payer</div>
+      <div class="step"><strong>2</strong>Ouvrez Wave</div>
+      <div class="step"><strong>3</strong>Validez</div>
+    </div>
+
+    <button class="btn-wave" onclick="payerAvecWave()">
+      <span style="font-size:22px">💳</span>
+      Payer avec Wave
+    </button>
+
+    <div class="trust">🔒 Paiement sécurisé et crypté</div>
+  </div>
+
+  <div class="footer">
+    Une question ?<br>
+    <a href="https://wa.me/2250170998964" target="_blank">📱 Nous contacter sur WhatsApp</a>
+  </div>
+</div>
+
+<div class="error-msg" id="errorContent" style="display:none">
+  <div style="font-size:60px;margin-bottom:16px">⚠️</div>
+  <h2>Lien invalide</h2>
+  <p>Ce lien de paiement n'est plus valide ou a été mal copié.</p>
+</div>
+
+<script>
+  const WAVE_MERCHANT_ID = 'M_ci_gF0f5OK6l1I2';
+
+  const params = new URLSearchParams(window.location.search);
+  const amount = parseInt(params.get('amount')) || 0;
+  const desc = params.get('desc') || 'Séance photo';
+  const ref = params.get('ref') || ('SH-' + Date.now().toString().slice(-6));
+
+  if(amount <= 0) {
+    document.getElementById('mainContent').style.display = 'none';
+    document.getElementById('errorContent').style.display = 'block';
+  } else {
+    document.getElementById('mainContent').style.display = 'block';
+    document.getElementById('refDisplay').textContent = ref;
+    document.getElementById('amountDisplay').textContent = new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
+    document.getElementById('descDisplay').textContent = desc;
+  }
+
+  function payerAvecWave() {
+    const url = 'https://pay.wave.com/m/' + WAVE_MERCHANT_ID + '/c/ci/?amount=' + amount;
+    window.location.href = url;
+  }
+</script>
+
+</body>
+</html>
