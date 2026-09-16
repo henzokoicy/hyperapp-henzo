@@ -14,6 +14,7 @@ let shoots       = [];
 let reminders    = [];
 let savedIdeas   = [];
 let inspirations = [];
+let notes = [];
 
 let currentType        = 'depense';
 let editingCoffreId    = null;
@@ -106,14 +107,15 @@ async function handleLogout(){
 async function loadAllData(){
   const user = await getCurrentUser();
   if(!user) return;
-  const [txRes, goalRes, clientRes, shootRes, reminderRes, ideaRes, inspRes] = await Promise.all([
+    const [txRes, goalRes, clientRes, shootRes, reminderRes, ideaRes, inspRes, noteRes] = await Promise.all([
     sb.from('transactions').select('*').order('date', {ascending:false}),
     sb.from('goals').select('*').order('created_at', {ascending:false}),
     sb.from('clients').select('*').order('created_at', {ascending:false}),
     sb.from('shoots').select('*').order('date', {ascending:false}),
     sb.from('reminders').select('*').order('created_at', {ascending:true}),
     sb.from('saved_ideas').select('*').order('created_at', {ascending:false}),
-    sb.from('inspirations').select('*').order('created_at', {ascending:false})
+    sb.from('inspirations').select('*').order('created_at', {ascending:false}),
+    sb.from('notes').select('*').order('created_at', {ascending:false})
   ]);
   txs          = txRes.data       || [];
   coffres      = goalRes.data     || [];
@@ -122,8 +124,8 @@ async function loadAllData(){
   reminders    = reminderRes.data || [];
   savedIdeas   = ideaRes.data     || [];
   inspirations = inspRes.data     || [];
+  notes        = noteRes.data     || [];
 }
-
 // ============================================================
 // HELPERS SUPABASE
 // ============================================================
@@ -438,7 +440,9 @@ function showTab(name, btn){
   if(name === 'inspiration' && typeof renderInspirations === 'function'){
     renderInspirations();
   }
-
+  if(name === 'notes' && typeof renderNotes === 'function'){
+    renderNotes();
+  }
   syncDrawerActive();
 }
 

@@ -103,6 +103,9 @@
     <button class="drawer-nav" data-tab="inspiration" onclick="drawerNavigate('inspiration')">
   <span class="nav-icon">💫</span><span>Inspiration</span>
 </button>
+<button class="drawer-nav" data-tab="notes" onclick="drawerNavigate('notes')">
+  <span class="nav-icon">📝</span><span>Notes & À faire</span>
+</button>
     <button class="drawer-nav" data-tab="motiv" onclick="drawerNavigate('motiv')">
       <span class="nav-icon">🔥</span><span>Motivation</span>
     </button>
@@ -196,6 +199,9 @@
   </button>
   <button class="tab-btn" data-tab="inspiration" onclick="showTab('inspiration',this)">
   <span class="tab-icon">💫</span><span class="tab-label">Inspiration</span>
+</button>
+<button class="tab-btn" data-tab="notes" onclick="showTab('notes',this)">
+  <span class="tab-icon">📝</span><span class="tab-label">Notes</span>
 </button>
   <button class="tab-btn" data-tab="motiv" onclick="showTab('motiv',this)">
     <span class="tab-icon">🔥</span><span class="tab-label">Motivation</span>
@@ -465,6 +471,63 @@
 
   </div>
 </div>
+<!-- ============================================================
+     ONGLET NOTES & À FAIRE
+     ============================================================ -->
+<div class="page" id="page-notes">
+  <div class="container">
+
+    <!-- Stats -->
+    <div class="card">
+      <h2>📝 Mes notes</h2>
+      <div class="row">
+        <div class="stat"><div class="v" id="notesCount">0</div><div class="l">Totales</div></div>
+        <div class="stat"><div class="v" id="notesReminders" style="color:var(--yellow)">0</div><div class="l">Avec rappel</div></div>
+        <div class="stat"><div class="v" id="notesUrgent" style="color:var(--red)">0</div><div class="l">Urgentes</div></div>
+      </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card">
+      <h2>🔍 Filtrer</h2>
+      <div class="filters-grid">
+        <div>
+          <label>Catégorie</label>
+          <select id="notesFilterCategory" onchange="renderNotes()">
+            <option value="all">Toutes</option>
+            <option value="idee">💡 Idée</option>
+            <option value="todo">✅ À faire</option>
+            <option value="appel">📞 Appel</option>
+            <option value="rdv">📅 RDV</option>
+            <option value="achat">🛒 Achat</option>
+            <option value="business">💼 Business</option>
+            <option value="note">📝 Note</option>
+          </select>
+        </div>
+        <div>
+          <label>Statut</label>
+          <select id="notesFilterStatus" onchange="renderNotes()">
+            <option value="active">📌 Actives</option>
+            <option value="all">Toutes</option>
+            <option value="archived">🗄️ Archivées</option>
+          </select>
+        </div>
+        <div>
+          <label>Recherche</label>
+          <input type="text" id="notesSearch" placeholder="Mot-clé, tag..." oninput="renderNotes()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Liste -->
+    <div class="card">
+      <h2>📋 Toutes mes notes</h2>
+      <div id="notesList"><div class="empty">Aucune note. Crée ta première !</div></div>
+      <button class="btn-primary" style="margin-top:12px;width:100%" onclick="openNoteModal()">+ Nouvelle note</button>
+    </div>
+
+  </div>
+</div>
 
 <!-- ONGLET BUSINESS -->
 <div class="page" id="page-business">
@@ -682,6 +745,50 @@
       <button onclick="copyFullChat()" title="Copier tout">📋 Copier tout</button>
       <button onclick="clearChat()" title="Effacer la conversation" style="color:var(--red)">🗑 Effacer</button>
     </div>
+  </div>
+</div>
+<!-- ============================================================
+     MODAL NOTE
+     ============================================================ -->
+<div class="modal-bg" id="noteModalBg" onclick="if(event.target===this)closeNoteModal()">
+  <div class="modal">
+    <div class="modal-wrap"><h3 id="noteModalTitle">📝 Nouvelle note</h3>
+      <button class="close" onclick="closeNoteModal()">×</button></div>
+
+    <label>Titre (optionnel)</label>
+    <input type="text" id="noteTitle" placeholder="Ex: Appeler client" maxlength="80">
+
+    <label>Contenu</label>
+    <textarea id="noteContent" rows="5" placeholder="Ex: Appeler M. Kouassi demain à 14h pour le mariage à 150 000 FCFA" oninput="analyzeNoteLive()"></textarea>
+
+    <div id="noteAnalysis" class="note-analysis"></div>
+
+    <label>Catégorie</label>
+    <select id="noteCategory">
+      <option value="note">📝 Note</option>
+      <option value="idee">💡 Idée</option>
+      <option value="todo">✅ À faire</option>
+      <option value="appel">📞 Appel</option>
+      <option value="rdv">📅 RDV</option>
+      <option value="achat">🛒 Achat</option>
+      <option value="business">💼 Business</option>
+    </select>
+
+    <label>Priorité</label>
+    <select id="notePriority">
+      <option value="basse">🟢 Basse</option>
+      <option value="normale" selected>🟡 Normale</option>
+      <option value="haute">🟠 Haute</option>
+      <option value="urgente">🔴 Urgente</option>
+    </select>
+
+    <label>Rappel (optionnel)</label>
+    <input type="datetime-local" id="noteReminder">
+
+    <label>Tags (séparés par virgules)</label>
+    <input type="text" id="noteTags" placeholder="Ex: kouassi, mariage, urgent">
+
+    <button class="btn-primary" id="noteSubmit" onclick="saveNote()">💾 Enregistrer</button>
   </div>
 </div>
 
