@@ -1081,12 +1081,13 @@ function renderShoots(){
     // Boutons selon le statut
     let actionButtons = '';
 
-    if(isCancelled){
+     if(isCancelled){
       actionButtons = `
-        <button class="btn-ghost" style="margin:0;padding:6px;background:rgba(46,204,113,.15);color:var(--green);border-color:var(--green)" onclick="reactivateShoot(${s.id})">🔄 Réactiver</button>
-        <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})">✏️</button>
-        <button class="btn-ghost" style="margin:0;padding:6px" onclick="delShoot(${s.id})">×</button>
+        <button class="btn-ghost" style="margin:0;padding:6px;background:rgba(46,204,113,.15);color:var(--green);border-color:var(--green);flex:1" onclick="reactivateShoot(${s.id})">🔄 Réactiver</button>
+        <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})" title="Modifier">✏️</button>
+        <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--red);color:var(--red)" onclick="delShoot(${s.id})" title="Supprimer définitivement">🗑</button>
       `;
+    }
     } else {
         actionButtons = `
         <button class="btn-primary" style="margin:0;padding:6px;background:${s.payment==='paye'?'var(--yellow)':'var(--green)'};flex:1"
