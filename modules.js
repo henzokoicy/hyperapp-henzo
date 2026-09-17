@@ -2704,8 +2704,6 @@ async function genererLienPersonnalise() {
 function afficherLienGenere(link) {
   const ref = 'PL-' + String(link.id).padStart(4, '0');
   
-  // ⚡ SOLUTION FINALE : on met TOUTES les infos dans le lien
-  // Comme ça, pay.html lit directement dans l'URL (pas besoin de Supabase)
   const params = new URLSearchParams({
     n: link.client_name || '',
     m: link.amount || 0,
@@ -2716,6 +2714,15 @@ function afficherLienGenere(link) {
     ref: ref
   });
   const lien = `${APP_URL}/pay.html?${params.toString()}`;
+
+  // ⚡ STOCKE tout dans une variable globale (évite le bug des caractères spéciaux)
+  window.__lienCourant = {
+    lien: lien,
+    clientName: link.client_name || 'Client',
+    desc: link.description || 'Paiement',
+    montant: link.amount || 0,
+    phone: link.client_phone || ''
+  };
 
   const typeLabels = {
     'complet': '✅ Paiement complet',
@@ -2751,27 +2758,28 @@ function afficherLienGenere(link) {
         <div style="font-family:monospace;font-size:11px;color:var(--accent);word-break:break-all">${lien}</div>
       </div>
       <div style="background:rgba(29,200,255,.1);border-radius:10px;padding:10px;margin-bottom:14px;font-size:11px;color:var(--muted)">
-        🔒 Le client verra ton portail Henzo, puis sera redirigé vers ton lien Wave quand il cliquera sur "Payer avec Wave".
+        🔒 Le client verra ton portail Henzo, puis sera redirigé vers ton lien Wave.
       </div>
       <div style="display:grid;gap:8px">
-        <button class="btn-primary" style="margin:0;background:var(--green);width:100%" onclick="envoyerLienWhatsApp('${lien}', '${link.client_name}', '${link.description}', ${link.amount}, '${link.client_phone || ''}')">💬 Envoyer via WhatsApp</button>
-        <button class="btn-ghost" style="margin:0;width:100%" onclick="copierLienPerso('${lien}')">📋 Copier le lien</button>
-        <button class="btn-ghost" style="margin:0;width:100%" onclick="window.open('${lien}', '_blank')">👁️ Aperçu</button>
+        <button class="btn-primary" style="margin:0;background:var(--green);width:100%" onclick="envoyerLienWhatsAppActuel()">💬 Envoyer via WhatsApp</button>
+        <button class="btn-ghost" style="margin:0;width:100%" onclick="copierLienPersoActuel()">📋 Copier le lien</button>
+        <button class="btn-ghost" style="margin:0;width:100%" onclick="apercuLienActuel()">👁️ Aperçu</button>
       </div>
     </div>
   `;
   document.body.appendChild(modal);
 }
-function fermerLienGenere(){ const m = document.getElementById('lienGenereModal'); if(m) m.remove(); }
 
-function envoyerLienWhatsApp(lien, clientName, desc, montant, phone) {
-  // ⚡ On envoie TOUJOURS le lien du PORTAIL HENZO (pas Wave direct)
-  // Le client cliquera sur le portail, puis sur "Payer avec Wave"
-  const message = `Bonjour ${clientName} 👋,\n\nVoici votre lien de paiement sécurisé :\n\n📝 ${desc}\n💳 ${fmt(montant)}\n\n👉 Cliquez ici pour payer :\n${lien}\n\nMerci pour votre confiance !\nHENZO PHOTOGRAPHIE`;
+function fermerLienGenere(){ const m = document.getElementById('lienGenereModal'); if(m) m.remove(); }
+function envoyerLienWhatsAppActuel() {
+  const data = window.__lienCourant;
+  if(!data) { alert('Erreur : lien introuvable'); return; }
+
+  const message = `Bonjour ${data.clientName} 👋,\n\nVoici votre lien de paiement sécurisé :\n\n📝 ${data.desc}\n💳 ${fmt(data.montant)}\n\n👉 Cliquez ici pour payer :\n${data.lien}\n\nMerci pour votre confiance !\nHENZO PHOTOGRAPHIE`;
 
   let url;
-  if(phone) {
-    const clean = phone.replace(/[^0-9]/g, '');
+  if(data.phone) {
+    const clean = data.phone.replace(/[^0-9]/g, '');
     const fullPhone = clean.startsWith('225') ? clean : '225' + clean;
     url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
   } else {
@@ -2780,14 +2788,24 @@ function envoyerLienWhatsApp(lien, clientName, desc, montant, phone) {
   window.open(url, '_blank');
 }
 
-function copierLienPerso(lien) {
-  if(navigator.clipboard) { navigator.clipboard.writeText(lien).then(() => showToast('✅ Lien copié')); }
-  else {
-    const ta = document.createElement('textarea'); ta.value = lien;
+function copierLienPersoActuel() {
+  const data = window.__lienCourant;
+  if(!data) return;
+  if(navigator.clipboard) {
+    navigator.clipboard.writeText(data.lien).then(() => showToast('✅ Lien copié'));
+  } else {
+    const ta = document.createElement('textarea'); ta.value = data.lien;
     document.body.appendChild(ta); ta.select(); document.execCommand('copy');
     document.body.removeChild(ta); showToast('✅ Lien copié');
   }
 }
+
+function apercuLienActuel() {
+  const data = window.__lienCourant;
+  if(!data) return;
+  window.open(data.lien, '_blank');
+}
+
 
 async function marquerLienPaye(id) {
   if(!confirm('Marquer ce lien comme payé ?')) return;
