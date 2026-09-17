@@ -2704,7 +2704,8 @@ async function genererLienPersonnalise() {
 function afficherLienGenere(link) {
   const ref = 'PL-' + String(link.id).padStart(4, '0');
   
-  // On met TOUT dans le lien (nom, montant, description, wave)
+  // ⚡ SOLUTION FINALE : on met TOUTES les infos dans le lien
+  // Comme ça, pay.html lit directement dans l'URL (pas besoin de Supabase)
   const params = new URLSearchParams({
     n: link.client_name || '',
     m: link.amount || 0,
@@ -2750,10 +2751,10 @@ function afficherLienGenere(link) {
         <div style="font-family:monospace;font-size:11px;color:var(--accent);word-break:break-all">${lien}</div>
       </div>
       <div style="background:rgba(29,200,255,.1);border-radius:10px;padding:10px;margin-bottom:14px;font-size:11px;color:var(--muted)">
-        🔒 Toutes les infos sont dans le lien. Le client verra ton portail Henzo et sera redirigé vers ton lien Wave.
+        🔒 Le client verra ton portail Henzo, puis sera redirigé vers ton lien Wave quand il cliquera sur "Payer avec Wave".
       </div>
       <div style="display:grid;gap:8px">
-        <button class="btn-primary" style="margin:0;background:var(--green);width:100%" onclick="envoyerLienWhatsApp('${lien}', '${link.client_name}', '${link.description}', ${link.amount}, '${link.client_phone || ''}', '${link.wave_link || ''}')">💬 Envoyer via WhatsApp</button>
+        <button class="btn-primary" style="margin:0;background:var(--green);width:100%" onclick="envoyerLienWhatsApp('${lien}', '${link.client_name}', '${link.description}', ${link.amount}, '${link.client_phone || ''}')">💬 Envoyer via WhatsApp</button>
         <button class="btn-ghost" style="margin:0;width:100%" onclick="copierLienPerso('${lien}')">📋 Copier le lien</button>
         <button class="btn-ghost" style="margin:0;width:100%" onclick="window.open('${lien}', '_blank')">👁️ Aperçu</button>
       </div>
@@ -2763,16 +2764,10 @@ function afficherLienGenere(link) {
 }
 function fermerLienGenere(){ const m = document.getElementById('lienGenereModal'); if(m) m.remove(); }
 
-function envoyerLienWhatsApp(lien, clientName, desc, montant, phone, waveLinkDirect) {
-  // Utilise le lien Wave passé en paramètre, sinon celui du dernier lien créé
-  const waveLink = waveLinkDirect || (paymentLinks[0] ? paymentLinks[0].wave_link : null);
-
-  let message;
-  if(waveLink) {
-    message = `Bonjour ${clientName} 👋,\n\nVoici votre lien de paiement sécurisé :\n\n📝 ${desc}\n💳 ${fmt(montant)}\n\n👉 Cliquez ici pour payer avec Wave :\n${waveLink}\n\nMerci pour votre confiance !\nHENZO PHOTOGRAPHIE`;
-  } else {
-    message = `Bonjour ${clientName} 👋,\n\nVoici votre lien de paiement sécurisé :\n\n📝 ${desc}\n💳 ${fmt(montant)}\n\n👉 Cliquez ici pour payer :\n${lien}\n\nMerci pour votre confiance !\nHENZO PHOTOGRAPHIE`;
-  }
+function envoyerLienWhatsApp(lien, clientName, desc, montant, phone) {
+  // ⚡ On envoie TOUJOURS le lien du PORTAIL HENZO (pas Wave direct)
+  // Le client cliquera sur le portail, puis sur "Payer avec Wave"
+  const message = `Bonjour ${clientName} 👋,\n\nVoici votre lien de paiement sécurisé :\n\n📝 ${desc}\n💳 ${fmt(montant)}\n\n👉 Cliquez ici pour payer :\n${lien}\n\nMerci pour votre confiance !\nHENZO PHOTOGRAPHIE`;
 
   let url;
   if(phone) {

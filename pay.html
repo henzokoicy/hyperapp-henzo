@@ -205,7 +205,8 @@
   // CHARGEMENT DEPUIS SUPABASE
   // ============================================================
   async function chargerDepuisSupabase(ref) {
-  // On lit les infos DIRECTEMENT dans l'URL (pas besoin de Supabase)
+  // ⚡ SOLUTION FINALE : on lit les infos DIRECTEMENT dans l'URL
+  // Plus besoin de Supabase, donc plus de bug "Lien invalide"
   const p = new URLSearchParams(window.location.search);
   
   const clientName = p.get('n') || 'Client';
@@ -216,7 +217,34 @@
   const waveLink = p.get('w') || '';
   const refCode = p.get('ref') || ref;
 
+  // Si pas de montant, c'est un vieux lien : on tente Supabase (fallback)
   if(!amount || amount <= 0) {
+    try {
+      const id = parseInt(ref.replace('PL-', ''));
+      if(id) {
+        const { data, error } = await sb.from('payment_links')
+          .select('*').eq('id', id).maybeSingle();
+        if(!error && data) {
+          const typeLabels = {
+            'complet': 'Paiement complet',
+            'acompte30': 'Acompte 30%',
+            'acompte50': 'Acompte 50%',
+            'solde': 'Solde restant'
+          };
+          afficherPaiement({
+            ref: 'PL-' + String(data.id).padStart(4, '0'),
+            amount: data.amount,
+            desc: data.description || 'Paiement',
+            clientName: data.client_name || 'Client',
+            type: data.payment_type || 'complet',
+            typeLabel: typeLabels[data.payment_type] || 'Paiement',
+            total: data.total_amount,
+            waveLink: data.wave_link
+          });
+          return;
+        }
+      }
+    } catch(e) { console.warn('Fallback Supabase échoué:', e); }
     afficherErreur();
     return;
   }
