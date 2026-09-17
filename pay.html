@@ -73,6 +73,13 @@
 </head>
 <body>
 
+<!-- Bandeau pour les navigateurs intégrés (WhatsApp, Facebook, Instagram...) -->
+<div id="inAppBanner" style="display:none; position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #6c8cff, #ff6b9d); color: #fff; padding: 14px; text-align: center; z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,.3);">
+  <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">📱 Ouvrez dans Chrome pour payer</div>
+  <div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px;">WhatsApp ne peut pas finaliser le paiement</div>
+  <button onclick="ouvrirDansNavigateur()" style="background: #fff; color: #000; border: none; padding: 10px 20px; border-radius: 20px; font-weight: 700; font-size: 13px; cursor: pointer;">Ouvrir dans Chrome</button>
+</div>
+
 <div id="loader" class="loader">
   <div class="loader-icon">⏳</div>
   <p style="color: var(--muted)">Chargement du paiement...</p>
@@ -160,32 +167,30 @@
 
 <script>
   // ============================================================
-  // CONFIG
+  // CONFIG — ⚠️ REMPLACE LA CLÉ CI-DESSOUS PAR TA CLÉ ANON
+  // (celle qui commence par eyJ... dans Supabase → Settings → API → Legacy API keys)
   // ============================================================
   const SUPABASE_URL = 'https://lzxvktkryxizclkdetaa.supabase.co';
-  const SUPABASE_KEY = 'COLLE_ICI_TA_VRAIE_CLE_ANON_QUI_COMMENCE_PAR_eyJ';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6eHZrdGtyeXhpemNsa2RldGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMzM5MTEsImV4cCI6MjEwNDkwOTkxMX0.w3jWwb5Lrc0-1sQsltunWh_Lanx3jdYSwwZYen-ux8A';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   // ============================================================
-  // LECTURE DES PARAMÈTRES URL
+  // LECTURE DES PARAMÈTRES URL — Supporte 2 formats :
+  // 1. /pay.html?ref=PL-0002  (format classique)
+  // 2. /p/PL-0002             (format court)
   // ============================================================
-  // Lecture des paramètres URL — supporte 2 formats :
-// 1. /pay.html?ref=PL-0002  (format classique)
-// 2. /p/PL-0002             (format court, si Vercel ne redirige pas)
-let refParam = null;
+  let refParam = null;
 
-// Format 1 : ?ref=PL-0002
-const params = new URLSearchParams(window.location.search);
-refParam = params.get('ref');
+  const params = new URLSearchParams(window.location.search);
+  refParam = params.get('ref');
 
-// Format 2 : /p/PL-0002 (fallback si pas de ?ref=)
-if(!refParam) {
-  const path = window.location.pathname;
-  const match = path.match(/\/p\/(PL-\d+)/i);
-  if(match) {
-    refParam = match[1];
+  if(!refParam) {
+    const path = window.location.pathname;
+    const match = path.match(/\/p\/(PL-\d+)/i);
+    if(match) {
+      refParam = match[1];
+    }
   }
-}
 
   // ============================================================
   // LOGIQUE PRINCIPALE
@@ -208,6 +213,7 @@ if(!refParam) {
         .select('*').eq('id', id).maybeSingle();
 
       if(error || !data) {
+        console.error('Erreur Supabase:', error);
         afficherErreur();
         return;
       }
@@ -265,7 +271,6 @@ if(!refParam) {
       totalEl.textContent = '';
     }
 
-    // Stocke le lien Wave pour le bouton
     window.__waveLink = info.waveLink;
   }
 
@@ -310,7 +315,7 @@ if(!refParam) {
   }
 
   // ============================================================
-  // BOUTON PAYER — Utilise le lien Wave stocké en BDD
+  // BOUTON PAYER
   // ============================================================
   function payerAvecWave() {
     const waveLink = window.__waveLink;
@@ -319,6 +324,40 @@ if(!refParam) {
       return;
     }
     window.location.href = waveLink;
+  }
+
+  // ============================================================
+  // DÉTECTION NAVIGATEUR INTÉGRÉ (WhatsApp, Facebook, Instagram...)
+  // ============================================================
+  function detecterNavigateurIntegre() {
+    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    return /FBAN|FBAV|Instagram|WhatsApp|Line|Snapchat|Twitter/i.test(ua);
+  }
+
+  if(detecterNavigateurIntegre()) {
+    const banner = document.getElementById('inAppBanner');
+    if(banner) banner.style.display = 'block';
+  }
+
+  function ouvrirDansNavigateur() {
+    const url = window.location.href;
+    const ua = navigator.userAgent || '';
+
+    if(/Android/i.test(ua)) {
+      const urlSansProtocole = url.replace(/^https?:\/\//, '');
+      window.location.href = 'intent://' + urlSansProtocole + '#Intent;scheme=https;package=com.android.chrome;end';
+      return;
+    }
+
+    if(/iPhone|iPad|iPod/i.test(ua)) {
+      window.location.href = url.replace('https://', 'googlechrome://');
+      setTimeout(() => {
+        window.location.href = url;
+      }, 500);
+      return;
+    }
+
+    window.open(url, '_blank');
   }
 </script>
 
