@@ -29,13 +29,14 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script>
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    OneSignalDeferred.push(async function(OneSignal) {
-      await OneSignal.init({
-        appId: "ffeae1bd-248e-42b4-8b54-8d370f9ec4a0",
-      });
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "ffeae1bd-248e-42b4-8b54-8d370f9ec4a0",
+      persistNotification: true,
     });
-  </script>
+  });
+</script>
 </head>
 <body class="logged-out">
 
