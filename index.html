@@ -3,15 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="theme-color" content="#0f1115">
+  <meta name="theme-color" content="#0a0c11">
+  <meta name="description" content="Super App Henzo - Gestion complète pour photographe : finances, clients, séances, objectifs et IA.">
+
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Super App Henzo">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>Ma Super App</title>
+
+  <!-- Open Graph (partage WhatsApp, réseaux) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Super App Henzo">
+  <meta property="og:description" content="Gestion complète pour photographe : finances, clients, séances, IA.">
+  <meta property="og:site_name" content="Super App Henzo">
+
+  <title>Super App Henzo</title>
+
+  <!-- Favicon (appareil photo) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📸</text></svg>">
+
   <link rel="stylesheet" href="styles.css">
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -31,12 +46,12 @@
 
 <div id="loginScreen">
   <div class="login-box">
-    <div class="login-logo">🔐</div>
-    <h1 class="login-title">Ma Super App</h1>
+    <div class="login-logo">📸</div>
+    <h1 class="login-title">Super App Henzo</h1>
     <p class="login-sub">Connecte-toi pour retrouver tes données partout</p>
-    <label>Email</label>
+    <label for="loginEmail">Email</label>
     <input type="email" id="loginEmail" placeholder="ton@email.com" autocomplete="email">
-    <label>Mot de passe</label>
+    <label for="loginPassword">Mot de passe</label>
     <input type="password" id="loginPassword" placeholder="6 caractères minimum" autocomplete="current-password">
     <button class="btn-primary" onclick="handleLogin()">Se connecter</button>
     <button class="btn-ghost" onclick="handleSignUp()">Créer un compte</button>
@@ -53,10 +68,10 @@
       <div class="user-avatar-large" id="drawerAvatar">?</div>
       <div class="drawer-user-info">
         <div class="user-name-large" id="drawerName">Utilisateur</div>
-        <div class="user-email" id="drawerEmail">—</div>
+        <div class="user-email" id="drawerEmail">...</div>
       </div>
     </div>
-    <button class="drawer-close" onclick="closeDrawer()">×</button>
+    <button class="drawer-close" onclick="closeDrawer()" aria-label="Fermer le menu">×</button>
   </div>
 
   <div class="drawer-section">
@@ -134,23 +149,23 @@
     </button>
   </div>
 
-  <div class="drawer-footer">Ma Super App v2.0</div>
+  <div class="drawer-footer">Super App Henzo v2.0</div>
 </aside>
 
 <!-- EN-TÊTE -->
 <header>
   <div class="header-content">
-    <button class="burger-btn" onclick="openDrawer()" title="Menu">
+    <button class="burger-btn" onclick="openDrawer()" title="Menu" aria-label="Ouvrir le menu">
       <span></span><span></span><span></span>
     </button>
     <div class="header-left">
-      <h1 id="headerTitle">💰 Ma Super App</h1>
+      <h1 id="headerTitle">📸 Super App Henzo</h1>
       <div class="sub" id="today"></div>
     </div>
     <div class="header-right">
-      <button class="header-icon-btn" onclick="openQuickAdd()" title="Ajouter">➕</button>
+      <button class="header-icon-btn" onclick="openQuickAdd()" title="Ajouter" aria-label="Ajouter">➕</button>
       <div class="user-menu">
-        <button class="user-btn" onclick="toggleUserMenu(event)">
+        <button class="user-btn" onclick="toggleUserMenu(event)" aria-label="Menu utilisateur">
           <div class="user-avatar" id="userAvatar">?</div>
           <span class="user-name" id="userNameDisplay">Profil</span>
           <span class="user-chevron">▼</span>
@@ -160,7 +175,7 @@
             <div class="user-avatar-large" id="userAvatarLarge">?</div>
             <div class="user-info">
               <div class="user-name-large" id="userNameLarge">Utilisateur</div>
-              <div class="user-email" id="userEmail">—</div>
+              <div class="user-email" id="userEmail">...</div>
             </div>
           </div>
           <div class="user-menu-items">
@@ -219,11 +234,11 @@
 <div class="page active" id="page-dash">
   <div class="container">
 
-    <div class="card quote-box-dash">
+    <div class="quote-box quote-box-dash">
       <div class="emoji" id="dashQuoteEmoji">💪</div>
-      <div class="q" id="dashQuoteText">Chargement…</div>
+      <div class="q" id="dashQuoteText">Chargement...</div>
       <div class="a" id="dashQuoteAuthor"></div>
-      <button class="btn-ghost" style="margin-top:12px;width:auto;padding:6px 14px;font-size:12px" onclick="newQuote()">🔄 Autre citation</button>
+      <button class="btn-ghost" style="margin-top:14px;width:auto;padding:7px 16px;font-size:12px" onclick="newQuote()">🔄 Autre citation</button>
     </div>
 
     <div class="card" id="alertsCard" style="display:none">
@@ -263,7 +278,7 @@
       </div>
     </div>
 
-    <!-- 🌍 VUE GLOBALE -->
+    <!-- VUE GLOBALE -->
     <div class="card">
       <h2>🌍 Vue globale de ta vie</h2>
       <div class="grid-stats" style="grid-template-columns:1fr 1fr 1fr;gap:8px">
@@ -295,20 +310,20 @@
       <div id="globalAnalysis" style="margin-top:14px"></div>
     </div>
 
-    <!-- 💡 CONSEIL DU JOUR -->
+    <!-- CONSEIL DU JOUR -->
     <div class="card">
       <h2>💡 Conseil & motivation du jour</h2>
       <div id="dailyTip" class="goal-suggestion"></div>
     </div>
 
-    <!-- ⏰ APERÇU RAPPELS D'OBJECTIFS -->
+    <!-- APERÇU RAPPELS D'OBJECTIFS -->
     <div class="card" id="dashboardGoalRemindersCard" style="display:none">
       <h2>⏰ Rappels d'épargne actifs</h2>
       <div id="dashboardGoalRemindersList"></div>
       <button class="btn-ghost" onclick="showTab('objectifs', null)" style="margin-top:10px;width:100%">+ Gérer mes rappels</button>
     </div>
 
-    <!-- 🎯 APERÇU OBJECTIFS -->
+    <!-- APERÇU OBJECTIFS -->
     <div class="card" id="dashboardGoalsCard" style="display:none">
       <h2>🎯 Mes objectifs en cours</h2>
       <div id="dashboardGoalsList"></div>
@@ -420,15 +435,15 @@
     <div class="card">
       <h2>🔍 Filtres</h2>
       <div class="filters-grid">
-        <div><label>Mois</label><select id="histMonth" onchange="renderHistory()"></select></div>
-        <div><label>Type</label>
+        <div><label for="histMonth">Mois</label><select id="histMonth" onchange="renderHistory()"></select></div>
+        <div><label for="histType">Type</label>
           <select id="histType" onchange="renderHistory()">
             <option value="all">Tous</option>
             <option value="revenu">Revenus</option>
             <option value="depense">Dépenses</option>
           </select>
         </div>
-        <div><label>Catégorie</label><select id="histCategory" onchange="renderHistory()"></select></div>
+        <div><label for="histCategory">Catégorie</label><select id="histCategory" onchange="renderHistory()"></select></div>
       </div>
     </div>
 
@@ -474,7 +489,7 @@
     <div class="card motivation-card">
       <div class="motiv-icon" id="motivIcon">🔥</div>
       <div class="motiv-title" id="motivTitle">Ta motivation du jour</div>
-      <div class="motiv-text" id="motivText">Créé un objectif pour voir ta motivation personnalisée.</div>
+      <div class="motiv-text" id="motivText">Crée un objectif pour voir ta motivation personnalisée.</div>
     </div>
 
     <div class="card defi-card">
@@ -561,15 +576,15 @@
       <button class="btn-ghost" onclick="openClientModal()">+ Ajouter un client</button>
     </div>
     <div class="card">
-  <h2>🔗 Liens de paiement</h2>
-  <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
-    Créez des liens personnalisés pour vos clients (acomptes, soldes, séances).
-  </div>
-  <div id="paymentLinksList"><div class="empty">Aucun lien créé</div></div>
-  <button class="btn-primary" style="width:100%;margin-top:12px" onclick="ouvrirCreerLien()">
-    + Créer un lien de paiement
-  </button>
-</div>
+      <h2>🔗 Liens de paiement</h2>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+        Crée des liens personnalisés pour tes clients (acomptes, soldes, séances).
+      </div>
+      <div id="paymentLinksList"><div class="empty">Aucun lien créé</div></div>
+      <button class="btn-primary" style="width:100%;margin-top:12px" onclick="ouvrirCreerLien()">
+        + Créer un lien de paiement
+      </button>
+    </div>
   </div>
 </div>
 
@@ -615,14 +630,14 @@
     <div class="card">
       <h2>🔍 Filtrer</h2>
       <div class="filters-grid">
-        <div><label>Catégorie</label><select id="inspFilterCategory" onchange="renderInspirations()"></select></div>
-        <div><label>Favoris</label>
+        <div><label for="inspFilterCategory">Catégorie</label><select id="inspFilterCategory" onchange="renderInspirations()"></select></div>
+        <div><label for="inspFilterFav">Favoris</label>
           <select id="inspFilterFav" onchange="renderInspirations()">
             <option value="all">Tous</option>
             <option value="fav">⭐ Favoris</option>
           </select>
         </div>
-        <div><label>Rechercher</label><input type="text" id="inspSearch" placeholder="Nom, tag, ville..." oninput="renderInspirations()"></div>
+        <div><label for="inspSearch">Rechercher</label><input type="text" id="inspSearch" placeholder="Nom, tag, ville..." oninput="renderInspirations()"></div>
       </div>
     </div>
     <div class="card">
@@ -648,7 +663,7 @@
       <h2>🔍 Filtrer</h2>
       <div class="filters-grid">
         <div>
-          <label>Catégorie</label>
+          <label for="notesFilterCategory">Catégorie</label>
           <select id="notesFilterCategory" onchange="renderNotes()">
             <option value="all">Toutes</option>
             <option value="idee">💡 Idée</option>
@@ -661,14 +676,14 @@
           </select>
         </div>
         <div>
-          <label>Statut</label>
+          <label for="notesFilterStatus">Statut</label>
           <select id="notesFilterStatus" onchange="renderNotes()">
             <option value="active">📌 Actives</option>
             <option value="all">Toutes</option>
             <option value="archived">🗄️ Archivées</option>
           </select>
         </div>
-        <div><label>Recherche</label><input type="text" id="notesSearch" placeholder="Mot-clé, tag..." oninput="renderNotes()"></div>
+        <div><label for="notesSearch">Recherche</label><input type="text" id="notesSearch" placeholder="Mot-clé, tag..." oninput="renderNotes()"></div>
       </div>
     </div>
     <div class="card">
@@ -684,7 +699,7 @@
   <div class="container">
     <div class="quote-box">
       <div class="emoji" id="quoteEmoji">💪</div>
-      <div class="q" id="quoteText">Chargement…</div>
+      <div class="q" id="quoteText">Chargement...</div>
       <div class="a" id="quoteAuthor"></div>
       <button class="btn-ghost" style="margin-top:14px;width:auto;padding:8px 16px" onclick="newQuote()">🔄 Nouvelle citation</button>
     </div>
@@ -719,16 +734,16 @@
         <span class="collapse-arrow" id="aiConfigArrow">▼</span>
       </div>
       <div id="aiConfigBody" style="display:none;margin-top:14px">
-        <label>Fournisseur</label>
+        <label for="aiProvider">Fournisseur</label>
         <select id="aiProvider">
           <option value="openai">OpenAI (GPT)</option>
           <option value="anthropic">Anthropic (Claude)</option>
           <option value="gemini">Google (Gemini)</option>
           <option value="custom">Autre (compatible OpenAI)</option>
         </select>
-        <label>Clé API</label>
+        <label for="aiKey">Clé API</label>
         <input type="password" id="aiKey" placeholder="sk-...">
-        <label id="aiUrlLabel" style="display:none">URL de l'API</label>
+        <label id="aiUrlLabel" for="aiUrl" style="display:none">URL de l'API</label>
         <input type="text" id="aiUrl" placeholder="https://..." style="display:none">
         <button class="btn-primary" onclick="saveAiConfig()">Enregistrer</button>
         <div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5">
@@ -760,18 +775,18 @@
 <div class="modal-bg" id="profileModalBg" onclick="if(event.target===this)closeProfileModal()">
   <div class="modal">
     <div class="modal-wrap"><h3>👤 Mon profil</h3>
-      <button class="close" onclick="closeProfileModal()">×</button></div>
+      <button class="close" onclick="closeProfileModal()" aria-label="Fermer">×</button></div>
     <div style="text-align:center;margin-bottom:20px">
       <div class="profile-avatar-big" id="profileAvatarPreview">?</div>
       <button class="btn-ghost" style="width:auto;padding:6px 14px;font-size:13px;margin-top:10px" onclick="changeAvatar()">📷 Changer l'avatar</button>
     </div>
-    <label>Nom d'affichage</label>
+    <label for="profileName">Nom d'affichage</label>
     <input type="text" id="profileName" placeholder="Ex: Henzo" maxlength="30">
-    <label>Bio (optionnel)</label>
+    <label for="profileBio">Bio (optionnel)</label>
     <textarea id="profileBio" rows="2" placeholder="Ex: Photographe professionnel à Abidjan" maxlength="100"></textarea>
-    <label>Email (non modifiable)</label>
+    <label for="profileEmail">Email (non modifiable)</label>
     <input type="email" id="profileEmail" disabled style="opacity:0.6">
-    <label>Date d'inscription</label>
+    <label for="profileCreated">Date d'inscription</label>
     <input type="text" id="profileCreated" disabled style="opacity:0.6">
     <button class="btn-primary" onclick="saveProfile()">💾 Enregistrer</button>
   </div>
@@ -781,21 +796,21 @@
 <div class="modal-bg" id="preferencesModalBg" onclick="if(event.target===this)closePreferencesModal()">
   <div class="modal">
     <div class="modal-wrap"><h3>⚙️ Préférences</h3>
-      <button class="close" onclick="closePreferencesModal()">×</button></div>
-    <label>Devise</label>
+      <button class="close" onclick="closePreferencesModal()" aria-label="Fermer">×</button></div>
+    <label for="prefCurrency">Devise</label>
     <select id="prefCurrency">
       <option value="FCFA">FCFA (Franc CFA)</option>
       <option value="€">€ (Euro)</option>
       <option value="$">$ (Dollar)</option>
       <option value="MAD">MAD (Dirham)</option>
     </select>
-    <label>Objectif d'épargne (%)</label>
+    <label for="prefSavingsTarget">Objectif d'épargne (%)</label>
     <input type="number" id="prefSavingsTarget" min="0" max="100" step="5" placeholder="20">
-    <label>Heure notification matin</label>
+    <label for="prefMorningTime">Heure notification matin</label>
     <input type="time" id="prefMorningTime" value="08:00">
-    <label>Heure notification midi</label>
+    <label for="prefMiddayTime">Heure notification midi</label>
     <input type="time" id="prefMiddayTime" value="13:00">
-    <label>Heure notification soir</label>
+    <label for="prefEveningTime">Heure notification soir</label>
     <input type="time" id="prefEveningTime" value="20:00">
     <button class="btn-primary" onclick="savePreferences()">💾 Enregistrer</button>
     <div style="font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5">
@@ -808,11 +823,11 @@
 <div class="modal-bg" id="aboutModalBg" onclick="if(event.target===this)closeAboutModal()">
   <div class="modal">
     <div class="modal-wrap"><h3>ℹ️ À propos</h3>
-      <button class="close" onclick="closeAboutModal()">×</button></div>
+      <button class="close" onclick="closeAboutModal()" aria-label="Fermer">×</button></div>
     <div style="text-align:center;padding:20px 0">
-      <div style="font-size:60px;margin-bottom:10px">💰</div>
-      <div style="font-size:20px;font-weight:700;margin-bottom:4px">Ma Super App</div>
-      <div style="color:var(--muted);font-size:13px;margin-bottom:20px">Version 2.0 — Henzo Édition</div>
+      <div style="font-size:60px;margin-bottom:10px">📸</div>
+      <div style="font-size:20px;font-weight:700;margin-bottom:4px">Super App Henzo</div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:20px">Version 2.0 · Henzo Édition</div>
     </div>
     <div class="about-item">
       <strong>🎯 Fonctionnalités</strong>
@@ -834,20 +849,20 @@
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-wrap"><h3>Nouvelle transaction</h3>
-      <button class="close" onclick="closeModal()">×</button></div>
+      <button class="close" onclick="closeModal()" aria-label="Fermer">×</button></div>
     <div class="type-toggle">
       <button id="btnRevenu" data-type="revenu" onclick="setType('revenu')">Revenu</button>
       <button id="btnDepense" data-type="depense" class="active" onclick="setType('depense')">Dépense</button>
     </div>
-    <label>Montant</label><input type="number" id="amount" inputmode="decimal" placeholder="0">
-    <label>Catégorie</label>
+    <label for="amount">Montant</label><input type="number" id="amount" inputmode="decimal" placeholder="0">
+    <label for="category">Catégorie</label>
     <select id="category" onchange="onTxCategoryChange()"></select>
     <div id="txCustomCategoryWrap" style="display:none;">
-      <label>Précise la catégorie</label>
+      <label for="txCustomCategory">Précise la catégorie</label>
       <input type="text" id="txCustomCategory" placeholder="Ex: Coiffure, Cadeau...">
     </div>
-    <label>Note</label><input type="text" id="note" placeholder="Ex: courses, shooting...">
-    <label>Date</label><input type="date" id="date">
+    <label for="note">Note</label><input type="text" id="note" placeholder="Ex: courses, shooting...">
+    <label for="date">Date</label><input type="date" id="date">
     <button class="btn-primary" onclick="saveTx()">Enregistrer</button>
   </div>
 </div>
@@ -856,12 +871,12 @@
 <div class="modal-bg" id="coffreModalBg" onclick="if(event.target===this)closeCoffreModal()">
   <div class="modal">
     <div class="modal-wrap"><h3 id="coffreModalTitle">Nouvel objectif</h3>
-      <button class="close" onclick="closeCoffreModal()">×</button></div>
-    <label>Nom</label><input type="text" id="coffreName" placeholder="Ex: Fonds d'urgence">
-    <label>Montant à atteindre</label><input type="number" id="coffreGoal" inputmode="decimal" placeholder="0">
-    <label>Déjà épargné</label><input type="number" id="coffreCurrent" inputmode="decimal" placeholder="0">
-    <label>Date cible (optionnel)</label><input type="date" id="coffreDate">
-    <label>Pourquoi cet objectif ?</label>
+      <button class="close" onclick="closeCoffreModal()" aria-label="Fermer">×</button></div>
+    <label for="coffreName">Nom</label><input type="text" id="coffreName" placeholder="Ex: Fonds d'urgence">
+    <label for="coffreGoal">Montant à atteindre</label><input type="number" id="coffreGoal" inputmode="decimal" placeholder="0">
+    <label for="coffreCurrent">Déjà épargné</label><input type="number" id="coffreCurrent" inputmode="decimal" placeholder="0">
+    <label for="coffreDate">Date cible (optionnel)</label><input type="date" id="coffreDate">
+    <label for="coffreWhy">Pourquoi cet objectif ?</label>
     <textarea id="coffreWhy" rows="2" placeholder="Ex: pour être libre..."></textarea>
     <button class="btn-primary" id="coffreSubmit" onclick="saveCoffre()">Créer</button>
   </div>
@@ -871,8 +886,8 @@
 <div class="modal-bg" id="depositModalBg" onclick="if(event.target===this)closeDepositModal()">
   <div class="modal">
     <div class="modal-wrap"><h3>Ajouter à <span id="depositCoffreName"></span></h3>
-      <button class="close" onclick="closeDepositModal()">×</button></div>
-    <label>Montant</label><input type="number" id="depositAmount" inputmode="decimal" placeholder="0">
+      <button class="close" onclick="closeDepositModal()" aria-label="Fermer">×</button></div>
+    <label for="depositAmount">Montant</label><input type="number" id="depositAmount" inputmode="decimal" placeholder="0">
     <button class="btn-primary" onclick="confirmDeposit()">Ajouter</button>
   </div>
 </div>
@@ -881,28 +896,28 @@
 <div class="modal-bg" id="shootModalBg" onclick="if(event.target===this)closeShootModal()">
   <div class="modal">
     <div class="modal-wrap"><h3 id="shootModalTitle">Nouvelle séance</h3>
-      <button class="close" onclick="closeShootModal()">×</button></div>
-    <label>Client</label><select id="shootClient"></select>
-    <label>Type de prestation</label>
+      <button class="close" onclick="closeShootModal()" aria-label="Fermer">×</button></div>
+    <label for="shootClient">Client</label><select id="shootClient"></select>
+    <label for="shootType">Type de prestation</label>
     <select id="shootType" onchange="onShootTypeChange()">
       <option>Mariage</option><option>Dot</option><option>Shooting Studio</option>
       <option>Shoot Extérieur</option><option>Autre</option>
     </select>
     <div id="shootCustomTypeWrap" style="display:none;">
-      <label>Précise le type (facultatif)</label>
+      <label for="shootCustomType">Précise le type (facultatif)</label>
       <input type="text" id="shootCustomType">
     </div>
-    <label>Lieu de la séance</label>
+    <label for="shootLocation">Lieu de la séance</label>
     <div class="autocomplete-wrap">
       <input type="text" id="shootLocation" placeholder="Tape une ville..." autocomplete="off">
       <div class="autocomplete-list" id="shootLocationList"></div>
     </div>
-    <label>Nombre de photos</label><input type="number" id="shootPhotoCount" inputmode="numeric" placeholder="0">
-    <label>Date & heure</label><input type="datetime-local" id="shootDate">
-    <label>Prix (FCFA)</label><input type="number" id="shootPrice" inputmode="decimal">
-    <label>Statut paiement</label>
+    <label for="shootPhotoCount">Nombre de photos</label><input type="number" id="shootPhotoCount" inputmode="numeric" placeholder="0">
+    <label for="shootDate">Date & heure</label><input type="datetime-local" id="shootDate">
+    <label for="shootPrice">Prix (FCFA)</label><input type="number" id="shootPrice" inputmode="decimal">
+    <label for="shootPay">Statut paiement</label>
     <select id="shootPay"><option value="impaye">Impayé</option><option value="paye">Payé</option></select>
-    <label>Notes</label><input type="text" id="shootNotes" placeholder="Détails...">
+    <label for="shootNotes">Notes</label><input type="text" id="shootNotes" placeholder="Détails...">
     <button class="btn-primary" style="background:var(--pink)" onclick="saveShoot()">Enregistrer</button>
   </div>
 </div>
@@ -911,16 +926,16 @@
 <div class="modal-bg" id="clientModalBg" onclick="if(event.target===this)closeClientModal()">
   <div class="modal">
     <div class="modal-wrap"><h3 id="clientModalTitle">Nouveau client</h3>
-      <button class="close" onclick="closeClientModal()">×</button></div>
-    <label>Nom complet</label><input type="text" id="clientName">
-    <label>Téléphone</label><input type="tel" id="clientPhone">
-    <label>Email</label><input type="email" id="clientEmail">
-    <label>Ville</label>
+      <button class="close" onclick="closeClientModal()" aria-label="Fermer">×</button></div>
+    <label for="clientName">Nom complet</label><input type="text" id="clientName">
+    <label for="clientPhone">Téléphone</label><input type="tel" id="clientPhone">
+    <label for="clientEmail">Email</label><input type="email" id="clientEmail">
+    <label for="clientCity">Ville</label>
     <div class="autocomplete-wrap">
       <input type="text" id="clientCity" placeholder="Tape une ville..." autocomplete="off">
       <div class="autocomplete-list" id="clientCityList"></div>
     </div>
-    <label>Notes</label><input type="text" id="clientNotes">
+    <label for="clientNotes">Notes</label><input type="text" id="clientNotes">
     <button class="btn-primary" style="background:var(--pink)" onclick="saveClient()">Enregistrer</button>
   </div>
 </div>
@@ -929,8 +944,8 @@
 <div class="modal-bg" id="reminderModalBg" onclick="if(event.target===this)closeReminderModal()">
   <div class="modal">
     <div class="modal-wrap"><h3 id="reminderModalTitle">⏰ Nouveau rappel</h3>
-      <button class="close" onclick="closeReminderModal()">×</button></div>
-    <label>Type de rappel</label>
+      <button class="close" onclick="closeReminderModal()" aria-label="Fermer">×</button></div>
+    <label for="reminderType">Type de rappel</label>
     <select id="reminderType" onchange="onReminderTypeChange()">
       <option value="perso">🔔 Personnel</option>
       <option value="rdv">📅 Rendez-vous</option>
@@ -939,12 +954,12 @@
       <option value="Autre">✏️ Autre</option>
     </select>
     <div id="reminderCustomTypeWrap" style="display:none;">
-      <label>Précise le type</label>
+      <label for="reminderCustomType">Précise le type</label>
       <input type="text" id="reminderCustomType">
     </div>
-    <label>Message</label><input type="text" id="reminderText">
-    <label>Date</label><input type="date" id="reminderDate">
-    <label>Heure</label><input type="time" id="reminderTime" value="09:00">
+    <label for="reminderText">Message</label><input type="text" id="reminderText">
+    <label for="reminderDate">Date</label><input type="date" id="reminderDate">
+    <label for="reminderTime">Heure</label><input type="time" id="reminderTime" value="09:00">
     <button class="btn-primary" id="reminderSubmit" onclick="saveReminder()">➕ Créer</button>
   </div>
 </div>
@@ -953,9 +968,9 @@
 <div class="modal-bg" id="inspirationModalBg" onclick="if(event.target===this)closeInspirationModal()">
   <div class="modal">
     <div class="modal-wrap"><h3 id="inspirationModalTitle">💫 Nouvelle inspiration</h3>
-      <button class="close" onclick="closeInspirationModal()">×</button></div>
-    <label>Nom / Pseudo</label><input type="text" id="inspName">
-    <label>Catégorie</label>
+      <button class="close" onclick="closeInspirationModal()" aria-label="Fermer">×</button></div>
+    <label for="inspName">Nom / Pseudo</label><input type="text" id="inspName">
+    <label for="inspCategory">Catégorie</label>
     <select id="inspCategory" onchange="onInspCategoryChange()">
       <option value="Photographe">📸 Photographe</option>
       <option value="Artiste">🎨 Artiste</option>
@@ -966,10 +981,10 @@
       <option value="Autre">✏️ Autre</option>
     </select>
     <div id="inspCustomCategoryWrap" style="display:none;">
-      <label>Précise la catégorie</label>
+      <label for="inspCustomCategory">Précise la catégorie</label>
       <input type="text" id="inspCustomCategory">
     </div>
-    <label>Plateforme</label>
+    <label for="inspPlatform">Plateforme</label>
     <select id="inspPlatform">
       <option value="">-- Choisir --</option>
       <option value="Instagram">📷 Instagram</option>
@@ -982,13 +997,13 @@
       <option value="Pinterest">📌 Pinterest</option>
       <option value="Behance">🎨 Behance</option>
     </select>
-    <label>Lien (URL)</label><input type="url" id="inspLink" placeholder="https://instagram.com/...">
-    <label>Téléphone (optionnel)</label><input type="tel" id="inspPhone">
-    <label>Email (optionnel)</label><input type="email" id="inspEmail">
-    <label>Ville</label><input type="text" id="inspCity">
-    <label>Pourquoi ça t'inspire ?</label>
+    <label for="inspLink">Lien (URL)</label><input type="url" id="inspLink" placeholder="https://instagram.com/...">
+    <label for="inspPhone">Téléphone (optionnel)</label><input type="tel" id="inspPhone">
+    <label for="inspEmail">Email (optionnel)</label><input type="email" id="inspEmail">
+    <label for="inspCity">Ville</label><input type="text" id="inspCity">
+    <label for="inspWhy">Pourquoi ça t'inspire ?</label>
     <textarea id="inspWhy" rows="2"></textarea>
-    <label>Tags (séparés par virgules)</label><input type="text" id="inspTags">
+    <label for="inspTags">Tags (séparés par virgules)</label><input type="text" id="inspTags">
     <label class="checkbox-label" style="margin-top:14px">
       <input type="checkbox" id="inspFavorite">
       <span>⭐ Marquer comme favori</span>
@@ -1001,13 +1016,13 @@
 <div class="modal-bg" id="noteModalBg" onclick="if(event.target===this)closeNoteModal()">
   <div class="modal">
     <div class="modal-wrap"><h3 id="noteModalTitle">📝 Nouvelle note</h3>
-      <button class="close" onclick="closeNoteModal()">×</button></div>
-    <label>Titre (optionnel)</label>
+      <button class="close" onclick="closeNoteModal()" aria-label="Fermer">×</button></div>
+    <label for="noteTitle">Titre (optionnel)</label>
     <input type="text" id="noteTitle" placeholder="Ex: Appeler client" maxlength="80">
-    <label>Contenu</label>
+    <label for="noteContent">Contenu</label>
     <textarea id="noteContent" rows="5" placeholder="Ex: Appeler M. Kouassi demain à 14h pour le mariage à 150 000 FCFA" oninput="analyzeNoteLive()"></textarea>
     <div id="noteAnalysis" class="note-analysis"></div>
-    <label>Catégorie</label>
+    <label for="noteCategory">Catégorie</label>
     <select id="noteCategory">
       <option value="note">📝 Note</option>
       <option value="idee">💡 Idée</option>
@@ -1017,16 +1032,16 @@
       <option value="achat">🛒 Achat</option>
       <option value="business">💼 Business</option>
     </select>
-    <label>Priorité</label>
+    <label for="notePriority">Priorité</label>
     <select id="notePriority">
       <option value="basse">🟢 Basse</option>
       <option value="normale" selected>🟡 Normale</option>
       <option value="haute">🟠 Haute</option>
       <option value="urgente">🔴 Urgente</option>
     </select>
-    <label>Rappel (optionnel)</label>
+    <label for="noteReminder">Rappel (optionnel)</label>
     <input type="datetime-local" id="noteReminder">
-    <label>Tags (séparés par virgules)</label>
+    <label for="noteTags">Tags (séparés par virgules)</label>
     <input type="text" id="noteTags" placeholder="Ex: kouassi, mariage, urgent">
     <button class="btn-primary" id="noteSubmit" onclick="saveNote()">💾 Enregistrer</button>
   </div>
@@ -1036,20 +1051,20 @@
 <div class="modal-bg" id="goalReminderModalBg" onclick="if(event.target===this)closeGoalReminderModal()">
   <div class="modal">
     <div class="modal-wrap"><h3 id="goalReminderModalTitle">⏰ Nouveau rappel d'épargne</h3>
-      <button class="close" onclick="closeGoalReminderModal()">×</button></div>
-    <label>Objectif concerné</label>
+      <button class="close" onclick="closeGoalReminderModal()" aria-label="Fermer">×</button></div>
+    <label for="goalReminderGoal">Objectif concerné</label>
     <select id="goalReminderGoal"></select>
-    <label>Message de motivation</label>
+    <label for="goalReminderMessage">Message de motivation</label>
     <input type="text" id="goalReminderMessage" placeholder="Ex: Épargne pour ton fonds d'urgence 💪" maxlength="120">
-    <label>Fréquence</label>
+    <label for="goalReminderFrequency">Fréquence</label>
     <select id="goalReminderFrequency" onchange="onGoalFrequencyChange()">
       <option value="daily">🔁 Tous les jours</option>
       <option value="weekly">📅 Chaque semaine</option>
     </select>
-    <label>Heure</label>
+    <label for="goalReminderTime">Heure</label>
     <input type="time" id="goalReminderTime" value="20:00">
     <div id="goalReminderDayWrap" style="display:none">
-      <label>Jour de la semaine</label>
+      <label for="goalReminderDay">Jour de la semaine</label>
       <select id="goalReminderDay">
         <option value="1">Lundi</option>
         <option value="2">Mardi</option>
@@ -1078,7 +1093,7 @@
           <div class="chat-sub" id="chatSub">En ligne</div>
         </div>
       </div>
-      <button class="chat-close" onclick="closeChat()">×</button>
+      <button class="chat-close" onclick="closeChat()" aria-label="Fermer">×</button>
     </div>
 
     <div class="chat-messages" id="chatMessages"></div>
@@ -1093,7 +1108,7 @@
     <div class="chat-input-area">
       <textarea id="chatInput" placeholder="Écris ton message..." rows="1"
         onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); sendChatMessage(); }"></textarea>
-      <button class="chat-send-btn" id="chatSendBtn" onclick="sendChatMessage()">➤</button>
+      <button class="chat-send-btn" id="chatSendBtn" onclick="sendChatMessage()" aria-label="Envoyer">➤</button>
     </div>
 
     <div class="chat-actions">
