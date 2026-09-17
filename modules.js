@@ -2742,7 +2742,7 @@ function afficherLienGenere(link) {
         🔒 Ton lien Wave est bien enregistré. Le client sera redirigé vers <strong>ton lien Wave</strong> quand il cliquera sur "Payer avec Wave".
       </div>
       <div style="display:grid;gap:8px">
-        <button class="btn-primary" style="margin:0;background:var(--green);width:100%" onclick="envoyerLienWhatsApp('${lien}', '${link.client_name}', '${link.description}', ${link.amount}, '${link.client_phone || ''}')">💬 Envoyer via WhatsApp</button>
+        <button class="btn-primary" style="margin:0;background:var(--green);width:100%" onclick="envoyerLienWhatsApp('${lien}', '${link.client_name}', '${link.description}', ${link.amount}, '${link.client_phone || ''}', '${link.wave_link || ''}')">💬 Envoyer via WhatsApp</button>
         <button class="btn-ghost" style="margin:0;width:100%" onclick="copierLienPerso('${lien}')">📋 Copier le lien</button>
         <button class="btn-ghost" style="margin:0;width:100%" onclick="window.open('${lien}', '_blank')">👁️ Aperçu</button>
       </div>
@@ -2753,17 +2753,14 @@ function afficherLienGenere(link) {
 
 function fermerLienGenere(){ const m = document.getElementById('lienGenereModal'); if(m) m.remove(); }
 
-function envoyerLienWhatsApp(lien, clientName, desc, montant, phone) {
-  // Récupère le lien Wave stocké dans le dernier lien créé
-  const dernierLien = paymentLinks[0];
-  const waveLink = dernierLien ? dernierLien.wave_link : null;
+function envoyerLienWhatsApp(lien, clientName, desc, montant, phone, waveLinkDirect) {
+  // Utilise le lien Wave passé en paramètre, sinon celui du dernier lien créé
+  const waveLink = waveLinkDirect || (paymentLinks[0] ? paymentLinks[0].wave_link : null);
 
-  // Message WhatsApp
   let message;
   if(waveLink) {
     message = `Bonjour ${clientName} 👋,\n\nVoici votre lien de paiement sécurisé :\n\n📝 ${desc}\n💳 ${fmt(montant)}\n\n👉 Cliquez ici pour payer avec Wave :\n${waveLink}\n\nMerci pour votre confiance !\nHENZO PHOTOGRAPHIE`;
   } else {
-    // Fallback : si pas de lien Wave, on envoie le lien Henzo
     message = `Bonjour ${clientName} 👋,\n\nVoici votre lien de paiement sécurisé :\n\n📝 ${desc}\n💳 ${fmt(montant)}\n\n👉 Cliquez ici pour payer :\n${lien}\n\nMerci pour votre confiance !\nHENZO PHOTOGRAPHIE`;
   }
 
