@@ -2703,7 +2703,18 @@ async function genererLienPersonnalise() {
 
 function afficherLienGenere(link) {
   const ref = 'PL-' + String(link.id).padStart(4, '0');
-  const lien = `${APP_URL}/p/${ref}`;
+  
+  // On met TOUT dans le lien (nom, montant, description, wave)
+  const params = new URLSearchParams({
+    n: link.client_name || '',
+    m: link.amount || 0,
+    t: link.total_amount || 0,
+    d: link.description || 'Paiement',
+    ty: link.payment_type || 'complet',
+    w: link.wave_link || '',
+    ref: ref
+  });
+  const lien = `${APP_URL}/pay.html?${params.toString()}`;
 
   const typeLabels = {
     'complet': '✅ Paiement complet',
@@ -2736,10 +2747,10 @@ function afficherLienGenere(link) {
       </div>
       <div style="background:var(--card2);border-radius:10px;padding:12px;margin-bottom:14px">
         <div style="font-size:11px;color:var(--muted);margin-bottom:6px">🔗 Lien à envoyer au client</div>
-        <div style="font-family:monospace;font-size:12px;color:var(--accent);word-break:break-all">${lien}</div>
+        <div style="font-family:monospace;font-size:11px;color:var(--accent);word-break:break-all">${lien}</div>
       </div>
       <div style="background:rgba(29,200,255,.1);border-radius:10px;padding:10px;margin-bottom:14px;font-size:11px;color:var(--muted)">
-        🔒 Ton lien Wave est bien enregistré. Le client sera redirigé vers <strong>ton lien Wave</strong> quand il cliquera sur "Payer avec Wave".
+        🔒 Toutes les infos sont dans le lien. Le client verra ton portail Henzo et sera redirigé vers ton lien Wave.
       </div>
       <div style="display:grid;gap:8px">
         <button class="btn-primary" style="margin:0;background:var(--green);width:100%" onclick="envoyerLienWhatsApp('${lien}', '${link.client_name}', '${link.description}', ${link.amount}, '${link.client_phone || ''}', '${link.wave_link || ''}')">💬 Envoyer via WhatsApp</button>
@@ -2750,7 +2761,6 @@ function afficherLienGenere(link) {
   `;
   document.body.appendChild(modal);
 }
-
 function fermerLienGenere(){ const m = document.getElementById('lienGenereModal'); if(m) m.remove(); }
 
 function envoyerLienWhatsApp(lien, clientName, desc, montant, phone, waveLinkDirect) {

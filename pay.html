@@ -205,48 +205,40 @@
   // CHARGEMENT DEPUIS SUPABASE
   // ============================================================
   async function chargerDepuisSupabase(ref) {
-    const id = parseInt(ref.replace('PL-', ''));
-    if(!id) { afficherErreur(); return; }
+  // On lit les infos DIRECTEMENT dans l'URL (pas besoin de Supabase)
+  const p = new URLSearchParams(window.location.search);
+  
+  const clientName = p.get('n') || 'Client';
+  const amount = parseFloat(p.get('m')) || 0;
+  const total = parseFloat(p.get('t')) || 0;
+  const desc = p.get('d') || 'Paiement';
+  const type = p.get('ty') || 'complet';
+  const waveLink = p.get('w') || '';
+  const refCode = p.get('ref') || ref;
 
-    try {
-      const { data, error } = await sb.from('payment_links')
-        .select('*').eq('id', id).maybeSingle();
-
-      if(error || !data) {
-        console.error('Erreur Supabase:', error);
-        afficherErreur();
-        return;
-      }
-
-      if(data.status === 'paid') {
-        afficherDejaPaye(data);
-        return;
-      }
-
-      const typeLabels = {
-        'complet': 'Paiement complet',
-        'acompte30': 'Acompte 30%',
-        'acompte50': 'Acompte 50%',
-        'solde': 'Solde restant'
-      };
-
-      afficherPaiement({
-        ref: 'PL-' + String(data.id).padStart(4, '0'),
-        amount: data.amount,
-        desc: data.description || 'Paiement',
-        clientName: data.client_name || 'Client',
-        type: data.payment_type || 'complet',
-        typeLabel: typeLabels[data.payment_type] || 'Paiement',
-        total: data.total_amount,
-        waveLink: data.wave_link
-      });
-
-    } catch(e) {
-      console.error(e);
-      afficherErreur();
-    }
+  if(!amount || amount <= 0) {
+    afficherErreur();
+    return;
   }
 
+  const typeLabels = {
+    'complet': 'Paiement complet',
+    'acompte30': 'Acompte 30%',
+    'acompte50': 'Acompte 50%',
+    'solde': 'Solde restant'
+  };
+
+  afficherPaiement({
+    ref: refCode,
+    amount: amount,
+    desc: desc,
+    clientName: clientName,
+    type: type,
+    typeLabel: typeLabels[type] || 'Paiement',
+    total: total,
+    waveLink: waveLink
+  });
+}
   // ============================================================
   // AFFICHAGE
   // ============================================================
