@@ -1,5 +1,5 @@
 // ============================================================
-// APP.JS — Cœur de l'app + connexion Supabase
+// APP.JS - Coeur de l'app + connexion Supabase
 // ============================================================
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -7,14 +7,14 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ============================================================
 // VARIABLES GLOBALES
 // ============================================================
-let txs          = [];
-let coffres      = [];
-let clients      = [];
-let shoots       = [];
-let reminders    = [];
-let savedIdeas   = [];
-let inspirations = [];
-let notes        = [];
+let txs           = [];
+let coffres       = [];
+let clients       = [];
+let shoots        = [];
+let reminders     = [];
+let savedIdeas    = [];
+let inspirations  = [];
+let notes         = [];
 let goalReminders = [];
 
 let currentType        = 'depense';
@@ -26,7 +26,7 @@ let editingClientId    = null;
 // ============================================================
 // OUTILS
 // ============================================================
-const fmt = n => new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' ' + CURRENCY;
+const fmt      = n => new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' ' + CURRENCY;
 const todayStr = () => new Date().toISOString().slice(0,10);
 const monthKey = d => (d || todayStr()).slice(0,7);
 
@@ -36,6 +36,7 @@ const monthKey = d => (d || todayStr()).slice(0,7);
 function getProfileKey(email){
   return 'user_profile_' + (email || 'anon');
 }
+
 function getUserProfile(email){
   try {
     const raw = localStorage.getItem(getProfileKey(email));
@@ -44,9 +45,11 @@ function getUserProfile(email){
     return { displayName: '', bio: '', avatarEmoji: '' };
   }
 }
+
 function saveUserProfile(email, profile){
   localStorage.setItem(getProfileKey(email), JSON.stringify(profile));
 }
+
 function getInitials(email, displayName){
   const name = displayName || email || '?';
   if(name.includes('@')) return name.charAt(0).toUpperCase();
@@ -59,14 +62,21 @@ async function loadProfileFromSupabase(){
   try {
     const user = await getCurrentUser();
     if(!user) return;
+
     const { data, error } = await sb.from('user_settings')
-      .select('user_profile').eq('user_id', user.id).maybeSingle();
+      .select('user_profile')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
     if(error || !data || !data.user_profile) return;
+
     const profile = data.user_profile;
     localStorage.setItem(getProfileKey(user.email), JSON.stringify(profile));
     updateUserDisplay(user);
-    console.log('✅ Profil synchronisé depuis Supabase');
-  } catch(e){ console.warn('loadProfileFromSupabase:', e); }
+    console.log('Profil synchronisé depuis Supabase');
+  } catch(e){
+    console.warn('loadProfileFromSupabase:', e);
+  }
 }
 
 // ============================================================
@@ -81,11 +91,21 @@ async function handleLogin(){
   const email    = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   const msg      = document.getElementById('loginMessage');
+
   msg.style.color = 'var(--red)';
   msg.textContent = '';
-  if(!email || !password){ msg.textContent = 'Remplis tous les champs.'; return; }
+
+  if(!email || !password){
+    msg.textContent = 'Remplis tous les champs.';
+    return;
+  }
+
   const { error } = await sb.auth.signInWithPassword({ email, password });
-  if(error){ msg.textContent = error.message; return; }
+  if(error){
+    msg.textContent = error.message;
+    return;
+  }
+
   await startApp();
 }
 
@@ -93,25 +113,44 @@ async function handleSignUp(){
   const email    = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   const msg      = document.getElementById('loginMessage');
+
   msg.style.color = 'var(--red)';
   msg.textContent = '';
-  if(!email || !password){ msg.textContent = 'Remplis tous les champs.'; return; }
-  if(password.length < 6){ msg.textContent = 'Mot de passe : 6 caractères minimum.'; return; }
+
+  if(!email || !password){
+    msg.textContent = 'Remplis tous les champs.';
+    return;
+  }
+
+  if(password.length < 6){
+    msg.textContent = 'Mot de passe : 6 caractères minimum.';
+    return;
+  }
+
   const { data, error } = await sb.auth.signUp({ email, password });
-  if(error){ msg.textContent = error.message; return; }
-  if(data.session){ await startApp(); }
-  else {
+  if(error){
+    msg.textContent = error.message;
+    return;
+  }
+
+  if(data.session){
+    await startApp();
+  } else {
     msg.style.color = 'var(--green)';
-    msg.textContent = '✅ Compte créé ! Vérifie ton email pour confirmer.';
+    msg.textContent = 'Compte créé ! Vérifie ton email pour confirmer.';
   }
 }
 
 async function handleLogout(){
   if(!confirm('Se déconnecter ?')) return;
+
   try {
     const OneSignal = window.OneSignal;
     if(OneSignal) await OneSignal.logout();
-  } catch(e){ console.warn(e); }
+  } catch(e){
+    console.warn(e);
+  }
+
   await sb.auth.signOut();
   location.reload();
 }
@@ -122,6 +161,7 @@ async function handleLogout(){
 async function loadAllData(){
   const user = await getCurrentUser();
   if(!user) return;
+
   const [txRes, goalRes, clientRes, shootRes, reminderRes, ideaRes, inspRes, noteRes, goalRemRes] = await Promise.all([
     sb.from('transactions').select('*').order('date', {ascending:false}),
     sb.from('goals').select('*').order('created_at', {ascending:false}),
@@ -133,15 +173,16 @@ async function loadAllData(){
     sb.from('notes').select('*').order('created_at', {ascending:false}),
     sb.from('goal_reminders').select('*').order('created_at', {ascending:false})
   ]);
-  txs           = txRes.data        || [];
-  coffres       = goalRes.data      || [];
-  clients       = clientRes.data    || [];
-  shoots        = shootRes.data     || [];
-  reminders     = reminderRes.data  || [];
-  savedIdeas    = ideaRes.data      || [];
-  inspirations  = inspRes.data      || [];
-  notes         = noteRes.data      || [];
-  goalReminders = goalRemRes.data   || [];
+
+  txs           = txRes.data       || [];
+  coffres       = goalRes.data     || [];
+  clients       = clientRes.data   || [];
+  shoots        = shootRes.data    || [];
+  reminders     = reminderRes.data || [];
+  savedIdeas    = ideaRes.data     || [];
+  inspirations  = inspRes.data     || [];
+  notes         = noteRes.data     || [];
+  goalReminders = goalRemRes.data  || [];
 }
 
 // ============================================================
@@ -150,22 +191,42 @@ async function loadAllData(){
 async function dbInsert(table, data){
   const user = await getCurrentUser();
   if(!user) return null;
+
   const { data: result, error } = await sb.from(table)
-    .insert({ ...data, user_id: user.id }).select().single();
-  if(error){ console.error(error); alert('Erreur : ' + error.message); return null; }
+    .insert({ ...data, user_id: user.id })
+    .select()
+    .single();
+
+  if(error){
+    console.error(error);
+    alert('Erreur : ' + error.message);
+    return null;
+  }
   return result;
 }
 
 async function dbUpdate(table, id, data){
   const { data: result, error } = await sb.from(table)
-    .update(data).eq('id', id).select().single();
-  if(error){ console.error(error); alert('Erreur : ' + error.message); return null; }
+    .update(data)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if(error){
+    console.error(error);
+    alert('Erreur : ' + error.message);
+    return null;
+  }
   return result;
 }
 
 async function dbDelete(table, id){
   const { error } = await sb.from(table).delete().eq('id', id);
-  if(error){ console.error(error); alert('Erreur : ' + error.message); return false; }
+  if(error){
+    console.error(error);
+    alert('Erreur : ' + error.message);
+    return false;
+  }
   return true;
 }
 
@@ -174,8 +235,13 @@ async function dbDelete(table, id){
 // ============================================================
 async function startApp(){
   document.body.classList.remove('logged-out');
-  document.getElementById('today').textContent =
-    new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  const todayEl = document.getElementById('today');
+  if(todayEl){
+    todayEl.textContent = new Date().toLocaleDateString('fr-FR', {
+      weekday:'long', day:'numeric', month:'long', year:'numeric'
+    });
+  }
 
   const user = await getCurrentUser();
   if(user){
@@ -196,17 +262,19 @@ function showLogin(){
 // AFFICHAGE DU PROFIL
 // ============================================================
 function updateUserDisplay(user){
-  const email = user?.email || '';
-  const profile = getUserProfile(email);
+  const email       = user?.email || '';
+  const profile     = getUserProfile(email);
   const displayName = profile.displayName || email.split('@')[0] || 'Utilisateur';
-  const initials = getInitials(email, profile.displayName);
+  const initials    = getInitials(email, profile.displayName);
   const avatarContent = profile.avatarEmoji || initials;
 
-  const av  = document.getElementById('userAvatar');
-  const nm  = document.getElementById('userNameDisplay');
+  // Header
+  const av = document.getElementById('userAvatar');
+  const nm = document.getElementById('userNameDisplay');
   if(av) av.textContent = avatarContent;
   if(nm) nm.textContent = displayName;
 
+  // Dropdown
   const avL = document.getElementById('userAvatarLarge');
   const nmL = document.getElementById('userNameLarge');
   const emL = document.getElementById('userEmail');
@@ -214,6 +282,7 @@ function updateUserDisplay(user){
   if(nmL) nmL.textContent = displayName;
   if(emL) emL.textContent = email;
 
+  // Drawer
   const avD = document.getElementById('drawerAvatar');
   const nmD = document.getElementById('drawerName');
   const emD = document.getElementById('drawerEmail');
@@ -230,10 +299,12 @@ function toggleUserMenu(event){
   const dd = document.getElementById('userDropdown');
   if(dd) dd.classList.toggle('show');
 }
+
 function closeUserMenu(){
   const dd = document.getElementById('userDropdown');
   if(dd) dd.classList.remove('show');
 }
+
 document.addEventListener('click', (e) => {
   const menu = document.querySelector('.user-menu');
   if(menu && !menu.contains(e.target)) closeUserMenu();
@@ -243,7 +314,7 @@ document.addEventListener('click', (e) => {
 // TIROIR LATÉRAL
 // ============================================================
 function openDrawer(){
-  const drawer = document.getElementById('sideDrawer');
+  const drawer   = document.getElementById('sideDrawer');
   const backdrop = document.getElementById('drawerBackdrop');
   if(drawer) drawer.classList.add('open');
   if(backdrop) backdrop.classList.add('show');
@@ -252,7 +323,7 @@ function openDrawer(){
 }
 
 function closeDrawer(){
-  const drawer = document.getElementById('sideDrawer');
+  const drawer   = document.getElementById('sideDrawer');
   const backdrop = document.getElementById('drawerBackdrop');
   if(drawer) drawer.classList.remove('open');
   if(backdrop) backdrop.classList.remove('show');
@@ -290,16 +361,16 @@ function drawerAction(action){
   closeDrawer();
   setTimeout(() => {
     switch(action){
-      case 'addTx':        openModal(); break;
-      case 'addClient':    openClientModal(); break;
-      case 'addShoot':     openShootModal(); break;
-      case 'addGoal':      openCoffreModal(); break;
-      case 'addNote':      openNoteModal(); break;
-      case 'analyze':      drawerNavigate('ia'); break;
-      case 'profile':      openProfileModal(); break;
-      case 'preferences':  openPreferencesModal(); break;
-      case 'about':        openAboutModal(); break;
-      case 'logout':       handleLogout(); break;
+      case 'addTx':       openModal(); break;
+      case 'addClient':   openClientModal(); break;
+      case 'addShoot':    openShootModal(); break;
+      case 'addGoal':     openCoffreModal(); break;
+      case 'addNote':     openNoteModal(); break;
+      case 'analyze':     drawerNavigate('ia'); break;
+      case 'profile':     openProfileModal(); break;
+      case 'preferences': openPreferencesModal(); break;
+      case 'about':       openAboutModal(); break;
+      case 'logout':      handleLogout(); break;
     }
   }, 250);
 }
@@ -317,21 +388,22 @@ async function openProfileModal(){
   const user = await getCurrentUser();
   if(!user) return;
 
-  const email = user.email || '';
+  const email   = user.email || '';
   const profile = getUserProfile(email);
 
-  document.getElementById('profileName').value     = profile.displayName || '';
-  document.getElementById('profileBio').value      = profile.bio || '';
-  document.getElementById('profileEmail').value    = email;
-  document.getElementById('profileCreated').value  = user.created_at
-    ? new Date(user.created_at).toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'})
-    : '—';
+  document.getElementById('profileName').value    = profile.displayName || '';
+  document.getElementById('profileBio').value     = profile.bio || '';
+  document.getElementById('profileEmail').value   = email;
+  document.getElementById('profileCreated').value = user.created_at
+    ? new Date(user.created_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' })
+    : 'Non disponible';
 
   const preview = document.getElementById('profileAvatarPreview');
   preview.textContent = profile.avatarEmoji || getInitials(email, profile.displayName);
 
   document.getElementById('profileModalBg').classList.add('show');
 }
+
 function closeProfileModal(){
   document.getElementById('profileModalBg').classList.remove('show');
 }
@@ -355,10 +427,12 @@ async function saveProfile(){
       { user_id: user.id, user_profile: profile },
       { onConflict: 'user_id' }
     );
-  } catch(e){ console.warn('saveProfile sync:', e); }
+  } catch(e){
+    console.warn('saveProfile sync:', e);
+  }
 
   closeProfileModal();
-  alert('✅ Profil enregistré et synchronisé !');
+  alert('Profil enregistré et synchronisé !');
 }
 
 function changeAvatar(){
@@ -372,6 +446,7 @@ function changeAvatar(){
 
   getCurrentUser().then(async (user) => {
     if(!user) return;
+
     const profile = getUserProfile(user.email);
 
     if(choice === '0'){
@@ -393,10 +468,14 @@ function changeAvatar(){
         { user_id: user.id, user_profile: profile },
         { onConflict: 'user_id' }
       );
-    } catch(e){ console.warn('changeAvatar sync:', e); }
+    } catch(e){
+      console.warn('changeAvatar sync:', e);
+    }
 
     const preview = document.getElementById('profileAvatarPreview');
-    if(preview) preview.textContent = profile.avatarEmoji || getInitials(user.email, profile.displayName);
+    if(preview){
+      preview.textContent = profile.avatarEmoji || getInitials(user.email, profile.displayName);
+    }
   });
 }
 
@@ -411,10 +490,14 @@ async function openPreferencesModal(){
     const user = await getCurrentUser();
     if(user){
       const { data } = await sb.from('user_settings')
-        .select('user_preferences').eq('user_id', user.id).maybeSingle();
+        .select('user_preferences')
+        .eq('user_id', user.id)
+        .maybeSingle();
       if(data && data.user_preferences) prefs = data.user_preferences;
     }
-  } catch(e){ console.warn(e); }
+  } catch(e){
+    console.warn(e);
+  }
 
   if(!prefs.currency && !prefs.savingsTarget){
     prefs = JSON.parse(localStorage.getItem('user_preferences') || '{}');
@@ -428,6 +511,7 @@ async function openPreferencesModal(){
 
   document.getElementById('preferencesModalBg').classList.add('show');
 }
+
 function closePreferencesModal(){
   document.getElementById('preferencesModalBg').classList.remove('show');
 }
@@ -451,10 +535,12 @@ async function savePreferences(){
         { onConflict: 'user_id' }
       );
     }
-  } catch(e){ console.warn('savePreferences sync:', e); }
+  } catch(e){
+    console.warn('savePreferences sync:', e);
+  }
 
   closePreferencesModal();
-  alert('✅ Préférences enregistrées et synchronisées !');
+  alert('Préférences enregistrées et synchronisées !');
 }
 
 // ============================================================
@@ -464,6 +550,7 @@ function openAboutModal(){
   closeUserMenu();
   document.getElementById('aboutModalBg').classList.add('show');
 }
+
 function closeAboutModal(){
   document.getElementById('aboutModalBg').classList.remove('show');
 }
@@ -480,17 +567,17 @@ function showTab(name, btn){
   if(btn) btn.classList.add('active');
 
   const titres = {
-    dash:'💰 Intelligence Financière',
-    historique:'📜 Historique',
-    objectifs:'🎯 Mes Objectifs',
-    photo:'📸 Photo & Clients',
-    business:'💡 Business',
-    inspiration:'💫 Inspiration',
-    notes:'📝 Notes & À faire',
-    motiv:'🔥 Motivation',
-    ia:'🤖 Analyse IA'
+    dash:        '📸 Intelligence Financière',
+    historique:  '📜 Historique',
+    objectifs:   '🎯 Mes Objectifs',
+    photo:       '📸 Photo & Clients',
+    business:    '💡 Business',
+    inspiration: '💫 Inspiration',
+    notes:       '📝 Notes & À faire',
+    motiv:       '🔥 Motivation',
+    ia:          '🤖 Analyse IA'
   };
-  document.getElementById('headerTitle').textContent = titres[name] || 'Ma Super App';
+  document.getElementById('headerTitle').textContent = titres[name] || 'Super App Henzo';
 
   if(name === 'motiv' && typeof newQuote === 'function') newQuote();
   if(name === 'dash' && typeof renderDashboard === 'function') renderDashboard();
@@ -534,14 +621,16 @@ function setType(t){
   document.getElementById('btnDepense').classList.toggle('active', t==='depense');
   document.getElementById('category').innerHTML =
     CATEGORIES[t].map(c => `<option>${c}</option>`).join('');
+
   const wrap = document.getElementById('txCustomCategoryWrap');
   if(wrap) wrap.style.display = 'none';
+
   const input = document.getElementById('txCustomCategory');
   if(input) input.value = '';
 }
 
 function onTxCategoryChange(){
-  const val = document.getElementById('category').value;
+  const val  = document.getElementById('category').value;
   const wrap = document.getElementById('txCustomCategoryWrap');
   if(wrap) wrap.style.display = (val === 'Autre') ? 'block' : 'none';
 }
@@ -554,11 +643,17 @@ function openModal(){
   setType('depense');
   setTimeout(() => document.getElementById('amount').focus(), 200);
 }
-function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+
+function closeModal(){
+  document.getElementById('modalBg').classList.remove('show');
+}
 
 async function saveTx(){
   const amount = parseFloat(document.getElementById('amount').value);
-  if(!amount || amount <= 0){ alert("Montant invalide"); return; }
+  if(!amount || amount <= 0){
+    alert("Montant invalide");
+    return;
+  }
 
   let category = document.getElementById('category').value;
 
@@ -576,10 +671,12 @@ async function saveTx(){
     type: currentType,
     amount,
     category,
-    note:     document.getElementById('note').value.trim(),
-    date:     document.getElementById('date').value || todayStr()
+    note: document.getElementById('note').value.trim(),
+    date: document.getElementById('date').value || todayStr()
   });
+
   if(!result) return;
+
   txs.unshift(result);
   closeModal();
   refreshAll();
@@ -587,8 +684,10 @@ async function saveTx(){
 
 async function delTx(id){
   if(!confirm("Supprimer ?")) return;
+
   const ok = await dbDelete('transactions', id);
   if(!ok) return;
+
   txs = txs.filter(t => t.id !== id);
   refreshAll();
 }
@@ -597,11 +696,12 @@ async function delTx(id){
 // MOTEUR D'ANALYSE
 // ============================================================
 function computeStats(){
-  const ym = monthKey();
-  const monthTx   = txs.filter(t => t.date.startsWith(ym));
-  const totalIn   = monthTx.filter(t => t.type==='revenu').reduce((s,t) => s + Number(t.amount), 0);
-  const totalOut  = monthTx.filter(t => t.type==='depense').reduce((s,t) => s + Number(t.amount), 0);
-  const bal       = totalIn - totalOut;
+  const ym      = monthKey();
+  const monthTx = txs.filter(t => t.date.startsWith(ym));
+
+  const totalIn  = monthTx.filter(t => t.type==='revenu').reduce((s,t) => s + Number(t.amount), 0);
+  const totalOut = monthTx.filter(t => t.type==='depense').reduce((s,t) => s + Number(t.amount), 0);
+  const bal      = totalIn - totalOut;
   const savingsRate = totalIn > 0 ? (bal / totalIn) : 0;
 
   const now         = new Date();
@@ -616,69 +716,109 @@ function computeStats(){
     byCat[t.category] = (byCat[t.category] || 0) + Number(t.amount);
   });
   const sortedCats = Object.entries(byCat).sort((a,b) => b[1] - a[1]);
-  const avgPerDay = dayOfMonth > 0 ? totalOut / dayOfMonth : 0;
+  const avgPerDay  = dayOfMonth > 0 ? totalOut / dayOfMonth : 0;
 
   const prevMonth = new Date(now.getFullYear(), now.getMonth()-1, 1).toISOString().slice(0,7);
   const prevTx    = txs.filter(t => t.date.startsWith(prevMonth));
   const prevOut   = prevTx.filter(t => t.type==='depense').reduce((s,t) => s + Number(t.amount), 0);
   const prevIn    = prevTx.filter(t => t.type==='revenu').reduce((s,t) => s + Number(t.amount), 0);
 
-  return { ym, monthTx, totalIn, totalOut, bal, savingsRate,
+  return {
+    ym, monthTx, totalIn, totalOut, bal, savingsRate,
     projectedOut, projectedBal, sortedCats, avgPerDay,
-    prevOut, prevIn, dayOfMonth, daysInMonth };
+    prevOut, prevIn, dayOfMonth, daysInMonth
+  };
 }
 
 function buildInsights(){
   const s   = computeStats();
   const ins = [];
+
   if(s.monthTx.length === 0){
     return ['<div class="empty">Ajoute des transactions pour voir l\'analyse</div>'];
   }
+
   if(s.totalIn > 0){
     const pct = (s.savingsRate * 100).toFixed(0);
     if(s.savingsRate >= SAVINGS_TARGET){
-      ins.push({cls:'good', t:'✅ Taux d\'épargne sain',
-        m:`Tu épargnes ${pct}% de tes revenus ce mois.`});
+      ins.push({
+        cls:'good',
+        t:'Taux d\'épargne sain',
+        m:`Tu épargnes ${pct}% de tes revenus ce mois.`
+      });
     } else if(s.savingsRate >= 0){
       const missing = (s.totalIn * SAVINGS_TARGET) - (s.totalIn * s.savingsRate);
-      ins.push({cls:'warn', t:'⚠ Épargne un peu faible',
-        m:`${pct}% épargné. Objectif ${(SAVINGS_TARGET*100)}%. Il te manque ${fmt(missing)}.`});
+      ins.push({
+        cls:'warn',
+        t:'Épargne un peu faible',
+        m:`${pct}% épargné. Objectif ${(SAVINGS_TARGET*100)}%. Il te manque ${fmt(missing)}.`
+      });
     } else {
-      ins.push({cls:'bad', t:'🚨 Dépenses > Revenus',
-        m:`Déficit de ${fmt(Math.abs(s.bal))} ce mois.`});
+      ins.push({
+        cls:'bad',
+        t:'Dépenses supérieures aux revenus',
+        m:`Déficit de ${fmt(Math.abs(s.bal))} ce mois.`
+      });
     }
   }
+
   if(s.dayOfMonth >= 3 && s.totalOut > 0 && s.projectedBal < 0){
-    ins.push({cls:'bad', t:'📉 Prévision négative',
-      m:`Au rythme actuel, tu finiras le mois à ${fmt(s.projectedBal)}.`});
+    ins.push({
+      cls:'bad',
+      t:'Prévision négative',
+      m:`Au rythme actuel, tu finiras le mois à ${fmt(s.projectedBal)}.`
+    });
   }
+
   if(s.sortedCats[0] && s.totalOut > 0){
     const pct = (s.sortedCats[0][1] / s.totalOut * 100).toFixed(0);
-    ins.push({cls: pct > 40 ? 'warn' : '', t:'🎯 Poste principal',
-      m:`"${s.sortedCats[0][0]}" : ${fmt(s.sortedCats[0][1])} (${pct}%).`});
+    ins.push({
+      cls: pct > 40 ? 'warn' : '',
+      t:'Poste principal',
+      m:`"${s.sortedCats[0][0]}" : ${fmt(s.sortedCats[0][1])} (${pct}%).`
+    });
   }
+
   if(s.prevOut > 0){
     const diff = ((s.totalOut - s.prevOut) / s.prevOut) * 100;
-    if(diff > 15) ins.push({cls:'warn', t:'📈 Dépenses en hausse',
-      m:`+${diff.toFixed(0)}% vs mois dernier.`});
-    else if(diff < -15) ins.push({cls:'good', t:'📉 Dépenses en baisse',
-      m:`${diff.toFixed(0)}% vs mois dernier.`});
+    if(diff > 15){
+      ins.push({
+        cls:'warn',
+        t:'Dépenses en hausse',
+        m:`+${diff.toFixed(0)}% vs mois dernier.`
+      });
+    } else if(diff < -15){
+      ins.push({
+        cls:'good',
+        t:'Dépenses en baisse',
+        m:`${diff.toFixed(0)}% vs mois dernier.`
+      });
+    }
   }
+
   if(s.totalIn > 0){
-    ins.push({cls:'', t:'💡 Recommandation',
-      m:`Mets ${fmt(s.totalIn * SAVINGS_TARGET)} (${(SAVINGS_TARGET*100)}%) dans un objectif.`});
+    ins.push({
+      cls:'',
+      t:'Recommandation',
+      m:`Mets ${fmt(s.totalIn * SAVINGS_TARGET)} (${(SAVINGS_TARGET*100)}%) dans un objectif.`
+    });
   }
+
   coffres.forEach(c => {
     const rest = Number(c.goal) - Number(c.current);
     if(rest <= 0) return;
     if(c.target_date){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
       if(days > 0 && days <= 90){
-        ins.push({cls:'warn', t:`⏱ "${c.name}"`,
-          m:`Reste ${fmt(rest)} en ${days} jours.`});
+        ins.push({
+          cls:'warn',
+          t:`"${c.name}"`,
+          m:`Reste ${fmt(rest)} en ${days} jours.`
+        });
       }
     }
   });
+
   return ins.map(i => `<div class="insight ${i.cls}">
     <div class="title">${i.t}</div>
     <div>${i.m}</div>
@@ -698,26 +838,27 @@ function renderDashboard(){
   const balEl = document.getElementById('balance');
   balEl.textContent = fmt(s.bal);
   balEl.className = 'balance ' + (s.bal >= 0 ? 'pos' : 'neg');
+
   document.getElementById('totalIn').textContent     = fmt(s.totalIn);
   document.getElementById('totalOut').textContent    = fmt(s.totalOut);
   document.getElementById('savingsRate').textContent = (s.savingsRate * 100).toFixed(0) + '%';
 
   // Blocs enrichis (définis dans modules.js)
-  if(typeof renderDashboardAlerts === 'function')       renderDashboardAlerts();
-  if(typeof renderDashboardOverview === 'function')     renderDashboardOverview();
-  if(typeof renderDashboardUpcoming === 'function')     renderDashboardUpcoming();
-  if(typeof renderDashboardUrgentNotes === 'function')  renderDashboardUrgentNotes();
-  if(typeof renderDashboardTopGoals === 'function')     renderDashboardTopGoals();
+  if(typeof renderDashboardAlerts === 'function')      renderDashboardAlerts();
+  if(typeof renderDashboardOverview === 'function')    renderDashboardOverview();
+  if(typeof renderDashboardUpcoming === 'function')    renderDashboardUpcoming();
+  if(typeof renderDashboardUrgentNotes === 'function') renderDashboardUrgentNotes();
+  if(typeof renderDashboardTopGoals === 'function')    renderDashboardTopGoals();
 
-  if(typeof renderOverview === 'function')              renderOverview();
-  if(typeof renderHealthScore === 'function')           renderHealthScore();
-  if(typeof renderRevDepDonut === 'function')           renderRevDepDonut();
-  if(typeof renderShootTypesChart === 'function')       renderShootTypesChart();
-  if(typeof renderBars6m === 'function')                renderBars6m();
+  if(typeof renderOverview === 'function')             renderOverview();
+  if(typeof renderHealthScore === 'function')          renderHealthScore();
+  if(typeof renderRevDepDonut === 'function')          renderRevDepDonut();
+  if(typeof renderShootTypesChart === 'function')      renderShootTypesChart();
+  if(typeof renderBars6m === 'function')               renderBars6m();
 
   document.getElementById('insights').innerHTML = buildInsights().join('');
 
-  if(typeof renderSuggestions === 'function')           renderSuggestions();
+  if(typeof renderSuggestions === 'function')          renderSuggestions();
 
   const cb = document.getElementById('catBreakdown');
   if(s.sortedCats.length === 0){
@@ -732,14 +873,15 @@ function renderDashboard(){
     }).join('');
   }
 
-  const tl = document.getElementById('txList');
+  const tl     = document.getElementById('txList');
   const sorted = [...s.monthTx].sort((a,b) => b.date.localeCompare(a.date));
+
   if(sorted.length === 0){
     tl.innerHTML = '<div class="empty">Aucune transaction ce mois</div>';
   } else {
     tl.innerHTML = sorted.map(t => {
       const d    = new Date(t.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
-      const sign = t.type === 'revenu' ? '+' : '−';
+      const sign = t.type === 'revenu' ? '+' : '-';
       const cls  = t.type === 'revenu' ? 'pos' : 'neg';
       return `<div class="tx">
         <div class="left">
