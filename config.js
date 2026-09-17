@@ -1,25 +1,51 @@
 // ============================================================
-// CONFIG.JS — Réglages personnels + connexion Supabase
+// CONFIG.JS - Réglages de HENZO PHOTOGRAPHIE
+// Modifie ce fichier pour personnaliser ton application
 // ============================================================
 
 
-// ---------- 1. CONNEXION SUPABASE ----------
-// Ne touche pas sauf si tu changes de projet Supabase
+// ============================================================
+// 1. INFOS DE LA MARQUE
+// ============================================================
+// Utilisé pour personnaliser l'app et les liens de partage
+const BRAND = {
+  name:     "HENZO PHOTOGRAPHIE",
+  owner:    "Henzo Koicy",
+  tagline:  "Photographe professionnel",
+  city:     "Abidjan / Bouaké",
+  email:    "henzophotographie@gmail.com",
+  whatsapp: "2250170998964",           // format international sans +
+  waveId:   "M_ci_gF0f5OK6l1I2",        // ton ID Wave Marchand
+  waveName: "HENZO PHOTOGRAPHIE"
+};
+
+
+// ============================================================
+// 2. CONNEXION SUPABASE
+// ============================================================
+// Ne touche pas, sauf si tu changes de projet Supabase
 const SUPABASE_URL = "https://lzxvktkryxizclkdetaa.supabase.co";
 const SUPABASE_KEY = "sb_publishable_L4Udla2VCbZsNjdm9IRuJw_ExshPrPc";
 
 
-// ---------- 2. DEVISE ----------
+// ============================================================
+// 3. DEVISE
+// ============================================================
 // "FCFA", "€", "$", "MAD"... ce que tu veux
 const CURRENCY = "FCFA";
 
 
-// ---------- 3. OBJECTIF D'ÉPARGNE ----------
-// 0.20 = 20% des revenus à épargner
+// ============================================================
+// 4. OBJECTIF D'ÉPARGNE
+// ============================================================
+// 0.20 = 20% des revenus à épargner automatiquement
 const SAVINGS_TARGET = 0.20;
 
 
-// ---------- 4. CATÉGORIES ----------
+// ============================================================
+// 5. CATÉGORIES
+// ============================================================
+// Utilisées dans le formulaire de transaction
 const CATEGORIES = {
   depense: [
     "Nourriture",
@@ -44,14 +70,24 @@ const CATEGORIES = {
 };
 
 
-// ---------- 5. MODÈLES IA ----------
+// ============================================================
+// 6. MODÈLES IA
+// ============================================================
+// Modèles actuels (septembre 2026)
+// OpenAI    : gpt-4o-mini  (rapide et économique)
+// Anthropic : claude-sonnet-4  (le plus intelligent pour l'analyse)
+// Gemini    : gemini-3.8-flash (dernière génération, stable)
 const AI_MODELS = {
   openai:    "gpt-4o-mini",
   anthropic: "claude-sonnet-4-20250514",
-  gemini:    "gemini-3.6-flash"  // <- La ligne à modifier
+  gemini:    "gemini-3.8-flash"
 };
 
-// ---------- 6. CITATIONS ----------
+
+// ============================================================
+// 7. CITATIONS MOTIVANTES
+// ============================================================
+// Affichées sur l'onglet Tableau et Motivation
 const QUOTES = [
   {q:"Le succès, c'est la somme de petits efforts répétés jour après jour.", a:"Robert Collier", e:"🌱"},
   {q:"Un objectif sans plan n'est qu'un souhait.", a:"Antoine de Saint-Exupéry", e:"🎯"},
@@ -66,11 +102,18 @@ const QUOTES = [
   {q:"Un petit business qui tourne vaut mieux qu'un grand rêve qui dort.", a:"Anonyme", e:"🏗️"},
   {q:"Ce qui compte, ce n'est pas combien tu gagnes, mais combien tu gardes.", a:"Robert Kiyosaki", e:"🛡️"},
   {q:"La chance, c'est quand la préparation rencontre l'opportunité.", a:"Sénèque", e:"🍀"},
-  {q:"Pense comme un propriétaire, pas comme un employé.", a:"Anonyme", e:"👑"}
+  {q:"Pense comme un propriétaire, pas comme un employé.", a:"Anonyme", e:"👑"},
+  {q:"La meilleure façon de prédire l'avenir, c'est de le créer.", a:"Peter Drucker", e:"🔮"},
+  {q:"Fais de ton métier une passion, et tu ne travailleras plus jamais.", a:"Confucius", e:"📷"},
+  {q:"Une photo vaut mille mots, mais une bonne photo vaut un million d'émotions.", a:"Henzo Koicy", e:"✨"},
+  {q:"Le talent sans discipline, c'est juste un potentiel gaspillé.", a:"Anonyme", e:"🏆"}
 ];
 
 
-// ---------- 7. IDÉES BUSINESS ----------
+// ============================================================
+// 8. IDÉES BUSINESS
+// ============================================================
+// Affichées dans l'onglet Business
 const LOCAL_IDEAS = [
   {t:"Vente de tirages photo", d:"Propose des tirages premium de tes meilleurs shoots.", tags:["Photo","Passif"]},
   {t:"Mini-sessions thématiques mensuelles", d:"1 journée/mois avec 6 créneaux à prix fixe.", tags:["Photo","Récurrent"]},
