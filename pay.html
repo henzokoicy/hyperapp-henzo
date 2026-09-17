@@ -3,86 +3,427 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="theme-color" content="#0f1115">
-  <title>Paiement — Henzo Photographie</title>
+  <meta name="theme-color" content="#0a0c11">
+  <meta name="description" content="Portail de paiement sécurisé Henzo Photographie. Réglez votre séance via Wave.">
+
+  <!-- Open Graph (partage WhatsApp, réseaux) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Paiement Henzo Photographie">
+  <meta property="og:description" content="Portail de paiement sécurisé. Réglez votre séance via Wave.">
+  <meta property="og:site_name" content="Henzo Photographie">
+
+  <title>Paiement · Henzo Photographie</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📸</text></svg>">
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
+    /* ============================================================
+       PALETTE PREMIUM (alignée avec styles.css)
+       ============================================================ */
     :root {
-      --bg: #0f1115; --card: #1a1d24; --card2: #232830;
-      --text: #e8eaf0; --muted: #8b93a7; --accent: #6c8cff;
-      --green: #2ecc71; --pink: #ff6b9d; --border: #2a2f3a; --wave: #1DC8FF;
-      --yellow: #f5b942; --red: #ff5c5c;
+      --bg:        #0a0c11;
+      --bg-2:      #0f1219;
+      --card:      #141822;
+      --card2:     #1c2130;
+      --card3:     #242a3b;
+      --text:      #eef1f8;
+      --muted:     #7e87a0;
+      --accent:    #6b8eff;
+      --accent-dk: #4a6ee0;
+      --gold:      #f5c542;
+      --gold-soft: #ffd97a;
+      --green:     #34d399;
+      --red:       #ff6b6b;
+      --pink:      #ff7eb3;
+      --wave:      #1DC8FF;
+      --border:    rgba(255,255,255,.06);
+      --border-2:  rgba(255,255,255,.10);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.25);
+      --shadow:    0 8px 24px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.4);
+      --shadow-lg: 0 20px 48px rgba(0,0,0,.5), 0 4px 12px rgba(0,0,0,.35);
+      --ease:      cubic-bezier(.4,0,.2,1);
+      --ease-out:  cubic-bezier(.16,1,.3,1);
+      --ease-spring: cubic-bezier(.34,1.56,.64,1);
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; min-height: 100vh; padding: 20px; }
+
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
+    body {
+      background:
+        radial-gradient(1200px 600px at 100% -10%, rgba(107,142,255,.10), transparent 60%),
+        radial-gradient(900px 500px at -10% 110%, rgba(255,126,179,.08), transparent 60%),
+        radial-gradient(800px 400px at 50% 0%, rgba(245,197,66,.06), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
     .container { max-width: 480px; width: 100%; margin: 0 auto; }
 
-    .brand { text-align: center; margin-bottom: 24px; padding-top: 20px; }
-    .brand-logo { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--pink)); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 40px; margin-bottom: 12px; box-shadow: 0 8px 32px rgba(108,140,255,.3); }
-    .brand h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    /* ============================================================
+       MARQUE
+       ============================================================ */
+    .brand {
+      text-align: center;
+      margin-bottom: 24px;
+      padding-top: 20px;
+      animation: fadeInDown .5s var(--ease-out);
+    }
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .brand-logo {
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--pink));
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 42px;
+      margin-bottom: 14px;
+      box-shadow:
+        0 12px 32px rgba(107,142,255,.40),
+        0 0 0 4px rgba(107,142,255,.10);
+      position: relative;
+    }
+    .brand-logo::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--pink), var(--gold));
+      z-index: -1;
+      opacity: .35;
+      filter: blur(12px);
+    }
+    .brand h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      letter-spacing: -.3px;
+      background: linear-gradient(135deg, var(--text), #c7cddd);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
     .brand p { color: var(--muted); font-size: 13px; }
-    .verified { display: inline-flex; align-items: center; gap: 5px; background: rgba(46,204,113,.15); color: var(--green); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .verified {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: linear-gradient(135deg, rgba(52,211,153,.20), rgba(52,211,153,.08));
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 20px;
+      margin-top: 10px;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      border: 1px solid rgba(52,211,153,.25);
+    }
 
-    .client-card { background: linear-gradient(135deg, rgba(108,140,255,.15), rgba(255,107,157,.08)); border: 1px solid var(--accent); border-radius: 16px; padding: 16px; margin-bottom: 16px; }
-    .client-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-    .client-name { font-size: 18px; font-weight: 700; color: var(--accent); }
+    /* ============================================================
+       CARTE CLIENT
+       ============================================================ */
+    .client-card {
+      background: linear-gradient(135deg, rgba(107,142,255,.16), rgba(255,126,179,.08));
+      border: 1px solid rgba(107,142,255,.35);
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+      animation: fadeInUp .5s var(--ease-out);
+      animation-delay: .1s;
+      animation-fill-mode: both;
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .client-card .label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+    .client-name {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -.2px;
+    }
 
-    .card { background: var(--card); border-radius: 20px; padding: 24px; border: 1px solid var(--border); margin-bottom: 16px; }
-    .ref-line { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); margin: 16px 0; padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-    .ref-line span:last-child { font-family: monospace; color: var(--text); font-weight: 600; }
+    /* ============================================================
+       CARTES
+       ============================================================ */
+    .card {
+      background: linear-gradient(160deg, var(--card) 0%, var(--card2) 100%);
+      border-radius: 20px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+      animation: fadeInUp .5s var(--ease-out);
+      animation-delay: .2s;
+      animation-fill-mode: both;
+    }
 
-    .type-badge { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-    .type-badge.complet { background: rgba(46,204,113,.2); color: var(--green); }
-    .type-badge.acompte30 { background: rgba(245,185,66,.2); color: var(--yellow); }
-    .type-badge.acompte50 { background: rgba(108,140,255,.2); color: var(--accent); }
-    .type-badge.solde { background: rgba(255,92,92,.2); color: var(--red); }
+    .ref-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+      margin: 16px 0;
+      padding: 14px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .ref-line span:last-child {
+      font-family: 'SF Mono', Monaco, Consolas, monospace;
+      color: var(--gold-soft);
+      font-weight: 700;
+      letter-spacing: .5px;
+    }
 
-    .amount-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-    .amount { font-size: 42px; font-weight: 700; color: var(--green); margin-bottom: 8px; letter-spacing: -1px; }
+    /* Badge type */
+    .type-badge {
+      display: inline-block;
+      padding: 7px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 14px;
+    }
+    .type-badge.complet   { background: linear-gradient(135deg, rgba(52,211,153,.22), rgba(52,211,153,.10)); color: var(--green); border: 1px solid rgba(52,211,153,.30); }
+    .type-badge.acompte30 { background: linear-gradient(135deg, rgba(245,197,66,.22), rgba(245,197,66,.10)); color: var(--gold-soft); border: 1px solid rgba(245,197,66,.30); }
+    .type-badge.acompte50 { background: linear-gradient(135deg, rgba(107,142,255,.22), rgba(107,142,255,.10)); color: #a4b8ff; border: 1px solid rgba(107,142,255,.30); }
+    .type-badge.solde     { background: linear-gradient(135deg, rgba(255,107,107,.22), rgba(255,107,107,.10)); color: var(--red); border: 1px solid rgba(255,107,107,.30); }
+
+    /* Montant */
+    .amount-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .amount {
+      font-size: 44px;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--green), #6ee7b7);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
     .amount-total { font-size: 13px; color: var(--muted); margin-bottom: 0; }
     .amount-total strong { color: var(--text); }
 
-    .details { background: var(--card2); border-radius: 12px; padding: 14px; margin-bottom: 20px; }
-    .details-row { display: flex; justify-content: space-between; align-items: flex-start; font-size: 13px; padding: 8px 0; gap: 12px; }
+    /* Détails */
+    .details {
+      background: var(--card3);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+    }
+    .details-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      font-size: 13px;
+      padding: 9px 0;
+      gap: 12px;
+    }
     .details-row:not(:last-child) { border-bottom: 1px solid var(--border); }
     .details-row span:first-child { color: var(--muted); flex-shrink: 0; }
     .details-row span:last-child { font-weight: 600; text-align: right; }
 
-    .steps-title { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 700; }
-    .step { display: flex; gap: 12px; padding: 12px 0; align-items: flex-start; }
+    /* Étapes */
+    .steps-title {
+      font-size: 13px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: 14px;
+      font-weight: 700;
+    }
+    .step {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0;
+      align-items: flex-start;
+    }
     .step:not(:last-child) { border-bottom: 1px dashed var(--border); }
-    .step-num { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
-    .step-text { flex: 1; font-size: 13px; line-height: 1.5; padding-top: 4px; }
-    .step-text strong { color: var(--text); }
+    .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dk));
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(107,142,255,.35);
+    }
+    .step-text {
+      flex: 1;
+      font-size: 13px;
+      line-height: 1.55;
+      padding-top: 5px;
+    }
+    .step-text strong { color: var(--text); font-weight: 700; }
 
-    .btn-wave { width: 100%; background: var(--wave); color: #000; border: none; padding: 18px; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all .15s; box-shadow: 0 6px 24px rgba(29,200,255,.3); font-family: inherit; }
-    .btn-wave:active { transform: scale(.98); }
-    .trust { text-align: center; font-size: 12px; color: var(--muted); margin-top: 16px; }
-    .footer { text-align: center; padding: 24px 0; font-size: 13px; color: var(--muted); }
-    .footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+    /* Bouton Wave */
+    .btn-wave {
+      width: 100%;
+      background: linear-gradient(135deg, var(--wave), #0ea5e9);
+      color: #000;
+      border: none;
+      padding: 18px;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-decoration: none;
+      box-shadow:
+        0 10px 32px rgba(29,200,255,.40),
+        0 2px 8px rgba(0,0,0,.35);
+      transition: transform .25s var(--ease-spring), box-shadow .25s var(--ease);
+      letter-spacing: .3px;
+    }
+    .btn-wave:hover {
+      transform: translateY(-3px);
+      box-shadow:
+        0 16px 40px rgba(29,200,255,.55),
+        0 4px 12px rgba(0,0,0,.35);
+    }
+    .btn-wave:active {
+      transform: translateY(-1px) scale(.98);
+    }
 
-    .loader { display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; gap: 16px; }
-    .loader-icon { font-size: 48px; animation: spin 1s linear infinite; }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .trust {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 16px;
+    }
 
-    .status-page { text-align: center; padding: 60px 20px; }
-    .status-icon { font-size: 80px; margin-bottom: 20px; }
-    .status-title { font-size: 24px; font-weight: 700; margin-bottom: 12px; }
-    .status-text { color: var(--muted); font-size: 14px; line-height: 1.6; }
+    .footer {
+      text-align: center;
+      padding: 24px 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .footer a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+      transition: color .2s var(--ease);
+    }
+    .footer a:hover { color: var(--accent-2, #8ba5ff); }
+
+    /* Loader */
+    .loader {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .loader-icon {
+      font-size: 52px;
+      animation: spin 1.2s linear infinite;
+      display: inline-block;
+      filter: drop-shadow(0 4px 16px rgba(107,142,255,.35));
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    .loader p { color: var(--muted); font-size: 14px; }
+
+    /* Pages d'état (erreur, déjà payé) */
+    .status-page {
+      text-align: center;
+      padding: 60px 20px;
+      animation: fadeInUp .5s var(--ease-out);
+    }
+    .status-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      display: inline-block;
+      animation: popIn .5s var(--ease-spring);
+    }
+    @keyframes popIn {
+      from { transform: scale(.5); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+    .status-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: -.3px;
+    }
+    .status-text {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+      max-width: 340px;
+      margin: 0 auto;
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
   </style>
 </head>
 <body>
 
 <!-- Bandeau pour les navigateurs intégrés (WhatsApp, Facebook, Instagram...) -->
-<div id="inAppBanner" style="display:none; position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #6c8cff, #ff6b9d); color: #fff; padding: 14px; text-align: center; z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,.3);">
-  <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">📱 Ouvrez dans Chrome pour payer</div>
-  <div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px;">WhatsApp ne peut pas finaliser le paiement</div>
-  <button onclick="ouvrirDansNavigateur()" style="background: #fff; color: #000; border: none; padding: 10px 20px; border-radius: 20px; font-weight: 700; font-size: 13px; cursor: pointer;">Ouvrir dans Chrome</button>
+<div id="inAppBanner" style="display:none; position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, var(--accent), var(--pink)); color: #fff; padding: 14px; text-align: center; z-index: 9999; box-shadow: 0 8px 24px rgba(0,0,0,.4);">
+  <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">📱 Ouvre dans Chrome pour payer</div>
+  <div style="font-size: 12px; opacity: 0.92; margin-bottom: 10px;">WhatsApp ne peut pas finaliser le paiement</div>
+  <button onclick="ouvrirDansNavigateur()" style="background: #fff; color: #000; border: none; padding: 10px 22px; border-radius: 22px; font-weight: 700; font-size: 13px; cursor: pointer;">Ouvrir dans Chrome</button>
 </div>
 
 <div id="loader" class="loader">
   <div class="loader-icon">⏳</div>
-  <p style="color: var(--muted)">Chargement du paiement...</p>
+  <p>Chargement du paiement...</p>
 </div>
 
 <div class="container" id="mainContent" style="display:none">
@@ -96,11 +437,11 @@
 
   <div class="client-card">
     <div class="label">Client</div>
-    <div class="client-name" id="clientNameDisplay">—</div>
+    <div class="client-name" id="clientNameDisplay">...</div>
   </div>
 
   <div class="card">
-    <div style="text-align: center; margin-bottom: 16px;">
+    <div style="text-align: center; margin-bottom: 18px;">
       <span class="type-badge complet" id="typeBadge">Paiement</span>
     </div>
 
@@ -110,7 +451,7 @@
 
     <div class="ref-line">
       <span>Référence</span>
-      <span id="refDisplay">—</span>
+      <span id="refDisplay">...</span>
     </div>
 
     <div class="details">
@@ -134,7 +475,7 @@
     <div class="steps" style="margin-bottom: 20px;">
       <div class="step">
         <div class="step-num">1</div>
-        <div class="step-text">Cliquez sur le bouton <strong>"Payer avec Wave"</strong> ci-dessous</div>
+        <div class="step-text">Clique sur le bouton <strong>"Payer avec Wave"</strong> ci-dessous</div>
       </div>
       <div class="step">
         <div class="step-num">2</div>
@@ -142,7 +483,7 @@
       </div>
       <div class="step">
         <div class="step-num">3</div>
-        <div class="step-text">Validez avec votre <strong>code PIN Wave</strong></div>
+        <div class="step-text">Valide avec ton <strong>code PIN Wave</strong></div>
       </div>
       <div class="step">
         <div class="step-num">4</div>
@@ -150,32 +491,32 @@
       </div>
     </div>
 
-  <a id="btnWave" href="#" class="btn-wave" style="text-decoration:none;">
-  <span style="font-size:22px">💳</span>
-  Payer avec Wave
-</a>
+    <a id="btnWave" href="#" class="btn-wave" aria-label="Payer avec Wave">
+      <span style="font-size:22px">💳</span>
+      Payer avec Wave
+    </a>
 
     <div class="trust">🔒 Paiement sécurisé et crypté</div>
   </div>
 
   <div class="footer">
     Une question ?<br>
-    <a href="https://wa.me/2250170998964" target="_blank">📱 Nous contacter sur WhatsApp</a>
+    <a href="https://wa.me/2250170998964" target="_blank" rel="noopener">📱 Nous contacter sur WhatsApp</a>
   </div>
 
 </div>
 
 <script>
   // ============================================================
-  // CONFIG — ⚠️ REMPLACE LA CLÉ CI-DESSOUS PAR TA CLÉ ANON
-  // (celle qui commence par eyJ... dans Supabase → Settings → API → Legacy API keys)
+  // CONFIG SUPABASE
   // ============================================================
   const SUPABASE_URL = 'https://lzxvktkryxizclkdetaa.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6eHZrdGtyeXhpemNsa2RldGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMzM5MTEsImV4cCI6MjEwNDkwOTkxMX0.w3jWwb5Lrc0-1sQsltunWh_Lanx3jdYSwwZYen-ux8A';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   // ============================================================
-  // LECTURE DES PARAMÈTRES URL — Supporte 2 formats :
+  // LECTURE DES PARAMÈTRES URL
+  // Supporte 2 formats :
   // 1. /pay.html?ref=PL-0002  (format classique)
   // 2. /p/PL-0002             (format court)
   // ============================================================
@@ -202,71 +543,72 @@
   }
 
   // ============================================================
-  // CHARGEMENT DEPUIS SUPABASE
+  // CHARGEMENT DEPUIS L'URL (les infos sont dans les paramètres)
   // ============================================================
   async function chargerDepuisSupabase(ref) {
-  // ⚡ SOLUTION FINALE : on lit les infos DIRECTEMENT dans l'URL
-  // Plus besoin de Supabase, donc plus de bug "Lien invalide"
-  const p = new URLSearchParams(window.location.search);
-  
-  const clientName = p.get('n') || 'Client';
-  const amount = parseFloat(p.get('m')) || 0;
-  const total = parseFloat(p.get('t')) || 0;
-  const desc = p.get('d') || 'Paiement';
-  const type = p.get('ty') || 'complet';
-  const waveLink = p.get('w') || '';
-  const refCode = p.get('ref') || ref;
+    const p = new URLSearchParams(window.location.search);
 
-  // Si pas de montant, c'est un vieux lien : on tente Supabase (fallback)
-  if(!amount || amount <= 0) {
-    try {
-      const id = parseInt(ref.replace('PL-', ''));
-      if(id) {
-        const { data, error } = await sb.from('payment_links')
-          .select('*').eq('id', id).maybeSingle();
-        if(!error && data) {
-          const typeLabels = {
-            'complet': 'Paiement complet',
-            'acompte30': 'Acompte 30%',
-            'acompte50': 'Acompte 50%',
-            'solde': 'Solde restant'
-          };
-          afficherPaiement({
-            ref: 'PL-' + String(data.id).padStart(4, '0'),
-            amount: data.amount,
-            desc: data.description || 'Paiement',
-            clientName: data.client_name || 'Client',
-            type: data.payment_type || 'complet',
-            typeLabel: typeLabels[data.payment_type] || 'Paiement',
-            total: data.total_amount,
-            waveLink: data.wave_link
-          });
-          return;
+    const clientName = p.get('n') || 'Client';
+    const amount     = parseFloat(p.get('m')) || 0;
+    const total      = parseFloat(p.get('t')) || 0;
+    const desc       = p.get('d') || 'Paiement';
+    const type       = p.get('ty') || 'complet';
+    const waveLink   = p.get('w') || '';
+    const refCode    = p.get('ref') || ref;
+
+    // Si pas de montant, c'est un vieux lien : on tente Supabase (fallback)
+    if(!amount || amount <= 0) {
+      try {
+        const id = parseInt(ref.replace('PL-', ''));
+        if(id) {
+          const { data, error } = await sb.from('payment_links')
+            .select('*').eq('id', id).maybeSingle();
+          if(!error && data) {
+            const typeLabels = {
+              'complet': 'Paiement complet',
+              'acompte30': 'Acompte 30%',
+              'acompte50': 'Acompte 50%',
+              'solde': 'Solde restant'
+            };
+            afficherPaiement({
+              ref: 'PL-' + String(data.id).padStart(4, '0'),
+              amount: data.amount,
+              desc: data.description || 'Paiement',
+              clientName: data.client_name || 'Client',
+              type: data.payment_type || 'complet',
+              typeLabel: typeLabels[data.payment_type] || 'Paiement',
+              total: data.total_amount,
+              waveLink: data.wave_link
+            });
+            return;
+          }
         }
+      } catch(e) {
+        console.warn('Fallback Supabase échoué:', e);
       }
-    } catch(e) { console.warn('Fallback Supabase échoué:', e); }
-    afficherErreur();
-    return;
+      afficherErreur();
+      return;
+    }
+
+    const typeLabels = {
+      'complet': 'Paiement complet',
+      'acompte30': 'Acompte 30%',
+      'acompte50': 'Acompte 50%',
+      'solde': 'Solde restant'
+    };
+
+    afficherPaiement({
+      ref: refCode,
+      amount: amount,
+      desc: desc,
+      clientName: clientName,
+      type: type,
+      typeLabel: typeLabels[type] || 'Paiement',
+      total: total,
+      waveLink: waveLink
+    });
   }
 
-  const typeLabels = {
-    'complet': 'Paiement complet',
-    'acompte30': 'Acompte 30%',
-    'acompte50': 'Acompte 50%',
-    'solde': 'Solde restant'
-  };
-
-  afficherPaiement({
-    ref: refCode,
-    amount: amount,
-    desc: desc,
-    clientName: clientName,
-    type: type,
-    typeLabel: typeLabels[type] || 'Paiement',
-    total: total,
-    waveLink: waveLink
-  });
-}
   // ============================================================
   // AFFICHAGE
   // ============================================================
@@ -276,7 +618,7 @@
 
     document.getElementById('clientNameDisplay').textContent = info.clientName;
     document.getElementById('refDisplay').textContent = info.ref;
-    document.getElementById('amountDisplay').textContent = 
+    document.getElementById('amountDisplay').textContent =
       new Intl.NumberFormat('fr-FR').format(info.amount) + ' FCFA';
     document.getElementById('descDisplay').textContent = info.desc;
 
@@ -291,19 +633,24 @@
       totalEl.textContent = '';
     }
 
-    // ⚡ Direct dans le bouton : nettoie et met le lien
-const btnWave = document.getElementById('btnWave');
-if(btnWave && info.waveLink) {
-  // Nettoie le lien (enlève les points, espaces, virgules à la fin)
-  const cleanLink = info.waveLink.trim().replace(/[.,;:\s]+$/, '');
-  btnWave.href = cleanLink;
-  console.log('✅ Lien Wave mis dans le bouton:', cleanLink);
-} else if(btnWave) {
-  btnWave.href = '#';
-  btnWave.onclick = (e) => { e.preventDefault(); alert('Lien Wave indisponible. Contactez Henzo Photographie.'); };
-}
+    // Bouton Wave
+    const btnWave = document.getElementById('btnWave');
+    if(btnWave && info.waveLink) {
+      const cleanLink = info.waveLink.trim().replace(/[.,;:\s]+$/, '');
+      btnWave.href = cleanLink;
+      console.log('Lien Wave mis dans le bouton:', cleanLink);
+    } else if(btnWave) {
+      btnWave.href = '#';
+      btnWave.onclick = (e) => {
+        e.preventDefault();
+        alert('Lien Wave indisponible. Contactez Henzo Photographie.');
+      };
+    }
   }
 
+  // ============================================================
+  // PAGE DÉJÀ PAYÉ
+  // ============================================================
   function afficherDejaPaye(data) {
     document.getElementById('loader').style.display = 'none';
     document.body.innerHTML = `
@@ -325,6 +672,9 @@ if(btnWave && info.waveLink) {
     `;
   }
 
+  // ============================================================
+  // PAGE ERREUR
+  // ============================================================
   function afficherErreur() {
     document.getElementById('loader').style.display = 'none';
     document.body.innerHTML = `
@@ -333,17 +683,16 @@ if(btnWave && info.waveLink) {
         <div class="status-title">Lien invalide</div>
         <div class="status-text">
           Ce lien de paiement n'est plus valide ou a été mal copié.<br><br>
-          Contactez Henzo Photographie pour recevoir un nouveau lien.
+          Contacte Henzo Photographie pour recevoir un nouveau lien.
         </div>
         <div style="margin-top: 32px;">
-          <a href="https://wa.me/2250170998964" style="display: inline-block; background: var(--green); color: #000; padding: 14px 24px; border-radius: 12px; text-decoration: none; font-weight: 700;">
+          <a href="https://wa.me/2250170998964" style="display: inline-block; background: linear-gradient(135deg, var(--green), #10b981); color: #000; padding: 14px 26px; border-radius: 12px; text-decoration: none; font-weight: 700; box-shadow: 0 8px 24px rgba(52,211,153,.35);">
             📱 Contacter Henzo
           </a>
         </div>
       </div>
     `;
   }
-
 
   // ============================================================
   // DÉTECTION NAVIGATEUR INTÉGRÉ (WhatsApp, Facebook, Instagram...)
