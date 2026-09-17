@@ -3815,6 +3815,12 @@ function genererRecuPDFClient(link) {
   const ref = 'PL-' + String(link.id).padStart(4, '0');
   const paidDate = link.paid_at ? new Date(link.paid_at) : new Date();
 
+  // ⚠️ CORRECTIF : jsPDF affiche mal les espaces insécables (U+202F, U+00A0)
+  // On les remplace par des espaces normaux
+  const formatNum = (n) => new Intl.NumberFormat('fr-FR')
+    .format(Math.round(n))
+    .replace(/[\u202F\u00A0\u2009]/g, ' ');
+
   const typeLabels = {
     'complet': 'Paiement complet',
     'acompte30': 'Acompte 30%',
@@ -3897,49 +3903,51 @@ function genererRecuPDFClient(link) {
     doc.text('Émis le : ' + createdStr, pageWidth - margin, y + 5, { align: 'right' });
   }
 
-  y += 20;
+  y += 22;
 
   // ---- TABLEAU MONTANT ----
+  const boxHeight = 48;
   doc.setFillColor(248, 250, 255);
-  doc.roundedRect(margin, y, pageWidth - margin * 2, 40, 3, 3, 'F');
+  doc.roundedRect(margin, y, pageWidth - margin * 2, boxHeight, 3, 3, 'F');
 
   doc.setDrawColor(107, 142, 255);
   doc.setLineWidth(0.5);
-  doc.roundedRect(margin, y, pageWidth - margin * 2, 40, 3, 3, 'S');
+  doc.roundedRect(margin, y, pageWidth - margin * 2, boxHeight, 3, 3, 'S');
 
+  // Titre dans la box
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(80, 90, 120);
-  doc.text('MONTANT PAYÉ', margin + 6, y + 10);
+  doc.text('MONTANT PAYÉ', margin + 8, y + 13);
 
-  doc.setFontSize(26);
+  // Montant en gros (avec formatNum au lieu de Intl directement)
+  doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(16, 130, 80);
-  const amountStr = new Intl.NumberFormat('fr-FR').format(link.amount) + ' FCFA';
-  doc.text(amountStr, margin + 6, y + 25);
+  const amountStr = formatNum(link.amount) + ' FCFA';
+  doc.text(amountStr, margin + 8, y + 32);
 
+  // Sous-ligne
   if(link.total_amount && link.total_amount > link.amount) {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(120, 120, 120);
-    const remaining = link.total_amount - link.amount;
-    doc.text(
-      'sur un total de ' + new Intl.NumberFormat('fr-FR').format(link.total_amount) + ' FCFA',
-      margin + 6,
-      y + 33
-    );
-    doc.text(
-      'Reste à payer : ' + new Intl.NumberFormat('fr-FR').format(remaining) + ' FCFA',
-      pageWidth - margin - 6,
-      y + 33,
-      { align: 'right' }
-    );
+    const totalStr = 'sur un total de ' + formatNum(link.total_amount) + ' FCFA';
+    const restStr = 'Reste à payer : ' + formatNum(link.total_amount - link.amount) + ' FCFA';
+    doc.text(totalStr, margin + 8, y + 42);
+    doc.text(restStr, pageWidth - margin - 8, y + 42, { align: 'right' });
+  } else {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 120, 120);
+    doc.text('Paiement intégral', margin + 8, y + 42);
   }
 
-  y += 55;
+  y += boxHeight + 15;
 
   // ---- MENTION LÉGALE ----
   doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.3);
   doc.line(margin, y, pageWidth - margin, y);
 
   doc.setFontSize(9);
@@ -3970,7 +3978,6 @@ function genererRecuPDFClient(link) {
 
   return doc;
 }
-
 // Télécharger le reçu PDF
 function telechargerRecuClient(linkId) {
   const link = paymentLinks.find(x => x.id === linkId);
