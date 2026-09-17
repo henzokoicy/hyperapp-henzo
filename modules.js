@@ -2560,64 +2560,22 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ============================================================
-// LIEN DE PAIEMENT CLIENT (depuis une séance existante)
+// LIEN DE PAIEMENT CLIENT (unifié avec payment_links)
 // ============================================================
 function genererLienPaiementClient(shootId) {
   const shoot = shoots.find(s => s.id === shootId);
   if(!shoot) return;
   const client = shoot.client_id ? clients.find(c => c.id === shoot.client_id) : null;
-  const clientName = client ? client.name : 'Client';
+  const clientName = client ? client.name : '';
+  const clientPhone = client ? (client.phone || '') : '';
 
-  const ref = 'SH-' + String(shoot.id).padStart(4, '0');
-  const desc = encodeURIComponent(shoot.type + (clientName !== 'Client' ? ' — ' + clientName : ''));
-  const amount = Math.round(shoot.price);
-  const dateFormatted = shoot.date ? new Date(shoot.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'}) : '';
-
-  const lien = `${APP_URL}/pay.html?amount=${amount}&desc=${desc}&ref=${ref}`;
-
-  const modal = document.createElement('div');
-  modal.className = 'modal-bg show';
-  modal.id = 'sendLinkModal';
-  modal.innerHTML = `
-    <div class="modal">
-      <div class="modal-wrap"><h3>📤 Envoyer le lien de paiement</h3><button class="close" onclick="fermerSendLink()">×</button></div>
-      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Client</div>
-        <div style="font-weight:700;margin-bottom:10px">${clientName}</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Prestation</div>
-        <div style="font-weight:600;margin-bottom:10px">${shoot.type}</div>
-        ${dateFormatted ? `<div style="font-size:12px;color:var(--muted);margin-bottom:4px">Date</div><div style="font-weight:600;margin-bottom:10px">${dateFormatted}</div>` : ''}
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Montant</div>
-        <div style="font-weight:700;color:var(--green);font-size:20px">${fmt(amount)}</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;margin-top:10px">Référence</div>
-        <div style="font-family:monospace;font-weight:600">${ref}</div>
-      </div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.5">Envoyez ce lien à votre client. Il verra une page sécurisée avec vos informations.</div>
-      <div style="display:grid;gap:8px">
-        <button class="btn-primary" style="margin:0;background:var(--green);width:100%" onclick="envoyerWhatsApp('${lien}', '${clientName}', '${shoot.type}', ${amount})">💬 Envoyer via WhatsApp</button>
-        <button class="btn-ghost" style="margin:0;width:100%" onclick="copierLien('${lien}')">📋 Copier le lien</button>
-        <button class="btn-ghost" style="margin:0;width:100%" onclick="window.open('${lien}', '_blank')">👁️ Aperçu</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-function fermerSendLink(){ const modal = document.getElementById('sendLinkModal'); if(modal) modal.remove(); }
-
-function envoyerWhatsApp(lien, clientName, type, montant) {
-  const message = `Bonjour ${clientName} 👋,\n\nVoici votre lien de paiement sécurisé pour votre ${type} :\n\n💳 ${fmt(montant)}\n\n${lien}\n\nMerci pour votre confiance !\nHENZO PHOTOGRAPHIE`;
-  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
-  fermerSendLink();
-}
-
-function copierLien(lien) {
-  if(navigator.clipboard) { navigator.clipboard.writeText(lien).then(() => { showToast('✅ Lien copié'); fermerSendLink(); }); }
-  else {
-    const ta = document.createElement('textarea'); ta.value = lien;
-    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-    document.body.removeChild(ta); showToast('✅ Lien copié'); fermerSendLink();
-  }
+  ouvrirCreerLien({
+    clientName: clientName,
+    clientPhone: clientPhone,
+    description: shoot.type + (clientName ? ' — ' + clientName : ''),
+    totalAmount: Math.round(shoot.price),
+    paymentType: 'complet'
+  });
 }
 
 // ============================================================
@@ -2633,7 +2591,8 @@ async function loadPaymentLinks() {
   } catch(e) { console.warn('loadPaymentLinks error:', e); }
 }
 
-function ouvrirCreerLien() {
+function ouvrirCreerLien(prefill) {
+  prefill = prefill || {};
   const modal = document.createElement('div');
   modal.className = 'modal-bg show';
   modal.id = 'creerLienModal';
@@ -2651,26 +2610,26 @@ function ouvrirCreerLien() {
       </div>
 
       <label>Nom du client</label>
-      <input type="text" id="lienClientName" placeholder="Ex: M. Kouassi" list="lienClientsList" autocomplete="off">
+      <input type="text" id="lienClientName" placeholder="Ex: M. Kouassi" list="lienClientsList" autocomplete="off" value="${(prefill.clientName || '').replace(/"/g, '&quot;')}">
       <datalist id="lienClientsList">
         ${clients.map(c => `<option value="${c.name}">`).join('')}
       </datalist>
 
       <label>Téléphone (optionnel)</label>
-      <input type="tel" id="lienClientPhone" placeholder="Ex: 07 00 00 00 00">
+      <input type="tel" id="lienClientPhone" placeholder="Ex: 07 00 00 00 00" value="${(prefill.clientPhone || '').replace(/"/g, '&quot;')}">
 
       <label>Description de la prestation</label>
-      <input type="text" id="lienDesc" placeholder="Ex: Shooting mariage 15 octobre">
+      <input type="text" id="lienDesc" placeholder="Ex: Shooting mariage 15 octobre" value="${(prefill.description || '').replace(/"/g, '&quot;')}">
 
       <label>Montant total de la prestation (FCFA)</label>
-      <input type="number" id="lienTotalAmount" placeholder="Ex: 100000" inputmode="decimal" oninput="mettreAJourMontant()">
+      <input type="number" id="lienTotalAmount" placeholder="Ex: 100000" inputmode="decimal" oninput="mettreAJourMontant()" value="${prefill.totalAmount || ''}">
 
       <label>Type de paiement</label>
-      <select id="lienPaymentType" onchange="mettreAJourMontant()">
-        <option value="acompte30">💰 Acompte 30%</option>
-        <option value="acompte50">💰 Acompte 50%</option>
-        <option value="complet">✅ Paiement complet (100%)</option>
-        <option value="solde">📌 Solde restant (à saisir)</option>
+            <select id="lienPaymentType" onchange="mettreAJourMontant()">
+        <option value="acompte30"${prefill.paymentType === 'acompte30' ? ' selected' : ''}>💰 Acompte 30%</option>
+        <option value="acompte50"${prefill.paymentType === 'acompte50' ? ' selected' : ''}>💰 Acompte 50%</option>
+        <option value="complet"${prefill.paymentType === 'complet' ? ' selected' : ''}>✅ Paiement complet (100%)</option>
+        <option value="solde"${prefill.paymentType === 'solde' ? ' selected' : ''}>📌 Solde restant (à saisir)</option>
       </select>
 
       <div id="montantCalcule" style="background:linear-gradient(135deg,rgba(46,204,113,.15),rgba(108,140,255,.08));border-radius:12px;padding:14px;margin-top:14px;display:none">
@@ -2686,7 +2645,10 @@ function ouvrirCreerLien() {
     </div>
   `;
   document.body.appendChild(modal);
-  setTimeout(() => document.getElementById('lienClientName')?.focus(), 300);
+  setTimeout(() => {
+    if(prefill.totalAmount) mettreAJourMontant();
+    document.getElementById('lienClientName')?.focus();
+  }, 300);
 }
 
 function fermerCreerLien(){ const m = document.getElementById('creerLienModal'); if(m) m.remove(); }
