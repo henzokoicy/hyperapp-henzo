@@ -150,10 +150,10 @@
       </div>
     </div>
 
-    <button class="btn-wave" onclick="payerAvecWave()">
-      <span style="font-size:22px">💳</span>
-      Payer avec Wave
-    </button>
+  <a id="btnWave" href="#" class="btn-wave" style="text-decoration:none;">
+  <span style="font-size:22px">💳</span>
+  Payer avec Wave
+</a>
 
     <div class="trust">🔒 Paiement sécurisé et crypté</div>
   </div>
@@ -291,7 +291,17 @@
       totalEl.textContent = '';
     }
 
-    window.__waveLink = info.waveLink;
+    // ⚡ Direct dans le bouton : nettoie et met le lien
+const btnWave = document.getElementById('btnWave');
+if(btnWave && info.waveLink) {
+  // Nettoie le lien (enlève les points, espaces, virgules à la fin)
+  const cleanLink = info.waveLink.trim().replace(/[.,;:\s]+$/, '');
+  btnWave.href = cleanLink;
+  console.log('✅ Lien Wave mis dans le bouton:', cleanLink);
+} else if(btnWave) {
+  btnWave.href = '#';
+  btnWave.onclick = (e) => { e.preventDefault(); alert('Lien Wave indisponible. Contactez Henzo Photographie.'); };
+}
   }
 
   function afficherDejaPaye(data) {
@@ -334,17 +344,6 @@
     `;
   }
 
-  // ============================================================
-  // BOUTON PAYER
-  // ============================================================
-  function payerAvecWave() {
-    const waveLink = window.__waveLink;
-    if(!waveLink) {
-      alert('Lien de paiement indisponible. Contactez Henzo Photographie.');
-      return;
-    }
-    window.location.href = waveLink;
-  }
 
   // ============================================================
   // DÉTECTION NAVIGATEUR INTÉGRÉ (WhatsApp, Facebook, Instagram...)
