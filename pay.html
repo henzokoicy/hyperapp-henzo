@@ -169,8 +169,23 @@
   // ============================================================
   // LECTURE DES PARAMÈTRES URL
   // ============================================================
-  const params = new URLSearchParams(window.location.search);
-  const refParam = params.get('ref');
+  // Lecture des paramètres URL — supporte 2 formats :
+// 1. /pay.html?ref=PL-0002  (format classique)
+// 2. /p/PL-0002             (format court, si Vercel ne redirige pas)
+let refParam = null;
+
+// Format 1 : ?ref=PL-0002
+const params = new URLSearchParams(window.location.search);
+refParam = params.get('ref');
+
+// Format 2 : /p/PL-0002 (fallback si pas de ?ref=)
+if(!refParam) {
+  const path = window.location.pathname;
+  const match = path.match(/\/p\/(PL-\d+)/i);
+  if(match) {
+    refParam = match[1];
+  }
+}
 
   // ============================================================
   // LOGIQUE PRINCIPALE
