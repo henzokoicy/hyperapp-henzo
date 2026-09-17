@@ -3839,7 +3839,7 @@ function genererRecuPDFClient(link) {
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('Photographe professionnel · Abidjan, CI', margin, 25);
+doc.text('Photographe professionnel · Côte d\'Ivoire', margin, 25);
   doc.text('WhatsApp : +225 01 70 99 89 64', margin, 31);
 
   doc.setFontSize(16);
@@ -3970,7 +3970,7 @@ function genererRecuPDFClient(link) {
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 150);
   doc.text(
-    'henzophotographie@gmail.com  ·  +225 01 70 99 89 64  ·  Abidjan, Côte d\'Ivoire',
+    'henzophotographie@gmail.com  ·  +225 01 70 99 89 64  ·  Côte d\'Ivoire',
     pageWidth / 2,
     285,
     { align: 'center' }
