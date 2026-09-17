@@ -655,29 +655,127 @@ h2{
   color:#000;border-color:transparent;
 }
 
+/* Conteneur de citation premium */
 .quote-box{
   background:
-    radial-gradient(circle at 20% 0%, rgba(245,197,66,.10), transparent 60%),
-    radial-gradient(circle at 80% 100%, rgba(255,126,179,.08), transparent 60%),
-    linear-gradient(135deg,var(--card2),var(--card));
-  border-radius:16px;padding:26px 22px;
-  margin-bottom:12px;
+    radial-gradient(circle at 0% 0%, rgba(245,197,66,.16), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(107,142,255,.14), transparent 55%),
+    linear-gradient(135deg, #1c2130 0%, #141822 100%);
+  border-radius:22px;
+  padding:38px 26px 26px;
+  margin-bottom:14px;
   border:1px solid var(--border-2);
-  text-align:center;position:relative;
+  text-align:center;
+  position:relative;
   overflow:hidden;
+  box-shadow:
+    0 12px 40px rgba(0,0,0,.4),
+    0 0 0 1px rgba(255,255,255,.03) inset,
+    0 -20px 60px rgba(245,197,66,.05) inset;
 }
+
+/* Grande guillemet décorative en fond */
 .quote-box::before{
-  content:'';position:absolute;top:-1px;left:20%;right:20%;height:1px;
-  background:linear-gradient(90deg,transparent,var(--gold-soft),transparent);
-  opacity:.6;
+  content:'"';
+  position:absolute;
+  top:-40px;
+  left:14px;
+  font-family:Georgia, "Times New Roman", serif;
+  font-size:180px;
+  line-height:1;
+  font-weight:700;
+  color:var(--gold);
+  opacity:.10;
+  pointer-events:none;
+  user-select:none;
 }
+
+/* Ligne dorée lumineuse en haut */
+.quote-box::after{
+  content:'';
+  position:absolute;
+  top:0;
+  left:18%;
+  right:18%;
+  height:2px;
+  background:linear-gradient(90deg,
+    transparent,
+    var(--gold-soft) 30%,
+    #fff 50%,
+    var(--gold-soft) 70%,
+    transparent);
+  opacity:.85;
+  filter:blur(.3px);
+  box-shadow:0 0 16px rgba(245,197,66,.6);
+}
+
+/* Emoji en haut */
+.quote-box .emoji{
+  font-size:38px;
+  margin-bottom:16px;
+  display:inline-block;
+  filter:drop-shadow(0 6px 16px rgba(245,197,66,.35));
+  animation:floatEmoji 3s var(--ease) infinite;
+}
+@keyframes floatEmoji{
+  0%,100%{transform:translateY(0);}
+  50%{transform:translateY(-4px);}
+}
+
+/* Texte de la citation */
 .quote-box .q{
-  font-size:17px;font-weight:500;line-height:1.55;
-  font-style:italic;margin-bottom:10px;
+  font-size:18px;
+  font-weight:500;
+  line-height:1.6;
+  font-style:italic;
+  margin:0 0 20px;
   color:var(--text);
+  letter-spacing:.1px;
+  position:relative;
+  z-index:1;
+  padding:0 4px;
 }
-.quote-box .a{font-size:13px;color:var(--muted);font-style:normal;}
-.quote-box .emoji{font-size:32px;margin-bottom:10px;display:inline-block;}
+
+/* Petites guillemets dorées autour du texte */
+.quote-box .q::before,
+.quote-box .q::after{
+  content:'"';
+  font-family:Georgia, "Times New Roman", serif;
+  font-size:26px;
+  font-weight:700;
+  font-style:normal;
+  color:var(--gold-soft);
+  opacity:.75;
+  padding:0 4px;
+  vertical-align:-4px;
+}
+
+/* Nom de l'auteur - style "signature" */
+.quote-box .a{
+  font-size:12px;
+  color:var(--gold-soft);
+  font-style:normal;
+  font-weight:700;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  display:inline-flex;
+  align-items:center;
+  gap:12px;
+  position:relative;
+  z-index:1;
+}
+
+/* Petites lignes décoratives de chaque côté de l'auteur */
+.quote-box .a::before,
+.quote-box .a::after{
+  content:'';
+  width:28px;
+  height:1px;
+  background:linear-gradient(90deg, transparent, var(--gold-soft));
+}
+.quote-box .a::after{
+  background:linear-gradient(90deg, var(--gold-soft), transparent);
+}
 
 .reminder{
   display:flex;align-items:center;gap:10px;padding:12px;
