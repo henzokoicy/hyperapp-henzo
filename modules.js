@@ -1,5 +1,5 @@
 // ============================================================
-// MODULES.JS — Version complète et corrigée
+// MODULES.JS - Version complète et corrigée
 // ============================================================
 
 let editingReminderId = null;
@@ -61,18 +61,23 @@ function setupAutocomplete(inputId, listId){
   const input = document.getElementById(inputId);
   const list  = document.getElementById(listId);
   if(!input || !list) return;
+
   input.addEventListener('input', () => {
     const val = input.value.trim().toLowerCase();
     if(val.length < 1){ list.style.display='none'; list.innerHTML=''; return; }
+
     const matches = VILLES_CI.filter(v => v.toLowerCase().includes(val)).slice(0, 8);
     if(matches.length === 0){ list.style.display='none'; list.innerHTML=''; return; }
+
     list.innerHTML = matches.map(v => `<div onclick="selectCity('${inputId}','${listId}','${v}')">${v}</div>`).join('');
     list.style.display = 'block';
   });
+
   input.addEventListener('blur', () => {
     setTimeout(() => { list.style.display='none'; }, 150);
   });
 }
+
 function selectCity(inputId, listId, city){
   document.getElementById(inputId).value = city;
   document.getElementById(listId).style.display = 'none';
@@ -103,8 +108,10 @@ function analyzeNoteContent(text){
     const num = parseFloat(amountMatch[1].replace(/[\s.]/g, '').replace(',', '.'));
     if(!isNaN(num)) result.amount = num;
   }
+
   const phoneMatch = text.match(/(\+?\d[\d\s]{7,}\d)/);
   if(phoneMatch) result.phone = phoneMatch[1].replace(/\s/g, '');
+
   const tagsFound = text.match(/#[\wÀ-ÿ-]+/g);
   if(tagsFound) result.tags = tagsFound.map(t => t.replace('#','').toLowerCase());
 
@@ -169,8 +176,10 @@ function analyzeNoteLive(){
   const text = document.getElementById('noteContent').value;
   const analysisEl = document.getElementById('noteAnalysis');
   if(!text || text.length < 5){ analysisEl.classList.remove('show'); return; }
+
   const a = analyzeNoteContent(text);
   const lines = [];
+
   if(a.category){
     const catIcons = {appel:'📞', rdv:'📅', achat:'🛒', business:'💼', idee:'💡', todo:'✅'};
     const catLabels = {appel:'Appel', rdv:'Rendez-vous', achat:'Achat', business:'Business', idee:'Idée', todo:'À faire'};
@@ -184,6 +193,7 @@ function analyzeNoteLive(){
   if(a.amount) lines.push(`<div class="ai-line"><strong>💰</strong> Montant : ${fmt(a.amount)}</div>`);
   if(a.phone) lines.push(`<div class="ai-line"><strong>📞</strong> Téléphone : ${a.phone}</div>`);
   if(a.tags.length) lines.push(`<div class="ai-line"><strong>🏷️</strong> Tags : ${a.tags.join(', ')}</div>`);
+
   if(lines.length === 0){ analysisEl.classList.remove('show'); return; }
   analysisEl.innerHTML = lines.join('');
   analysisEl.classList.add('show');
@@ -192,8 +202,10 @@ function analyzeNoteLive(){
 function openNoteModal(id){
   editingNoteId = id || null;
   const n = id ? notes.find(x => x.id === id) : null;
+
   document.getElementById('noteModalTitle').textContent = n ? '✏️ Modifier' : '📝 Nouvelle note';
   document.getElementById('noteSubmit').textContent = '💾 Enregistrer';
+
   if(n){
     document.getElementById('noteTitle').value = n.title || '';
     document.getElementById('noteContent').value = n.content || '';
@@ -213,6 +225,7 @@ function openNoteModal(id){
     document.getElementById('noteTags').value = '';
     document.getElementById('noteReminder').value = '';
   }
+
   document.getElementById('noteAnalysis').classList.remove('show');
   document.getElementById('noteModalBg').classList.add('show');
   setTimeout(() => document.getElementById('noteContent').focus(), 200);
@@ -238,33 +251,44 @@ function autoFillFromContent(){
 async function saveNote(){
   const content = document.getElementById('noteContent').value.trim();
   if(!content){ alert("Écris du contenu"); return; }
+
   autoFillFromContent();
+
   const title = document.getElementById('noteTitle').value.trim();
   let category = document.getElementById('noteCategory').value;
   let priority = document.getElementById('notePriority').value;
   const reminderInput = document.getElementById('noteReminder').value;
   const tagsRaw = document.getElementById('noteTags').value.trim();
   const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+
   const a = analyzeNoteContent(content);
   if(category === 'note' && a.category) category = a.category;
   if(priority === 'normale' && a.priority) priority = a.priority;
+
   const data = {
-    title: title || null, content, category, priority,
+    title: title || null,
+    content,
+    category,
+    priority,
     reminder_date: reminderInput ? new Date(reminderInput).toISOString() : (a.date || null),
     tags: tags.length ? tags : null
   };
+
   if(editingNoteId){
     const result = await dbUpdate('notes', editingNoteId, data);
     if(!result) return;
     const idx = notes.findIndex(x => x.id === editingNoteId);
     if(idx >= 0) notes[idx] = result;
-    closeNoteModal(); renderNotes(); showToast('✅ Note modifiée');
+    closeNoteModal();
+    renderNotes();
+    showToast('Note modifiée');
   } else {
     const result = await dbInsert('notes', data);
     if(!result) return;
     notes.unshift(result);
-    closeNoteModal(); renderNotes();
-    showToast('✅ Note créée' + (data.reminder_date ? ' avec rappel' : ''));
+    closeNoteModal();
+    renderNotes();
+    showToast('Note créée' + (data.reminder_date ? ' avec rappel' : ''));
   }
   refreshAll();
 }
@@ -274,7 +298,8 @@ async function delNote(id){
   const ok = await dbDelete('notes', id);
   if(!ok) return;
   notes = notes.filter(n => n.id !== id);
-  renderNotes(); refreshAll();
+  renderNotes();
+  refreshAll();
 }
 
 async function toggleNoteDone(id){
@@ -285,15 +310,17 @@ async function toggleNoteDone(id){
   if(!result) return;
   n.archived = newArchived;
   renderNotes();
-  showToast(newArchived ? '🗄️ Note archivée' : '📌 Note réactivée');
+  showToast(newArchived ? 'Note archivée' : 'Note réactivée');
 }
 
 function renderNotes(){
   const el = document.getElementById('notesList');
   if(!el) return;
+
   const total = notes.filter(n => !n.archived).length;
   const withReminder = notes.filter(n => n.reminder_date && !n.reminder_sent && !n.archived).length;
   const urgent = notes.filter(n => (n.priority === 'urgente' || n.priority === 'haute') && !n.archived).length;
+
   document.getElementById('notesCount').textContent = total;
   document.getElementById('notesReminders').textContent = withReminder;
   document.getElementById('notesUrgent').textContent = urgent;
@@ -330,6 +357,7 @@ function renderNotes(){
   el.innerHTML = filtered.map(n => {
     const icon = catIcons[n.category] || '📝';
     const catLabel = catLabels[n.category] || 'Note';
+
     let reminderHtml = '';
     if(n.reminder_date){
       const d = new Date(n.reminder_date);
@@ -338,13 +366,17 @@ function renderNotes(){
       const cls = isDone ? 'done' : '';
       reminderHtml = `<span class="note-reminder-tag ${cls}">${isDone ? '✅' : '⏰'} ${dateStr}</span>`;
     }
+
     const createdStr = n.created_at ? new Date(n.created_at).toLocaleDateString('fr-FR', {day:'2-digit', month:'short'}) : '';
     const priorityBadge = n.priority && n.priority !== 'normale' ? `<span class="note-priority-badge ${n.priority}">${n.priority}</span>` : '';
+
     return `<div class="note-card priority-${n.priority || 'normale'} ${n.archived ? 'archived' : ''}">
-      <div class="note-header"><div style="flex:1;min-width:0;">
-        <div class="note-title">${icon} ${n.title || (n.content || '').substring(0, 40)}
-        <span class="note-category-badge">${catLabel}</span>${priorityBadge}</div>
-      </div></div>
+      <div class="note-header">
+        <div style="flex:1;min-width:0;">
+          <div class="note-title">${icon} ${n.title || (n.content || '').substring(0, 40)}
+          <span class="note-category-badge">${catLabel}</span>${priorityBadge}</div>
+        </div>
+      </div>
       ${n.content ? `<div class="note-content">${(n.content || '').replace(/\n/g, '<br>')}</div>` : ''}
       <div class="note-meta">${createdStr ? `<span>📅 ${createdStr}</span>` : ''}${reminderHtml}</div>
       ${(n.tags && n.tags.length) ? `<div class="note-tags">${n.tags.map(t => `<span class="note-tag">#${t}</span>`).join('')}</div>` : ''}
@@ -360,6 +392,7 @@ function renderNotes(){
 async function checkNoteReminders(){
   const now = new Date();
   let changed = false;
+
   for(const n of notes){
     if(n.reminder_sent || !n.reminder_date || n.archived) continue;
     if(new Date(n.reminder_date) <= now){
@@ -371,6 +404,7 @@ async function checkNoteReminders(){
       changed = true;
     }
   }
+
   if(changed) renderNotes();
 }
 
@@ -388,8 +422,10 @@ function onInspCategoryChange(){
 function openInspirationModal(id){
   editingInspirationId = id || null;
   const i = id ? inspirations.find(x => x.id === id) : null;
+
   document.getElementById('inspirationModalTitle').textContent = i ? '✏️ Modifier' : '💫 Nouvelle inspiration';
   document.getElementById('inspSubmit').textContent = '💾 Enregistrer';
+
   if(i){
     let savedCat = i.category || 'Photographe';
     if(INSP_CATEGORIES_FIXES.includes(savedCat)){
@@ -421,6 +457,7 @@ function openInspirationModal(id){
     document.getElementById('inspTags').value = '';
     document.getElementById('inspFavorite').checked = false;
   }
+
   onInspCategoryChange();
   document.getElementById('inspirationModalBg').classList.add('show');
 }
@@ -433,17 +470,22 @@ function closeInspirationModal(){
 async function saveInspiration(){
   const name = document.getElementById('inspName').value.trim();
   if(!name){ alert("Le nom est requis"); return; }
+
   let category = document.getElementById('inspCategory').value;
   if(category === 'Autre'){
     const custom = document.getElementById('inspCustomCategory').value.trim();
     if(custom) category = custom;
   }
+
   const tagsRaw = document.getElementById('inspTags').value.trim();
   const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+
   let link = document.getElementById('inspLink').value.trim();
   if(link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
+
   const data = {
-    name, category,
+    name,
+    category,
     platform: document.getElementById('inspPlatform').value || null,
     link: link || null,
     phone: document.getElementById('inspPhone').value.trim() || null,
@@ -453,6 +495,7 @@ async function saveInspiration(){
     tags: tags.length ? tags : null,
     favorite: document.getElementById('inspFavorite').checked
   };
+
   if(editingInspirationId){
     const result = await dbUpdate('inspirations', editingInspirationId, data);
     if(!result) return;
@@ -463,6 +506,7 @@ async function saveInspiration(){
     if(!result) return;
     inspirations.unshift(result);
   }
+
   closeInspirationModal();
   renderInspirations();
 }
@@ -503,9 +547,11 @@ function inspPlatformIcon(platform){
 function renderInspirations(){
   const el = document.getElementById('inspirationsList');
   if(!el) return;
+
   const count = inspirations.length;
   const favs = inspirations.filter(i => i.favorite).length;
   const cats = new Set(inspirations.map(i => i.category).filter(Boolean)).size;
+
   document.getElementById('inspCount').textContent = count;
   document.getElementById('inspFav').textContent = favs;
   document.getElementById('inspCategories').textContent = cats;
@@ -513,6 +559,7 @@ function renderInspirations(){
   const filterCat = document.getElementById('inspFilterCategory');
   const currentCat = filterCat.value;
   const allCats = [...new Set(inspirations.map(i => i.category).filter(Boolean))].sort();
+
   filterCat.innerHTML = '<option value="all">Toutes</option>' +
     allCats.map(c => `<option value="${c}">${c}</option>`).join('');
   if(currentCat && [...filterCat.options].some(o => o.value === currentCat)){ filterCat.value = currentCat; }
@@ -541,17 +588,20 @@ function renderInspirations(){
   el.innerHTML = filtered.map(i => {
     const initials = inspInitials(i.name);
     const isFav = i.favorite ? 'favorite' : '';
+
     const metaParts = [];
     if(i.platform) metaParts.push(inspPlatformIcon(i.platform) + ' ' + i.platform);
     if(i.city) metaParts.push('📍 ' + i.city);
     if(i.phone) metaParts.push('📞 ' + i.phone);
     if(i.email) metaParts.push('✉️ ' + i.email);
+
     const actions = [];
     if(i.link) actions.push(`<a href="${i.link}" target="_blank" rel="noopener" class="insp-btn-link">🔗 Voir sa page</a>`);
     if(i.phone){ const cleanPhone = i.phone.replace(/[^0-9+]/g, ''); actions.push(`<a href="tel:${cleanPhone}" class="insp-btn-call">📞 Appeler</a>`); }
     if(i.email) actions.push(`<a href="mailto:${i.email}" class="insp-btn-mail">✉️ Mail</a>`);
     actions.push(`<button class="insp-btn-edit" onclick="openInspirationModal(${i.id})">✏️ Modifier</button>`);
     actions.push(`<button class="insp-btn-del" onclick="delInspiration(${i.id})">🗑</button>`);
+
     return `<div class="insp-card ${isFav}">
       <div class="insp-card-header">
         <div class="insp-avatar">${initials}</div>
@@ -581,6 +631,7 @@ function updateNotifButton(){
   const btn = document.getElementById('notifBtn');
   const status = document.getElementById('notifStatus');
   if(!btn) return;
+
   if(isNotifEnabled()){
     btn.classList.add('active');
     btn.textContent = '✅ Notifications activées';
@@ -609,7 +660,10 @@ async function showLocalNotification(title, body, url){
       return true;
     }
     return false;
-  } catch(e){ console.warn('showLocalNotification error:', e); return false; }
+  } catch(e){
+    console.warn('showLocalNotification error:', e);
+    return false;
+  }
 }
 
 async function registerOneSignalPlayer(){
@@ -618,16 +672,23 @@ async function registerOneSignalPlayer(){
     if(!user) return;
     const OneSignal = window.OneSignal;
     if(!OneSignal) return;
+
     await new Promise(resolve => setTimeout(resolve, 1500));
     const sub = OneSignal.User?.PushSubscription;
     if(!sub) return;
+
     const playerId = sub.id;
     if(!playerId) return;
-    const { data: existing } = await sb.from('push_subscriptions').select('id').eq('user_id', user.id).eq('player_id', playerId).maybeSingle();
+
+    const { data: existing } = await sb.from('push_subscriptions')
+      .select('id').eq('user_id', user.id).eq('player_id', playerId).maybeSingle();
     if(existing) return;
+
     await sb.from('push_subscriptions').insert({ user_id: user.id, player_id: playerId });
-    console.log('✅ Player ID enregistré:', playerId);
-  } catch(e){ console.warn('registerOneSignalPlayer:', e); }
+    console.log('Player ID enregistré:', playerId);
+  } catch(e){
+    console.warn('registerOneSignalPlayer:', e);
+  }
 }
 
 // ============================================================
@@ -651,12 +712,12 @@ function getCoffreEmoji(name){
 }
 
 function getMotivationMessage(pct){
-  if(pct >= 100) return {level:5, msg:'🎉 OBJECTIF ATTEINT !'};
-  if(pct >= 75) return {level:4, msg:'🔥 Tu y es presque !'};
-  if(pct >= 50) return {level:3, msg:'💪 À mi-chemin !'};
-  if(pct >= 25) return {level:2, msg:'⚡ Bon démarrage !'};
-  if(pct > 0)   return {level:1, msg:'🌱 C\'est parti !'};
-  return {level:1, msg:'🎯 Commence !'};
+  if(pct >= 100) return {level:5, msg:'OBJECTIF ATTEINT !'};
+  if(pct >= 75) return {level:4, msg:'Tu y es presque !'};
+  if(pct >= 50) return {level:3, msg:'À mi-chemin !'};
+  if(pct >= 25) return {level:2, msg:'Bon démarrage !'};
+  if(pct > 0)   return {level:1, msg:'C\'est parti !'};
+  return {level:1, msg:'Commence !'};
 }
 
 function getProgressionColor(pct){
@@ -671,17 +732,19 @@ function renderMotivationJour(){
   const totalGoal = coffres.reduce((s,c) => s + Number(c.goal || 0), 0);
   const totalCurrent = coffres.reduce((s,c) => s + Number(c.current || 0), 0);
   const globalPct = totalGoal > 0 ? (totalCurrent / totalGoal) * 100 : 0;
+
   const icons = ['🔥','💪','🚀','⭐','💎','🏆','🌟','⚡'];
   const today = new Date().getDate();
   const icon = icons[today % icons.length];
+
   let title, text;
-  if(coffres.length === 0){ title = '🚀 Lance-toi !'; text = 'Crée ton premier objectif.'; }
-  else if(globalPct >= 100){ title = '🏆 Champion !'; text = 'Tous tes objectifs atteints !'; }
-  else if(globalPct >= 75){ title = '🔥 Tu y es presque !'; text = `Tu es à ${globalPct.toFixed(0)}%.`; }
-  else if(globalPct >= 50){ title = '💪 À mi-chemin !'; text = `Tu as complété ${globalPct.toFixed(0)}%.`; }
-  else if(globalPct >= 25){ title = '⚡ Bon démarrage !'; text = `Tu es à ${globalPct.toFixed(0)}%.`; }
-  else if(globalPct > 0){ title = '🌱 C\'est parti !'; text = 'Tiens bon !'; }
-  else { title = '🎯 À toi de jouer !'; text = 'Commence par 1000 FCFA.'; }
+  if(coffres.length === 0){ title = 'Lance-toi !'; text = 'Crée ton premier objectif.'; }
+  else if(globalPct >= 100){ title = 'Champion !'; text = 'Tous tes objectifs atteints !'; }
+  else if(globalPct >= 75){ title = 'Tu y es presque !'; text = `Tu es à ${globalPct.toFixed(0)}%.`; }
+  else if(globalPct >= 50){ title = 'À mi-chemin !'; text = `Tu as complété ${globalPct.toFixed(0)}%.`; }
+  else if(globalPct >= 25){ title = 'Bon démarrage !'; text = `Tu es à ${globalPct.toFixed(0)}%.`; }
+  else if(globalPct > 0){ title = 'C\'est parti !'; text = 'Tiens bon !'; }
+  else { title = 'À toi de jouer !'; text = 'Commence par 1000 FCFA.'; }
 
   const icon1 = document.getElementById('motivIcon');
   const title1 = document.getElementById('motivTitle');
@@ -692,29 +755,53 @@ function renderMotivationJour(){
 }
 
 const DEFIS = [
-  "Aujourd'hui, n'achète rien d'impulsif.","Épargne 1000 FCFA aujourd'hui.","Note TOUS tes achats de la journée.",
-  "Prépare ton repas maison.","Évite les réseaux sociaux pendant 2h.","Contacte un ancien client.",
-  "Aujourd'hui, utilise uniquement du cash.","Range ton espace de travail.","Propose une mini-session à 3 clients.",
-  "Vérifie tes abonnements.","Pas de livraison aujourd'hui.","Écris tes 3 objectifs financiers.",
-  "Poste une de tes meilleures photos.","Contacte un photographe pro.","Dis non à une dépense inutile."
+  "Aujourd'hui, n'achète rien d'impulsif.",
+  "Épargne 1000 FCFA aujourd'hui.",
+  "Note TOUS tes achats de la journée.",
+  "Prépare ton repas maison.",
+  "Évite les réseaux sociaux pendant 2h.",
+  "Contacte un ancien client.",
+  "Aujourd'hui, utilise uniquement du cash.",
+  "Range ton espace de travail.",
+  "Propose une mini-session à 3 clients.",
+  "Vérifie tes abonnements.",
+  "Pas de livraison aujourd'hui.",
+  "Écris tes 3 objectifs financiers.",
+  "Poste une de tes meilleures photos.",
+  "Contacte un photographe pro.",
+  "Dis non à une dépense inutile."
 ];
 
 function renderDefiDuJour(){
   const today = new Date();
   const dayKey = today.toISOString().slice(0,10);
   const dayIndex = Math.floor(new Date(dayKey).getTime() / 86400000) % DEFIS.length;
+
   const defiEl = document.getElementById('defiText');
   const dateEl = document.getElementById('defiDate');
   const btnEl = document.getElementById('defiBtn');
   const streakEl = document.getElementById('defiStreak');
-  if(defiEl){ defiEl.textContent = DEFIS[dayIndex]; dateEl.textContent = today.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'}); }
+
+  if(defiEl){
+    defiEl.textContent = DEFIS[dayIndex];
+    dateEl.textContent = today.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
+  }
+
   const doneKey = `defi_${dayKey}`;
-  if(localStorage.getItem(doneKey)){ btnEl.classList.add('done'); btnEl.textContent = '✅ Défi relevé !'; }
-  else { btnEl.classList.remove('done'); btnEl.textContent = '✓ J\'ai relevé le défi'; }
-  let streak = 0; let d = new Date(today);
+  if(localStorage.getItem(doneKey)){
+    btnEl.classList.add('done');
+    btnEl.textContent = '✅ Défi relevé !';
+  } else {
+    btnEl.classList.remove('done');
+    btnEl.textContent = '✓ J\'ai relevé le défi';
+  }
+
+  let streak = 0;
+  let d = new Date(today);
   while(true){
     const k = `defi_${d.toISOString().slice(0,10)}`;
-    if(localStorage.getItem(k)){ streak++; d.setDate(d.getDate()-1); } else break;
+    if(localStorage.getItem(k)){ streak++; d.setDate(d.getDate()-1); }
+    else break;
   }
   streakEl.textContent = streak > 0 ? `🔥 Série : ${streak} jour${streak>1?'s':''} d'affilée !` : '';
 }
@@ -728,24 +815,37 @@ function validerDefi(){
 function renderAnalysePercutante(){
   const el = document.getElementById('analysePercutante');
   if(coffres.length === 0){ el.innerHTML = '<div class="empty">Crée un objectif pour voir l\'analyse.</div>'; return; }
+
   const items = [];
   coffres.forEach(c => {
     const current = Number(c.current || 0);
     const goal = Number(c.goal || 1);
     const rest = Math.max(0, goal - current);
     const pct = (current / goal) * 100;
-    if(pct >= 100){ items.push({cls:'good', title:`✅ ${c.name} — Terminé !`, text:`Tu as réussi !`}); return; }
+
+    if(pct >= 100){
+      items.push({cls:'good', title:`${c.name} : Terminé !`, text:`Tu as réussi !`});
+      return;
+    }
+
     if(c.target_date){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
-      if(days > 0){ const perMonth = (rest / days) * 30; items.push({cls:'', title:`📊 ${c.name}`, text:`Il te faut ${fmt(perMonth)}/mois.`}); }
-    } else { items.push({cls:'', title:`📊 ${c.name} — ${pct.toFixed(0)}%`, text:`Reste ${fmt(rest)}.`}); }
+      if(days > 0){
+        const perMonth = (rest / days) * 30;
+        items.push({cls:'', title:`${c.name}`, text:`Il te faut ${fmt(perMonth)}/mois.`});
+      }
+    } else {
+      items.push({cls:'', title:`${c.name} : ${pct.toFixed(0)}%`, text:`Reste ${fmt(rest)}.`});
+    }
   });
+
   el.innerHTML = items.map(i => `<div class="analyse-item ${i.cls}"><strong>${i.title}</strong>${i.text}</div>`).join('');
 }
 
 function openCoffreModal(id){
   editingCoffreId = id || null;
   const c = id ? coffres.find(x => x.id === id) : null;
+
   document.getElementById('coffreModalTitle').textContent = c ? 'Modifier' : 'Nouvel objectif';
   document.getElementById('coffreSubmit').textContent = c ? 'Enregistrer' : 'Créer';
   document.getElementById('coffreName').value = c?.name || '';
@@ -755,17 +855,21 @@ function openCoffreModal(id){
   document.getElementById('coffreWhy').value = c?.why || '';
   document.getElementById('coffreModalBg').classList.add('show');
 }
+
 function closeCoffreModal(){
   document.getElementById('coffreModalBg').classList.remove('show');
   editingCoffreId = null;
 }
+
 async function saveCoffre(){
   const name = document.getElementById('coffreName').value.trim();
   const goal = parseFloat(document.getElementById('coffreGoal').value);
   const current = parseFloat(document.getElementById('coffreCurrent').value) || 0;
   const target_date = document.getElementById('coffreDate').value || null;
   const why = document.getElementById('coffreWhy').value.trim();
+
   if(!name || !goal || goal <= 0){ alert("Nom + montant requis"); return; }
+
   if(editingCoffreId){
     const result = await dbUpdate('goals', editingCoffreId, {name, goal, current, target_date, why});
     if(!result) return;
@@ -779,6 +883,7 @@ async function saveCoffre(){
   closeCoffreModal();
   refreshAll();
 }
+
 async function delCoffre(id){
   if(!confirm("Supprimer cet objectif ?")) return;
   const ok = await dbDelete('goals', id);
@@ -786,6 +891,7 @@ async function delCoffre(id){
   coffres = coffres.filter(c => c.id !== id);
   refreshAll();
 }
+
 function openDepositModal(id){
   depositingCoffreId = id;
   const c = coffres.find(x => x.id === id);
@@ -793,13 +899,16 @@ function openDepositModal(id){
   document.getElementById('depositAmount').value = '';
   document.getElementById('depositModalBg').classList.add('show');
 }
+
 function closeDepositModal(){
   document.getElementById('depositModalBg').classList.remove('show');
   depositingCoffreId = null;
 }
+
 async function confirmDeposit(){
   const amt = parseFloat(document.getElementById('depositAmount').value);
   if(!amt || amt <= 0){ alert("Montant invalide"); return; }
+
   const c = coffres.find(x => x.id === depositingCoffreId);
   const newCurrent = Number(c.current || 0) + amt;
   const result = await dbUpdate('goals', depositingCoffreId, {current: newCurrent});
@@ -833,8 +942,12 @@ function renderCoffres(){
     let timeInfo = '';
     if(c.target_date && rest > 0){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
-      if(days > 0){ const perWeek = (rest / days) * 7; timeInfo = `<div class="coffre-next"><span>⏱ ${days} jours</span><span>${fmt(perWeek)}/semaine</span></div>`; }
-      else { timeInfo = `<div class="coffre-next"><span style="color:var(--red)">⚠ Date dépassée</span></div>`; }
+      if(days > 0){
+        const perWeek = (rest / days) * 7;
+        timeInfo = `<div class="coffre-next"><span>⏱ ${days} jours</span><span>${fmt(perWeek)}/semaine</span></div>`;
+      } else {
+        timeInfo = `<div class="coffre-next"><span style="color:var(--red)">⚠ Date dépassée</span></div>`;
+      }
     }
 
     let badge = '';
@@ -855,7 +968,9 @@ function renderCoffres(){
         ${badge}
       </div>
       <div class="coffre-progress"><div class="coffre-progress-fill" style="width:${pct}%;background:${color}"></div></div>
-      <div class="coffre-paliers"><span class="${p25}">25%</span><span class="${p50}">50%</span><span class="${p75}">75%</span><span class="${p100}">100%</span></div>
+      <div class="coffre-paliers">
+        <span class="${p25}">25%</span><span class="${p50}">50%</span><span class="${p75}">75%</span><span class="${p100}">100%</span>
+      </div>
       <div class="coffre-amounts">
         <div><span class="current">${fmt(current)}</span> <span class="goal">/ ${fmt(goal)}</span></div>
         ${rest > 0 ? `<div class="rest">Reste : ${fmt(rest)}</div>` : ''}
@@ -873,23 +988,25 @@ function renderCoffres(){
 
   const at = document.getElementById('antiTemptation');
   const active = coffres.filter(c => Number(c.current) < Number(c.goal));
-  if(active.length === 0){ at.innerHTML = '<div class="empty">Aucun objectif en cours</div>'; }
-  else {
+  if(active.length === 0){
+    at.innerHTML = '<div class="empty">Aucun objectif en cours</div>';
+  } else {
     at.innerHTML = active.slice(0, 3).map(c => {
       const rest = Number(c.goal) - Number(c.current);
       const pct = (Number(c.current) / Number(c.goal) * 100).toFixed(0);
       const msg = c.why ? `Rappelle-toi : "${c.why}"` : `Tu es à ${pct}%.`;
-      return `<div class="insight bad"><div class="title">🛑 ${c.name} — encore ${fmt(rest)}</div><div>${msg}</div></div>`;
+      return `<div class="insight bad"><div class="title">🛑 ${c.name} : encore ${fmt(rest)}</div><div>${msg}</div></div>`;
     }).join('');
   }
 }
 
 // ============================================================
-// MODULE PHOTO — CLIENTS
+// MODULE PHOTO - CLIENTS
 // ============================================================
 function openClientModal(id){
   editingClientId = id || null;
   const c = id ? clients.find(x => x.id === id) : null;
+
   document.getElementById('clientModalTitle').textContent = c ? 'Modifier' : 'Nouveau client';
   document.getElementById('clientName').value = c?.name || '';
   document.getElementById('clientPhone').value = c?.phone || '';
@@ -898,13 +1015,16 @@ function openClientModal(id){
   document.getElementById('clientNotes').value = c?.notes || '';
   document.getElementById('clientModalBg').classList.add('show');
 }
+
 function closeClientModal(){
   document.getElementById('clientModalBg').classList.remove('show');
   editingClientId = null;
 }
+
 async function saveClient(){
   const name = document.getElementById('clientName').value.trim();
   if(!name){ alert("Nom requis"); return; }
+
   const data = {
     name,
     phone: document.getElementById('clientPhone').value.trim(),
@@ -912,6 +1032,7 @@ async function saveClient(){
     city: document.getElementById('clientCity').value.trim(),
     notes: document.getElementById('clientNotes').value.trim()
   };
+
   if(editingClientId){
     const result = await dbUpdate('clients', editingClientId, data);
     if(!result) return;
@@ -925,6 +1046,7 @@ async function saveClient(){
   closeClientModal();
   refreshAll();
 }
+
 async function delClient(id){
   if(!confirm("Supprimer ce client ?")) return;
   const ok = await dbDelete('clients', id);
@@ -933,9 +1055,11 @@ async function delClient(id){
   shoots.forEach(s => { if(s.client_id === id) s.client_id = null; });
   refreshAll();
 }
+
 function renderClients(){
   const el = document.getElementById('clientsList');
   if(clients.length === 0){ el.innerHTML = '<div class="empty">Aucun client</div>'; return; }
+
   el.innerHTML = clients.map(c => `
     <div class="item-card">
       <div class="head"><div class="name">👤 ${c.name}</div></div>
@@ -951,7 +1075,7 @@ function renderClients(){
 }
 
 // ============================================================
-// MODULE PHOTO — SÉANCES
+// MODULE PHOTO - SÉANCES
 // ============================================================
 const TYPES_FIXES = ['Mariage','Dot','Shooting Studio','Shoot Extérieur','Autre'];
 let currentShootFilter = 'all';
@@ -964,14 +1088,22 @@ function onShootTypeChange(){
 function openShootModal(id){
   editingShootId = id || null;
   const s = id ? shoots.find(x => x.id === id) : null;
+
   document.getElementById('shootModalTitle').textContent = s ? 'Modifier la séance' : 'Nouvelle séance';
+
   const sel = document.getElementById('shootClient');
   sel.innerHTML = '<option value="">-- Choisir --</option>' + clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
   if(s){
     sel.value = s.client_id || '';
     const savedType = s.type || 'Mariage';
-    if(TYPES_FIXES.includes(savedType)){ document.getElementById('shootType').value = savedType; document.getElementById('shootCustomType').value = ''; }
-    else { document.getElementById('shootType').value = 'Autre'; document.getElementById('shootCustomType').value = savedType; }
+    if(TYPES_FIXES.includes(savedType)){
+      document.getElementById('shootType').value = savedType;
+      document.getElementById('shootCustomType').value = '';
+    } else {
+      document.getElementById('shootType').value = 'Autre';
+      document.getElementById('shootCustomType').value = savedType;
+    }
     document.getElementById('shootLocation').value = s.location || '';
     document.getElementById('shootPhotoCount').value = s.photo_count || '';
     document.getElementById('shootDate').value = s.date ? new Date(s.date).toISOString().slice(0,16) : '';
@@ -989,13 +1121,16 @@ function openShootModal(id){
     document.getElementById('shootPay').value = 'impaye';
     document.getElementById('shootNotes').value = '';
   }
+
   onShootTypeChange();
   document.getElementById('shootModalBg').classList.add('show');
 }
+
 function closeShootModal(){
   document.getElementById('shootModalBg').classList.remove('show');
   editingShootId = null;
 }
+
 async function saveShoot(){
   const clientId = document.getElementById('shootClient').value;
   let type = document.getElementById('shootType').value;
@@ -1005,10 +1140,24 @@ async function saveShoot(){
   const price = parseFloat(document.getElementById('shootPrice').value) || 0;
   const payment = document.getElementById('shootPay').value;
   const notes = document.getElementById('shootNotes').value.trim();
+
   if(!date){ alert("Date requise"); return; }
-  if(type === 'Autre'){ const custom = document.getElementById('shootCustomType').value.trim(); if(custom) type = custom; }
-  const data = {client_id: clientId ? parseInt(clientId) : null, type, location, photo_count, date, price, payment, notes};
-  if(!editingShootId){ data.status = 'planifie'; data.status_updated_at = new Date().toISOString(); }
+
+  if(type === 'Autre'){
+    const custom = document.getElementById('shootCustomType').value.trim();
+    if(custom) type = custom;
+  }
+
+  const data = {
+    client_id: clientId ? parseInt(clientId) : null,
+    type, location, photo_count, date, price, payment, notes
+  };
+
+  if(!editingShootId){
+    data.status = 'planifie';
+    data.status_updated_at = new Date().toISOString();
+  }
+
   if(editingShootId){
     const result = await dbUpdate('shoots', editingShootId, data);
     if(!result) return;
@@ -1022,6 +1171,7 @@ async function saveShoot(){
   closeShootModal();
   refreshAll();
 }
+
 async function delShoot(id){
   if(!confirm("Supprimer ?")) return;
   const ok = await dbDelete('shoots', id);
@@ -1029,6 +1179,7 @@ async function delShoot(id){
   shoots = shoots.filter(s => s.id !== id);
   refreshAll();
 }
+
 async function toggleShootPayment(id){
   const s = shoots.find(x => x.id === id);
   const newPayment = s.payment === 'paye' ? 'impaye' : 'paye';
@@ -1046,14 +1197,20 @@ function filterShoots(filter, btn){
 }
 
 async function updateShootStatuses(){
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = new Date();
+  today.setHours(0,0,0,0);
   let hasChanges = false;
+
   for(const s of shoots){
     if(s.status === 'annule') continue;
-    const shootDate = new Date(s.date); shootDate.setHours(0,0,0,0);
-    const dayAfter = new Date(shootDate); dayAfter.setDate(dayAfter.getDate() + 1);
+    const shootDate = new Date(s.date);
+    shootDate.setHours(0,0,0,0);
+    const dayAfter = new Date(shootDate);
+    dayAfter.setDate(dayAfter.getDate() + 1);
+
     if(today >= dayAfter && s.status !== 'shoote'){
-      s.status = 'shoote'; s.status_updated_at = new Date().toISOString();
+      s.status = 'shoote';
+      s.status_updated_at = new Date().toISOString();
       await dbUpdate('shoots', s.id, {status: 'shoote', status_updated_at: s.status_updated_at});
       hasChanges = true;
     } else if(today.getTime() === shootDate.getTime() && s.status !== 'encours'){
@@ -1062,6 +1219,7 @@ async function updateShootStatuses(){
       hasChanges = true;
     }
   }
+
   if(hasChanges) renderShoots();
 }
 
@@ -1070,28 +1228,47 @@ async function cancelShoot(id){
   if(!s) return;
   const reason = prompt(`Annuler la séance "${s.type}" ?\n\nRaison (optionnel) :`, '');
   if(reason === null) return;
-  const result = await dbUpdate('shoots', id, {status: 'annule', cancel_reason: reason.trim() || null, status_updated_at: new Date().toISOString()});
+
+  const result = await dbUpdate('shoots', id, {
+    status: 'annule',
+    cancel_reason: reason.trim() || null,
+    status_updated_at: new Date().toISOString()
+  });
   if(!result) return;
-  s.status = 'annule'; s.cancel_reason = reason.trim() || null;
+
+  s.status = 'annule';
+  s.cancel_reason = reason.trim() || null;
   refreshAll();
-  showToast('❌ Séance annulée');
+  showToast('Séance annulée');
 }
 
 async function reactivateShoot(id){
   const s = shoots.find(x => x.id === id);
   if(!s) return;
   if(!confirm('Réactiver cette séance ?')) return;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const shootDate = new Date(s.date); shootDate.setHours(0,0,0,0);
-  const dayAfter = new Date(shootDate); dayAfter.setDate(dayAfter.getDate() + 1);
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const shootDate = new Date(s.date);
+  shootDate.setHours(0,0,0,0);
+  const dayAfter = new Date(shootDate);
+  dayAfter.setDate(dayAfter.getDate() + 1);
+
   let newStatus = 'planifie';
   if(today >= dayAfter) newStatus = 'shoote';
   else if(today.getTime() === shootDate.getTime()) newStatus = 'encours';
-  const result = await dbUpdate('shoots', id, {status: newStatus, cancel_reason: null, status_updated_at: new Date().toISOString()});
+
+  const result = await dbUpdate('shoots', id, {
+    status: newStatus,
+    cancel_reason: null,
+    status_updated_at: new Date().toISOString()
+  });
   if(!result) return;
-  s.status = newStatus; s.cancel_reason = null;
+
+  s.status = newStatus;
+  s.cancel_reason = null;
   refreshAll();
-  showToast('✅ Séance réactivée');
+  showToast('Séance réactivée');
 }
 
 function renderShoots(){
@@ -1104,6 +1281,7 @@ function renderShoots(){
     const shootes = shoots.filter(s => s.status === 'shoote').length;
     const annules = shoots.filter(s => s.status === 'annule').length;
     const clientsAnnules = new Set(shoots.filter(s => s.status === 'annule' && s.client_id).map(s => s.client_id)).size;
+
     statsEl.innerHTML = `
       <div class="shoot-stat-mini"><div class="num" style="color:var(--accent)">${planifies}</div><div class="lbl">📅 Planifiées</div></div>
       <div class="shoot-stat-mini"><div class="num" style="color:var(--green)">${shootes}</div><div class="lbl">✅ Shootées</div></div>
@@ -1114,8 +1292,11 @@ function renderShoots(){
 
   let list = [...shoots];
   if(currentShootFilter !== 'all'){
-    if(currentShootFilter === 'planifie'){ list = list.filter(s => s.status === 'planifie' || s.status === 'encours'); }
-    else { list = list.filter(s => s.status === currentShootFilter); }
+    if(currentShootFilter === 'planifie'){
+      list = list.filter(s => s.status === 'planifie' || s.status === 'encours');
+    } else {
+      list = list.filter(s => s.status === currentShootFilter);
+    }
   }
   const sorted = list.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
 
@@ -1123,9 +1304,9 @@ function renderShoots(){
 
   const statusInfo = {
     'planifie': { label: '📅 Planifié', class: 'planifie' },
-    'encours': { label: '🟠 En cours', class: 'encours' },
-    'shoote': { label: '✅ Shooté', class: 'shoote' },
-    'annule': { label: '❌ Annulé', class: 'annule' }
+    'encours':  { label: '🟠 En cours',  class: 'encours' },
+    'shoote':   { label: '✅ Shooté',    class: 'shoote' },
+    'annule':   { label: '❌ Annulé',    class: 'annule' }
   };
 
   el.innerHTML = sorted.map(s => {
@@ -1185,6 +1366,7 @@ function renderPhotoStats(){
   const monthShoots = shoots.filter(s => s.date && s.date.startsWith(ym));
   const revenue = monthShoots.filter(s => s.payment === 'paye').reduce((sum,s) => sum + Number(s.price), 0);
   const pending = shoots.filter(s => s.payment === 'impaye').reduce((sum,s) => sum + Number(s.price), 0);
+
   document.getElementById('photoMonthCount').textContent = monthShoots.length;
   document.getElementById('photoMonthRevenue').textContent = fmt(revenue);
   document.getElementById('photoPending').textContent = fmt(pending);
@@ -1198,6 +1380,7 @@ function renderOverview(){
   const monthShoots = shoots.filter(s => s.date && s.date.startsWith(ym));
   const revenue = monthShoots.filter(s => s.payment === 'paye').reduce((sum,s) => sum + Number(s.price), 0);
   const pending = shoots.filter(s => s.payment === 'impaye').reduce((sum,s) => sum + Number(s.price), 0);
+
   document.getElementById('overviewClients').textContent = clients.length;
   document.getElementById('overviewShoots').textContent = monthShoots.length;
   document.getElementById('overviewPhotoRev').textContent = fmt(revenue);
@@ -1207,6 +1390,7 @@ function renderOverview(){
 function computeHealthScore(){
   const s = computeStats();
   let score = 50;
+
   if(s.totalIn > 0){
     const rate = s.savingsRate;
     if(rate >= 0.30) score += 30;
@@ -1214,11 +1398,14 @@ function computeHealthScore(){
     else if(rate >= 0.10) score += 10;
     else if(rate < 0) score -= 20;
   }
+
   if(coffres.length > 0) score += 10;
   if(shoots.some(s => s.payment === 'paye')) score += 10;
   if(clients.length >= 3) score += 10;
+
   const pendingTotal = shoots.filter(s => s.payment === 'impaye').reduce((a,b) => a + Number(b.price), 0);
   if(pendingTotal > 0 && s.totalIn > 0 && pendingTotal > s.totalIn * 0.5) score -= 15;
+
   return Math.max(0, Math.min(100, score));
 }
 
@@ -1227,12 +1414,15 @@ function renderHealthScore(){
   const el = document.getElementById('healthScore');
   const title = document.getElementById('healthTitle');
   const text = document.getElementById('healthText');
+
   let color = 'var(--accent)';
   if(score >= 75) color = 'var(--green)';
   else if(score >= 50) color = 'var(--yellow)';
   else color = 'var(--red)';
+
   el.style.background = `conic-gradient(${color} 0% ${score}%, var(--card2) ${score}% 100%)`;
   el.innerHTML = `<span>${score}</span>`;
+
   if(score >= 75){ title.textContent = '🌟 Excellente santé'; text.textContent = 'Continue !'; }
   else if(score >= 50){ title.textContent = '👍 Bonne santé'; text.textContent = 'Quelques ajustements.'; }
   else { title.textContent = '⚠ À améliorer'; text.textContent = 'Concentre-toi sur l\'épargne.'; }
@@ -1244,10 +1434,18 @@ function renderRevDepDonut(){
   const donut = document.getElementById('donutRevDep');
   const centerText = document.getElementById('donutRevDepText');
   const legend = document.getElementById('legendRevDep');
-  if(total === 0){ donut.style.background = 'conic-gradient(var(--card2) 0% 100%)'; centerText.textContent = '--'; legend.innerHTML = '<div class="empty" style="padding:0">Aucune donnée</div>'; return; }
+
+  if(total === 0){
+    donut.style.background = 'conic-gradient(var(--card2) 0% 100%)';
+    centerText.textContent = '--';
+    legend.innerHTML = '<div class="empty" style="padding:0">Aucune donnée</div>';
+    return;
+  }
+
   const pctIn = (s.totalIn / total) * 100;
   donut.style.background = `conic-gradient(var(--green) 0% ${pctIn}%, var(--red) ${pctIn}% 100%)`;
   centerText.innerHTML = `<div><div style="font-size:14px">${Math.round(pctIn)}%</div><div style="font-size:9px;color:var(--muted)">Revenus</div></div>`;
+
   legend.innerHTML = `
     <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div><div class="legend-label">Revenus</div><div class="legend-value" style="color:var(--green)">${fmt(s.totalIn)}</div></div>
     <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div><div class="legend-label">Dépenses</div><div class="legend-value" style="color:var(--red)">${fmt(s.totalOut)}</div></div>`;
@@ -1257,10 +1455,12 @@ function renderShootTypesChart(){
   const el = document.getElementById('shootTypesChart');
   if(!el) return;
   if(shoots.length === 0){ el.innerHTML = '<div class="empty">Aucune séance enregistrée</div>'; return; }
+
   const byType = {};
   shoots.forEach(s => { byType[s.type] = (byType[s.type] || 0) + 1; });
   const entries = Object.entries(byType).sort((a,b) => b[1] - a[1]);
   const total = shoots.length;
+
   el.innerHTML = entries.map(([type, count]) => {
     const pct = (count / total) * 100;
     return `<div class="cat-row"><div class="top"><span>📸 ${type}</span><span>${count} · ${pct.toFixed(0)}%</span></div><div class="bar"><div style="width:${pct}%;background:var(--pink)"></div></div></div>`;
@@ -1270,6 +1470,7 @@ function renderShootTypesChart(){
 function renderBars6m(){
   const el = document.getElementById('bars6m');
   if(!el) return;
+
   const now = new Date();
   const months = [];
   for(let i = 5; i >= 0; i--){
@@ -1279,6 +1480,7 @@ function renderBars6m(){
     const total = txs.filter(t => t.type === 'revenu' && t.date.startsWith(key)).reduce((a,b) => a + Number(b.amount), 0);
     months.push({ label, total });
   }
+
   const max = Math.max(...months.map(m => m.total), 1);
   el.innerHTML = months.map(m => {
     const height = (m.total / max) * 100;
@@ -1289,8 +1491,10 @@ function renderBars6m(){
 function renderSuggestions(){
   const el = document.getElementById('suggestions');
   if(!el) return;
+
   const s = computeStats();
   const suggestions = [];
+
   if(s.totalIn > 0 && s.savingsRate < SAVINGS_TARGET){
     const missing = (s.totalIn * SAVINGS_TARGET) - (s.totalIn * s.savingsRate);
     suggestions.push({icon:'💰', title:'Augmente ton épargne', body:`Encore ${fmt(missing)}.`});
@@ -1299,7 +1503,9 @@ function renderSuggestions(){
   if(pending > 0) suggestions.push({icon:'📞', title:'Relance tes clients', body:`${fmt(pending)} à encaisser.`});
   if(clients.length === 0) suggestions.push({icon:'👥', title:'Ajoute tes clients', body:'Commence par tes clients.'});
   if(coffres.length === 0) suggestions.push({icon:'🎯', title:'Crée un objectif', body:'50 000 FCFA pour commencer.'});
+
   if(suggestions.length === 0){ el.innerHTML = '<div class="empty">Tout est en ordre ! 🎉</div>'; return; }
+
   el.innerHTML = suggestions.slice(0, 5).map(sg => `<div class="suggestion"><div class="icon">${sg.icon}</div><div class="title">${sg.title}</div><div class="body">${sg.body}</div></div>`).join('');
 }
 
@@ -1312,6 +1518,7 @@ function populateHistFilters(){
   const monthSelect = document.getElementById('histMonth');
   const catSelect = document.getElementById('histCategory');
   if(!monthSelect || !catSelect) return;
+
   const months = [...new Set(txs.map(t => t.date.slice(0,7)))].sort().reverse();
   const previousMonth = monthSelect.value;
   monthSelect.innerHTML = '<option value="all">Tous les mois</option>' + months.map(m => {
@@ -1320,6 +1527,7 @@ function populateHistFilters(){
     return `<option value="${m}">${label}</option>`;
   }).join('');
   if(previousMonth && [...monthSelect.options].some(o => o.value === previousMonth)) monthSelect.value = previousMonth;
+
   const cats = [...new Set(txs.map(t => t.category))].sort();
   const previousCat = catSelect.value;
   catSelect.innerHTML = '<option value="all">Toutes les catégories</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
@@ -1330,6 +1538,7 @@ function getFilteredTx(){
   const month = document.getElementById('histMonth').value;
   const type = document.getElementById('histType').value;
   const cat = document.getElementById('histCategory').value;
+
   return txs.filter(t => {
     if(month !== 'all' && !t.date.startsWith(month)) return false;
     if(type !== 'all' && t.type !== type) return false;
@@ -1342,16 +1551,24 @@ function renderHistory(){
   const filtered = getFilteredTx();
   const totalIn = filtered.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount), 0);
   const totalOut = filtered.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount), 0);
+
   document.getElementById('histCount').textContent = filtered.length;
   document.getElementById('histIn').textContent = fmt(totalIn);
   document.getElementById('histOut').textContent = fmt(totalOut);
+
   const el = document.getElementById('histList');
-  if(filtered.length === 0){ el.innerHTML = '<div class="empty">Aucune transaction</div>'; document.getElementById('histSelectAll').checked = false; return; }
+  if(filtered.length === 0){
+    el.innerHTML = '<div class="empty">Aucune transaction</div>';
+    document.getElementById('histSelectAll').checked = false;
+    return;
+  }
+
   el.innerHTML = filtered.map(t => {
     const d = new Date(t.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'});
-    const sign = t.type === 'revenu' ? '+' : '−';
+    const sign = t.type === 'revenu' ? '+' : '-';
     const cls = t.type === 'revenu' ? 'pos' : 'neg';
     const checked = selectedTxIds.has(t.id) ? 'checked' : '';
+
     return `<div class="hist-item">
       <input type="checkbox" class="hist-check" data-id="${t.id}" ${checked} onchange="toggleTxSelect(${t.id}, this.checked)">
       <div class="hist-content">
@@ -1361,6 +1578,7 @@ function renderHistory(){
       <button class="hist-del" onclick="delTxFromHistory(${t.id})">×</button>
     </div>`;
   }).join('');
+
   const allChecked = filtered.length > 0 && filtered.every(t => selectedTxIds.has(t.id));
   document.getElementById('histSelectAll').checked = allChecked;
 }
@@ -1383,11 +1601,14 @@ function toggleSelectAll(){
 async function deleteSelected(){
   if(selectedTxIds.size === 0){ alert("Aucune transaction sélectionnée"); return; }
   if(!confirm(`Supprimer ${selectedTxIds.size} transaction(s) ?`)) return;
+
   const ids = [...selectedTxIds];
   for(const id of ids) await dbDelete('transactions', id);
   txs = txs.filter(t => !selectedTxIds.has(t.id));
   selectedTxIds.clear();
-  populateHistFilters(); renderHistory(); refreshAll();
+  populateHistFilters();
+  renderHistory();
+  refreshAll();
 }
 
 async function deleteAllFiltered(){
@@ -1395,11 +1616,14 @@ async function deleteAllFiltered(){
   if(filtered.length === 0){ alert("Aucune transaction à supprimer"); return; }
   if(!confirm(`⚠ Supprimer ${filtered.length} transaction(s) ?`)) return;
   if(!confirm(`Confirmer ?`)) return;
+
   for(const t of filtered) await dbDelete('transactions', t.id);
   const ids = new Set(filtered.map(t => t.id));
   txs = txs.filter(t => !ids.has(t.id));
   selectedTxIds.clear();
-  populateHistFilters(); renderHistory(); refreshAll();
+  populateHistFilters();
+  renderHistory();
+  refreshAll();
 }
 
 async function delTxFromHistory(id){
@@ -1408,26 +1632,33 @@ async function delTxFromHistory(id){
   if(!ok) return;
   txs = txs.filter(t => t.id !== id);
   selectedTxIds.delete(id);
-  populateHistFilters(); renderHistory(); refreshAll();
+  populateHistFilters();
+  renderHistory();
+  refreshAll();
 }
 
 function downloadFile(content, filename, mimeType){
   const blob = new Blob([content], {type: mimeType});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function exportHistoryCSV(){
   const filtered = getFilteredTx();
   if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
+
   const header = "Date;Type;Catégorie;Montant;Note\n";
   const rows = filtered.map(t => {
     const note = (t.note || '').replace(/;/g, ',').replace(/"/g, '""');
     return `${t.date};${t.type};${t.category};${t.amount};"${note}"`;
   }).join('\n');
+
   downloadFile(header + rows, `transactions-${todayStr()}.csv`, 'text/csv;charset=utf-8;');
 }
 
@@ -1441,18 +1672,44 @@ function exportHistoryPDF(){
   const filtered = getFilteredTx();
   if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ alert("PDF non chargé"); return; }
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFillColor(108, 140, 255); doc.rect(0, 0, 210, 30, 'F');
-  doc.setTextColor(255, 255, 255); doc.setFontSize(22); doc.setFont('helvetica', 'bold');
-  doc.text("Historique des transactions", 14, 15); doc.setFontSize(11); doc.setFont('helvetica', 'normal');
-  doc.text("Ma Super App — " + new Date().toLocaleDateString('fr-FR'), 14, 23);
+
+  doc.setFillColor(108, 140, 255);
+  doc.rect(0, 0, 210, 30, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Historique des transactions", 14, 15);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text("Super App Henzo · " + new Date().toLocaleDateString('fr-FR'), 14, 23);
+
   const totalIn = filtered.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount), 0);
   const totalOut = filtered.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount), 0);
-  doc.setTextColor(60, 60, 60); doc.setFontSize(11);
+
+  doc.setTextColor(60, 60, 60);
+  doc.setFontSize(11);
   doc.text(`Revenus : ${fmt(totalIn)}  |  Dépenses : ${fmt(totalOut)}  |  Solde : ${fmt(totalIn-totalOut)}`, 14, 45);
-  const rows = filtered.map(t => [new Date(t.date).toLocaleDateString('fr-FR'), t.type === 'revenu' ? 'Revenu' : 'Dépense', t.category, (t.type === 'revenu' ? '+' : '−') + fmt(t.amount), t.note || '']);
-  doc.autoTable({startY: 52, head: [['Date', 'Type', 'Catégorie', 'Montant', 'Note']], body: rows, theme: 'striped', headStyles: {fillColor: [108, 140, 255], textColor: 255, fontStyle: 'bold'}, bodyStyles: {fontSize: 9, textColor: 40}});
+
+  const rows = filtered.map(t => [
+    new Date(t.date).toLocaleDateString('fr-FR'),
+    t.type === 'revenu' ? 'Revenu' : 'Dépense',
+    t.category,
+    (t.type === 'revenu' ? '+' : '-') + fmt(t.amount),
+    t.note || ''
+  ]);
+
+  doc.autoTable({
+    startY: 52,
+    head: [['Date', 'Type', 'Catégorie', 'Montant', 'Note']],
+    body: rows,
+    theme: 'striped',
+    headStyles: { fillColor: [108, 140, 255], textColor: 255, fontStyle: 'bold' },
+    bodyStyles: { fontSize: 9, textColor: 40 }
+  });
+
   doc.save(`historique-${todayStr()}.pdf`);
 }
 
@@ -1462,26 +1719,36 @@ function exportHistoryPDF(){
 function generateIdeas(){
   const shuffled = [...LOCAL_IDEAS].sort(() => Math.random() - 0.5).slice(0, 5);
   const el = document.getElementById('ideasList');
+
   el.innerHTML = shuffled.map((i) => `
-    <div class="idea"><div class="t">💡 ${i.t}</div><div class="d">${i.d}</div>
-    <div>${i.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
-    <button class="btn-ghost" style="margin-top:8px;font-size:13px;padding:8px" onclick='saveIdea(${JSON.stringify(i).replace(/'/g, "&#39;")})'>⭐ Sauvegarder</button></div>`).join('');
+    <div class="idea">
+      <div class="t">💡 ${i.t}</div>
+      <div class="d">${i.d}</div>
+      <div>${i.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+      <button class="btn-ghost" style="margin-top:8px;font-size:13px;padding:8px" onclick='saveIdea(${JSON.stringify(i).replace(/'/g, "&#39;")})'>⭐ Sauvegarder</button>
+    </div>`).join('');
 }
+
 async function saveIdea(idea){
   if(savedIdeas.some(x => x.title === idea.t)){ alert("Déjà sauvegardée"); return; }
   const result = await dbInsert('saved_ideas', {title: idea.t, description: idea.d, tags: idea.tags});
   if(!result) return;
-  savedIdeas.unshift(result); refreshAll();
+  savedIdeas.unshift(result);
+  refreshAll();
 }
+
 async function delSavedIdea(id){
   const ok = await dbDelete('saved_ideas', id);
   if(!ok) return;
-  savedIdeas = savedIdeas.filter(i => i.id !== id); refreshAll();
+  savedIdeas = savedIdeas.filter(i => i.id !== id);
+  refreshAll();
 }
+
 function renderSavedIdeas(){
   const el = document.getElementById('savedIdeasList');
   if(!el) return;
   if(savedIdeas.length === 0){ el.innerHTML = '<div class="empty">Aucune idée sauvegardée</div>'; return; }
+
   el.innerHTML = savedIdeas.map(i => `<div class="idea"><div class="t">⭐ ${i.title}</div><div class="d">${i.description || ''}</div><button class="btn-ghost" style="margin-top:8px;font-size:12px;padding:6px" onclick="delSavedIdea(${i.id})">× Retirer</button></div>`).join('');
 }
 
@@ -1490,59 +1757,98 @@ function renderSavedIdeas(){
 // ============================================================
 function formatIdeasText(text){
   if(!text) return '<div class="empty">Pas de contenu</div>';
+
   let safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const lines = safe.split('\n');
-  let sections = []; let currentSection = null; let currentContent = [];
+
+  let sections = [];
+  let currentSection = null;
+  let currentContent = [];
   const sectionRegex = /^\s*(\d+)\s*[.)]\s*(.+?)$/;
   const boldRegex = /\*\*(.+?)\*\*/g;
+
   lines.forEach(line => {
     const match = line.match(sectionRegex);
     if(match){
-      if(currentSection !== null || currentContent.length > 0){ sections.push({num: currentSection, content: currentContent.join('\n').trim()}); }
-      currentSection = match[1]; currentContent = [match[2]];
-    } else { currentContent.push(line); }
+      if(currentSection !== null || currentContent.length > 0){
+        sections.push({num: currentSection, content: currentContent.join('\n').trim()});
+      }
+      currentSection = match[1];
+      currentContent = [match[2]];
+    } else {
+      currentContent.push(line);
+    }
   });
-  if(currentSection !== null || currentContent.length > 0){ sections.push({num: currentSection, content: currentContent.join('\n').trim()}); }
+  if(currentSection !== null || currentContent.length > 0){
+    sections.push({num: currentSection, content: currentContent.join('\n').trim()});
+  }
   sections = sections.filter(s => s.content);
   if(sections.length === 0) sections = [{num: null, content: safe}];
+
   return sections.map(s => {
-    let content = s.content; let title = ''; let body = content;
+    let content = s.content;
+    let title = '';
+    let body = content;
+
     const titleMatch = content.match(/^([^:\n]{2,100}?)(?:\s*:\s*|\n)([\s\S]+)$/);
-    if(titleMatch){ title = titleMatch[1].replace(/\*\*/g, '').trim(); body = titleMatch[2]; }
-    else { title = content.replace(/\*\*/g, '').substring(0, 100); body = ''; }
+    if(titleMatch){
+      title = titleMatch[1].replace(/\*\*/g, '').trim();
+      body = titleMatch[2];
+    } else {
+      title = content.replace(/\*\*/g, '').substring(0, 100);
+      body = '';
+    }
+
     body = body.replace(boldRegex, '<strong>$1</strong>').replace(/→/g, '•');
+
     return `<div class="ai-section">${s.num ? `<div class="ai-section-title"><span class="ai-section-num">${s.num}</span>${title}</div>` : ''}${!s.num && title ? `<div class="ai-section-title">${title}</div>` : ''}${body.trim() ? `<div class="ai-section-body">${body.trim().replace(/\n/g, '<br>')}</div>` : ''}</div>`;
   }).join('');
 }
 
 async function loadIdeasAI(){
   try {
-    const user = await getCurrentUser(); if(!user) return;
+    const user = await getCurrentUser();
+    if(!user) return;
+
     const { data, error } = await sb.from('user_settings').select('ideas_ai, ideas_ai_date').eq('user_id', user.id).maybeSingle();
     if(error || !data || !data.ideas_ai) return;
+
     localStorage.setItem('ideas_ai_last', data.ideas_ai);
     localStorage.setItem('ideas_ai_last_date', data.ideas_ai_date || '');
+
     document.getElementById('ideasAIOutput').innerHTML = formatIdeasText(data.ideas_ai);
     document.getElementById('ideasCopyBtn').disabled = false;
     document.getElementById('ideasPdfBtn').disabled = false;
     document.getElementById('ideasClearBtn').disabled = false;
-    if(data.ideas_ai_date){ const dateEl = document.getElementById('ideasLastUpdate'); dateEl.textContent = '🕐 Dernière génération : ' + data.ideas_ai_date; dateEl.classList.add('visible'); }
+
+    if(data.ideas_ai_date){
+      const dateEl = document.getElementById('ideasLastUpdate');
+      dateEl.textContent = '🕐 Dernière génération : ' + data.ideas_ai_date;
+      dateEl.classList.add('visible');
+    }
   } catch(e){ console.warn('loadIdeasAI error:', e); }
 }
 
 async function saveIdeasAI(text){
   const dateStr = new Date().toLocaleString('fr-FR', {day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'});
-  localStorage.setItem('ideas_ai_last', text); localStorage.setItem('ideas_ai_last_date', dateStr);
+  localStorage.setItem('ideas_ai_last', text);
+  localStorage.setItem('ideas_ai_last_date', dateStr);
   try {
-    const user = await getCurrentUser(); if(!user) return;
+    const user = await getCurrentUser();
+    if(!user) return;
     await sb.from('user_settings').upsert({ user_id: user.id, ideas_ai: text, ideas_ai_date: dateStr }, { onConflict: 'user_id' });
   } catch(e){ console.warn('saveIdeasAI error:', e); }
 }
 
 async function clearIdeasAI(){
   if(!confirm('Effacer les idées IA ?')) return;
-  localStorage.removeItem('ideas_ai_last'); localStorage.removeItem('ideas_ai_last_date');
-  try { const user = await getCurrentUser(); if(user) await sb.from('user_settings').update({ ideas_ai: null, ideas_ai_date: null }).eq('user_id', user.id); } catch(e){}
+  localStorage.removeItem('ideas_ai_last');
+  localStorage.removeItem('ideas_ai_last_date');
+  try {
+    const user = await getCurrentUser();
+    if(user) await sb.from('user_settings').update({ ideas_ai: null, ideas_ai_date: null }).eq('user_id', user.id);
+  } catch(e){}
+
   document.getElementById('ideasAIOutput').innerHTML = '<div class="empty">Clique sur <strong>Générer</strong>.</div>';
   document.getElementById('ideasLastUpdate').classList.remove('visible');
   document.getElementById('ideasCopyBtn').disabled = true;
@@ -1553,45 +1859,82 @@ async function clearIdeasAI(){
 async function copyIdeasAI(){
   const text = localStorage.getItem('ideas_ai_last');
   if(!text){ alert('Aucune idée à copier'); return; }
-  try { await navigator.clipboard.writeText(text); const btn = document.getElementById('ideasCopyBtn'); btn.textContent = '✅ Copié !'; setTimeout(() => btn.textContent = '📋 Copier', 2000); }
-  catch(e){ const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('ideasCopyBtn');
+    btn.textContent = '✅ Copié !';
+    setTimeout(() => btn.textContent = '📋 Copier', 2000);
+  } catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
 }
 
 function exportIdeasAIPDF(){
-  const text = localStorage.getItem('ideas_ai_last'); const date = localStorage.getItem('ideas_ai_last_date');
+  const text = localStorage.getItem('ideas_ai_last');
+  const date = localStorage.getItem('ideas_ai_last_date');
   if(!text){ alert('Aucune idée à exporter'); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ alert('PDF non chargé'); return; }
-  const { jsPDF } = window.jspdf; const doc = new jsPDF();
-  doc.setFillColor(255, 107, 157); doc.rect(0, 0, 210, 32, 'F');
-  doc.setTextColor(255, 255, 255); doc.setFontSize(20); doc.setFont('helvetica', 'bold');
-  doc.text("Idées de business IA", 14, 16); doc.setFontSize(10); if(date) doc.text(date, 14, 24);
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFillColor(255, 107, 157);
+  doc.rect(0, 0, 210, 32, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Idées de business IA", 14, 16);
+  doc.setFontSize(10);
+  if(date) doc.text(date, 14, 24);
+
   const cleanText = text.replace(/\*\*/g, '').replace(/→/g, '•');
-  doc.setTextColor(40, 40, 40); doc.setFontSize(11);
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(11);
   const splitText = doc.splitTextToSize(cleanText, 180);
-  let y = 42; const pageHeight = doc.internal.pageSize.height - 15;
-  splitText.forEach(line => { if(y > pageHeight){ doc.addPage(); y = 15; } doc.text(line, 14, y); y += 6; });
+  let y = 42;
+  const pageHeight = doc.internal.pageSize.height - 15;
+
+  splitText.forEach(line => {
+    if(y > pageHeight){ doc.addPage(); y = 15; }
+    doc.text(line, 14, y);
+    y += 6;
+  });
+
   doc.save(`idees-ia-${todayStr()}.pdf`);
 }
 
 async function generateAIIdeas(){
-  let cfg = null; try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
   if(!cfg || !cfg.key){ alert("Configure ta clé dans l'onglet IA"); return; }
+
   const out = document.getElementById('ideasAIOutput');
   out.innerHTML = '<div class="empty">⏳ Génération en cours...</div>';
+
   const summary = buildSummary();
-  const prompt = `Voici le profil : ${summary}\n\nGénère 5 idées de business CONCRÈTES et ADAPTÉES (photographe).\nFormat strict :\n1. [Titre]\n   → [Description]\n   → Revenu potentiel: [fourchette FCFA]\n   → Difficulté: Facile/Moyenne/Difficile\n(etc.)\n\nN'utilise PAS d'astérisques.`;
+  const prompt = `Voici le profil : ${summary}\n\nGénère 5 idées de business CONCRÈTES et ADAPTÉES (photographe).\nFormat strict :\n1. [Titre]\n   • [Description]\n   • Revenu potentiel: [fourchette FCFA]\n   • Difficulté: Facile/Moyenne/Difficile\n(etc.)\n\nN'utilise PAS d'astérisques.`;
+
   try {
     const text = await callAI(prompt);
     if(!text || !text.trim()){ out.innerHTML = '<div class="empty">❌ Pas de réponse.</div>'; return; }
+
     await saveIdeasAI(text);
     out.innerHTML = formatIdeasText(text);
+
     document.getElementById('ideasCopyBtn').disabled = false;
     document.getElementById('ideasPdfBtn').disabled = false;
     document.getElementById('ideasClearBtn').disabled = false;
+
     const dateEl = document.getElementById('ideasLastUpdate');
     dateEl.textContent = '🕐 Dernière génération : ' + new Date().toLocaleString('fr-FR');
     dateEl.classList.add('visible');
-  } catch(e){ out.innerHTML = `<div class="empty">❌ ${e.message}</div>`; }
+  } catch(e){
+    out.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
+  }
 }
 
 // ============================================================
@@ -1599,23 +1942,47 @@ async function generateAIIdeas(){
 // ============================================================
 function newQuote(){
   const q = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+
   const emoji1 = document.getElementById('quoteEmoji');
   const text1 = document.getElementById('quoteText');
   const auth1 = document.getElementById('quoteAuthor');
-  if(emoji1) emoji1.textContent = q.e; if(text1) text1.textContent = '"' + q.q + '"'; if(auth1) auth1.textContent = '— ' + q.a;
+  if(emoji1) emoji1.textContent = q.e;
+  if(text1) text1.textContent = '"' + q.q + '"';
+  if(auth1) auth1.textContent = q.a;
+
   const emoji2 = document.getElementById('dashQuoteEmoji');
   const text2 = document.getElementById('dashQuoteText');
   const auth2 = document.getElementById('dashQuoteAuthor');
-  if(emoji2) emoji2.textContent = q.e; if(text2) text2.textContent = '"' + q.q + '"'; if(auth2) auth2.textContent = '— ' + q.a;
+  if(emoji2) emoji2.textContent = q.e;
+  if(text2) text2.textContent = '"' + q.q + '"';
+  if(auth2) auth2.textContent = q.a;
 }
 
 // ============================================================
 // NOTIFICATIONS AUTOMATIQUES
 // ============================================================
 const NOTIF_MESSAGES = {
-  morning: [{i:'🌅', t:'Bonjour !', m:'Nouvelle journée, nouvelle opportunité.'},{i:'☀️', t:'C\'est le matin !', m:'La discipline du matin fait la réussite du soir.'},{i:'🚀', t:'Debout !', m:'Les gagnants se lèvent avant les autres.'},{i:'💪', t:'Coucou !', m:'Sois meilleur que hier.'},{i:'🔥', t:'Allez !', m:'Ta seule limite, c\'est toi-même.'}],
-  midday: [{i:'💰', t:'Conseil finance', m:'Avant chaque achat, demande-toi : "En ai-je vraiment besoin ?"'},{i:'📸', t:'Astuce photo', m:'Publie 1 photo de ton travail aujourd\'hui.'},{i:'💡', t:'Idée business', m:'Un client satisfait = 3 recommandations.'},{i:'🎯', t:'Focus', m:'Écris tes 3 priorités du jour.'},{i:'💎', t:'Conseil', m:'Épargner 1000 FCFA/jour = 30 000 FCFA/mois.'}],
-  evening: [{i:'🌙', t:'Bilan du jour', m:'As-tu épargné quelque chose aujourd\'hui ?'},{i:'💰', t:'Pense à épargner', m:'Ouvre ton app et ajoute tes transactions.'},{i:'🎯', t:'Objectifs', m:'Chaque jour sans épargne est un jour de retard.'},{i:'🔥', t:'Discipline', m:'Le succès est un choix quotidien.'},{i:'💪', t:'Repose-toi', m:'Le repos est aussi productif que le travail.'}]
+  morning: [
+    {i:'🌅', t:'Bonjour !', m:'Nouvelle journée, nouvelle opportunité.'},
+    {i:'☀️', t:'C\'est le matin !', m:'La discipline du matin fait la réussite du soir.'},
+    {i:'🚀', t:'Debout !', m:'Les gagnants se lèvent avant les autres.'},
+    {i:'💪', t:'Coucou !', m:'Sois meilleur que hier.'},
+    {i:'🔥', t:'Allez !', m:'Ta seule limite, c\'est toi-même.'}
+  ],
+  midday: [
+    {i:'💰', t:'Conseil finance', m:'Avant chaque achat, demande-toi : "En ai-je vraiment besoin ?"'},
+    {i:'📸', t:'Astuce photo', m:'Publie 1 photo de ton travail aujourd\'hui.'},
+    {i:'💡', t:'Idée business', m:'Un client satisfait = 3 recommandations.'},
+    {i:'🎯', t:'Focus', m:'Écris tes 3 priorités du jour.'},
+    {i:'💎', t:'Conseil', m:'Épargner 1000 FCFA/jour = 30 000 FCFA/mois.'}
+  ],
+  evening: [
+    {i:'🌙', t:'Bilan du jour', m:'As-tu épargné quelque chose aujourd\'hui ?'},
+    {i:'💰', t:'Pense à épargner', m:'Ouvre ton app et ajoute tes transactions.'},
+    {i:'🎯', t:'Objectifs', m:'Chaque jour sans épargne est un jour de retard.'},
+    {i:'🔥', t:'Discipline', m:'Le succès est un choix quotidien.'},
+    {i:'💪', t:'Repose-toi', m:'Le repos est aussi productif que le travail.'}
+  ]
 };
 
 function getNotificationMessage(type){
@@ -1626,16 +1993,27 @@ function getNotificationMessage(type){
 
 async function toggleNotifications(){
   if(isNotifEnabled()){ localStorage.removeItem('notif_enabled'); updateNotifButton(); return; }
+
   if(!('Notification' in window)){ document.getElementById('notifStatus').textContent = '❌ Non supporté'; return; }
+
   const permission = await Notification.requestPermission();
   if(permission !== 'granted'){ document.getElementById('notifStatus').textContent = '❌ Permission refusée.'; return; }
+
   try {
     const OneSignal = window.OneSignal;
-    if(OneSignal){ await OneSignal.User.PushSubscription.optIn(); const user = await getCurrentUser(); if(user && user.email) await OneSignal.login(user.email); }
-    localStorage.setItem('notif_enabled', '1'); updateNotifButton();
+    if(OneSignal){
+      await OneSignal.User.PushSubscription.optIn();
+      const user = await getCurrentUser();
+      if(user && user.email) await OneSignal.login(user.email);
+    }
+    localStorage.setItem('notif_enabled', '1');
+    updateNotifButton();
     setTimeout(registerOneSignalPlayer, 2000);
     await showLocalNotification('🔥 Notifications activées', 'Tu recevras tes rappels sur tous tes appareils 💪');
-  } catch(e){ console.error('OneSignal error:', e); document.getElementById('notifStatus').textContent = '❌ ' + e.message; }
+  } catch(e){
+    console.error('OneSignal error:', e);
+    document.getElementById('notifStatus').textContent = '❌ ' + e.message;
+  }
 }
 
 async function testerNotification(){
@@ -1647,11 +2025,24 @@ async function testerNotification(){
 async function checkAutomaticNotifications(){
   if(!isNotifEnabled()) return;
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
-  const now = new Date(); const hh = now.getHours(); const mm = now.getMinutes();
+
+  const now = new Date();
+  const hh = now.getHours();
+  const mm = now.getMinutes();
   const todayKey = now.toISOString().slice(0,10);
-  if(hh === 8 && mm >= 0 && mm < 5){ const key = `notif_morning_${todayKey}`; if(!localStorage.getItem(key)){ const msg = getNotificationMessage('morning'); await showLocalNotification(msg.i + ' ' + msg.t, msg.m); localStorage.setItem(key, '1'); } }
-  if(hh === 13 && mm >= 0 && mm < 5){ const key = `notif_midday_${todayKey}`; if(!localStorage.getItem(key)){ const msg = getNotificationMessage('midday'); await showLocalNotification(msg.i + ' ' + msg.t, msg.m); localStorage.setItem(key, '1'); } }
-  if(hh === 20 && mm >= 0 && mm < 5){ const key = `notif_evening_${todayKey}`; if(!localStorage.getItem(key)){ const msg = getNotificationMessage('evening'); await showLocalNotification(msg.i + ' ' + msg.t, msg.m); localStorage.setItem(key, '1'); } }
+
+  if(hh === 8 && mm >= 0 && mm < 5){
+    const key = `notif_morning_${todayKey}`;
+    if(!localStorage.getItem(key)){ const msg = getNotificationMessage('morning'); await showLocalNotification(msg.i + ' ' + msg.t, msg.m); localStorage.setItem(key, '1'); }
+  }
+  if(hh === 13 && mm >= 0 && mm < 5){
+    const key = `notif_midday_${todayKey}`;
+    if(!localStorage.getItem(key)){ const msg = getNotificationMessage('midday'); await showLocalNotification(msg.i + ' ' + msg.t, msg.m); localStorage.setItem(key, '1'); }
+  }
+  if(hh === 20 && mm >= 0 && mm < 5){
+    const key = `notif_evening_${todayKey}`;
+    if(!localStorage.getItem(key)){ const msg = getNotificationMessage('evening'); await showLocalNotification(msg.i + ' ' + msg.t, msg.m); localStorage.setItem(key, '1'); }
+  }
 }
 
 function enableNotifications(){ toggleNotifications(); }
@@ -1659,8 +2050,11 @@ function enableNotifications(){ toggleNotifications(); }
 async function checkDailyReminders(){
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
   if(!isNotifEnabled()) return;
+
   const today = todayStr();
-  const now = new Date(); const nowMin = now.getHours() * 60 + now.getMinutes();
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+
   for(const r of reminders){
     if(r.sent || r.due_date || !r.time) continue;
     const [h, m] = r.time.split(':').map(Number);
@@ -1687,12 +2081,19 @@ function onReminderTypeChange(){
 function openReminderModal(id){
   editingReminderId = id || null;
   const r = id ? reminders.find(x => x.id === id) : null;
+
   document.getElementById('reminderModalTitle').textContent = r ? '✏️ Modifier' : '⏰ Nouveau rappel';
   document.getElementById('reminderSubmit').textContent = r ? '💾 Enregistrer' : '➕ Créer';
+
   if(r){
     let savedType = r.type || 'perso';
-    if(REMINDER_TYPES_FIXES.includes(savedType)){ document.getElementById('reminderType').value = savedType; document.getElementById('reminderCustomType').value = ''; }
-    else { document.getElementById('reminderType').value = 'Autre'; document.getElementById('reminderCustomType').value = savedType; }
+    if(REMINDER_TYPES_FIXES.includes(savedType)){
+      document.getElementById('reminderType').value = savedType;
+      document.getElementById('reminderCustomType').value = '';
+    } else {
+      document.getElementById('reminderType').value = 'Autre';
+      document.getElementById('reminderCustomType').value = savedType;
+    }
     document.getElementById('reminderText').value = r.text || '';
     if(r.due_date){
       const d = new Date(r.due_date);
@@ -1709,6 +2110,7 @@ function openReminderModal(id){
     document.getElementById('reminderDate').value = new Date().toISOString().slice(0,10);
     document.getElementById('reminderTime').value = '09:00';
   }
+
   onReminderTypeChange();
   document.getElementById('reminderModalBg').classList.add('show');
 }
@@ -1723,24 +2125,35 @@ async function saveReminder(){
   const time = document.getElementById('reminderTime').value;
   const date = document.getElementById('reminderDate').value;
   let type = document.getElementById('reminderType').value;
+
   if(!text){ alert("Écris un message"); return; }
   if(!date){ alert("Choisis une date"); return; }
   if(!time){ alert("Choisis une heure"); return; }
-  if(type === 'Autre'){ const custom = document.getElementById('reminderCustomType').value.trim(); if(custom) type = custom; else { alert("Précise le type"); return; } }
+
+  if(type === 'Autre'){
+    const custom = document.getElementById('reminderCustomType').value.trim();
+    if(custom) type = custom;
+    else { alert("Précise le type"); return; }
+  }
+
   const dueDate = new Date(date + 'T' + time + ':00').toISOString();
+
   if(editingReminderId){
     const result = await dbUpdate('reminders', editingReminderId, {text, time, type, due_date: dueDate, sent: false});
     if(!result) return;
     const idx = reminders.findIndex(r => r.id === editingReminderId);
     if(idx >= 0) reminders[idx] = result;
-    closeReminderModal(); refreshAll();
+    closeReminderModal();
+    refreshAll();
     alert('✅ Rappel modifié !');
     return;
   }
+
   const result = await dbInsert('reminders', {text, time, type, due_date: dueDate, sent: false});
   if(!result) return;
   reminders.push(result);
-  closeReminderModal(); refreshAll();
+  closeReminderModal();
+  refreshAll();
   alert('✅ Rappel créé !\nMême app fermée 🔔');
 }
 
@@ -1755,22 +2168,44 @@ function renderReminders(){
   const el = document.getElementById('remindersList');
   if(!el) return;
   if(reminders.length === 0){ el.innerHTML = '<div class="empty">Aucun rappel. Crées-en un !</div>'; return; }
+
   const fixedIcons = {perso:'🔔', rdv:'📅', appel:'📞', paiement:'💰', Autre:'✏️'};
-  const sorted = [...reminders].sort((a,b) => { const da = a.due_date || a.created_at || ''; const db_ = b.due_date || b.created_at || ''; return da.localeCompare(db_); });
+  const sorted = [...reminders].sort((a,b) => {
+    const da = a.due_date || a.created_at || '';
+    const db_ = b.due_date || b.created_at || '';
+    return da.localeCompare(db_);
+  });
+
   el.innerHTML = sorted.map(r => {
     const icon = fixedIcons[r.type] || '✏️';
     const now = new Date();
     const due = r.due_date ? new Date(r.due_date) : null;
-    let statusBadge = ''; let statusClass = '';
+
+    let statusBadge = '';
+    let statusClass = '';
+
     if(r.sent){ statusBadge = '✅ Envoyé'; statusClass = 'sent'; }
     else if(due && due < now){ statusBadge = '⏱ En cours'; statusClass = 'pending'; }
-    else if(due){ const diff = due - now; const hours = Math.floor(diff / 3600000); const days = Math.floor(hours / 24);
-      if(hours < 1) statusBadge = '⏱ Moins d\'1h'; else if(hours < 24) statusBadge = `⏱ Dans ${hours}h`; else statusBadge = `📅 Dans ${days}j`; }
+    else if(due){
+      const diff = due - now;
+      const hours = Math.floor(diff / 3600000);
+      const days = Math.floor(hours / 24);
+      if(hours < 1) statusBadge = '⏱ Moins d\'1h';
+      else if(hours < 24) statusBadge = `⏱ Dans ${hours}h`;
+      else statusBadge = `📅 Dans ${days}j`;
+    }
+
     const dateStr = due ? due.toLocaleString('fr-FR', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) : r.time || '';
+
     return `<div class="reminder ${statusClass}">
       <div class="reminder-icon">${icon}</div>
-      <div class="reminder-content"><div class="reminder-text">${r.text}</div>
-        <div class="reminder-meta"><span>${dateStr}</span>${statusBadge ? `<span class="reminder-badge">${statusBadge}</span>` : ''}</div></div>
+      <div class="reminder-content">
+        <div class="reminder-text">${r.text}</div>
+        <div class="reminder-meta">
+          <span>${dateStr}</span>
+          ${statusBadge ? `<span class="reminder-badge">${statusBadge}</span>` : ''}
+        </div>
+      </div>
       <div class="reminder-actions">
         <button class="reminder-edit" onclick="openReminderModal(${r.id})" title="Modifier">✏️</button>
         <button class="reminder-del" onclick="delReminder(${r.id})" title="Supprimer">×</button>
@@ -1783,11 +2218,21 @@ function renderReminders(){
 // RAPPELS D'OBJECTIFS (goal_reminders)
 // ============================================================
 const GOAL_MOTIVATION_MESSAGES = [
-  '💪 Chaque petit geste compte. Épargne aujourd\'hui !','🔥 Ton futur toi te remerciera. Allez !','🎯 Un pas de plus vers ton objectif.',
-  '💎 Discipline d\'aujourd\'hui, liberté de demain.','🚀 Chaque franc épargné te rapproche du but.','⭐ Sois fier de ce que tu construis.',
-  '🌟 Ton objectif t\'attend. Ne lâche pas !','💰 1000 FCFA par jour = 365 000 FCFA par an.','🏆 Les gagnants sont ceux qui persistent.',
-  '💪 Tu es plus fort que la tentation.','🌱 Petit à petit, l\'oiseau fait son nid.','🎯 La régularité bat l\'intensité.',
-  '🔥 Ne t\'arrête pas maintenant !','✨ Ton avenir se construit aujourd\'hui.','🎁 Fais-toi ce cadeau : épargne aujourd\'hui.'
+  '💪 Chaque petit geste compte. Épargne aujourd\'hui !',
+  '🔥 Ton futur toi te remerciera. Allez !',
+  '🎯 Un pas de plus vers ton objectif.',
+  '💎 Discipline d\'aujourd\'hui, liberté de demain.',
+  '🚀 Chaque franc épargné te rapproche du but.',
+  '⭐ Sois fier de ce que tu construis.',
+  '🌟 Ton objectif t\'attend. Ne lâche pas !',
+  '💰 1000 FCFA par jour = 365 000 FCFA par an.',
+  '🏆 Les gagnants sont ceux qui persistent.',
+  '💪 Tu es plus fort que la tentation.',
+  '🌱 Petit à petit, l\'oiseau fait son nid.',
+  '🎯 La régularité bat l\'intensité.',
+  '🔥 Ne t\'arrête pas maintenant !',
+  '✨ Ton avenir se construit aujourd\'hui.',
+  '🎁 Fais-toi ce cadeau : épargne aujourd\'hui.'
 ];
 
 const DAILY_TIPS = [
@@ -1812,11 +2257,15 @@ function onGoalFrequencyChange(){
 async function openGoalReminderModal(id){
   editingGoalReminderId = id || null;
   const r = id ? goalReminders.find(x => x.id === id) : null;
+
   const sel = document.getElementById('goalReminderGoal');
   if(!sel) return;
+
   sel.innerHTML = '<option value="">-- Choisir un objectif --</option>' + coffres.map(c => `<option value="${c.id}">${getCoffreEmoji(c.name)} ${c.name}</option>`).join('');
+
   document.getElementById('goalReminderModalTitle').textContent = r ? '✏️ Modifier le rappel' : '⏰ Nouveau rappel d\'épargne';
   document.getElementById('goalReminderSubmit').textContent = '💾 Enregistrer';
+
   if(r){
     sel.value = r.goal_id || '';
     document.getElementById('goalReminderMessage').value = r.message || '';
@@ -1831,6 +2280,7 @@ async function openGoalReminderModal(id){
     document.getElementById('goalReminderTime').value = '20:00';
     document.getElementById('goalReminderDay').value = '1';
   }
+
   onGoalFrequencyChange();
   document.getElementById('goalReminderModalBg').classList.add('show');
 }
@@ -1846,23 +2296,28 @@ async function saveGoalReminder(){
   const frequency = document.getElementById('goalReminderFrequency').value;
   const time = document.getElementById('goalReminderTime').value;
   const dayOfWeek = frequency === 'weekly' ? parseInt(document.getElementById('goalReminderDay').value) : null;
+
   if(!goalId){ alert('Choisis un objectif'); return; }
   if(!message){ alert('Écris un message de motivation'); return; }
   if(!time){ alert('Choisis une heure'); return; }
+
   const data = {goal_id: goalId, message, frequency, time, day_of_week: dayOfWeek};
+
   if(editingGoalReminderId){
     const result = await dbUpdate('goal_reminders', editingGoalReminderId, data);
     if(!result) return;
     const idx = goalReminders.findIndex(r => r.id === editingGoalReminderId);
     if(idx >= 0) goalReminders[idx] = result;
-    closeGoalReminderModal(); renderGoalReminders();
-    showToast('✅ Rappel modifié');
+    closeGoalReminderModal();
+    renderGoalReminders();
+    showToast('Rappel modifié');
   } else {
     const result = await dbInsert('goal_reminders', data);
     if(!result) return;
     goalReminders.push(result);
-    closeGoalReminderModal(); renderGoalReminders();
-    showToast('✅ Rappel créé !');
+    closeGoalReminderModal();
+    renderGoalReminders();
+    showToast('Rappel créé !');
   }
 }
 
@@ -1872,26 +2327,36 @@ async function deleteGoalReminder(id){
   if(!ok) return;
   goalReminders = goalReminders.filter(r => r.id !== id);
   renderGoalReminders();
-  showToast('🗑 Rappel supprimé');
+  showToast('Rappel supprimé');
 }
 
 function renderGoalReminders(){
   const el = document.getElementById('goalRemindersList');
   if(!el) return;
   if(goalReminders.length === 0){ el.innerHTML = '<div class="empty">Aucun rappel. Crées-en un !</div>'; return; }
+
   const freqLabels = { daily: '🔁 Tous les jours', weekly: '📅 Chaque semaine' };
   const dayLabels = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
   const sorted = [...goalReminders].sort((a,b) => (a.time || '').localeCompare(b.time || ''));
+
   el.innerHTML = sorted.map(r => {
     const goal = coffres.find(c => c.id === r.goal_id);
     const goalName = goal ? goal.name : 'Objectif supprimé';
     const emoji = goal ? getCoffreEmoji(goal.name) : '🎯';
+
     let freqText = freqLabels[r.frequency] || '🔁';
-    if(r.frequency === 'weekly' && r.day_of_week !== null && r.day_of_week !== undefined){ freqText += ' — ' + (dayLabels[r.day_of_week] || ''); }
+    if(r.frequency === 'weekly' && r.day_of_week !== null && r.day_of_week !== undefined){
+      freqText += ' · ' + (dayLabels[r.day_of_week] || '');
+    }
+
     return `<div class="goal-reminder-item">
       <div class="left">
         <div class="title">${emoji} ${goalName}</div>
-        <div class="sub"><span>${r.message}</span><span class="badge-freq">⏰ ${r.time}</span><span class="badge-freq">${freqText}</span></div>
+        <div class="sub">
+          <span>${r.message}</span>
+          <span class="badge-freq">⏰ ${r.time}</span>
+          <span class="badge-freq">${freqText}</span>
+        </div>
       </div>
       <div class="actions">
         <button onclick="openGoalReminderModal(${r.id})" title="Modifier">✏️</button>
@@ -1904,19 +2369,23 @@ function renderGoalReminders(){
 async function checkGoalReminders(){
   if(typeof isNotifEnabled === 'function' && !isNotifEnabled()) return;
   if(goalReminders.length === 0) return;
+
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const todayKey = now.toISOString().slice(0,10);
   const todayDow = now.getDay();
+
   for(const r of goalReminders){
     if(!r.time) continue;
     if(r.frequency === 'weekly'){
       if(r.day_of_week === null || r.day_of_week === undefined) continue;
       if(parseInt(r.day_of_week) !== todayDow) continue;
     }
+
     const [h, m] = r.time.split(':').map(Number);
     const rMin = h * 60 + m;
     const key = `goal_reminder_${r.id}_${todayKey}`;
+
     if(!localStorage.getItem(key) && Math.abs(nowMin - rMin) <= 2){
       const goal = coffres.find(c => c.id === r.goal_id);
       const title = '🎯 ' + (goal ? goal.name : 'Objectif');
@@ -1933,22 +2402,40 @@ function renderGoalSuggestions(){
   const el = document.getElementById('goalSuggestions');
   if(!el) return;
   if(coffres.length === 0){ el.innerHTML = '<div class="empty">Crée un objectif pour voir les suggestions.</div>'; return; }
+
   const suggestions = [];
   const s = computeStats();
+
   coffres.forEach(c => {
     const current = Number(c.current || 0);
     const goal = Number(c.goal || 1);
     const pct = (current / goal) * 100;
     const rest = goal - current;
-    if(pct >= 100){ suggestions.push({cls:'good', icon:'🏆', title:`"${c.name}" atteint !`, body:`Félicitations ! Fixe-toi un nouveau défi.`}); return; }
-    if(pct === 0){ suggestions.push({cls:'urgent', icon:'🚀', title:`Démarre "${c.name}"`, body:`Commence par <strong>${fmt(goal * 0.05)}</strong> (5%).`}); return; }
+
+    if(pct >= 100){
+      suggestions.push({cls:'good', icon:'🏆', title:`"${c.name}" atteint !`, body:`Félicitations ! Fixe-toi un nouveau défi.`});
+      return;
+    }
+    if(pct === 0){
+      suggestions.push({cls:'urgent', icon:'🚀', title:`Démarre "${c.name}"`, body:`Commence par <strong>${fmt(goal * 0.05)}</strong> (5%).`});
+      return;
+    }
+
     if(c.target_date){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
-      if(days > 0 && days < 30){ suggestions.push({cls:'urgent', icon:'⏱', title:`Deadline proche : ${c.name}`, body:`Reste <strong>${days} jours</strong> pour économiser <strong>${fmt(rest)}</strong>. Soit ${fmt(rest/days)}/jour.`}); }
-      else if(days > 0){ const perMonth = (rest / days) * 30; suggestions.push({cls:'', icon:'📊', title:`Rythme pour "${c.name}"`, body:`Épargne <strong>${fmt(perMonth)}</strong> par mois pour finir à temps.`}); }
-      else { suggestions.push({cls:'urgent', icon:'⚠️', title:`Deadline dépassée : ${c.name}`, body:`Reste <strong>${fmt(rest)}</strong>. Replanifie une date cible.`}); }
-    } else { suggestions.push({cls:'', icon:'📈', title:`${c.name} : ${pct.toFixed(0)}%`, body:`Reste <strong>${fmt(rest)}</strong>. Ajoute ${fmt(rest/4)} chaque semaine.`}); }
+      if(days > 0 && days < 30){
+        suggestions.push({cls:'urgent', icon:'⏱', title:`Deadline proche : ${c.name}`, body:`Reste <strong>${days} jours</strong> pour économiser <strong>${fmt(rest)}</strong>. Soit ${fmt(rest/days)}/jour.`});
+      } else if(days > 0){
+        const perMonth = (rest / days) * 30;
+        suggestions.push({cls:'', icon:'📊', title:`Rythme pour "${c.name}"`, body:`Épargne <strong>${fmt(perMonth)}</strong> par mois pour finir à temps.`});
+      } else {
+        suggestions.push({cls:'urgent', icon:'⚠️', title:`Deadline dépassée : ${c.name}`, body:`Reste <strong>${fmt(rest)}</strong>. Replanifie une date cible.`});
+      }
+    } else {
+      suggestions.push({cls:'', icon:'📈', title:`${c.name} : ${pct.toFixed(0)}%`, body:`Reste <strong>${fmt(rest)}</strong>. Ajoute ${fmt(rest/4)} chaque semaine.`});
+    }
   });
+
   if(s.totalIn > 0){
     const monthlyPotential = s.totalIn * SAVINGS_TARGET;
     const totalMonthlyTarget = coffres.reduce((sum, c) => {
@@ -1957,10 +2444,16 @@ function renderGoalSuggestions(){
       if(days <= 0) return sum;
       return sum + ((Number(c.goal) - Number(c.current)) / days) * 30;
     }, 0);
-    if(totalMonthlyTarget > monthlyPotential){ suggestions.push({cls:'urgent', icon:'⚠️', title:'Budget épargne serré', body:`Objectifs : <strong>${fmt(totalMonthlyTarget)}/mois</strong>. Capacité : ${fmt(monthlyPotential)}.`}); }
-    else if(totalMonthlyTarget > 0){ suggestions.push({cls:'good', icon:'✅', title:'Budget épargne OK', body:`Objectifs : ${fmt(totalMonthlyTarget)}/mois. Capacité : <strong>${fmt(monthlyPotential)}</strong>.`}); }
+
+    if(totalMonthlyTarget > monthlyPotential){
+      suggestions.push({cls:'urgent', icon:'⚠️', title:'Budget épargne serré', body:`Objectifs : <strong>${fmt(totalMonthlyTarget)}/mois</strong>. Capacité : ${fmt(monthlyPotential)}.`});
+    } else if(totalMonthlyTarget > 0){
+      suggestions.push({cls:'good', icon:'✅', title:'Budget épargne OK', body:`Objectifs : ${fmt(totalMonthlyTarget)}/mois. Capacité : <strong>${fmt(monthlyPotential)}</strong>.`});
+    }
   }
+
   if(suggestions.length === 0){ el.innerHTML = '<div class="empty">Continue à ajouter de l\'épargne !</div>'; return; }
+
   el.innerHTML = suggestions.slice(0, 6).map(sg => `<div class="goal-suggestion ${sg.cls}"><div class="icon">${sg.icon}</div><div class="title">${sg.title}</div><div class="body">${sg.body}</div></div>`).join('');
 }
 
@@ -1972,32 +2465,39 @@ function renderGlobalOverview(){
   const totalOut = txs.filter(t => t.type === 'depense').reduce((a,b) => a + Number(b.amount), 0);
   const totalSaved = coffres.reduce((sum, c) => sum + Number(c.current || 0), 0);
   const goalsDone = coffres.filter(c => Number(c.current) >= Number(c.goal)).length;
+
   const el1 = document.getElementById('globalTotalIn');
   const el2 = document.getElementById('globalTotalOut');
   const el3 = document.getElementById('globalBalance');
   const el4 = document.getElementById('globalSaved');
   const el5 = document.getElementById('globalGoalsDone');
   const el6 = document.getElementById('globalClients');
+
   if(el1) el1.textContent = fmt(totalIn);
   if(el2) el2.textContent = fmt(totalOut);
   if(el3) el3.textContent = fmt(totalIn - totalOut);
   if(el4) el4.textContent = fmt(totalSaved);
   if(el5) el5.textContent = goalsDone + ' / ' + coffres.length;
   if(el6) el6.textContent = clients.length;
+
   const analysisEl = document.getElementById('globalAnalysis');
   if(!analysisEl) return;
   if(txs.length === 0){ analysisEl.innerHTML = '<div class="empty">Ajoute des transactions pour voir l\'analyse globale.</div>'; return; }
+
   const lines = [];
   const months = new Set(txs.map(t => t.date.slice(0,7))).size;
   const avgMonthly = months > 0 ? totalIn / months : 0;
   const savingsRate = totalIn > 0 ? ((totalIn - totalOut) / totalIn * 100) : 0;
+
   lines.push(`<div class="insight ${savingsRate >= 20 ? 'good' : savingsRate >= 0 ? 'warn' : 'bad'}"><div class="title">📊 Taux d'épargne global : ${savingsRate.toFixed(0)}%</div><div>${savingsRate >= 20 ? 'Excellent ! Tu épargnes bien.' : savingsRate >= 0 ? 'Peut mieux faire. Vise 20%.' : 'Attention, tu dépenses plus que tu ne gagnes.'}</div></div>`);
   lines.push(`<div class="insight"><div class="title">💵 Revenu moyen mensuel</div><div>${fmt(avgMonthly)} sur ${months} mois d'activité</div></div>`);
+
   if(coffres.length > 0){
     const totalGoal = coffres.reduce((sum, c) => sum + Number(c.goal), 0);
     const pct = totalGoal > 0 ? (totalSaved / totalGoal * 100) : 0;
     lines.push(`<div class="insight ${pct >= 50 ? 'good' : 'warn'}"><div class="title">🎯 Progression globale des objectifs</div><div>${pct.toFixed(0)}% (${fmt(totalSaved)} / ${fmt(totalGoal)})</div></div>`);
   }
+
   analysisEl.innerHTML = lines.join('');
 }
 
@@ -2014,9 +2514,11 @@ function renderDashboardGoalReminders(){
   const el = document.getElementById('dashboardGoalRemindersList');
   if(!card || !el) return;
   if(goalReminders.length === 0){ card.style.display = 'none'; return; }
+
   card.style.display = 'block';
   const sorted = [...goalReminders].sort((a,b) => (a.time || '').localeCompare(b.time || ''));
   const freqLabels = { daily: '🔁 Quotidien', weekly: '📅 Hebdo' };
+
   el.innerHTML = sorted.slice(0, 3).map(r => {
     const goal = coffres.find(c => c.id === r.goal_id);
     const goalName = goal ? goal.name : 'Objectif';
@@ -2029,8 +2531,10 @@ function renderDashboardGoals(){
   const card = document.getElementById('dashboardGoalsCard');
   const el = document.getElementById('dashboardGoalsList');
   if(!card || !el) return;
+
   const active = coffres.filter(c => Number(c.current) < Number(c.goal));
   if(active.length === 0){ card.style.display = 'none'; return; }
+
   card.style.display = 'block';
   el.innerHTML = active.slice(0, 3).map(c => {
     const current = Number(c.current || 0);
@@ -2055,21 +2559,34 @@ function toggleAiConfig(){
 
 function formatAnalysisText(text){
   if(!text) return '<div class="empty">Pas de contenu</div>';
+
   let safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const lines = safe.split('\n');
-  let sections = []; let currentSection = null; let currentContent = [];
+
+  let sections = [];
+  let currentSection = null;
+  let currentContent = [];
   const sectionRegex = /^\s*(\d+)\s*[.)]\s*(.+?)$/;
   const boldRegex = /\*\*(.+?)\*\*/g;
+
   lines.forEach(line => {
     const match = line.match(sectionRegex);
     if(match){
-      if(currentSection !== null || currentContent.length > 0){ sections.push({num: currentSection, content: currentContent.join('\n').trim()}); }
-      currentSection = match[1]; currentContent = [match[2]];
-    } else { currentContent.push(line); }
+      if(currentSection !== null || currentContent.length > 0){
+        sections.push({num: currentSection, content: currentContent.join('\n').trim()});
+      }
+      currentSection = match[1];
+      currentContent = [match[2]];
+    } else {
+      currentContent.push(line);
+    }
   });
-  if(currentSection !== null || currentContent.length > 0){ sections.push({num: currentSection, content: currentContent.join('\n').trim()}); }
+  if(currentSection !== null || currentContent.length > 0){
+    sections.push({num: currentSection, content: currentContent.join('\n').trim()});
+  }
   sections = sections.filter(s => s.content);
   if(sections.length === 0) sections = [{num: null, content: safe}];
+
   function detectColor(content){
     const lower = content.toLowerCase();
     if(/attention|danger|déficit|négatif|perte|sous-évalu|trop|⚠|🚨/i.test(content)) return 'bad';
@@ -2077,32 +2594,55 @@ function formatAnalysisText(text){
     if(/excellent|bravo|bon|félicitation|bien|progrès|solide|🏆|🌟/i.test(content)) return 'good';
     return '';
   }
+
   return sections.map(s => {
-    let content = s.content; let title = ''; let body = content;
+    let content = s.content;
+    let title = '';
+    let body = content;
+
     const titleMatch = content.match(/^([^:]{2,80}?)\s*:\s*([\s\S]+)$/);
-    if(titleMatch){ title = titleMatch[1].replace(/\*\*/g, '').trim(); body = titleMatch[2]; }
-    else { const firstLineBreak = content.indexOf('\n');
-      if(firstLineBreak > 0 && firstLineBreak < 100){ title = content.substring(0, firstLineBreak).replace(/\*\*/g, '').trim(); body = content.substring(firstLineBreak + 1); }
-      else { title = content.replace(/\*\*/g, '').substring(0, 80); body = ''; }
+    if(titleMatch){
+      title = titleMatch[1].replace(/\*\*/g, '').trim();
+      body = titleMatch[2];
+    } else {
+      const firstLineBreak = content.indexOf('\n');
+      if(firstLineBreak > 0 && firstLineBreak < 100){
+        title = content.substring(0, firstLineBreak).replace(/\*\*/g, '').trim();
+        body = content.substring(firstLineBreak + 1);
+      } else {
+        title = content.replace(/\*\*/g, '').substring(0, 80);
+        body = '';
+      }
     }
+
     body = body.replace(boldRegex, '<strong>$1</strong>');
     const color = detectColor(s.content);
+
     return `<div class="ai-section ${color}">${s.num ? `<div class="ai-section-title"><span class="ai-section-num">${s.num}</span>${title}</div>` : ''}${!s.num && title ? `<div class="ai-section-title">${title}</div>` : ''}${body.trim() ? `<div class="ai-section-body">${body.trim().replace(/\n/g, '<br>')}</div>` : ''}</div>`;
   }).join('');
 }
 
 async function loadSavedAnalysis(){
   try {
-    const user = await getCurrentUser(); if(!user) return;
+    const user = await getCurrentUser();
+    if(!user) return;
+
     const { data, error } = await sb.from('user_settings').select('ai_analysis, ai_analysis_date').eq('user_id', user.id).maybeSingle();
     if(error || !data || !data.ai_analysis) return;
+
     localStorage.setItem('ai_last_analysis', data.ai_analysis);
     localStorage.setItem('ai_last_analysis_date', data.ai_analysis_date || '');
+
     document.getElementById('aiOutput').innerHTML = formatAnalysisText(data.ai_analysis);
     document.getElementById('aiCopyBtn').disabled = false;
     document.getElementById('aiPdfBtn').disabled = false;
     document.getElementById('aiClearBtn').disabled = false;
-    if(data.ai_analysis_date){ const dateEl = document.getElementById('aiLastUpdate'); dateEl.textContent = '🕐 Dernière analyse : ' + data.ai_analysis_date; dateEl.classList.add('visible'); }
+
+    if(data.ai_analysis_date){
+      const dateEl = document.getElementById('aiLastUpdate');
+      dateEl.textContent = '🕐 Dernière analyse : ' + data.ai_analysis_date;
+      dateEl.classList.add('visible');
+    }
   } catch(e){ console.warn('loadSavedAnalysis error:', e); }
 }
 
@@ -2110,13 +2650,22 @@ async function saveAnalysis(text){
   const dateStr = new Date().toLocaleString('fr-FR', {day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'});
   localStorage.setItem('ai_last_analysis', text);
   localStorage.setItem('ai_last_analysis_date', dateStr);
-  try { const user = await getCurrentUser(); if(!user) return; await sb.from('user_settings').upsert({ user_id: user.id, ai_analysis: text, ai_analysis_date: dateStr }, { onConflict: 'user_id' }); } catch(e){}
+  try {
+    const user = await getCurrentUser();
+    if(!user) return;
+    await sb.from('user_settings').upsert({ user_id: user.id, ai_analysis: text, ai_analysis_date: dateStr }, { onConflict: 'user_id' });
+  } catch(e){}
 }
 
 async function clearAnalysis(){
   if(!confirm('Effacer l\'analyse ?')) return;
-  localStorage.removeItem('ai_last_analysis'); localStorage.removeItem('ai_last_analysis_date');
-  try { const user = await getCurrentUser(); if(user) await sb.from('user_settings').update({ ai_analysis: null, ai_analysis_date: null }).eq('user_id', user.id); } catch(e){}
+  localStorage.removeItem('ai_last_analysis');
+  localStorage.removeItem('ai_last_analysis_date');
+  try {
+    const user = await getCurrentUser();
+    if(user) await sb.from('user_settings').update({ ai_analysis: null, ai_analysis_date: null }).eq('user_id', user.id);
+  } catch(e){}
+
   document.getElementById('aiOutput').innerHTML = '<div class="empty">Clique sur <strong>Analyser</strong>.</div>';
   document.getElementById('aiLastUpdate').classList.remove('visible');
   document.getElementById('aiCopyBtn').disabled = true;
@@ -2127,23 +2676,51 @@ async function clearAnalysis(){
 async function copyAnalysis(){
   const text = localStorage.getItem('ai_last_analysis');
   if(!text){ alert('Aucune analyse à copier'); return; }
-  try { await navigator.clipboard.writeText(text); const btn = document.getElementById('aiCopyBtn'); btn.textContent = '✅ Copié !'; setTimeout(() => btn.textContent = '📋 Copier', 2000); }
-  catch(e){ const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('aiCopyBtn');
+    btn.textContent = '✅ Copié !';
+    setTimeout(() => btn.textContent = '📋 Copier', 2000);
+  } catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
 }
 
 function exportAnalysisPDF(){
-  const text = localStorage.getItem('ai_last_analysis'); const date = localStorage.getItem('ai_last_analysis_date');
+  const text = localStorage.getItem('ai_last_analysis');
+  const date = localStorage.getItem('ai_last_analysis_date');
   if(!text){ alert('Aucune analyse à exporter'); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ alert('PDF non chargé'); return; }
-  const { jsPDF } = window.jspdf; const doc = new jsPDF();
-  doc.setFillColor(108, 140, 255); doc.rect(0, 0, 210, 32, 'F');
-  doc.setTextColor(255, 255, 255); doc.setFontSize(20); doc.setFont('helvetica', 'bold');
-  doc.text("Analyse financière IA", 14, 16); doc.setFontSize(10); if(date) doc.text(date, 14, 24);
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFillColor(108, 140, 255);
+  doc.rect(0, 0, 210, 32, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Analyse financière IA", 14, 16);
+  doc.setFontSize(10);
+  if(date) doc.text(date, 14, 24);
+
   const cleanText = text.replace(/\*\*/g, '');
-  doc.setTextColor(40, 40, 40); doc.setFontSize(11);
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(11);
   const splitText = doc.splitTextToSize(cleanText, 180);
-  let y = 42; const pageHeight = doc.internal.pageSize.height - 15;
-  splitText.forEach(line => { if(y > pageHeight){ doc.addPage(); y = 15; } doc.text(line, 14, y); y += 6; });
+  let y = 42;
+  const pageHeight = doc.internal.pageSize.height - 15;
+
+  splitText.forEach(line => {
+    if(y > pageHeight){ doc.addPage(); y = 15; }
+    doc.text(line, 14, y);
+    y += 6;
+  });
+
   doc.save(`analyse-ia-${todayStr()}.pdf`);
 }
 
@@ -2152,34 +2729,55 @@ async function saveAiConfig(){
   const key = document.getElementById('aiKey').value.trim();
   const url = document.getElementById('aiUrl').value.trim();
   if(!key){ alert("Colle ta clé"); return; }
+
   const cfg = {provider, key, url};
   localStorage.setItem('aiConfig', JSON.stringify(cfg));
-  try { const user = await getCurrentUser(); if(user){ await sb.from('user_settings').upsert({ user_id: user.id, ai_config: cfg }, { onConflict: 'user_id' }); } } catch(e){}
+
+  try {
+    const user = await getCurrentUser();
+    if(user){ await sb.from('user_settings').upsert({ user_id: user.id, ai_config: cfg }, { onConflict: 'user_id' }); }
+  } catch(e){}
+
   updateAiStatus();
-  alert("✅ Enregistré et synchronisé !");
+  alert("Enregistré et synchronisé !");
 }
 
 function updateAiStatus(){
-  let cfg = null; try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
+
   const el = document.getElementById('aiStatus');
   if(!el) return;
-  if(cfg && cfg.key){ el.textContent = 'connectée'; el.classList.add('on'); document.getElementById('aiProvider').value = cfg.provider; document.getElementById('aiKey').value = cfg.key; if(cfg.url) document.getElementById('aiUrl').value = cfg.url; }
-  else { el.textContent = 'non configurée'; el.classList.remove('on'); }
+
+  if(cfg && cfg.key){
+    el.textContent = 'connectée';
+    el.classList.add('on');
+    document.getElementById('aiProvider').value = cfg.provider;
+    document.getElementById('aiKey').value = cfg.key;
+    if(cfg.url) document.getElementById('aiUrl').value = cfg.url;
+  } else {
+    el.textContent = 'non configurée';
+    el.classList.remove('on');
+  }
   toggleCustomUrl();
 }
 
 async function loadAiConfigFromSupabase(){
   try {
-    const user = await getCurrentUser(); if(!user) return;
+    const user = await getCurrentUser();
+    if(!user) return;
+
     const { data, error } = await sb.from('user_settings').select('ai_config').eq('user_id', user.id).maybeSingle();
     if(error || !data || !data.ai_config) return;
+
     localStorage.setItem('aiConfig', JSON.stringify(data.ai_config));
     updateAiStatus();
   } catch(e){}
 }
 
 function toggleCustomUrl(){
-  const sel = document.getElementById('aiProvider'); if(!sel) return;
+  const sel = document.getElementById('aiProvider');
+  if(!sel) return;
   const isCustom = sel.value === 'custom';
   document.getElementById('aiUrlLabel').style.display = isCustom ? 'block' : 'none';
   document.getElementById('aiUrl').style.display = isCustom ? 'block' : 'none';
@@ -2187,53 +2785,124 @@ function toggleCustomUrl(){
 
 function buildSummary(){
   const s = computeStats();
-  const lines = [`Devise: ${CURRENCY}`, `Mois: ${s.ym}`, `Revenus: ${Math.round(s.totalIn)}`, `Dépenses: ${Math.round(s.totalOut)}`, `Solde: ${Math.round(s.bal)}`, `Taux épargne: ${(s.savingsRate * 100).toFixed(1)}%`];
-  if(s.sortedCats.length) lines.push('Répartition: '+s.sortedCats.map(([c,a])=>`${c}=${Math.round(a)}`).join(', '));
-  if(coffres.length){ lines.push("Objectifs:"); coffres.forEach(c => lines.push(`- ${c.name}: ${Math.round(c.current)}/${Math.round(c.goal)} (${((c.current/c.goal)*100).toFixed(0)}%)`)); }
-  if(shoots.length){ const ym = monthKey(); const ms = shoots.filter(s => s.date && s.date.startsWith(ym)); lines.push(`Séances photo ce mois: ${ms.length}`); const r = ms.filter(s => s.payment === 'paye').reduce((a,b) => a + Number(b.price), 0); lines.push(`Revenus photo: ${Math.round(r)}`); }
+  const lines = [
+    `Devise: ${CURRENCY}`,
+    `Mois: ${s.ym}`,
+    `Revenus: ${Math.round(s.totalIn)}`,
+    `Dépenses: ${Math.round(s.totalOut)}`,
+    `Solde: ${Math.round(s.bal)}`,
+    `Taux épargne: ${(s.savingsRate * 100).toFixed(1)}%`
+  ];
+
+  if(s.sortedCats.length) lines.push('Répartition: ' + s.sortedCats.map(([c,a]) => `${c}=${Math.round(a)}`).join(', '));
+
+  if(coffres.length){
+    lines.push("Objectifs:");
+    coffres.forEach(c => lines.push(`- ${c.name}: ${Math.round(c.current)}/${Math.round(c.goal)} (${((c.current/c.goal)*100).toFixed(0)}%)`));
+  }
+
+  if(shoots.length){
+    const ym = monthKey();
+    const ms = shoots.filter(s => s.date && s.date.startsWith(ym));
+    lines.push(`Séances photo ce mois: ${ms.length}`);
+    const r = ms.filter(s => s.payment === 'paye').reduce((a,b) => a + Number(b.price), 0);
+    lines.push(`Revenus photo: ${Math.round(r)}`);
+  }
+
   if(clients.length) lines.push(`Clients: ${clients.length}`);
   if(inspirations.length) lines.push(`Inspirations: ${inspirations.length}`);
   if(notes.length) lines.push(`Notes: ${notes.length}`);
+
   const recent = [...txs].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 15);
-  if(recent.length){ lines.push('Transactions récentes:'); recent.forEach(t => lines.push(`- ${t.date} ${t.type} ${t.category} ${Math.round(t.amount)}${t.note?' ('+t.note+')':''}`)); }
+  if(recent.length){
+    lines.push('Transactions récentes:');
+    recent.forEach(t => lines.push(`- ${t.date} ${t.type} ${t.category} ${Math.round(t.amount)}${t.note?' ('+t.note+')':''}`));
+  }
   return lines.join('\n');
 }
 
 async function callAI(prompt){
-  let cfg = null; try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
   if(!cfg || !cfg.key) throw new Error("Configure ta clé dans l'onglet IA");
+
   if(cfg.provider === 'anthropic'){
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': cfg.key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify({model: AI_MODELS.anthropic, max_tokens: 1500, messages: [{role: 'user', content: prompt}]}) });
-    const j = await r.json(); if(j.error) throw new Error(j.error.message); return j.content?.[0]?.text || '';
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': cfg.key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: AI_MODELS.anthropic,
+        max_tokens: 1500,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const j = await r.json();
+    if(j.error) throw new Error(j.error.message);
+    return j.content?.[0]?.text || '';
   }
+
   if(cfg.provider === 'gemini'){
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.gemini}:generateContent?key=${cfg.key}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({contents: [{parts: [{text: prompt}]}]}) });
-    const j = await r.json(); if(j.error) throw new Error(j.error.message); return j.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.gemini}:generateContent?key=${cfg.key}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({contents: [{parts: [{text: prompt}]}]})
+    });
+    const j = await r.json();
+    if(j.error) throw new Error(j.error.message);
+    return j.candidates?.[0]?.content?.parts?.[0]?.text || '';
   }
+
   const url = cfg.provider === 'custom' && cfg.url ? cfg.url : 'https://api.openai.com/v1/chat/completions';
-  const r = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}`}, body: JSON.stringify({model: AI_MODELS.openai, messages: [{role: 'system', content: 'Tu es un conseiller financier personnel direct.'}, {role: 'user', content: prompt}], temperature: 0.7}) });
-  const j = await r.json(); if(j.error) throw new Error(j.error.message); return j.choices?.[0]?.message?.content || '';
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}`},
+    body: JSON.stringify({
+      model: AI_MODELS.openai,
+      messages: [
+        { role: 'system', content: 'Tu es un conseiller financier personnel direct.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.7
+    })
+  });
+  const j = await r.json();
+  if(j.error) throw new Error(j.error.message);
+  return j.choices?.[0]?.message?.content || '';
 }
 
 async function askAI(){
-  let cfg = null; try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
   if(!cfg || !cfg.key){ alert("Configure ta clé dans cette page"); return; }
+
   const out = document.getElementById('aiOutput');
   out.innerHTML = '<div class="empty">⏳ Analyse en cours...</div>';
+
   const summary = buildSummary();
   const prompt = `Tu es un conseiller financier personnel. Voici le résumé :\n\n${summary}\n\nAnalyse en français, en 8 points numérotés :\n1. Diagnostic global\n2. Taux d'épargne\n3. Poste à surveiller\n4. Prévision fin de mois\n5. Combien épargner ce mois\n6. Une idée de business adaptée\n7. Action immédiate aujourd'hui\n8. Encouragement personnalisé\n\nConcret, chiffré. N'utilise PAS d'astérisques.`;
+
   try {
     const text = await callAI(prompt);
     if(!text || !text.trim()){ out.innerHTML = '<div class="empty">❌ Pas de réponse.</div>'; return; }
+
     await saveAnalysis(text);
     out.innerHTML = formatAnalysisText(text);
+
     document.getElementById('aiCopyBtn').disabled = false;
     document.getElementById('aiPdfBtn').disabled = false;
     document.getElementById('aiClearBtn').disabled = false;
+
     const dateEl = document.getElementById('aiLastUpdate');
     dateEl.textContent = '🕐 Dernière analyse : ' + new Date().toLocaleString('fr-FR');
     dateEl.classList.add('visible');
-  } catch(e){ out.innerHTML = `<div class="empty">❌ ${e.message}</div>`; }
+  } catch(e){
+    out.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
+  }
 }
 
 // ============================================================
@@ -2248,24 +2917,35 @@ async function getChatStorageKey(){
 }
 
 async function loadChatHistory(){
-  try { const key = await getChatStorageKey(); const raw = localStorage.getItem(key); chatHistory = raw ? JSON.parse(raw) : []; } catch(e){ chatHistory = []; }
+  try {
+    const key = await getChatStorageKey();
+    const raw = localStorage.getItem(key);
+    chatHistory = raw ? JSON.parse(raw) : [];
+  } catch(e){ chatHistory = []; }
 }
 
 async function saveChatHistory(){
-  try { const key = await getChatStorageKey(); const toSave = chatHistory.slice(-100); localStorage.setItem(key, JSON.stringify(toSave)); } catch(e){}
+  try {
+    const key = await getChatStorageKey();
+    const toSave = chatHistory.slice(-100);
+    localStorage.setItem(key, JSON.stringify(toSave));
+  } catch(e){}
 }
 
 async function openChat(){
   await loadChatHistory();
   document.getElementById('chatModalBg').classList.add('show');
+
   if(chatHistory.length === 0){
     const user = await getCurrentUser();
     const s = computeStats();
     const firstName = (user?.email || '').split('@')[0] || 'toi';
+
     const welcome = `Salut ${firstName} ! 👋\n\nJe suis ton assistant IA. Je connais déjà ta situation :\n• Solde du mois : ${fmt(s.bal)}\n• Revenus : ${fmt(s.totalIn)} | Dépenses : ${fmt(s.totalOut)}\n• ${clients.length} clients · ${shoots.length} séances · ${coffres.length} objectifs\n\nPose-moi n'importe quelle question ! 💪`;
     chatHistory.push({ role: 'assistant', content: welcome, ts: Date.now() });
     await saveChatHistory();
   }
+
   renderChatMessages();
   setTimeout(() => document.getElementById('chatInput')?.focus(), 300);
 }
@@ -2279,134 +2959,302 @@ function sendSuggestion(text){
 
 async function sendChatMessage(){
   if(chatSending) return;
+
   const input = document.getElementById('chatInput');
   const btn = document.getElementById('chatSendBtn');
   const text = (input?.value || '').trim();
   if(!text) return;
-  let cfg = null; try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
+
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
   if(!cfg || !cfg.key){ alert("Configure d'abord ta clé API IA."); return; }
-  chatSending = true; input.value = ''; input.style.height = 'auto'; btn.disabled = true;
+
+  chatSending = true;
+  input.value = '';
+  input.style.height = 'auto';
+  btn.disabled = true;
+
   chatHistory.push({ role: 'user', content: text, ts: Date.now() });
-  await saveChatHistory(); renderChatMessages();
+  await saveChatHistory();
+  renderChatMessages();
+
   const loadingMsg = document.createElement('div');
-  loadingMsg.className = 'chat-msg assistant typing'; loadingMsg.id = 'chatLoading'; loadingMsg.textContent = 'Analyse en cours';
-  document.getElementById('chatMessages').appendChild(loadingMsg); scrollChatToBottom();
+  loadingMsg.className = 'chat-msg assistant typing';
+  loadingMsg.id = 'chatLoading';
+  loadingMsg.textContent = 'Analyse en cours';
+  document.getElementById('chatMessages').appendChild(loadingMsg);
+  scrollChatToBottom();
+
   try {
     const response = await callChatAI(text);
     document.getElementById('chatLoading')?.remove();
     chatHistory.push({ role: 'assistant', content: response, ts: Date.now() });
-    await saveChatHistory(); renderChatMessages();
+    await saveChatHistory();
+    renderChatMessages();
   } catch(e){
     document.getElementById('chatLoading')?.remove();
     chatHistory.push({ role: 'assistant', content: '❌ Erreur : ' + e.message, ts: Date.now() });
     renderChatMessages();
-  } finally { chatSending = false; btn.disabled = false; }
+  } finally {
+    chatSending = false;
+    btn.disabled = false;
+  }
 }
 
 function buildChatContext(){
   const s = computeStats();
   const lines = [];
+
   lines.push('=== SITUATION FINANCIÈRE ===');
   lines.push(`Mois : ${s.ym}`);
   lines.push(`Revenus : ${Math.round(s.totalIn)} ${CURRENCY}`);
   lines.push(`Dépenses : ${Math.round(s.totalOut)} ${CURRENCY}`);
   lines.push(`Solde : ${Math.round(s.bal)} ${CURRENCY}`);
   lines.push(`Taux d'épargne : ${(s.savingsRate * 100).toFixed(1)}%`);
-  if(s.sortedCats.length > 0){ lines.push(''); lines.push('=== DÉPENSES PAR CATÉGORIE ==='); s.sortedCats.slice(0, 8).forEach(([cat, amt]) => { const pct = (amt / s.totalOut * 100).toFixed(0); lines.push(`• ${cat} : ${Math.round(amt)} (${pct}%)`); }); }
-  if(coffres.length > 0){ lines.push(''); lines.push('=== OBJECTIFS ==='); coffres.forEach(c => { const pct = ((c.current / c.goal) * 100).toFixed(0); lines.push(`• ${c.name} : ${Math.round(c.current)}/${Math.round(c.goal)} (${pct}%)`); }); }
-  if(clients.length > 0){ lines.push(''); lines.push(`=== CLIENTS (${clients.length}) ===`); clients.slice(0, 10).forEach(c => { lines.push(`• ${c.name}${c.city ? ' (' + c.city + ')' : ''}${c.phone ? ' — ' + c.phone : ''}`); }); }
-  if(shoots.length > 0){ lines.push(''); lines.push('=== SÉANCES PHOTO ==='); const sorted = [...shoots].sort((a,b) => (b.date || '').localeCompare(a.date || '')).slice(0, 10); sorted.forEach(sh => { const client = sh.client_id ? clients.find(c => c.id === sh.client_id) : null; const dateStr = sh.date ? new Date(sh.date).toLocaleDateString('fr-FR') : '?'; lines.push(`• ${dateStr} — ${sh.type}${client ? ' avec ' + client.name : ''} — ${Math.round(sh.price)} — ${sh.payment === 'paye' ? 'payé' : 'impayé'}`); }); }
-  if(notes.length > 0){ lines.push(''); lines.push(`=== NOTES (${notes.filter(n => !n.archived).length} actives) ===`); notes.filter(n => !n.archived).slice(0, 8).forEach(n => { lines.push(`• [${n.category}] ${n.title || n.content.substring(0,60)}`); }); }
+
+  if(s.sortedCats.length > 0){
+    lines.push('');
+    lines.push('=== DÉPENSES PAR CATÉGORIE ===');
+    s.sortedCats.slice(0, 8).forEach(([cat, amt]) => {
+      const pct = (amt / s.totalOut * 100).toFixed(0);
+      lines.push(`• ${cat} : ${Math.round(amt)} (${pct}%)`);
+    });
+  }
+
+  if(coffres.length > 0){
+    lines.push('');
+    lines.push('=== OBJECTIFS ===');
+    coffres.forEach(c => {
+      const pct = ((c.current / c.goal) * 100).toFixed(0);
+      lines.push(`• ${c.name} : ${Math.round(c.current)}/${Math.round(c.goal)} (${pct}%)`);
+    });
+  }
+
+  if(clients.length > 0){
+    lines.push('');
+    lines.push(`=== CLIENTS (${clients.length}) ===`);
+    clients.slice(0, 10).forEach(c => {
+      lines.push(`• ${c.name}${c.city ? ' (' + c.city + ')' : ''}${c.phone ? ' · ' + c.phone : ''}`);
+    });
+  }
+
+  if(shoots.length > 0){
+    lines.push('');
+    lines.push('=== SÉANCES PHOTO ===');
+    const sorted = [...shoots].sort((a,b) => (b.date || '').localeCompare(a.date || '')).slice(0, 10);
+    sorted.forEach(sh => {
+      const client = sh.client_id ? clients.find(c => c.id === sh.client_id) : null;
+      const dateStr = sh.date ? new Date(sh.date).toLocaleDateString('fr-FR') : '?';
+      lines.push(`• ${dateStr} · ${sh.type}${client ? ' avec ' + client.name : ''} · ${Math.round(sh.price)} · ${sh.payment === 'paye' ? 'payé' : 'impayé'}`);
+    });
+  }
+
+  if(notes.length > 0){
+    lines.push('');
+    lines.push(`=== NOTES (${notes.filter(n => !n.archived).length} actives) ===`);
+    notes.filter(n => !n.archived).slice(0, 8).forEach(n => {
+      lines.push(`• [${n.category}] ${n.title || n.content.substring(0,60)}`);
+    });
+  }
+
   const recentTx = [...txs].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 15);
-  if(recentTx.length > 0){ lines.push(''); lines.push('=== TRANSACTIONS RÉCENTES ==='); recentTx.forEach(t => { const sign = t.type === 'revenu' ? '+' : '-'; lines.push(`• ${t.date} ${sign}${Math.round(t.amount)} — ${t.category}${t.note ? ' (' + t.note + ')' : ''}`); }); }
+  if(recentTx.length > 0){
+    lines.push('');
+    lines.push('=== TRANSACTIONS RÉCENTES ===');
+    recentTx.forEach(t => {
+      const sign = t.type === 'revenu' ? '+' : '-';
+      lines.push(`• ${t.date} ${sign}${Math.round(t.amount)} · ${t.category}${t.note ? ' (' + t.note + ')' : ''}`);
+    });
+  }
+
   return lines.join('\n');
 }
 
 async function callChatAI(userMessage){
-  let cfg = null; try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
   if(!cfg || !cfg.key) throw new Error("Configure ta clé IA");
+
   const context = buildChatContext();
-  const recentHistory = chatHistory.filter(m => m.role === 'user' || m.role === 'assistant').slice(-20).map(m => ({ role: m.role, content: m.content }));
-  if(recentHistory.length > 0 && recentHistory[recentHistory.length - 1].role === 'user'){ recentHistory.pop(); }
+  const recentHistory = chatHistory
+    .filter(m => m.role === 'user' || m.role === 'assistant')
+    .slice(-20)
+    .map(m => ({ role: m.role, content: m.content }));
+
+  if(recentHistory.length > 0 && recentHistory[recentHistory.length - 1].role === 'user'){
+    recentHistory.pop();
+  }
+
   const systemPrompt = `Tu es un assistant financier personnel, direct et concret.\n\nVoici TOUTES les données de l'utilisateur :\n\n${context}\n\nRÈGLES :\n- Réponds en français, clair et amical.\n- Base-toi sur ces données réelles.\n- Conseils CONCRETS et CHIFFRÉS.\n- Emojis avec modération.\n- N'utilise PAS d'astérisques **.`;
-  const messages = [{ role: 'user', content: systemPrompt + '\n\nRéponds juste "OK".' }, { role: 'assistant', content: 'OK.' }, ...recentHistory, { role: 'user', content: userMessage }];
+
+  const messages = [
+    { role: 'user', content: systemPrompt + '\n\nRéponds juste "OK".' },
+    { role: 'assistant', content: 'OK.' },
+    ...recentHistory,
+    { role: 'user', content: userMessage }
+  ];
+
   if(cfg.provider === 'anthropic'){
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': cfg.key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify({ model: AI_MODELS.anthropic, max_tokens: 1500, system: systemPrompt, messages: messages.slice(2) }) });
-    const j = await r.json(); if(j.error) throw new Error(j.error.message); return j.content?.[0]?.text || 'Pas de réponse';
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': cfg.key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: AI_MODELS.anthropic,
+        max_tokens: 1500,
+        system: systemPrompt,
+        messages: messages.slice(2)
+      })
+    });
+    const j = await r.json();
+    if(j.error) throw new Error(j.error.message);
+    return j.content?.[0]?.text || 'Pas de réponse';
   }
+
   if(cfg.provider === 'gemini'){
-    const geminiMessages = messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.gemini}:generateContent?key=${cfg.key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: geminiMessages }) });
-    const j = await r.json(); if(j.error) throw new Error(j.error.message); return j.candidates?.[0]?.content?.parts?.[0]?.text || 'Pas de réponse';
+    const geminiMessages = messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.gemini}:generateContent?key=${cfg.key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: geminiMessages })
+    });
+    const j = await r.json();
+    if(j.error) throw new Error(j.error.message);
+    return j.candidates?.[0]?.content?.parts?.[0]?.text || 'Pas de réponse';
   }
+
   const url = cfg.provider === 'custom' && cfg.url ? cfg.url : 'https://api.openai.com/v1/chat/completions';
-  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` }, body: JSON.stringify({ model: AI_MODELS.openai, messages, temperature: 0.7, max_tokens: 1500 }) });
-  const j = await r.json(); if(j.error) throw new Error(j.error.message); return j.choices?.[0]?.message?.content || 'Pas de réponse';
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${cfg.key}`
+    },
+    body: JSON.stringify({ model: AI_MODELS.openai, messages, temperature: 0.7, max_tokens: 1500 })
+  });
+  const j = await r.json();
+  if(j.error) throw new Error(j.error.message);
+  return j.choices?.[0]?.message?.content || 'Pas de réponse';
 }
 
 function renderChatMessages(){
   const el = document.getElementById('chatMessages');
   if(!el) return;
+
   if(chatHistory.length === 0){ el.innerHTML = '<div class="empty">Commence la conversation !</div>'; return; }
+
   el.innerHTML = chatHistory.map((m, idx) => {
     const isUser = m.role === 'user';
     const content = (m.content || '').replace(/\n/g, '<br>');
     return `<div class="chat-msg ${isUser ? 'user' : 'assistant'}"><div>${content}</div><div class="chat-msg-footer"><button class="chat-msg-btn" onclick="copyChatMessage(${idx})" title="Copier">📋</button></div></div>`;
   }).join('');
+
   scrollChatToBottom();
 }
 
-function scrollChatToBottom(){ const el = document.getElementById('chatMessages'); if(el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50); }
+function scrollChatToBottom(){
+  const el = document.getElementById('chatMessages');
+  if(el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
+}
 
 function copyChatMessage(idx){
-  const m = chatHistory[idx]; if(!m) return;
+  const m = chatHistory[idx];
+  if(!m) return;
   const text = m.content;
-  if(navigator.clipboard){ navigator.clipboard.writeText(text).then(() => showToast('✅ Copié !')).catch(() => fallbackCopy(text)); }
-  else { fallbackCopy(text); }
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(() => showToast('Copié !')).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
 }
+
 function fallbackCopy(text){
-  const ta = document.createElement('textarea'); ta.value = text;
-  document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-  document.body.removeChild(ta); showToast('✅ Copié !');
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  showToast('Copié !');
 }
 
 function copyFullChat(){
   if(chatHistory.length === 0){ alert('Aucun message'); return; }
-  const text = chatHistory.map(m => { const who = m.role === 'user' ? '👤 TOI' : '🤖 IA'; return `${who} :\n${m.content}`; }).join('\n\n─────────\n\n');
-  if(navigator.clipboard){ navigator.clipboard.writeText(text).then(() => showToast('✅ Tout copié !')).catch(() => fallbackCopy(text)); }
-  else { fallbackCopy(text); }
+  const text = chatHistory.map(m => {
+    const who = m.role === 'user' ? '👤 TOI' : '🤖 IA';
+    return `${who} :\n${m.content}`;
+  }).join('\n\n─────────\n\n');
+
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(() => showToast('Tout copié !')).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
 }
 
 async function clearChat(){
   if(!confirm('Effacer toute la conversation ?')) return;
-  chatHistory = []; await saveChatHistory(); renderChatMessages();
-  closeChat(); setTimeout(() => openChat(), 200);
+  chatHistory = [];
+  await saveChatHistory();
+  renderChatMessages();
+  closeChat();
+  setTimeout(() => openChat(), 200);
 }
 
 function exportChatPDF(){
   if(chatHistory.length === 0){ alert('Aucun message à exporter'); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ alert('PDF non chargé'); return; }
-  const { jsPDF } = window.jspdf; const doc = new jsPDF();
-  const pageWidth = 190; let y = 20;
-  doc.setFillColor(108, 140, 255); doc.rect(0, 0, 210, 28, 'F');
-  doc.setTextColor(255, 255, 255); doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const pageWidth = 190;
+  let y = 20;
+
+  doc.setFillColor(108, 140, 255);
+  doc.rect(0, 0, 210, 28, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
   doc.text('Conversation avec l\'IA', 14, 14);
-  doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
   doc.text(new Date().toLocaleString('fr-FR'), 14, 22);
+
   y = 38;
+
   chatHistory.forEach(m => {
     const isUser = m.role === 'user';
     const who = isUser ? '👤 TOI' : '🤖 IA';
     const dateStr = m.ts ? new Date(m.ts).toLocaleString('fr-FR', {hour: '2-digit', minute: '2-digit'}) : '';
-    doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(isUser ? 108 : 46, isUser ? 140 : 180, isUser ? 255 : 100);
     if(y > 280){ doc.addPage(); y = 20; }
-    doc.text(who + (dateStr ? ' — ' + dateStr : ''), 14, y); y += 6;
-    doc.setFont('helvetica', 'normal'); doc.setTextColor(40, 40, 40); doc.setFontSize(10);
+    doc.text(who + (dateStr ? ' · ' + dateStr : ''), 14, y);
+    y += 6;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(40, 40, 40);
+    doc.setFontSize(10);
+
     const lines = doc.splitTextToSize(m.content || '', pageWidth);
-    lines.forEach(line => { if(y > 285){ doc.addPage(); y = 20; } doc.text(line, 14, y); y += 5; });
+    lines.forEach(line => {
+      if(y > 285){ doc.addPage(); y = 20; }
+      doc.text(line, 14, y);
+      y += 5;
+    });
+
     y += 6;
   });
+
   doc.save(`chat-ia-${todayStr()}.pdf`);
 }
 
@@ -2415,7 +3263,11 @@ function showToast(message){
   toast.textContent = message;
   toast.style.cssText = `position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--green); color: #000; padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: 700; z-index: 999; box-shadow: 0 4px 20px rgba(0,0,0,.3);`;
   document.body.appendChild(toast);
-  setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity .3s'; setTimeout(() => toast.remove(), 300); }, 1500);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity .3s';
+    setTimeout(() => toast.remove(), 300);
+  }, 1500);
 }
 
 // ============================================================
@@ -2424,6 +3276,7 @@ function showToast(message){
 function ouvrirEpargnePerso(coffreId) {
   const coffre = coffres.find(c => c.id === coffreId);
   if(!coffre) return;
+
   localStorage.setItem('epargne_en_cours', JSON.stringify({coffreId: coffreId, ts: Date.now()}));
   afficherModalEpargne(coffreId);
 }
@@ -2431,8 +3284,10 @@ function ouvrirEpargnePerso(coffreId) {
 function afficherModalEpargne(coffreId) {
   const coffre = coffres.find(c => c.id === coffreId);
   if(!coffre) return;
+
   const existing = document.getElementById('epargnePersoModal');
   if(existing) existing.remove();
+
   const rest = Number(coffre.goal) - Number(coffre.current);
 
   const modal = document.createElement('div');
@@ -2453,12 +3308,12 @@ function afficherModalEpargne(coffreId) {
         <div style="font-size:12px;color:var(--yellow);margin-top:6px">Reste : ${fmt(rest)}</div>
       </div>
       <div style="background:linear-gradient(135deg,rgba(29,200,255,.15),rgba(108,140,255,.08));border-radius:12px;padding:14px;margin-bottom:14px;border:1px solid var(--wave)">
-        <div style="font-weight:700;font-size:14px;margin-bottom:8px">📱 Étape 1 — Ouvre Wave</div>
+        <div style="font-weight:700;font-size:14px;margin-bottom:8px">📱 Étape 1 : Ouvre Wave</div>
         <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px">Fais ton virement de ton compte Wave vers ton <strong>Coffre Wave</strong>. Puis reviens ici pour enregistrer.</div>
         <button class="btn-primary" style="margin:0;width:100%;background:var(--wave);color:#000;font-weight:700" onclick="ouvrirAppWave()">📲 Ouvrir Wave</button>
       </div>
       <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:14px">
-        <div style="font-weight:700;font-size:14px;margin-bottom:8px">✅ Étape 2 — J'ai épargné</div>
+        <div style="font-weight:700;font-size:14px;margin-bottom:8px">✅ Étape 2 : J'ai épargné</div>
         <label>Combien as-tu épargné ? (FCFA)</label>
         <input type="number" id="epargneMontant" placeholder="Ex: 5000" inputmode="decimal" autofocus>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px">
@@ -2486,6 +3341,7 @@ function setEpargneMontant(m) {
 function ouvrirAppWave() {
   const ua = navigator.userAgent.toLowerCase();
   const isMobile = /android|iphone|ipad|ipod/.test(ua);
+
   const modal = document.createElement('div');
   modal.className = 'modal-bg show';
   modal.id = 'waveInstructionsModal';
@@ -2502,7 +3358,10 @@ function ouvrirAppWave() {
         <div style="display:flex;gap:12px;margin-bottom:12px"><div style="font-size:22px;font-weight:700;color:var(--accent)">3</div><div style="font-size:14px;line-height:1.5">Fais ton <strong>virement</strong> du montant souhaité</div></div>
         <div style="display:flex;gap:12px"><div style="font-size:22px;font-weight:700;color:var(--green)">4</div><div style="font-size:14px;line-height:1.5">Reviens ici et clique sur <strong>"✅ J'ai épargné"</strong></div></div>
       </div>
-      ${isMobile ? `<button class="btn-primary" style="background:var(--wave);color:#000;font-weight:700;width:100%;margin-bottom:8px" onclick="tenterOuvrirWave()">📲 Essayer d'ouvrir Wave</button>` : `<div style="background:rgba(245,185,66,.15);border-radius:10px;padding:12px;font-size:13px;color:var(--yellow);text-align:center;margin-bottom:12px">⚠️ Cette action fonctionne uniquement depuis un téléphone</div>`}
+      ${isMobile
+        ? `<button class="btn-primary" style="background:var(--wave);color:#000;font-weight:700;width:100%;margin-bottom:8px" onclick="tenterOuvrirWave()">📲 Essayer d'ouvrir Wave</button>`
+        : `<div style="background:rgba(245,185,66,.15);border-radius:10px;padding:12px;font-size:13px;color:var(--yellow);text-align:center;margin-bottom:12px">⚠️ Cette action fonctionne uniquement depuis un téléphone</div>`
+      }
       <button class="btn-ghost" style="width:100%;margin:0" onclick="fermerInstructionsWave()">J'ai compris</button>
     </div>
   `;
@@ -2514,7 +3373,11 @@ function tenterOuvrirWave(){
   setTimeout(() => { fermerInstructionsWave(); }, 800);
 }
 
-function fermerInstructionsWave(){ const modal = document.getElementById('waveInstructionsModal'); if(modal) modal.remove(); }
+function fermerInstructionsWave(){
+  const modal = document.getElementById('waveInstructionsModal');
+  if(modal) modal.remove();
+}
+
 function fermerEpargnePerso(){
   const modal = document.getElementById('epargnePersoModal');
   if(modal) modal.remove();
@@ -2524,29 +3387,43 @@ function fermerEpargnePerso(){
 async function validerEpargnePerso(coffreId) {
   const montant = parseFloat(document.getElementById('epargneMontant').value);
   if(!montant || montant <= 0){ alert('Entre un montant valide'); return; }
+
   const coffre = coffres.find(c => c.id === coffreId);
   if(!coffre) return;
+
   const newCurrent = Number(coffre.current || 0) + montant;
   const result = await dbUpdate('goals', coffreId, {current: newCurrent});
   if(!result){ alert('Erreur lors de la mise à jour'); return; }
+
   coffre.current = newCurrent;
   fermerEpargnePerso();
   refreshAll();
-  showToast('✅ ' + fmt(montant) + ' épargné dans "' + coffre.name + '"');
-  if(newCurrent >= Number(coffre.goal)){ setTimeout(() => alert('🎉 FÉLICITATIONS !\nTu as atteint ton objectif "' + coffre.name + '" !'), 500); }
+  showToast(fmt(montant) + ' épargné dans "' + coffre.name + '"');
+
+  if(newCurrent >= Number(coffre.goal)){
+    setTimeout(() => alert('🎉 FÉLICITATIONS !\nTu as atteint ton objectif "' + coffre.name + '" !'), 500);
+  }
 }
 
 function verifierEpargneEnCours() {
   const saved = localStorage.getItem('epargne_en_cours');
   if(!saved) return;
+
   try {
     const data = JSON.parse(saved);
     if(Date.now() - data.ts < 30 * 60 * 1000) {
       if(typeof coffres !== 'undefined' && coffres.length > 0) {
-        setTimeout(() => { afficherModalEpargne(data.coffreId); showToast('💡 Reprends ton épargne là où tu t\'étais arrêté'); }, 1000);
+        setTimeout(() => {
+          afficherModalEpargne(data.coffreId);
+          showToast('Reprends ton épargne là où tu t\'étais arrêté');
+        }, 1000);
       }
-    } else { localStorage.removeItem('epargne_en_cours'); }
-  } catch(e) { localStorage.removeItem('epargne_en_cours'); }
+    } else {
+      localStorage.removeItem('epargne_en_cours');
+    }
+  } catch(e) {
+    localStorage.removeItem('epargne_en_cours');
+  }
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -2572,7 +3449,7 @@ function genererLienPaiementClient(shootId) {
   ouvrirCreerLien({
     clientName: clientName,
     clientPhone: clientPhone,
-    description: shoot.type + (clientName ? ' — ' + clientName : ''),
+    description: shoot.type + (clientName ? ' · ' + clientName : ''),
     totalAmount: Math.round(shoot.price),
     paymentType: 'complet'
   });
@@ -2593,6 +3470,7 @@ async function loadPaymentLinks() {
 
 function ouvrirCreerLien(prefill) {
   prefill = prefill || {};
+
   const modal = document.createElement('div');
   modal.className = 'modal-bg show';
   modal.id = 'creerLienModal';
@@ -2625,7 +3503,7 @@ function ouvrirCreerLien(prefill) {
       <input type="number" id="lienTotalAmount" placeholder="Ex: 100000" inputmode="decimal" oninput="mettreAJourMontant()" value="${prefill.totalAmount || ''}">
 
       <label>Type de paiement</label>
-            <select id="lienPaymentType" onchange="mettreAJourMontant()">
+      <select id="lienPaymentType" onchange="mettreAJourMontant()">
         <option value="acompte30"${prefill.paymentType === 'acompte30' ? ' selected' : ''}>💰 Acompte 30%</option>
         <option value="acompte50"${prefill.paymentType === 'acompte50' ? ' selected' : ''}>💰 Acompte 50%</option>
         <option value="complet"${prefill.paymentType === 'complet' ? ' selected' : ''}>✅ Paiement complet (100%)</option>
@@ -2634,7 +3512,7 @@ function ouvrirCreerLien(prefill) {
 
       <div id="montantCalcule" style="background:linear-gradient(135deg,rgba(46,204,113,.15),rgba(108,140,255,.08));border-radius:12px;padding:14px;margin-top:14px;display:none">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Le client devra payer</div>
-        <div id="montantCalculeValue" style="font-weight:700;color:var(--green);font-size:22px">—</div>
+        <div id="montantCalculeValue" style="font-weight:700;color:var(--green);font-size:22px">...</div>
       </div>
 
       <label style="margin-top:14px">🔗 Lien Wave (créé par toi)</label>
@@ -2651,17 +3529,23 @@ function ouvrirCreerLien(prefill) {
   }, 300);
 }
 
-function fermerCreerLien(){ const m = document.getElementById('creerLienModal'); if(m) m.remove(); }
+function fermerCreerLien(){
+  const m = document.getElementById('creerLienModal');
+  if(m) m.remove();
+}
 
 function mettreAJourMontant() {
   const total = parseFloat(document.getElementById('lienTotalAmount').value) || 0;
   const type = document.getElementById('lienPaymentType').value;
   const box = document.getElementById('montantCalcule');
   const value = document.getElementById('montantCalculeValue');
+
   if(!total || total <= 0) { box.style.display = 'none'; return; }
+
   let montant = total;
   if(type === 'acompte30') montant = total * 0.30;
   else if(type === 'acompte50') montant = total * 0.50;
+
   value.textContent = new Intl.NumberFormat('fr-FR').format(Math.round(montant)) + ' FCFA';
   box.style.display = 'block';
 }
@@ -2695,6 +3579,7 @@ async function genererLienPersonnalise() {
   });
 
   if(!result) return;
+
   paymentLinks.unshift(result);
   fermerCreerLien();
   afficherLienGenere(result);
@@ -2703,7 +3588,7 @@ async function genererLienPersonnalise() {
 
 function afficherLienGenere(link) {
   const ref = 'PL-' + String(link.id).padStart(4, '0');
-  
+
   const params = new URLSearchParams({
     n: link.client_name || '',
     m: link.amount || 0,
@@ -2715,7 +3600,7 @@ function afficherLienGenere(link) {
   });
   const lien = `${APP_URL}/pay.html?${params.toString()}`;
 
-  // ⚡ STOCKE tout dans une variable globale (évite le bug des caractères spéciaux)
+  // Stocke dans une variable globale (évite le bug des caractères spéciaux)
   window.__lienCourant = {
     lien: lien,
     clientName: link.client_name || 'Client',
@@ -2770,7 +3655,11 @@ function afficherLienGenere(link) {
   document.body.appendChild(modal);
 }
 
-function fermerLienGenere(){ const m = document.getElementById('lienGenereModal'); if(m) m.remove(); }
+function fermerLienGenere(){
+  const m = document.getElementById('lienGenereModal');
+  if(m) m.remove();
+}
+
 function envoyerLienWhatsAppActuel() {
   const data = window.__lienCourant;
   if(!data) { alert('Erreur : lien introuvable'); return; }
@@ -2791,12 +3680,17 @@ function envoyerLienWhatsAppActuel() {
 function copierLienPersoActuel() {
   const data = window.__lienCourant;
   if(!data) return;
+
   if(navigator.clipboard) {
-    navigator.clipboard.writeText(data.lien).then(() => showToast('✅ Lien copié'));
+    navigator.clipboard.writeText(data.lien).then(() => showToast('Lien copié'));
   } else {
-    const ta = document.createElement('textarea'); ta.value = data.lien;
-    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-    document.body.removeChild(ta); showToast('✅ Lien copié');
+    const ta = document.createElement('textarea');
+    ta.value = data.lien;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('Lien copié');
   }
 }
 
@@ -2806,7 +3700,6 @@ function apercuLienActuel() {
   window.open(data.lien, '_blank');
 }
 
-
 async function marquerLienPaye(id) {
   if(!confirm('Marquer ce lien comme payé ?')) return;
   const result = await dbUpdate('payment_links', id, {status: 'paid', paid_at: new Date().toISOString()});
@@ -2814,7 +3707,7 @@ async function marquerLienPaye(id) {
   const idx = paymentLinks.findIndex(l => l.id === id);
   if(idx >= 0) paymentLinks[idx] = result;
   renderPaymentLinks();
-  showToast('✅ Marqué comme payé');
+  showToast('Marqué comme payé');
 }
 
 async function supprimerLien(id) {
@@ -2829,11 +3722,19 @@ function renderPaymentLinks() {
   const el = document.getElementById('paymentLinksList');
   if(!el) return;
   if(paymentLinks.length === 0){ el.innerHTML = '<div class="empty">Aucun lien créé</div>'; return; }
+
   const pending = paymentLinks.filter(l => l.status === 'pending');
   const paid = paymentLinks.filter(l => l.status === 'paid');
+
   let html = '';
-  if(pending.length > 0){ html += `<div style="font-size:11px;color:var(--yellow);font-weight:700;text-transform:uppercase;margin-bottom:8px;letter-spacing:1px">⏳ En attente (${pending.length})</div>`; html += pending.map(l => renderLienItem(l, false)).join(''); }
-  if(paid.length > 0){ html += `<div style="font-size:11px;color:var(--green);font-weight:700;text-transform:uppercase;margin:14px 0 8px;letter-spacing:1px">✅ Payés (${paid.length})</div>`; html += paid.map(l => renderLienItem(l, true)).join(''); }
+  if(pending.length > 0){
+    html += `<div style="font-size:11px;color:var(--yellow);font-weight:700;text-transform:uppercase;margin-bottom:8px;letter-spacing:1px">⏳ En attente (${pending.length})</div>`;
+    html += pending.map(l => renderLienItem(l, false)).join('');
+  }
+  if(paid.length > 0){
+    html += `<div style="font-size:11px;color:var(--green);font-weight:700;text-transform:uppercase;margin:14px 0 8px;letter-spacing:1px">✅ Payés (${paid.length})</div>`;
+    html += paid.map(l => renderLienItem(l, true)).join('');
+  }
   el.innerHTML = html;
 }
 
@@ -2842,6 +3743,7 @@ function renderLienItem(l, isPaid) {
   const dateStr = new Date(l.created_at).toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
   const borderColor = isPaid ? 'var(--green)' : 'var(--yellow)';
   const typeLabels = { 'complet': '✅ Complet', 'acompte30': '💰 Acompte 30%', 'acompte50': '💰 Acompte 50%', 'solde': '📌 Solde' };
+
   return `<div style="background:var(--card2);border-radius:12px;padding:12px;margin-bottom:8px;border-left:3px solid ${borderColor}">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:8px">
       <div style="flex:1;min-width:0">
@@ -2874,7 +3776,12 @@ function revOirLien(id) {
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
   const input = document.getElementById('chatInput');
-  if(input){ input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 120) + 'px'; }); }
+  if(input){
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    });
+  }
   const aiProvider = document.getElementById('aiProvider');
   if(aiProvider){ aiProvider.addEventListener('change', toggleCustomUrl); }
 });
