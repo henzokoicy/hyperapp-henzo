@@ -655,14 +655,16 @@ h2{
   color:#000;border-color:transparent;
 }
 
-/* Conteneur de citation premium */
+/* ============================================================
+   CONTENEUR DE CITATION PREMIUM
+   ============================================================ */
 .quote-box{
   background:
-    radial-gradient(circle at 0% 0%, rgba(245,197,66,.16), transparent 55%),
-    radial-gradient(circle at 100% 100%, rgba(107,142,255,.14), transparent 55%),
+    radial-gradient(circle at 0% 0%, rgba(245,197,66,.14), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(107,142,255,.12), transparent 55%),
     linear-gradient(135deg, #1c2130 0%, #141822 100%);
   border-radius:22px;
-  padding:38px 26px 26px;
+  padding:48px 28px 30px;
   margin-bottom:14px;
   border:1px solid var(--border-2);
   text-align:center;
@@ -670,149 +672,101 @@ h2{
   overflow:hidden;
   box-shadow:
     0 12px 40px rgba(0,0,0,.4),
-    0 0 0 1px rgba(255,255,255,.03) inset,
-    0 -20px 60px rgba(245,197,66,.05) inset;
+    0 0 0 1px rgba(255,255,255,.03) inset;
 }
 
-/* Grande guillemet décorative en fond */
+/* Grande guillemet décorative en haut à gauche */
 .quote-box::before{
   content:'"';
   position:absolute;
-  top:-40px;
-  left:14px;
+  top:-30px;
+  left:22px;
   font-family:Georgia, "Times New Roman", serif;
-  font-size:180px;
+  font-size:160px;
   line-height:1;
   font-weight:700;
   color:var(--gold);
-  opacity:.10;
+  opacity:.13;
   pointer-events:none;
   user-select:none;
 }
 
-/* Ligne dorée lumineuse en haut */
+/* Ligne dorée lumineuse en haut, bien centrée */
 .quote-box::after{
   content:'';
   position:absolute;
   top:0;
-  left:18%;
-  right:18%;
-  height:2px;
+  left:50%;
+  transform:translateX(-50%);
+  width:80px;
+  height:3px;
   background:linear-gradient(90deg,
     transparent,
     var(--gold-soft) 30%,
     #fff 50%,
     var(--gold-soft) 70%,
     transparent);
-  opacity:.85;
-  filter:blur(.3px);
-  box-shadow:0 0 16px rgba(245,197,66,.6);
+  border-radius:0 0 4px 4px;
+  box-shadow:0 0 18px rgba(245,197,66,.7);
 }
 
-/* Emoji en haut */
+/* Emoji en haut, centré, qui flotte doucement */
 .quote-box .emoji{
-  font-size:38px;
-  margin-bottom:16px;
-  display:inline-block;
-  filter:drop-shadow(0 6px 16px rgba(245,197,66,.35));
-  animation:floatEmoji 3s var(--ease) infinite;
+  font-size:42px;
+  margin:0 auto 20px;
+  display:block;
+  line-height:1;
+  filter:drop-shadow(0 8px 20px rgba(245,197,66,.4));
+  animation:floatEmoji 3.5s var(--ease) infinite;
 }
 @keyframes floatEmoji{
   0%,100%{transform:translateY(0);}
-  50%{transform:translateY(-4px);}
+  50%{transform:translateY(-6px);}
 }
 
-/* Texte de la citation */
+/* Texte de la citation : centré, élégant */
 .quote-box .q{
-  font-size:18px;
+  font-family:Georgia, "Times New Roman", serif;
+  font-size:19px;
   font-weight:500;
-  line-height:1.6;
+  line-height:1.65;
   font-style:italic;
-  margin:0 0 20px;
+  margin:0 auto 22px;
   color:var(--text);
-  letter-spacing:.1px;
+  letter-spacing:.2px;
   position:relative;
   z-index:1;
-  padding:0 4px;
+  max-width:520px;
+  padding:0 8px;
 }
 
-/* Petites guillemets dorées autour du texte */
-.quote-box .q::before,
-.quote-box .q::after{
-  content:'"';
-  font-family:Georgia, "Times New Roman", serif;
-  font-size:26px;
-  font-weight:700;
-  font-style:normal;
-  color:var(--gold-soft);
-  opacity:.75;
-  padding:0 4px;
-  vertical-align:-4px;
-}
-
-/* Nom de l'auteur - style "signature" */
+/* Nom de l'auteur : discret, doré, avec séparateur */
 .quote-box .a{
   font-size:12px;
   color:var(--gold-soft);
   font-style:normal;
   font-weight:700;
-  letter-spacing:1.5px;
+  letter-spacing:2px;
   text-transform:uppercase;
   display:inline-flex;
   align-items:center;
-  gap:12px;
+  gap:14px;
   position:relative;
   z-index:1;
+  opacity:.9;
 }
 
-/* Petites lignes décoratives de chaque côté de l'auteur */
+/* Lignes décoratives de chaque côté de l'auteur */
 .quote-box .a::before,
 .quote-box .a::after{
   content:'';
-  width:28px;
+  width:32px;
   height:1px;
   background:linear-gradient(90deg, transparent, var(--gold-soft));
+  opacity:.6;
 }
 .quote-box .a::after{
   background:linear-gradient(90deg, var(--gold-soft), transparent);
-}
-
-.reminder{
-  display:flex;align-items:center;gap:10px;padding:12px;
-  background:var(--card2);border-radius:12px;margin-bottom:8px;
-  border:1px solid var(--border);
-  transition:border-color .2s var(--ease);
-}
-.reminder:hover{border-color:var(--border-2);}
-.reminder .txt{flex:1;font-size:14px}
-.reminder .time{font-size:12px;color:var(--muted)}
-.reminder .del{
-  background:none;border:none;color:var(--muted);
-  font-size:18px;padding:4px;width:auto;cursor:pointer;
-  transition:color .15s var(--ease);
-}
-.reminder .del:hover{color:var(--red);}
-
-.badge{
-  padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;
-  text-transform:uppercase;letter-spacing:.5px;
-}
-.badge.paye{background:var(--green);color:#000}
-.badge.impaye{background:var(--red);color:#fff}
-
-.idea{
-  padding:14px;background:var(--card2);border-radius:12px;
-  margin-bottom:10px;border-left:3px solid var(--pink);
-  border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);
-  transition:transform .2s var(--ease);
-}
-.idea:hover{transform:translateX(3px);}
-.idea .t{font-weight:600;font-size:14px;margin-bottom:6px}
-.idea .d{font-size:13px;color:var(--muted);line-height:1.5}
-.idea .tag{
-  display:inline-block;padding:3px 8px;border-radius:6px;
-  background:rgba(255,126,179,.15);color:var(--pink);
-  font-size:11px;font-weight:600;margin-top:8px;margin-right:4px;
 }
 
 /* ============================================================
