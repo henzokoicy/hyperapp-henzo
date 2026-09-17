@@ -2754,7 +2754,19 @@ function afficherLienGenere(link) {
 function fermerLienGenere(){ const m = document.getElementById('lienGenereModal'); if(m) m.remove(); }
 
 function envoyerLienWhatsApp(lien, clientName, desc, montant, phone) {
-  const message = `Bonjour ${clientName} 👋,\n\nVoici votre lien de paiement sécurisé :\n\n📝 ${desc}\n💳 ${fmt(montant)}\n\n👉 Cliquez ici pour payer :\n${lien}\n\nMerci pour votre confiance !\nHENZO PHOTOGRAPHIE`;
+  // Récupère le lien Wave stocké dans le dernier lien créé
+  const dernierLien = paymentLinks[0];
+  const waveLink = dernierLien ? dernierLien.wave_link : null;
+
+  // Message WhatsApp
+  let message;
+  if(waveLink) {
+    message = `Bonjour ${clientName} 👋,\n\nVoici votre lien de paiement sécurisé :\n\n📝 ${desc}\n💳 ${fmt(montant)}\n\n👉 Cliquez ici pour payer avec Wave :\n${waveLink}\n\nMerci pour votre confiance !\nHENZO PHOTOGRAPHIE`;
+  } else {
+    // Fallback : si pas de lien Wave, on envoie le lien Henzo
+    message = `Bonjour ${clientName} 👋,\n\nVoici votre lien de paiement sécurisé :\n\n📝 ${desc}\n💳 ${fmt(montant)}\n\n👉 Cliquez ici pour payer :\n${lien}\n\nMerci pour votre confiance !\nHENZO PHOTOGRAPHIE`;
+  }
+
   let url;
   if(phone) {
     const clean = phone.replace(/[^0-9]/g, '');
