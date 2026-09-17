@@ -2941,7 +2941,7 @@ async function openChat(){
     const s = computeStats();
     const firstName = (user?.email || '').split('@')[0] || 'toi';
 
-    const welcome = `Salut ${firstName} ! 👋\n\nJe suis ton assistant IA. Je connais déjà ta situation :\n• Solde du mois : ${fmt(s.bal)}\n• Revenus : ${fmt(s.totalIn)} | Dépenses : ${fmt(s.totalOut)}\n• ${clients.length} clients · ${shoots.length} séances · ${coffres.length} objectifs\n\nPose-moi n'importe quelle question ! 💪`;
+    const welcome = `Salut ${firstName} ! 👋\n\nJe suis ton assistant IA. Je connais déjà ta situation :\n• Solde du mois : ${fmt(s.bal)}\n• Revenus : ${fmt(s.totalIn)} | Dépenses : ${fmt(s.totalOut)}\n• ${clients.length} clients · ${shoots.length} séances · ${coffres.length} objectifs\n\nPose-moi n\'importe quelle question ! 💪`;
     chatHistory.push({ role: 'assistant', content: welcome, ts: Date.now() });
     await saveChatHistory();
   }
@@ -3600,7 +3600,6 @@ function afficherLienGenere(link) {
   });
   const lien = `${APP_URL}/pay.html?${params.toString()}`;
 
-  // Stocke dans une variable globale (évite le bug des caractères spéciaux)
   window.__lienCourant = {
     lien: lien,
     clientName: link.client_name || 'Client',
@@ -3700,14 +3699,379 @@ function apercuLienActuel() {
   window.open(data.lien, '_blank');
 }
 
+// ============================================================
+// ⚠️ NE PAS MODIFIER LA SUITE — voir PARTIE 2/2
+// ============================================================
+// ============================================================
+// REÇU PDF CLIENT
+// ============================================================
+
+// Ouvre la modale du reçu avec 3 actions
+function ouvrirRecuModal(linkId) {
+  const l = paymentLinks.find(x => x.id === linkId);
+  if(!l) { alert('Lien introuvable'); return; }
+
+  const existing = document.getElementById('recuModal');
+  if(existing) existing.remove();
+
+  const ref = 'PL-' + String(l.id).padStart(4, '0');
+  const paidDate = l.paid_at
+    ? new Date(l.paid_at).toLocaleString('fr-FR', {day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'})
+    : new Date().toLocaleString('fr-FR', {day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'});
+
+  const typeLabels = {
+    'complet': '✅ Paiement complet',
+    'acompte30': '💰 Acompte 30%',
+    'acompte50': '💰 Acompte 50%',
+    'solde': '📌 Solde restant'
+  };
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'recuModal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>✅ Paiement reçu</h3>
+        <button class="close" onclick="fermerRecuModal()">×</button>
+      </div>
+
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--green),#10b981);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:42px;box-shadow:0 10px 30px rgba(52,211,153,.4)">✓</div>
+      </div>
+
+      <div style="background:var(--card2);border-radius:14px;padding:16px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--muted);font-size:12px">Client</span>
+          <span style="font-weight:600">${l.client_name || '-'}</span>
+        </div>
+        ${l.client_phone ? `
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--muted);font-size:12px">Téléphone</span>
+          <span style="font-weight:600">${l.client_phone}</span>
+        </div>` : ''}
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--muted);font-size:12px">Prestation</span>
+          <span style="font-weight:600;text-align:right">${l.description || 'Paiement'}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--muted);font-size:12px">Type</span>
+          <span style="font-weight:600">${typeLabels[l.payment_type] || 'Paiement'}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--muted);font-size:12px">Montant payé</span>
+          <span style="font-weight:800;color:var(--green);font-size:16px">${fmt(l.amount)}</span>
+        </div>
+        ${l.total_amount && l.total_amount > l.amount ? `
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--muted);font-size:12px">Total prestation</span>
+          <span style="font-weight:600">${fmt(l.total_amount)}</span>
+        </div>` : ''}
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--muted);font-size:12px">Référence</span>
+          <span style="font-family:monospace;color:var(--gold-soft);font-weight:700">${ref}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0">
+          <span style="color:var(--muted);font-size:12px">Payé le</span>
+          <span style="font-weight:600;font-size:12px">${paidDate}</span>
+        </div>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.05));border:1px solid rgba(245,197,66,.25);border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--gold-soft);line-height:1.5">
+        📄 <strong>Génère le reçu PDF</strong> et envoie-le au client pour qu'il ait une preuve officielle de son paiement.
+      </div>
+
+      <div style="display:grid;gap:8px">
+        <button class="btn-primary" style="margin:0;background:linear-gradient(135deg,#25D366,#128C7E);width:100%;color:#fff" onclick="envoyerRecuWhatsApp(${l.id})">
+          💬 Envoyer le reçu sur WhatsApp
+        </button>
+        <button class="btn-primary" style="margin:0;background:linear-gradient(135deg,var(--gold),#e0b02f);color:#000;width:100%" onclick="telechargerRecuClient(${l.id})">
+          ⬇️ Télécharger le reçu PDF
+        </button>
+        <button class="btn-ghost" style="margin:0;width:100%" onclick="fermerRecuModal()">
+          Fermer
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function fermerRecuModal() {
+  const m = document.getElementById('recuModal');
+  if(m) m.remove();
+}
+
+// Génère le PDF du reçu (retourne le document jsPDF)
+function genererRecuPDFClient(link) {
+  if(!window.jspdf || !window.jspdf.jsPDF) {
+    throw new Error('Le générateur de PDF n\'est pas chargé. Vérifie ta connexion.');
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const pageWidth = 210;
+  const margin = 14;
+  const ref = 'PL-' + String(link.id).padStart(4, '0');
+  const paidDate = link.paid_at ? new Date(link.paid_at) : new Date();
+
+  const typeLabels = {
+    'complet': 'Paiement complet',
+    'acompte30': 'Acompte 30%',
+    'acompte50': 'Acompte 50%',
+    'solde': 'Solde restant'
+  };
+
+  // ---- EN-TÊTE ----
+  doc.setFillColor(107, 142, 255);
+  doc.rect(0, 0, pageWidth, 40, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.setFont('helvetica', 'bold');
+  doc.text('HENZO PHOTOGRAPHIE', margin, 18);
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Photographe professionnel · Abidjan, CI', margin, 25);
+  doc.text('WhatsApp : +225 01 70 99 89 64', margin, 31);
+
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('REÇU DE PAIEMENT', pageWidth - margin, 18, { align: 'right' });
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('N° ' + ref, pageWidth - margin, 25, { align: 'right' });
+  doc.text(paidDate.toLocaleDateString('fr-FR'), pageWidth - margin, 31, { align: 'right' });
+
+  // ---- STATUT PAYÉ ----
+  doc.setFillColor(240, 255, 245);
+  doc.roundedRect(margin, 50, pageWidth - margin * 2, 14, 2, 2, 'F');
+  doc.setTextColor(16, 130, 80);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('✓  PAIEMENT REÇU ET CONFIRMÉ', pageWidth / 2, 59, { align: 'center' });
+
+  // ---- INFOS CLIENT ----
+  let y = 78;
+  doc.setTextColor(120, 120, 120);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('CLIENT', margin, y);
+
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(link.client_name || '-', margin, y + 7);
+
+  if(link.client_phone) {
+    doc.setFontSize(10);
+    doc.setTextColor(90, 90, 90);
+    doc.text('Tél : ' + link.client_phone, margin, y + 14);
+  }
+
+  y += 30;
+
+  // ---- PRESTATION ----
+  doc.setTextColor(120, 120, 120);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PRESTATION', margin, y);
+
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  const descLines = doc.splitTextToSize(link.description || 'Paiement', pageWidth - margin * 2);
+  doc.text(descLines, margin, y + 7);
+
+  y += 10 + descLines.length * 6;
+
+  // ---- TYPE + DATE DE CRÉATION ----
+  doc.setFontSize(10);
+  doc.setTextColor(90, 90, 90);
+  doc.text('Type : ' + (typeLabels[link.payment_type] || 'Paiement'), margin, y + 5);
+
+  if(link.created_at) {
+    const createdStr = new Date(link.created_at).toLocaleDateString('fr-FR');
+    doc.text('Émis le : ' + createdStr, pageWidth - margin, y + 5, { align: 'right' });
+  }
+
+  y += 20;
+
+  // ---- TABLEAU MONTANT ----
+  doc.setFillColor(248, 250, 255);
+  doc.roundedRect(margin, y, pageWidth - margin * 2, 40, 3, 3, 'F');
+
+  doc.setDrawColor(107, 142, 255);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(margin, y, pageWidth - margin * 2, 40, 3, 3, 'S');
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(80, 90, 120);
+  doc.text('MONTANT PAYÉ', margin + 6, y + 10);
+
+  doc.setFontSize(26);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(16, 130, 80);
+  const amountStr = new Intl.NumberFormat('fr-FR').format(link.amount) + ' FCFA';
+  doc.text(amountStr, margin + 6, y + 25);
+
+  if(link.total_amount && link.total_amount > link.amount) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 120, 120);
+    const remaining = link.total_amount - link.amount;
+    doc.text(
+      'sur un total de ' + new Intl.NumberFormat('fr-FR').format(link.total_amount) + ' FCFA',
+      margin + 6,
+      y + 33
+    );
+    doc.text(
+      'Reste à payer : ' + new Intl.NumberFormat('fr-FR').format(remaining) + ' FCFA',
+      pageWidth - margin - 6,
+      y + 33,
+      { align: 'right' }
+    );
+  }
+
+  y += 55;
+
+  // ---- MENTION LÉGALE ----
+  doc.setDrawColor(220, 220, 220);
+  doc.line(margin, y, pageWidth - margin, y);
+
+  doc.setFontSize(9);
+  doc.setTextColor(120, 120, 120);
+  doc.setFont('helvetica', 'normal');
+  doc.text(
+    'Ce reçu atteste du paiement reçu par HENZO PHOTOGRAPHIE.',
+    pageWidth / 2,
+    y + 8,
+    { align: 'center' }
+  );
+  doc.text(
+    'Merci pour votre confiance !',
+    pageWidth / 2,
+    y + 14,
+    { align: 'center' }
+  );
+
+  // ---- PIED DE PAGE ----
+  doc.setFontSize(8);
+  doc.setTextColor(150, 150, 150);
+  doc.text(
+    'henzophotographie@gmail.com  ·  +225 01 70 99 89 64  ·  Abidjan, Côte d\'Ivoire',
+    pageWidth / 2,
+    285,
+    { align: 'center' }
+  );
+
+  return doc;
+}
+
+// Télécharger le reçu PDF
+function telechargerRecuClient(linkId) {
+  const link = paymentLinks.find(x => x.id === linkId);
+  if(!link) { alert('Lien introuvable'); return; }
+
+  try {
+    const doc = genererRecuPDFClient(link);
+    const ref = 'PL-' + String(link.id).padStart(4, '0');
+    const safeName = (link.client_name || 'client').replace(/[^a-zA-Z0-9]/g, '-');
+    doc.save(`Recu-${ref}-${safeName}.pdf`);
+    showToast('Reçu téléchargé');
+  } catch(e) {
+    console.error(e);
+    alert('Erreur PDF : ' + e.message);
+  }
+}
+
+// Envoyer le reçu par WhatsApp (avec partage natif si possible)
+async function envoyerRecuWhatsApp(linkId) {
+  const link = paymentLinks.find(x => x.id === linkId);
+  if(!link) { alert('Lien introuvable'); return; }
+
+  const ref = 'PL-' + String(link.id).padStart(4, '0');
+  const amountStr = fmt(link.amount);
+
+  // Message WhatsApp
+  const message =
+    `Bonjour ${link.client_name || ''} 👋,\n\n` +
+    `Merci pour votre paiement de ${amountStr} 💚\n\n` +
+    `📝 Prestation : ${link.description || 'Paiement'}\n` +
+    `📄 Référence : ${ref}\n` +
+    `✅ Statut : PAYÉ\n\n` +
+    `Vous trouverez votre reçu en pièce jointe 📎\n\n` +
+    `Merci pour votre confiance !\n` +
+    `HENZO PHOTOGRAPHIE 📸`;
+
+  // Numéro WhatsApp (format international sans +)
+  let waUrl;
+  if(link.client_phone) {
+    const clean = link.client_phone.replace(/[^0-9]/g, '');
+    const fullPhone = clean.startsWith('225') ? clean : '225' + clean;
+    waUrl = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+  } else {
+    waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+  }
+
+  // 1. ESSAI : Web Share API (permet d'envoyer le PDF directement)
+  try {
+    const doc = genererRecuPDFClient(link);
+    const pdfBlob = doc.output('blob');
+    const fileName = `Recu-${ref}.pdf`;
+    const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+    if(navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'Reçu Henzo Photographie',
+        text: message
+      });
+      showToast('Reçu partagé');
+      return;
+    }
+  } catch(shareErr) {
+    // L'utilisateur a peut-être annulé le partage
+    if(shareErr.name === 'AbortError') return;
+    console.warn('Web Share indisponible, fallback WhatsApp Web:', shareErr);
+  }
+
+  // 2. FALLBACK : télécharger le PDF + ouvrir WhatsApp
+  try {
+    const doc = genererRecuPDFClient(link);
+    doc.save(`Recu-${ref}.pdf`);
+
+    setTimeout(() => {
+      window.open(waUrl, '_blank');
+    }, 500);
+
+    showToast('Reçu téléchargé · Ajoute-le sur WhatsApp');
+  } catch(e) {
+    console.error(e);
+    alert('Erreur PDF : ' + e.message);
+  }
+}
+
 async function marquerLienPaye(id) {
-  if(!confirm('Marquer ce lien comme payé ?')) return;
-  const result = await dbUpdate('payment_links', id, {status: 'paid', paid_at: new Date().toISOString()});
+  if(!confirm('Confirmer que le paiement a bien été reçu ?')) return;
+
+  const result = await dbUpdate('payment_links', id, {
+    status: 'paid',
+    paid_at: new Date().toISOString()
+  });
   if(!result) return;
+
   const idx = paymentLinks.findIndex(l => l.id === id);
   if(idx >= 0) paymentLinks[idx] = result;
+
   renderPaymentLinks();
-  showToast('Marqué comme payé');
+  showToast('Paiement enregistré');
+
+  // Ouvre automatiquement la modale du reçu
+  setTimeout(() => ouvrirRecuModal(id), 400);
 }
 
 async function supprimerLien(id) {
@@ -3759,7 +4123,10 @@ function renderLienItem(l, isPaid) {
     </div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:8px">📅 ${dateStr}${l.client_phone ? ' · 📞 ' + l.client_phone : ''}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
-      ${!isPaid ? `<button class="btn-ghost" style="flex:1;margin:0;padding:6px;font-size:11px;background:rgba(46,204,113,.1);color:var(--green);border-color:var(--green)" onclick="marquerLienPaye(${l.id})">✅ Marquer payé</button>` : ''}
+      ${!isPaid
+        ? `<button class="btn-ghost" style="flex:1;margin:0;padding:6px;font-size:11px;background:rgba(46,204,113,.1);color:var(--green);border-color:var(--green)" onclick="marquerLienPaye(${l.id})">✅ Paiement reçu</button>`
+        : `<button class="btn-ghost" style="flex:1;margin:0;padding:6px;font-size:11px;background:rgba(245,197,66,.12);color:var(--gold-soft);border-color:var(--gold-soft);font-weight:700" onclick="ouvrirRecuModal(${l.id})">📄 Voir le reçu</button>`
+      }
       <button class="btn-ghost" style="flex:1;margin:0;padding:6px;font-size:11px" onclick="revOirLien(${l.id})">🔗 Revoir</button>
       <button class="btn-ghost" style="margin:0;padding:6px;font-size:11px;border-color:var(--red);color:var(--red)" onclick="supprimerLien(${l.id})">🗑</button>
     </div>
