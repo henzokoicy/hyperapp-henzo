@@ -710,7 +710,168 @@ function getCoffreEmoji(name){
   if(n.includes('santé') || n.includes('médec')) return '💊';
   return '🎯';
 }
+// ============================================================
+// 🆕 SYSTÈME D'OBJECTIFS LIBRES (argent OU quantité)
+// ============================================================
 
+// Détection automatique d'unité + emoji depuis le nom
+function analyzeCoffreName(name){
+  const n = (name || '').toLowerCase();
+  const result = { unit: null, emoji: null, quantity: null };
+
+  // Détection de quantité dans le nom (ex: "2 appareils", "3 maisons")
+  const qMatch = name.match(/\b(\d+)\s+/);
+  if(qMatch){
+    const q = parseInt(qMatch[1]);
+    if(!isNaN(q) && q > 0) result.quantity = q;
+  }
+
+  // Base de données d'unités et emojis
+  const dict = [
+    // Tech
+    { k:['téléphone','tel','phone','iphone','samsung','smartphone'], u:'téléphone', e:'📱' },
+    { k:['appareil photo','appareil','camera','boitier','reflex'], u:'appareil photo', e:'📷' },
+    { k:['objectif','lens','zoom','24-70','50mm','85mm'], u:'objectif', e:'🔭' },
+    { k:['ordinateur','pc','macbook','laptop','imac'], u:'ordinateur', e:'💻' },
+    { k:['tablette','ipad'], u:'tablette', e:'📱' },
+    { k:['drone'], u:'drone', e:'🚁' },
+    { k:['trépied','tripod'], u:'trépied', e:'📐' },
+    { k:['flash','lumière','softbox'], u:'éclairage', e:'💡' },
+    { k:['micro','microphone'], u:'micro', e:'🎤' },
+    { k:['carte sd','sd card','disque','ssd','stockage'], u:'disque', e:'💾' },
+
+    // Immobilier
+    { k:['maison','villa','appartement','appart','studio','logement'], u:'maison', e:'🏠' },
+    { k:['terrain','parcelle','lot'], u:'terrain', e:'🌳' },
+    { k:['bureau','local','magasin','boutique'], u:'local', e:'🏢' },
+
+    // Véhicules
+    { k:['voiture','auto','bmw','toyota','mercedes'], u:'voiture', e:'🚗' },
+    { k:['moto','scooter','bécane'], u:'moto', e:'🏍️' },
+    { k:['vélo','bicyclette'], u:'vélo', e:'🚲' },
+
+    // Marchandises
+    { k:['barrique','bidon','fût','fut'], u:'barrique', e:'🛢️' },
+    { k:['sac','carton','palette'], u:'sac', e:'📦' },
+    { k:['huile','jus'], u:'bidon', e:'🧴' },
+    { k:['riz','farine','sucre','kg','kilo','tonne'], u:'kg', e:'🌾' },
+
+    // Vêtements / luxe
+    { k:['chaussure','basket','sneaker','talon'], u:'paire', e:'👟' },
+    { k:['montre','rolex','casio'], u:'montre', e:'⌚' },
+    { k:['sac à main','sac femme'], u:'sac', e:'👜' },
+    { k:['bijou','or','collier','bague'], u:'bijou', e:'💍' },
+
+    // Spécial
+    { k:['formation','cours','diplôme','certificat'], u:'formation', e:'🎓' },
+    { k:['voyage','voyages','tour'], u:'voyage', e:'✈️' },
+    { k:['mariage','alliance'], u:'mariage', e:'💍' }
+  ];
+
+  for(const item of dict){
+    if(item.k.some(k => n.includes(k))){
+      result.unit = item.u;
+      result.emoji = item.e;
+      break;
+    }
+  }
+
+  // Si pas détecté, on regarde le mot après la quantité
+  if(!result.unit && result.quantity !== null){
+    const afterQ = name.replace(/^\s*\d+\s*/, '').trim();
+    const firstWord = afterQ.split(/\s+/)[0];
+    if(firstWord && firstWord.length > 2){
+      result.unit = firstWord.toLowerCase();
+    }
+  }
+
+  // Fallback général
+  if(!result.emoji) result.emoji = '🎯';
+  if(!result.unit) result.unit = 'unité';
+
+  return result;
+}
+
+// Change le type d'objectif (argent ou quantité)
+function setGoalType(type){
+  const btnMoney = document.getElementById('btnGoalMoney');
+  const btnQty = document.getElementById('btnGoalQuantity');
+  if(!btnMoney || !btnQty) return;
+
+  const isMoney = type === 'money';
+
+  btnMoney.classList.toggle('active', isMoney);
+  btnQty.classList.toggle('active', !isMoney);
+
+  // Adapter les labels
+  const goalLabel = document.getElementById('coffreGoalLabel');
+  const currentLabel = document.getElementById('coffreCurrentLabel');
+  const unitInput = document.getElementById('coffreUnit');
+
+  if(isMoney){
+    if(goalLabel) goalLabel.textContent = 'Montant à atteindre';
+    if(currentLabel) currentLabel.textContent = 'Déjà épargné';
+    if(unitInput && unitInput.value === '') unitInput.value = 'FCFA';
+  } else {
+    if(goalLabel) goalLabel.textContent = 'Quantité visée';
+    if(currentLabel) currentLabel.textContent = 'Déjà acquis';
+    if(unitInput && unitInput.value === 'FCFA') unitInput.value = '';
+  }
+}
+
+// Analyse en direct quand on tape le nom
+function analyzeCoffreNameLive(){
+  const name = (document.getElementById('coffreName')?.value || '').trim();
+  const el = document.getElementById('coffreAnalysis');
+  if(!el) return;
+
+  if(name.length < 3){
+    el.classList.remove('show');
+    el.innerHTML = '';
+    return;
+  }
+
+  const a = analyzeCoffreName(name);
+  const lines = [];
+
+  if(a.quantity){
+    lines.push(`<div class="ai-line"><strong>🔢</strong> Quantité détectée : <span style="color:var(--gold-soft)">${a.quantity}</span></div>`);
+  }
+  if(a.unit && a.unit !== 'unité'){
+    lines.push(`<div class="ai-line"><strong>📏</strong> Unité : <span style="color:var(--accent)">${a.unit}</span></div>`);
+  }
+  if(a.emoji && a.emoji !== '🎯'){
+    lines.push(`<div class="ai-line"><strong>${a.emoji}</strong> Emoji suggéré</div>`);
+  }
+
+  if(lines.length === 0){
+    el.classList.remove('show');
+    return;
+  }
+
+  el.innerHTML = lines.join('');
+  el.classList.add('show');
+
+  // Auto-remplissage
+  if(a.quantity !== null){
+    const goalInput = document.getElementById('coffreGoal');
+    if(goalInput && !goalInput.value) goalInput.value = a.quantity;
+  }
+  if(a.emoji && a.emoji !== '🎯'){
+    const emojiInput = document.getElementById('coffreEmoji');
+    if(emojiInput && !emojiInput.value) emojiInput.value = a.emoji;
+  }
+  if(a.unit && a.unit !== 'unité'){
+    const unitInput = document.getElementById('coffreUnit');
+    if(unitInput && (!unitInput.value || unitInput.value === 'FCFA')){
+      const btnQty = document.getElementById('btnGoalQuantity');
+      if(btnQty && !btnQty.classList.contains('active')){
+        setGoalType('quantity');
+      }
+      unitInput.value = a.unit;
+    }
+  }
+}
 function getMotivationMessage(pct){
   if(pct >= 100) return {level:5, msg:'OBJECTIF ATTEINT !'};
   if(pct >= 75) return {level:4, msg:'Tu y es presque !'};
@@ -814,6 +975,7 @@ function validerDefi(){
 
 function renderAnalysePercutante(){
   const el = document.getElementById('analysePercutante');
+  if(!el) return;
   if(coffres.length === 0){ el.innerHTML = '<div class="empty">Crée un objectif pour voir l\'analyse.</div>'; return; }
 
   const items = [];
@@ -822,9 +984,19 @@ function renderAnalysePercutante(){
     const goal = Number(c.goal || 1);
     const rest = Math.max(0, goal - current);
     const pct = (current / goal) * 100;
+    const unit = c.unit || 'FCFA';
+    const isMoney = (c.goal_type || 'money') === 'money';
+
+    const fmtVal = (n) => {
+      if(isMoney){
+        return fmt(n);
+      }
+      const numStr = (n % 1 === 0) ? Math.round(n).toString() : n.toFixed(1);
+      return numStr + ' ' + unit;
+    };
 
     if(pct >= 100){
-      items.push({cls:'good', title:`${c.name} : Terminé !`, text:`Tu as réussi !`});
+      items.push({cls:'good', title:`${c.name} : Terminé !`, text:`Tu as atteint ton objectif 🏆`});
       return;
     }
 
@@ -832,10 +1004,24 @@ function renderAnalysePercutante(){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
       if(days > 0){
         const perMonth = (rest / days) * 30;
-        items.push({cls:'', title:`${c.name}`, text:`Il te faut ${fmt(perMonth)}/mois.`});
+        items.push({
+          cls:'',
+          title:`${c.name}`,
+          text:`Il te faut <strong>${fmtVal(perMonth)}</strong> par mois pour finir à temps.`
+        });
+      } else {
+        items.push({
+          cls:'danger',
+          title:`${c.name}`,
+          text:`Deadline dépassée. Reste ${fmtVal(rest)}.`
+        });
       }
     } else {
-      items.push({cls:'', title:`${c.name} : ${pct.toFixed(0)}%`, text:`Reste ${fmt(rest)}.`});
+      items.push({
+        cls:'',
+        title:`${c.name} : ${pct.toFixed(0)}%`,
+        text:`Il te reste <strong>${fmtVal(rest)}</strong> à obtenir.`
+      });
     }
   });
 
@@ -848,11 +1034,26 @@ function openCoffreModal(id){
 
   document.getElementById('coffreModalTitle').textContent = c ? 'Modifier' : 'Nouvel objectif';
   document.getElementById('coffreSubmit').textContent = c ? 'Enregistrer' : 'Créer';
+
+  // Reset type par défaut
+  setGoalType(c?.goal_type || 'money');
+
   document.getElementById('coffreName').value = c?.name || '';
   document.getElementById('coffreGoal').value = c?.goal || '';
   document.getElementById('coffreCurrent').value = c?.current || '';
   document.getElementById('coffreDate').value = c?.target_date || '';
   document.getElementById('coffreWhy').value = c?.why || '';
+  document.getElementById('coffreEmoji').value = c?.emoji || '';
+  document.getElementById('coffreUnit').value = c?.unit || 'FCFA';
+  document.getElementById('coffreDescription').value = c?.description || '';
+
+  // Reset analyse
+  const analysis = document.getElementById('coffreAnalysis');
+  if(analysis) {
+    analysis.classList.remove('show');
+    analysis.innerHTML = '';
+  }
+
   document.getElementById('coffreModalBg').classList.add('show');
 }
 
@@ -867,19 +1068,42 @@ async function saveCoffre(){
   const current = parseFloat(document.getElementById('coffreCurrent').value) || 0;
   const target_date = document.getElementById('coffreDate').value || null;
   const why = document.getElementById('coffreWhy').value.trim();
+  const emoji = document.getElementById('coffreEmoji').value.trim();
+  const unit = document.getElementById('coffreUnit').value.trim() || 'FCFA';
+  const description = document.getElementById('coffreDescription').value.trim();
 
-  if(!name || !goal || goal <= 0){ alert("Nom + montant requis"); return; }
+  // Détecter le type
+  const btnQty = document.getElementById('btnGoalQuantity');
+  const goal_type = (btnQty && btnQty.classList.contains('active')) ? 'quantity' : 'money';
+
+  if(!name){ alert('Le nom de l\'objectif est requis'); return; }
+  if(!goal || goal <= 0){ alert('Indique une valeur à atteindre'); return; }
+
+  const data = {
+    name,
+    goal,
+    current,
+    target_date,
+    why: why || null,
+    goal_type,
+    unit,
+    emoji: emoji || null,
+    description: description || null
+  };
 
   if(editingCoffreId){
-    const result = await dbUpdate('goals', editingCoffreId, {name, goal, current, target_date, why});
+    const result = await dbUpdate('goals', editingCoffreId, data);
     if(!result) return;
     const idx = coffres.findIndex(c => c.id === editingCoffreId);
     coffres[idx] = result;
+    showToast('Objectif modifié');
   } else {
-    const result = await dbInsert('goals', {name, goal, current, target_date, why});
+    const result = await dbInsert('goals', data);
     if(!result) return;
     coffres.unshift(result);
+    showToast('Objectif créé');
   }
+
   closeCoffreModal();
   refreshAll();
 }
@@ -936,15 +1160,25 @@ function renderCoffres(){
     const rest = Math.max(0, goal - current);
     const mot = getMotivationMessage(pct);
     const color = getProgressionColor(pct);
-    const emoji = getCoffreEmoji(c.name);
+    const emoji = c.emoji || getCoffreEmoji(c.name);
     const done = pct >= 100;
+    const isMoney = (c.goal_type || 'money') === 'money';
+    const unit = c.unit || 'FCFA';
+
+    const fmtVal = (n) => {
+      if(isMoney){
+        return fmt(n);
+      }
+      const numStr = (n % 1 === 0) ? Math.round(n).toString() : n.toFixed(1);
+      return numStr + ' ' + unit;
+    };
 
     let timeInfo = '';
     if(c.target_date && rest > 0){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
       if(days > 0){
         const perWeek = (rest / days) * 7;
-        timeInfo = `<div class="coffre-next"><span>⏱ ${days} jours</span><span>${fmt(perWeek)}/semaine</span></div>`;
+        timeInfo = `<div class="coffre-next"><span>⏱ ${days} jours</span><span>${fmtVal(perWeek)}/semaine</span></div>`;
       } else {
         timeInfo = `<div class="coffre-next"><span style="color:var(--red)">⚠ Date dépassée</span></div>`;
       }
@@ -962,9 +1196,15 @@ function renderCoffres(){
     const p75 = pct >= 75 ? 'reached' : '';
     const p100 = pct >= 100 ? 'reached' : '';
 
+    const typeTag = isMoney
+      ? '<span style="font-size:10px;color:var(--gold-soft);background:rgba(245,197,66,.12);padding:2px 8px;border-radius:8px;font-weight:700;margin-left:6px">💰 ARGENT</span>'
+      : '<span style="font-size:10px;color:var(--accent-2);background:rgba(107,142,255,.12);padding:2px 8px;border-radius:8px;font-weight:700;margin-left:6px">🔢 QUANTITÉ</span>';
+
     return `<div class="coffre ${done ? 'completed' : ''}">
       <div class="coffre-header">
-        <div class="coffre-name"><span class="coffre-emoji">${emoji}</span>${c.name}</div>
+        <div class="coffre-name" style="flex-wrap:wrap">
+          <span class="coffre-emoji">${emoji}</span>${c.name}${typeTag}
+        </div>
         ${badge}
       </div>
       <div class="coffre-progress"><div class="coffre-progress-fill" style="width:${pct}%;background:${color}"></div></div>
@@ -972,14 +1212,15 @@ function renderCoffres(){
         <span class="${p25}">25%</span><span class="${p50}">50%</span><span class="${p75}">75%</span><span class="${p100}">100%</span>
       </div>
       <div class="coffre-amounts">
-        <div><span class="current">${fmt(current)}</span> <span class="goal">/ ${fmt(goal)}</span></div>
-        ${rest > 0 ? `<div class="rest">Reste : ${fmt(rest)}</div>` : ''}
+        <div><span class="current">${fmtVal(current)}</span> <span class="goal">/ ${fmtVal(goal)}</span></div>
+        ${rest > 0 ? `<div class="rest">Reste : ${fmtVal(rest)}</div>` : ''}
       </div>
       <div class="coffre-message level-${mot.level}">${mot.msg}</div>
+      ${c.description ? `<div class="coffre-why" style="border-left-color:var(--pink)">📝 ${c.description}</div>` : ''}
       ${c.why ? `<div class="coffre-why">"${c.why}"</div>` : ''}
       ${timeInfo}
       <div class="coffre-actions">
-        <button class="btn-primary" style="margin:0;background:var(--green)" onclick="ouvrirEpargnePerso(${c.id})">🎯 Épargner</button>
+        <button class="btn-primary" style="margin:0;background:var(--green)" onclick="ouvrirEpargnePerso(${c.id})">${isMoney ? '🎯 Épargner' : '✅ Ajouter'}</button>
         <button class="btn-ghost" style="margin:0" onclick="openCoffreModal(${c.id})">✏️ Modifier</button>
         <button class="btn-ghost" style="margin:0" onclick="delCoffre(${c.id})">🗑</button>
       </div>
@@ -994,12 +1235,14 @@ function renderCoffres(){
     at.innerHTML = active.slice(0, 3).map(c => {
       const rest = Number(c.goal) - Number(c.current);
       const pct = (Number(c.current) / Number(c.goal) * 100).toFixed(0);
+      const isMoney = (c.goal_type || 'money') === 'money';
+      const unit = c.unit || 'FCFA';
+      const restStr = isMoney ? fmt(rest) : Math.round(rest) + ' ' + unit;
       const msg = c.why ? `Rappelle-toi : "${c.why}"` : `Tu es à ${pct}%.`;
-      return `<div class="insight bad"><div class="title">🛑 ${c.name} : encore ${fmt(rest)}</div><div>${msg}</div></div>`;
+      return `<div class="insight bad"><div class="title">🛑 ${c.name} : encore ${restStr}</div><div>${msg}</div></div>`;
     }).join('');
   }
 }
-
 // ============================================================
 // MODULE PHOTO - CLIENTS
 // ============================================================
