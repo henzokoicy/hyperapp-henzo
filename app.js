@@ -361,6 +361,7 @@ function drawerAction(action){
   closeDrawer();
   setTimeout(() => {
     switch(action){
+      case 'addRevenue':  openRevenueModal(); break;
       case 'addTx':       openModal(); break;
       case 'addClient':   openClientModal(); break;
       case 'addShoot':    openShootModal(); break;
