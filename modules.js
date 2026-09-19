@@ -649,14 +649,26 @@ async function showLocalNotification(title, body, url){
       const reg = await navigator.serviceWorker.getRegistration();
       if(reg && reg.showNotification){
         await reg.showNotification(title, {
-          body: body, icon: '/favicon.ico', badge: '/favicon.ico',
+          body: body,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          vibrate: [200, 100, 200],
+          tag: 'henzo-notif-' + Date.now(),
+          renotify: true,
+          requireInteraction: true,
+          silent: false,
           data: { url: url || 'https://hyperapp-henzo.vercel.app' }
         });
         return true;
       }
     }
     if('Notification' in window && Notification.permission === 'granted'){
-      new Notification(title, { body: body });
+      new Notification(title, {
+        body: body,
+        icon: '/favicon.ico',
+        requireInteraction: true,
+        silent: false
+      });
       return true;
     }
     return false;
@@ -2263,8 +2275,8 @@ async function testerNotification(){
   if(!isNotifEnabled()){ alert('Active d\'abord les notifications'); return; }
   const msg = getNotificationMessage('midday');
   await showLocalNotification(msg.i + ' ' + msg.t, msg.m);
+  afficherPopupNotif(msg.i + ' ' + msg.t, msg.m, msg.i, 6000);
 }
-
 async function checkAutomaticNotifications(){
   if(!isNotifEnabled()) return;
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
@@ -2276,15 +2288,30 @@ async function checkAutomaticNotifications(){
 
   if(hh === 8 && mm >= 0 && mm < 5){
     const key = `notif_morning_${todayKey}`;
-    if(!localStorage.getItem(key)){ const msg = getNotificationMessage('morning'); await showLocalNotification(msg.i + ' ' + msg.t, msg.m); localStorage.setItem(key, '1'); }
+    if(!localStorage.getItem(key)){
+      const msg = getNotificationMessage('morning');
+      await showLocalNotification(msg.i + ' ' + msg.t, msg.m);
+      afficherPopupNotif(msg.i + ' ' + msg.t, msg.m, msg.i, 6000);
+      localStorage.setItem(key, '1');
+    }
   }
   if(hh === 13 && mm >= 0 && mm < 5){
     const key = `notif_midday_${todayKey}`;
-    if(!localStorage.getItem(key)){ const msg = getNotificationMessage('midday'); await showLocalNotification(msg.i + ' ' + msg.t, msg.m); localStorage.setItem(key, '1'); }
+    if(!localStorage.getItem(key)){
+      const msg = getNotificationMessage('midday');
+      await showLocalNotification(msg.i + ' ' + msg.t, msg.m);
+      afficherPopupNotif(msg.i + ' ' + msg.t, msg.m, msg.i, 6000);
+      localStorage.setItem(key, '1');
+    }
   }
   if(hh === 20 && mm >= 0 && mm < 5){
     const key = `notif_evening_${todayKey}`;
-    if(!localStorage.getItem(key)){ const msg = getNotificationMessage('evening'); await showLocalNotification(msg.i + ' ' + msg.t, msg.m); localStorage.setItem(key, '1'); }
+    if(!localStorage.getItem(key)){
+      const msg = getNotificationMessage('evening');
+      await showLocalNotification(msg.i + ' ' + msg.t, msg.m);
+      afficherPopupNotif(msg.i + ' ' + msg.t, msg.m, msg.i, 6000);
+      localStorage.setItem(key, '1');
+    }
   }
 }
 
@@ -4387,6 +4414,98 @@ function revOirLien(id) {
   const l = paymentLinks.find(x => x.id === id);
   if(l) afficherLienGenere(l);
 }
+// ============================================================
+// 🆕 POPUP CUSTOM DANS L'APP (glisse depuis le haut)
+// ============================================================
+function afficherPopupNotif(title, message, emoji = '🔔', duration = 6000){
+  // Supprime l'ancien popup s'il existe
+  const old = document.getElementById('henzoPopup');
+  if(old) old.remove();
+
+  const popup = document.createElement('div');
+  popup.id = 'henzoPopup';
+  popup.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-150%);
+    max-width: 92%;
+    width: 400px;
+    background: linear-gradient(135deg, #141822 0%, #1c2130 100%);
+    border: 1px solid rgba(107,142,255,.40);
+    border-radius: 18px;
+    padding: 16px 18px;
+    box-shadow:
+      0 20px 48px rgba(0,0,0,.60),
+      0 0 0 1px rgba(255,255,255,.06) inset,
+      0 0 40px rgba(107,142,255,.20);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: transform .5s cubic-bezier(.34,1.56,.64,1), opacity .35s;
+    opacity: 0;
+    pointer-events: auto;
+    cursor: pointer;
+  `;
+  popup.innerHTML = `
+    <div style="
+      width:48px;height:48px;border-radius:50%;
+      background:linear-gradient(135deg,var(--accent),var(--pink));
+      display:flex;align-items:center;justify-content:center;
+      font-size:24px;flex-shrink:0;
+      box-shadow:0 8px 20px rgba(107,142,255,.45);
+    ">${emoji}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:3px">${title}</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.4">${message}</div>
+    </div>
+    <button onclick="event.stopPropagation();document.getElementById('henzoPopup').remove()" style="
+      background:rgba(255,255,255,.08);
+      border:none;color:var(--muted);
+      width:28px;height:28px;border-radius:50%;
+      cursor:pointer;font-size:16px;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
+      transition:background .2s;
+    ">×</button>
+  `;
+
+  // Clic sur le popup = ferme et va sur l'app
+  popup.onclick = () => {
+    popup.remove();
+  };
+
+  document.body.appendChild(popup);
+
+  // Animation d'entrée
+  requestAnimationFrame(() => {
+    popup.style.transform = 'translateX(-50%) translateY(0)';
+    popup.style.opacity = '1';
+  });
+
+  // Vibration sur mobile
+  if(navigator.vibrate){
+    try { navigator.vibrate([100, 50, 100]); } catch(e){}
+  }
+
+  // Auto-suppression
+  if(duration > 0){
+    setTimeout(() => {
+      if(popup.parentNode){
+        popup.style.transform = 'translateX(-50%) translateY(-150%)';
+        popup.style.opacity = '0';
+        setTimeout(() => popup.remove(), 500);
+      }
+    }, duration);
+  }
+}
+
+// Test manuel du popup
+function testerPopupNotif(){
+  const msg = getNotificationMessage('midday');
+  afficherPopupNotif(msg.i + ' ' + msg.t, msg.m, msg.i, 6000);
+}
+
 
 // ============================================================
 // INITIALISATION
