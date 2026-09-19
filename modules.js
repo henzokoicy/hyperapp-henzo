@@ -1487,10 +1487,56 @@ async function delShoot(id){
 
 async function toggleShootPayment(id){
   const s = shoots.find(x => x.id === id);
+  if(!s) return;
   const newPayment = s.payment === 'paye' ? 'impaye' : 'paye';
+  const wasUnpaid = s.payment === 'impaye';
+
   const result = await dbUpdate('shoots', id, {payment: newPayment});
   if(!result) return;
   s.payment = newPayment;
+
+  // Si on vient de marquer comme PAYÉ, on propose la répartition
+  if(newPayment === 'paye' && wasUnpaid && Number(s.price) > 0){
+    // Créer automatiquement la transaction de revenu
+    const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+    const clientName = client ? client.name : '';
+    const note = (s.type || 'Séance') + (clientName ? ' · ' + clientName : '');
+
+    const txResult = await dbInsert('transactions', {
+      type: 'revenu',
+      amount: Number(s.price),
+      category: 'Shooting photo',
+      note: note,
+      date: todayStr(),
+      client_id: s.client_id || null,
+      client_name: clientName || null,
+      prestation_type: s.type || 'Séance',
+      location: s.location || null,
+      payment_method: 'Espèces',
+      amount_type: 'complet',
+      photo_count: s.photo_count || null
+    });
+
+    if(txResult){
+      txs.unshift(txResult);
+    }
+
+    refreshAll();
+    showToast('✓ Payé · ' + fmt(s.price) + ' ajouté aux revenus');
+
+    // 🎯 Lancer l'assistant de répartition
+    setTimeout(() => {
+      demarrerAssistant({
+        amount: Number(s.price),
+        prestationType: s.type || 'Séance',
+        clientName: clientName,
+        location: s.location || '',
+        source: 'Séance photo'
+      });
+    }, 500);
+    return;
+  }
+
   refreshAll();
 }
 
@@ -2387,6 +2433,134 @@ async function checkDailyReminders(){
   }
 }
 
+// ============================================================
+// 🆕 RAPPELS AUTOMATIQUES POUR LES SÉANCES PHOTO
+// 5 rappels : J-7, J-4, J-2, J-1 (à 20h), et 3h avant le shoot
+// ============================================================
+async function checkShootReminders(){
+  if(!isNotifEnabled()) return;
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  if(!shoots || shoots.length === 0) return;
+
+  const now = new Date();
+  const todayKey = now.toISOString().slice(0,10);
+  const hh = now.getHours();
+  const mm = now.getMinutes();
+
+  for(const s of shoots){
+    if(!s.date) continue;
+    if(s.status === 'annule' || s.status === 'shoote') continue;
+
+    const shootDate = new Date(s.date);
+    const diffMs = shootDate - now;
+    const diffHours = diffMs / (1000 * 60 * 60);
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+    const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+    const clientName = client ? ' · ' + client.name : '';
+    const location = s.location ? ' 📍 ' + s.location : '';
+    const timeStr = shootDate.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    const dateStr = shootDate.toLocaleDateString('fr-FR', {weekday:'long', day:'2-digit', month:'long'});
+
+    // J-7
+    if(diffDays > 6.5 && diffDays < 7.5){
+      if(hh === 20 && mm < 5){
+        const key = `shoot_j7_${s.id}`;
+        if(!localStorage.getItem(key)){
+          await showLocalNotification(
+            '📸 Shoot dans 1 semaine !',
+            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`
+          );
+          afficherPopupNotif(
+            '📸 Shoot dans 1 semaine !',
+            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`,
+            '📸',
+            10000
+          );
+          localStorage.setItem(key, '1');
+        }
+      }
+    }
+
+    // J-4
+    if(diffDays > 3.5 && diffDays < 4.5){
+      if(hh === 20 && mm < 5){
+        const key = `shoot_j4_${s.id}`;
+        if(!localStorage.getItem(key)){
+          await showLocalNotification(
+            '📸 Shoot dans 4 jours !',
+            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`
+          );
+          afficherPopupNotif(
+            '📸 Shoot dans 4 jours !',
+            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`,
+            '📸',
+            10000
+          );
+          localStorage.setItem(key, '1');
+        }
+      }
+    }
+
+    // J-2
+    if(diffDays > 1.5 && diffDays < 2.5){
+      if(hh === 20 && mm < 5){
+        const key = `shoot_j2_${s.id}`;
+        if(!localStorage.getItem(key)){
+          await showLocalNotification(
+            '📸 Shoot dans 2 jours !',
+            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`
+          );
+          afficherPopupNotif(
+            '📸 Shoot dans 2 jours !',
+            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`,
+            '📸',
+            10000
+          );
+          localStorage.setItem(key, '1');
+        }
+      }
+    }
+
+    // J-1 (veille)
+    if(diffDays > 0.5 && diffDays < 1.5){
+      if(hh === 20 && mm < 5){
+        const key = `shoot_j1_${s.id}`;
+        if(!localStorage.getItem(key)){
+          await showLocalNotification(
+            '📸 Shoot DEMAIN !',
+            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`
+          );
+          afficherPopupNotif(
+            '📸 Shoot DEMAIN !',
+            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`,
+            '📸',
+            12000
+          );
+          localStorage.setItem(key, '1');
+        }
+      }
+    }
+
+    // 3h avant
+    if(diffHours > 2.75 && diffHours < 3.25){
+      const key = `shoot_h3_${s.id}`;
+      if(!localStorage.getItem(key)){
+        await showLocalNotification(
+          '⏰ Shoot dans 3h !',
+          `${s.type}${clientName} à ${timeStr}${location}`
+        );
+        afficherPopupNotif(
+          '⏰ Shoot dans 3h !',
+          `${s.type}${clientName} à ${timeStr}${location}`,
+          '⏰',
+          12000
+        );
+        localStorage.setItem(key, '1');
+      }
+    }
+  }
+}
 // ============================================================
 // MODULE RAPPELS NORMAUX
 // ============================================================
@@ -4417,7 +4591,16 @@ async function marquerLienPaye(id) {
   showToast(fmt(link.amount) + ' ajouté aux revenus');
 
   // 4. Ouvrir la modale de répartition intelligente
-  setTimeout(() => ouvrirGuideRepartition(id), 500);
+   // 4. Lancer l'assistant conversationnel
+  setTimeout(() => {
+    demarrerAssistant({
+      amount: Number(link.amount),
+      prestationType: link.description || 'Paiement',
+      clientName: link.client_name || '',
+      location: '',
+      source: 'Lien de paiement'
+    });
+  }, 500);
 }
 
 async function supprimerLien(id) {
@@ -4734,7 +4917,700 @@ function testerPopupNotif(){
   afficherPopupNotif(msg.i + ' ' + msg.t, msg.m, msg.i, 6000);
 }
 
+// ============================================================
+// 💰 MODULE ENTRÉE D'ARGENT DÉTAILLÉE
+// ============================================================
+let currentRevenueType = 'complet';
 
+// Ouvre la modale
+function openRevenueModal(){
+  const modal = document.getElementById('revenueModalBg');
+  if(!modal) return;
+
+  // Reset des champs
+  document.getElementById('revAmount').value = '';
+  document.getElementById('revClientName').value = '';
+  document.getElementById('revPrestationType').value = 'Mariage';
+  document.getElementById('revPaymentMethod').value = 'Wave';
+  document.getElementById('revLocation').value = '';
+  document.getElementById('revDuration').value = '';
+  document.getElementById('revPhotoCount').value = '';
+  document.getElementById('revDetails').value = '';
+
+  // Date/heure actuelle
+  const now = new Date();
+  const localISO = new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  document.getElementById('revDate').value = localISO;
+
+  // Remplir la liste des clients
+  const dl = document.getElementById('revClientsList');
+  if(dl){
+    dl.innerHTML = clients.map(c => `<option value="${c.name}">`).join('');
+  }
+
+  setRevenueType('complet');
+
+  // Reset détails
+  const body = document.getElementById('revDetailsBody');
+  if(body) body.style.display = 'none';
+  const arrow = document.getElementById('revDetailsArrow');
+  if(arrow) arrow.classList.remove('open');
+
+  modal.classList.add('show');
+  setTimeout(() => document.getElementById('revAmount')?.focus(), 300);
+}
+
+function closeRevenueModal(){
+  const modal = document.getElementById('revenueModalBg');
+  if(modal) modal.classList.remove('show');
+}
+
+function setRevenueType(type){
+  currentRevenueType = type;
+  document.getElementById('revTypeComplet').classList.toggle('active', type === 'complet');
+  document.getElementById('revTypeAcompte').classList.toggle('active', type === 'acompte');
+  document.getElementById('revTypeSolde').classList.toggle('active', type === 'solde');
+}
+
+function toggleRevenueDetails(){
+  const body = document.getElementById('revDetailsBody');
+  const arrow = document.getElementById('revDetailsArrow');
+  if(!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  if(arrow) arrow.classList.toggle('open', !isOpen);
+}
+
+// Sauvegarde l'entrée puis lance l'assistant
+async function saveRevenue(){
+  const amount = parseFloat(document.getElementById('revAmount').value);
+  if(!amount || amount <= 0){ alert('Indique un montant valide'); return; }
+
+  const clientName = document.getElementById('revClientName').value.trim();
+  const prestationType = document.getElementById('revPrestationType').value;
+  const paymentMethod = document.getElementById('revPaymentMethod').value;
+  const dateInput = document.getElementById('revDate').value;
+  const location = document.getElementById('revLocation').value.trim();
+  const duration = parseFloat(document.getElementById('revDuration').value) || null;
+  const photoCount = parseInt(document.getElementById('revPhotoCount').value) || null;
+  const details = document.getElementById('revDetails').value.trim();
+
+  let clientId = null;
+  if(clientName){
+    const existing = clients.find(c => c.name.toLowerCase() === clientName.toLowerCase());
+    if(existing) clientId = existing.id;
+  }
+
+  const noteParts = [];
+  if(clientName) noteParts.push(clientName);
+  noteParts.push(prestationType);
+  const noteSummary = noteParts.join(' · ');
+
+  const data = {
+    type: 'revenu',
+    amount: amount,
+    category: 'Shooting photo',
+    note: noteSummary,
+    date: dateInput ? dateInput.slice(0,10) : todayStr(),
+    client_id: clientId,
+    client_name: clientName || null,
+    payment_method: paymentMethod,
+    prestation_type: prestationType,
+    location: location || null,
+    amount_type: currentRevenueType,
+    duration_hours: duration,
+    photo_count: photoCount,
+    details: details || null
+  };
+
+  const result = await dbInsert('transactions', data);
+  if(!result){ alert('Erreur lors de la sauvegarde'); return; }
+
+  txs.unshift(result);
+  closeRevenueModal();
+  refreshAll();
+  showToast('💰 ' + fmt(amount) + ' enregistré');
+
+  // 🎯 Lancer l'assistant après un court délai
+  setTimeout(() => {
+    demarrerAssistant({
+      amount: amount,
+      prestationType: prestationType,
+      clientName: clientName,
+      location: location,
+      source: paymentMethod
+    });
+  }, 400);
+}
+
+// Guide de répartition simplifié (direct sur le montant)
+function ouvrirGuideRepartitionSimple(montant, prestationType, clientName){
+  const d = (prestationType || '').toLowerCase();
+  let type = 'default';
+  if(d.includes('mariage')) type = 'mariage';
+  else if(d.includes('dot')) type = 'dot';
+  else if(d.includes('studio')) type = 'studio';
+  else if(d.includes('corporate')) type = 'corporate';
+  else if(d.includes('drone')) type = 'drone';
+  else if(d.includes('shoot') || d.includes('extérieur') || d.includes('evenement')) type = 'shooting';
+
+  const regle = REGLES_REPARTITION[type];
+  const epargne = Math.round(montant * regle.epargne / 100);
+  const charges = Math.round(montant * regle.charges / 100);
+  const libre = montant - epargne - charges;
+
+  const existing = document.getElementById('guideRepartitionModal');
+  if(existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'guideRepartitionModal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>🧠 Guide de répartition</h3>
+        <button class="close" onclick="fermerGuideRepartition()">×</button>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(52,211,153,.15),rgba(107,142,255,.10));border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Montant reçu</div>
+        <div style="font-size:32px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(montant)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px">${regle.icon} ${regle.label} · ${clientName || ''}</div>
+      </div>
+
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">💡 Suggestion :</div>
+
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-weight:700;color:var(--green);font-size:14px">💰 Épargne</div>
+            <div style="font-size:11px;color:var(--muted)">${regle.epargne}% · Priorité absolue</div>
+          </div>
+          <div style="font-weight:800;color:var(--green);font-size:16px">${fmt(epargne)}</div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-weight:700;color:var(--yellow);font-size:14px">🏠 Charges</div>
+            <div style="font-size:11px;color:var(--muted)">${regle.charges}% · Loyer, transport</div>
+          </div>
+          <div style="font-weight:800;color:var(--yellow);font-size:16px">${fmt(charges)}</div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;padding:10px 0">
+          <div>
+            <div style="font-weight:700;color:var(--accent);font-size:14px">🎉 Libre</div>
+            <div style="font-size:11px;color:var(--muted)">${regle.libre}% · Plaisir</div>
+          </div>
+          <div style="font-weight:800;color:var(--accent);font-size:16px">${fmt(libre)}</div>
+        </div>
+      </div>
+
+      <div style="display:grid;gap:8px">
+        <button class="btn-primary" style="margin:0;background:linear-gradient(135deg,var(--green),#10b981);width:100%;color:#000;font-weight:800" onclick="appliquerRepartitionDepuisEntree(${epargne})">
+          ✅ Créer l'épargne (${fmt(epargne)})
+        </button>
+        <button class="btn-ghost" style="margin:0;width:100%" onclick="fermerGuideRepartition()">
+          Ignorer
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+async function appliquerRepartitionDepuisEntree(montantEpargne){
+  const result = await dbInsert('transactions', {
+    type: 'depense',
+    amount: montantEpargne,
+    category: 'Épargne',
+    note: 'Épargne automatique (guide)',
+    date: todayStr(),
+    payment_method: 'Interne'
+  });
+
+  if(!result){ alert('Erreur'); return; }
+  txs.unshift(result);
+  fermerGuideRepartition();
+  refreshAll();
+  showToast(fmt(montantEpargne) + ' placé en épargne ! 🎯');
+}
+
+// Modifier l'affichage de l'historique pour montrer les détails
+function formatTxDetail(t){
+  const parts = [];
+  if(t.client_name) parts.push('👤 ' + t.client_name);
+  if(t.prestation_type) parts.push('📸 ' + t.prestation_type);
+  if(t.payment_method && t.payment_method !== 'Espèces') parts.push('💳 ' + t.payment_method);
+  if(t.location) parts.push('📍 ' + t.location);
+  if(t.photo_count) parts.push('📷 ' + t.photo_count + ' photos');
+  if(t.duration_hours) parts.push('⏱ ' + t.duration_hours + 'h');
+  return parts.join(' · ');
+}// ============================================================
+// 🤖 ASSISTANT FINANCIER CONVERSATIONNEL
+// Pose des questions une par une, puis calcule la répartition
+// ============================================================
+
+let assistantData = null;  // Données en cours
+let assistantStep = 0;      // Étape actuelle
+let assistantAnswers = {};  // Réponses
+// Détecte automatiquement la source pour l'afficher
+function getSourceIcon(source){
+  if(!source) return '💰';
+  const s = source.toLowerCase();
+  if(s.includes('séance') || s.includes('seance')) return '📸';
+  if(s.includes('lien')) return '🔗';
+  if(s.includes('entrée')) return '💰';
+  return '💰';
+}
+// État initial de l'assistant
+function demarrerAssistant(data){
+  assistantData = data;
+  assistantStep = 0;
+  assistantAnswers = {
+    hasCharges: null,
+    chargesAmount: 0,
+    chargesDetails: '',
+    hasGoal: null,
+    goalId: null,
+    epargneAmount: 0,
+    epargnePercent: 0,
+    freeAmount: 0,
+    useAI: false
+  };
+
+  const modal = document.getElementById('assistantModalBg');
+  if(modal) modal.classList.add('show');
+
+  renderAssistantStep();
+}
+
+function closeAssistant(){
+  const modal = document.getElementById('assistantModalBg');
+  if(modal) modal.classList.remove('show');
+  assistantData = null;
+  assistantStep = 0;
+}
+
+// Calcul du type de prestation pour les règles
+function detecterTypeFromPrestation(prestationType){
+  const d = (prestationType || '').toLowerCase();
+  if(d.includes('mariage')) return 'mariage';
+  if(d.includes('dot')) return 'dot';
+  if(d.includes('studio')) return 'studio';
+  if(d.includes('corporate')) return 'corporate';
+  if(d.includes('drone')) return 'drone';
+  if(d.includes('shoot') || d.includes('extérieur') || d.includes('événement') || d.includes('evenement')) return 'shooting';
+  return 'default';
+}
+
+// Affiche l'étape actuelle
+function renderAssistantStep(){
+  const el = document.getElementById('assistantStep');
+  const bar = document.getElementById('assistantProgressBar');
+  if(!el) return;
+
+  const totalSteps = 4;
+  const progress = (assistantStep / totalSteps) * 100;
+  if(bar) bar.style.width = progress + '%';
+
+  const m = assistantData.amount;
+  const regle = REGLES_REPARTITION[detecterTypeFromPrestation(assistantData.prestationType)];
+
+  // ================== ÉTAPE 0 : WELCOME ==================
+  if(assistantStep === 0){
+    el.innerHTML = `
+      <div style="background:linear-gradient(135deg,rgba(52,211,153,.15),rgba(107,142,255,.10));border-radius:14px;padding:18px;margin-bottom:20px;text-align:center">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Entrée enregistrée</div>
+        <div style="font-size:32px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(m)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px">
+  ${getSourceIcon(assistantData.source)} ${assistantData.source || 'Entrée'} · ${assistantData.prestationType}${assistantData.clientName ? ' · ' + assistantData.clientName : ''}
+</div>
+      </div>
+
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:20px;font-size:14px;line-height:1.6;color:var(--text)">
+        Bonjour Henzo 👋<br><br>
+        Je vais te poser <strong>4 questions rapides</strong> pour t'aider à répartir intelligemment cet argent.<br><br>
+        Ça prend <strong>moins d'1 minute</strong>. Prêt ?
+      </div>
+
+      <button class="btn-primary" style="margin:0;width:100%;padding:16px;font-size:16px" onclick="assistantNext()">
+        🚀 C'est parti !
+      </button>
+      <button class="btn-ghost" style="margin-top:8px;width:100%" onclick="closeAssistant()">
+        Ignorer
+      </button>
+    `;
+    return;
+  }
+
+  // ================== ÉTAPE 1 : CHARGES ==================
+  if(assistantStep === 1){
+    el.innerHTML = `
+      <div style="font-size:13px;color:var(--muted);margin-bottom:6px">Question 1 / 4</div>
+      <div style="font-size:17px;font-weight:700;line-height:1.4;margin-bottom:16px">
+        💸 As-tu des <strong>charges</strong> liées à cette prestation ?<br>
+        <span style="font-size:13px;color:var(--muted);font-weight:400">(transport, assistant, location matériel, repas client...)</span>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(107,142,255,.10),rgba(255,126,179,.05));border-left:3px solid var(--accent);border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--muted);line-height:1.5">
+        💡 <strong>Exemple :</strong> Un mariage à Bouaké = 15 000 FCFA de transport + 10 000 FCFA d'assistant = 25 000 FCFA de charges.
+      </div>
+
+      <div class="type-toggle" style="margin-bottom:14px">
+        <button type="button" id="aChargesNon" class="${assistantAnswers.hasCharges === false ? 'active' : ''}" onclick="assistantSetCharges(false)">❌ Non, aucune</button>
+        <button type="button" id="aChargesOui" class="${assistantAnswers.hasCharges === true ? 'active' : ''}" onclick="assistantSetCharges(true)">✅ Oui</button>
+      </div>
+
+      <div id="assistantChargesBox" style="display:${assistantAnswers.hasCharges === true ? 'block' : 'none'}">
+        <label>Montant total des charges (FCFA)</label>
+        <input type="number" id="assistantChargesAmount" inputmode="decimal" placeholder="Ex: 25000" value="${assistantAnswers.chargesAmount || ''}" oninput="assistantUpdateChargesAmount()">
+
+        <label>Détail des charges (optionnel)</label>
+        <textarea id="assistantChargesDetails" rows="2" placeholder="Ex: 15k transport + 10k assistant">${assistantAnswers.chargesDetails || ''}</textarea>
+      </div>
+
+      <button class="btn-primary" style="margin-top:14px;width:100%;padding:14px" onclick="assistantValidateCharges()">
+        Continuer →
+      </button>
+    `;
+    return;
+  }
+
+  // ================== ÉTAPE 2 : OBJECTIF ==================
+  if(assistantStep === 2){
+    const activeGoals = coffres.filter(c => Number(c.current) < Number(c.goal));
+
+    el.innerHTML = `
+      <div style="font-size:13px;color:var(--muted);margin-bottom:6px">Question 2 / 4</div>
+      <div style="font-size:17px;font-weight:700;line-height:1.4;margin-bottom:16px">
+        🎯 Sur quel <strong>objectif d'épargne</strong> veux-tu mettre une partie de cet argent ?
+      </div>
+
+      ${activeGoals.length === 0 ? `
+        <div style="background:rgba(245,197,66,.12);border:1px solid rgba(245,197,66,.30);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--gold-soft);line-height:1.5">
+          ⚠️ Tu n'as pas encore d'objectif actif.<br>
+          Tu peux continuer sans, ou créer un objectif dans l'onglet 🎯.
+        </div>
+      ` : `
+        <div style="display:grid;gap:8px;margin-bottom:16px">
+          ${activeGoals.map(c => {
+            const pct = (Number(c.current) / Number(c.goal) * 100).toFixed(0);
+            const emoji = c.emoji || getCoffreEmoji(c.name);
+            const unit = c.unit || 'FCFA';
+            const isMoney = (c.goal_type || 'money') === 'money';
+            const goalStr = isMoney ? fmt(c.goal) : c.goal + ' ' + unit;
+            const currentStr = isMoney ? fmt(c.current) : c.current + ' ' + unit;
+            const selected = assistantAnswers.goalId === c.id;
+            return `
+              <button type="button" onclick="assistantSetGoal(${c.id})" style="
+                background:${selected ? 'linear-gradient(135deg,rgba(107,142,255,.20),rgba(107,142,255,.08))' : 'var(--card2)'};
+                border:1px solid ${selected ? 'var(--accent)' : 'var(--border)'};
+                border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;
+                display:flex;justify-content:space-between;align-items:center;gap:10px;
+                font-family:inherit;color:var(--text);width:100%;
+              ">
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:700;font-size:14px;margin-bottom:3px">${emoji} ${c.name}</div>
+                  <div style="font-size:11px;color:var(--muted)">${currentStr} / ${goalStr} · ${pct}%</div>
+                </div>
+                ${selected ? '<div style="color:var(--accent);font-size:22px;font-weight:700">✓</div>' : ''}
+              </button>
+            `;
+          }).join('')}
+          <button type="button" onclick="assistantSetGoal(null)" style="
+            background:${assistantAnswers.goalId === null ? 'linear-gradient(135deg,rgba(107,142,255,.20),rgba(107,142,255,.08))' : 'var(--card2)'};
+            border:1px solid ${assistantAnswers.goalId === null ? 'var(--accent)' : 'var(--border)'};
+            border-radius:12px;padding:12px 14px;text-align:center;cursor:pointer;
+            font-family:inherit;color:var(--text);width:100%;font-weight:600;font-size:13px;
+          ">
+            🤷 Aucun objectif pour l'instant
+          </button>
+        </div>
+      `}
+
+      <button class="btn-primary" style="margin-top:10px;width:100%;padding:14px" onclick="assistantNext()">
+        Continuer →
+      </button>
+    `;
+    return;
+  }
+
+  // ================== ÉTAPE 3 : MONTANT ÉPARGNE ==================
+  if(assistantStep === 3){
+    const suggested = Math.round(m * regle.epargne / 100);
+    const userAmount = assistantAnswers.epargneAmount || suggested;
+
+    el.innerHTML = `
+      <div style="font-size:13px;color:var(--muted);margin-bottom:6px">Question 3 / 4</div>
+      <div style="font-size:17px;font-weight:700;line-height:1.4;margin-bottom:16px">
+        💰 Combien veux-tu <strong>épargner</strong> sur ce montant ?
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.05));border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--text);line-height:1.5">
+        💡 <strong>Suggestion pour ${regle.label} :</strong> ${regle.epargne}% = <strong style="color:var(--green)">${fmt(suggested)}</strong>
+      </div>
+
+      <label>Montant à épargner (FCFA)</label>
+      <input type="number" id="assistantEpargneAmount" inputmode="decimal"
+        value="${userAmount}" placeholder="0"
+        oninput="assistantUpdateEpargne()"
+        style="font-size:20px;font-weight:700;text-align:center;color:var(--green)">
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px">
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="assistantQuickEpargne(${Math.round(m*0.1)})">10%</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="assistantQuickEpargne(${Math.round(m*0.2)})">20%</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:rgba(52,211,153,.10);color:var(--green);border-color:var(--green)" onclick="assistantQuickEpargne(${suggested})">${regle.epargne}% ✓</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="assistantQuickEpargne(${Math.round(m*0.5)})">50%</button>
+      </div>
+
+      <button class="btn-primary" style="margin-top:16px;width:100%;padding:14px" onclick="assistantValidateEpargne()">
+        Continuer →
+      </button>
+    `;
+    return;
+  }
+
+  // ================== ÉTAPE 4 : RÉCAPITULATIF ==================
+  if(assistantStep === 4){
+    const charges = assistantAnswers.chargesAmount || 0;
+    const epargne = assistantAnswers.epargneAmount || 0;
+    const libre = m - charges - epargne;
+
+    if(libre < 0){
+      el.innerHTML = `
+        <div style="text-align:center;padding:20px 0">
+          <div style="font-size:60px;margin-bottom:10px">⚠️</div>
+          <div style="font-size:18px;font-weight:700;margin-bottom:10px">Attention !</div>
+          <div style="color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:20px">
+            Tes charges + épargne dépassent le montant reçu.<br>
+            Réajuste pour continuer.
+          </div>
+          <button class="btn-ghost" onclick="assistantStep=3;renderAssistantStep()">← Modifier</button>
+        </div>
+      `;
+      return;
+    }
+
+    const goalObj = assistantAnswers.goalId ? coffres.find(c => c.id === assistantAnswers.goalId) : null;
+    const goalName = goalObj ? (goalObj.emoji || getCoffreEmoji(goalObj.name)) + ' ' + goalObj.name : null;
+
+    el.innerHTML = `
+      <div style="font-size:13px;color:var(--muted);margin-bottom:6px">Récapitulatif</div>
+      <div style="font-size:17px;font-weight:700;line-height:1.4;margin-bottom:16px">
+        ✨ Voici ta répartition intelligente
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.06));border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Montant reçu</div>
+        <div style="font-size:28px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(m)}</div>
+      </div>
+
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
+
+        ${charges > 0 ? `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+            <div>
+              <div style="font-weight:700;color:var(--yellow);font-size:14px">🏠 Charges</div>
+              <div style="font-size:11px;color:var(--muted)">${assistantAnswers.chargesDetails || 'Frais liés à la prestation'}</div>
+            </div>
+            <div style="font-weight:800;color:var(--yellow);font-size:16px">-${fmt(charges)}</div>
+          </div>
+        ` : ''}
+
+        ${epargne > 0 ? `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+            <div>
+              <div style="font-weight:700;color:var(--green);font-size:14px">💰 Épargne</div>
+              <div style="font-size:11px;color:var(--muted)">${goalName || 'Réserve générale'}</div>
+            </div>
+            <div style="font-weight:800;color:var(--green);font-size:16px">-${fmt(epargne)}</div>
+          </div>
+        ` : ''}
+
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+          <div>
+            <div style="font-weight:700;color:var(--accent);font-size:14px">🎉 Pour toi</div>
+            <div style="font-size:11px;color:var(--muted)">Reste à utiliser librement</div>
+          </div>
+          <div style="font-weight:800;color:var(--accent);font-size:18px">${fmt(libre)}</div>
+        </div>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.05));border:1px solid rgba(245,197,66,.25);border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--gold-soft);line-height:1.5">
+        💡 <strong>Conseil :</strong> ${getConseilAssistant(detecterTypeFromPrestation(assistantData.prestationType), m, epargne, goalName)}
+      </div>
+
+      <div style="display:grid;gap:8px">
+        <button class="btn-primary" style="margin:0;background:linear-gradient(135deg,var(--green),#10b981);width:100%;color:#000;font-weight:800;padding:16px" onclick="assistantAppliquer()">
+          ✅ Créer les transactions
+        </button>
+        <button class="btn-ghost" style="margin:0;width:100%" onclick="closeAssistant()">
+          Juste enregistrer sans répartition
+        </button>
+      </div>
+    `;
+    return;
+  }
+}
+
+// Conseil intelligent selon le contexte
+function getConseilAssistant(type, montant, epargne, goalName){
+  if(epargne >= montant * 0.4){
+    return `Excellente discipline ! Tu mets ${Math.round(epargne/montant*100)}% de côté. Continue comme ça 💪`;
+  }
+  if(goalName){
+    return `Ton épargne va directement alimenter "${goalName}". Chaque entrée te rapproche de ton objectif 🎯`;
+  }
+  const conseils = {
+    'mariage': 'Un mariage = revenu rare. Épargner tôt te protège des mois creux.',
+    'dot': 'Après un dot, mets immédiatement une partie de côté. Tu ne le regretteras pas.',
+    'studio': 'Le studio c\'est régulier. Une épargne automatique te construit un vrai matelas.',
+    'shooting': 'Les shootings s\'enchaînent. Épargner 20% te laisse de la marge pour investir.',
+    'corporate': 'Client corporate = revenu fiable. Épargne pour équilibrer tes mois creux.',
+    'drone': 'Le drone demande de l\'entretien. Épargne pour anticiper les réparations.',
+    'default': 'Épargne maintenant, profite après. C\'est comme ça qu\'on devient libre 🚀'
+  };
+  return conseils[type] || conseils.default;
+}
+
+// ============================================================
+// INTERACTIONS DE L'ASSISTANT
+// ============================================================
+
+function assistantNext(){
+  assistantStep++;
+  renderAssistantStep();
+}
+
+function assistantSetCharges(has){
+  assistantAnswers.hasCharges = has;
+  const box = document.getElementById('assistantChargesBox');
+  if(box) box.style.display = has ? 'block' : 'none';
+  document.getElementById('aChargesNon')?.classList.toggle('active', !has);
+  document.getElementById('aChargesOui')?.classList.toggle('active', has);
+}
+
+function assistantUpdateChargesAmount(){
+  const val = parseFloat(document.getElementById('assistantChargesAmount').value) || 0;
+  assistantAnswers.chargesAmount = val;
+}
+
+function assistantValidateCharges(){
+  if(assistantAnswers.hasCharges === null){
+    alert('Choisis Oui ou Non');
+    return;
+  }
+  if(assistantAnswers.hasCharges){
+    const val = parseFloat(document.getElementById('assistantChargesAmount').value) || 0;
+    if(val <= 0){
+      alert('Indique un montant de charges');
+      return;
+    }
+    assistantAnswers.chargesAmount = val;
+    assistantAnswers.chargesDetails = document.getElementById('assistantChargesDetails').value.trim();
+  } else {
+    assistantAnswers.chargesAmount = 0;
+    assistantAnswers.chargesDetails = '';
+  }
+  assistantNext();
+}
+
+function assistantSetGoal(id){
+  assistantAnswers.goalId = id;
+  renderAssistantStep();
+}
+
+function assistantUpdateEpargne(){
+  const val = parseFloat(document.getElementById('assistantEpargneAmount').value) || 0;
+  assistantAnswers.epargneAmount = val;
+}
+
+function assistantQuickEpargne(amount){
+  const input = document.getElementById('assistantEpargneAmount');
+  if(input){
+    input.value = amount;
+    assistantAnswers.epargneAmount = amount;
+  }
+}
+
+function assistantValidateEpargne(){
+  const val = parseFloat(document.getElementById('assistantEpargneAmount').value) || 0;
+  const m = assistantData.amount;
+  const charges = assistantAnswers.chargesAmount || 0;
+
+  if(val < 0){
+    alert('Montant invalide');
+    return;
+  }
+  if(val + charges > m){
+    alert('Épargne + charges dépassent le montant reçu');
+    return;
+  }
+  assistantAnswers.epargneAmount = val;
+  assistantNext();
+}
+
+// Appliquer la répartition → créer les transactions
+async function assistantAppliquer(){
+  const charges = assistantAnswers.chargesAmount || 0;
+  const epargne = assistantAnswers.epargneAmount || 0;
+  const goalId = assistantAnswers.goalId;
+
+  let txCreated = 0;
+
+  // 1. Créer la transaction de charges (si > 0)
+  if(charges > 0){
+    const chargeResult = await dbInsert('transactions', {
+      type: 'depense',
+      amount: charges,
+      category: 'Business',
+      note: 'Charges prestation · ' + (assistantAnswers.chargesDetails || ''),
+      date: todayStr(),
+      payment_method: 'Interne'
+    });
+    if(chargeResult){
+      txs.unshift(chargeResult);
+      txCreated++;
+    }
+  }
+
+  // 2. Créer la transaction d'épargne (si > 0)
+  if(epargne > 0){
+    const epargneResult = await dbInsert('transactions', {
+      type: 'depense',
+      amount: epargne,
+      category: 'Épargne',
+      note: 'Épargne automatique (assistant)',
+      date: todayStr(),
+      payment_method: 'Interne'
+    });
+    if(epargneResult){
+      txs.unshift(epargneResult);
+      txCreated++;
+    }
+
+    // 3. Alimenter l'objectif si sélectionné
+    if(goalId){
+      const goal = coffres.find(c => c.id === goalId);
+      if(goal){
+        const newCurrent = Number(goal.current || 0) + epargne;
+        const upd = await dbUpdate('goals', goalId, {current: newCurrent});
+        if(upd){
+          goal.current = newCurrent;
+        }
+      }
+    }
+  }
+
+  closeAssistant();
+  refreshAll();
+
+  const msg = txCreated > 0
+    ? `✅ Répartition appliquée · ${txCreated} transaction${txCreated > 1 ? 's' : ''} créée${txCreated > 1 ? 's' : ''}`
+    : 'Enregistré sans répartition';
+  showToast(msg);
+}
 // ============================================================
 // INITIALISATION
 // ============================================================
@@ -4764,12 +5640,14 @@ setInterval(() => {
   checkDailyReminders();
   checkNoteReminders();
   checkGoalReminders();
+  checkShootReminders();
 }, 60000);
 
 function init(){
   setType('depense');
   setupAutocomplete('shootLocation', 'shootLocationList');
   setupAutocomplete('clientCity', 'clientCityList');
+  setupAutocomplete('revLocation', 'revLocationList');  // 🆕 Ajout
   populateHistFilters();
   refreshAll();
   updateAiStatus();
@@ -4795,10 +5673,11 @@ function init(){
   setTimeout(verifierEpargneEnCours, 2000);
 
   setTimeout(() => {
-    checkAutomaticNotifications();
-    checkDailyReminders();
-    checkGoalReminders();
-  }, 2500);
+  checkAutomaticNotifications();
+  checkDailyReminders();
+  checkGoalReminders();
+  checkShootReminders();
+}, 2500);
 }
 
 (async function bootstrap(){

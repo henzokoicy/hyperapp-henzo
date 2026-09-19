@@ -260,24 +260,23 @@
     <div class="card">
       <h2>⚡ Actions rapides</h2>
       <div class="quick-actions">
-        <button class="quick-action" onclick="openModal()">
-          <div class="quick-icon" style="background:rgba(46,204,113,.15);color:var(--green)">💸</div>
-          <div class="quick-label">Transaction</div>
-        </button>
-        <button class="quick-action" onclick="openNoteModal()">
-          <div class="quick-icon" style="background:rgba(108,140,255,.15);color:var(--accent)">📝</div>
-          <div class="quick-label">Note</div>
-        </button>
-        <button class="quick-action" onclick="drawerNavigate('photo');setTimeout(()=>openShootModal(),200)">
-          <div class="quick-icon" style="background:rgba(255,107,157,.15);color:var(--pink)">📸</div>
-          <div class="quick-label">Séance</div>
-        </button>
-        <button class="quick-action" onclick="openChat()">
-          <div class="quick-icon" style="background:rgba(245,185,66,.15);color:var(--yellow)">🤖</div>
-          <div class="quick-label">IA</div>
-        </button>
-      </div>
-    </div>
+  <button class="quick-action" onclick="openRevenueModal()">
+    <div class="quick-icon" style="background:linear-gradient(135deg,rgba(52,211,153,.20),rgba(52,211,153,.08));color:var(--green)">💰</div>
+    <div class="quick-label">Entrée d'argent</div>
+  </button>
+  <button class="quick-action" onclick="openModal()">
+    <div class="quick-icon" style="background:rgba(255,107,107,.15);color:var(--red)">💸</div>
+    <div class="quick-label">Dépense</div>
+  </button>
+  <button class="quick-action" onclick="openNoteModal()">
+    <div class="quick-icon" style="background:rgba(108,140,255,.15);color:var(--accent)">📝</div>
+    <div class="quick-label">Note</div>
+  </button>
+  <button class="quick-action" onclick="openChat()">
+    <div class="quick-icon" style="background:rgba(245,185,66,.15);color:var(--yellow)">🤖</div>
+    <div class="quick-label">IA</div>
+  </button>
+</div>
 
     <!-- VUE GLOBALE -->
     <div class="card">
@@ -865,6 +864,120 @@
     <label for="note">Note</label><input type="text" id="note" placeholder="Ex: courses, shooting...">
     <label for="date">Date</label><input type="date" id="date">
     <button class="btn-primary" onclick="saveTx()">Enregistrer</button>
+  </div>
+</div>
+<!-- MODAL ENTRÉE D'ARGENT DÉTAILLÉE -->
+<div class="modal-bg" id="revenueModalBg" onclick="if(event.target===this)closeRevenueModal()">
+  <div class="modal">
+    <div class="modal-wrap">
+      <h3>💰 Nouvelle entrée d'argent</h3>
+      <button class="close" onclick="closeRevenueModal()" aria-label="Fermer">×</button>
+    </div>
+
+    <!-- Montant en gros -->
+    <div style="background:linear-gradient(135deg,rgba(52,211,153,.15),rgba(107,142,255,.08));border-radius:14px;padding:16px;margin-bottom:14px;text-align:center">
+      <label style="margin:0;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Montant reçu</label>
+      <input type="number" id="revAmount" inputmode="decimal" placeholder="0" style="font-size:28px;font-weight:800;text-align:center;background:transparent;border:none;color:var(--green);padding:6px 0;width:100%">
+      <div style="font-size:11px;color:var(--muted)">FCFA</div>
+    </div>
+
+    <!-- Client -->
+    <label>👤 Client</label>
+    <input type="text" id="revClientName" placeholder="Nom du client" list="revClientsList" autocomplete="off">
+    <datalist id="revClientsList"></datalist>
+
+    <!-- Type de prestation -->
+    <label>📸 Type de prestation</label>
+    <select id="revPrestationType">
+      <option value="Mariage">💍 Mariage</option>
+      <option value="Dot">💐 Dot</option>
+      <option value="Shooting Studio">🎬 Shooting Studio</option>
+      <option value="Shoot Extérieur">🌳 Shoot Extérieur</option>
+      <option value="Corporate">💼 Corporate / PME</option>
+      <option value="Drone">🚁 Drone</option>
+      <option value="Événement">🎉 Événement</option>
+      <option value="Portrait">👤 Portrait</option>
+      <option value="Autre">✏️ Autre</option>
+    </select>
+
+    <!-- Type de paiement -->
+    <label>💰 Type de paiement</label>
+    <div class="type-toggle" style="margin-bottom:8px">
+      <button type="button" id="revTypeComplet" class="active" onclick="setRevenueType('complet')">✅ Complet</button>
+      <button type="button" id="revTypeAcompte" onclick="setRevenueType('acompte')">💰 Acompte</button>
+      <button type="button" id="revTypeSolde" onclick="setRevenueType('solde')">📌 Solde</button>
+    </div>
+
+    <!-- Mode de paiement -->
+    <label>💳 Mode de paiement</label>
+    <select id="revPaymentMethod">
+      <option value="Wave">💙 Wave</option>
+      <option value="Espèces">💵 Espèces</option>
+      <option value="Orange Money">🟠 Orange Money</option>
+      <option value="MTN Money">🟡 MTN Money</option>
+      <option value="Moov Money">🔵 Moov Money</option>
+      <option value="Virement bancaire">🏦 Virement</option>
+      <option value="Chèque">📝 Chèque</option>
+      <option value="Autre">✏️ Autre</option>
+    </select>
+
+    <!-- Date & heure -->
+    <label>📅 Date et heure</label>
+    <input type="datetime-local" id="revDate">
+
+    <!-- Lieu -->
+    <label>📍 Lieu</label>
+    <div class="autocomplete-wrap">
+      <input type="text" id="revLocation" placeholder="Tape une ville..." autocomplete="off">
+      <div class="autocomplete-list" id="revLocationList"></div>
+    </div>
+
+    <!-- Détails optionnels -->
+    <div class="collapsible-head" onclick="toggleRevenueDetails()" style="margin-top:14px;padding:10px 0;border-top:1px solid var(--border)">
+      <div style="font-size:13px;font-weight:600;color:var(--accent)">➕ Plus de détails (optionnel)</div>
+      <span class="collapse-arrow" id="revDetailsArrow">▼</span>
+    </div>
+
+    <div id="revDetailsBody" style="display:none;margin-top:10px">
+      <div class="row" style="gap:8px">
+        <div style="flex:1">
+          <label>⏱ Durée (h)</label>
+          <input type="number" id="revDuration" inputmode="decimal" placeholder="Ex: 4.5" step="0.5">
+        </div>
+        <div style="flex:1">
+          <label>📷 Nb photos</label>
+          <input type="number" id="revPhotoCount" inputmode="numeric" placeholder="Ex: 250">
+        </div>
+      </div>
+
+      <label>📝 Détails libres</label>
+      <textarea id="revDetails" rows="3" placeholder="Ex: 4h de couverture, retouches incluses, album 30 pages, livraison sous 2 semaines..."></textarea>
+    </div>
+
+    <button class="btn-primary" style="background:linear-gradient(135deg,var(--green),#10b981);margin-top:18px;width:100%;font-weight:800" onclick="saveRevenue()">
+      💾 Enregistrer l'entrée
+    </button>
+  </div>
+</div>
+<!-- 🤖 ASSISTANT FINANCIER CONVERSATIONNEL -->
+<div class="modal-bg" id="assistantModalBg" onclick="if(event.target===this)closeAssistant()">
+  <div class="modal">
+    <!-- En-tête avec progression -->
+    <div class="modal-wrap" style="margin-bottom:14px">
+      <h3 style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:24px">🤖</span>
+        Assistant financier
+      </h3>
+      <button class="close" onclick="closeAssistant()">×</button>
+    </div>
+
+    <!-- Barre de progression -->
+    <div style="height:6px;background:var(--card2);border-radius:3px;overflow:hidden;margin-bottom:20px">
+      <div id="assistantProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--pink));transition:width .4s ease;border-radius:3px"></div>
+    </div>
+
+    <!-- Étape affichée dynamiquement -->
+    <div id="assistantStep"></div>
   </div>
 </div>
 
