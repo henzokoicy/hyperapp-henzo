@@ -1328,6 +1328,56 @@ function renderClients(){
       </div>
     </div>`).join('');
 }
+// ============================================================
+// Voir les règles de répartition
+// ============================================================
+function ouvrirGuideRegles(){
+  const existing = document.getElementById('reglesModal');
+  if(existing) existing.remove();
+
+  const rows = Object.entries(REGLES_REPARTITION)
+    .filter(([k]) => k !== 'default')
+    .map(([key, r]) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-weight:700;font-size:14px">${r.icon} ${r.label}</div>
+          <div style="font-size:11px;color:var(--muted)">Répartition conseillée</div>
+        </div>
+        <div style="text-align:right;font-size:12px">
+          <div style="color:var(--green);font-weight:700">💰 ${r.epargne}%</div>
+          <div style="color:var(--yellow);font-weight:700">🏠 ${r.charges}%</div>
+          <div style="color:var(--accent);font-weight:700">🎉 ${r.libre}%</div>
+        </div>
+      </div>
+    `).join('');
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'reglesModal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>🧠 Mes règles de répartition</h3>
+        <button class="close" onclick="document.getElementById('reglesModal').remove()">×</button>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(107,142,255,.12),rgba(255,126,179,.06));border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--text);line-height:1.5">
+        💡 Quand tu reçois un paiement, l'app te suggère une répartition automatique selon le type de prestation.
+      </div>
+
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
+        ${rows}
+      </div>
+
+      <div style="font-size:12px;color:var(--muted);text-align:center;line-height:1.5">
+        Ces règles sont des <strong>suggestions</strong>. Tu restes libre d'appliquer ou non.
+      </div>
+
+      <button class="btn-ghost" style="margin-top:16px;width:100%" onclick="document.getElementById('reglesModal').remove()">Fermer</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
 
 // ============================================================
 // MODULE PHOTO - SÉANCES
@@ -4333,8 +4383,12 @@ async function envoyerRecuWhatsApp(linkId) {
 }
 
 async function marquerLienPaye(id) {
-  if(!confirm('Confirmer que le paiement a bien été reçu ?')) return;
+  const link = paymentLinks.find(l => l.id === id);
+  if(!link) { alert('Lien introuvable'); return; }
 
+  if(!confirm(`Confirmer que tu as reçu ${fmt(link.amount)} pour "${link.description}" ?`)) return;
+
+  // 1. Marquer le lien comme payé
   const result = await dbUpdate('payment_links', id, {
     status: 'paid',
     paid_at: new Date().toISOString()
@@ -4344,11 +4398,26 @@ async function marquerLienPaye(id) {
   const idx = paymentLinks.findIndex(l => l.id === id);
   if(idx >= 0) paymentLinks[idx] = result;
 
-  renderPaymentLinks();
-  showToast('Paiement enregistré');
+  // 2. Créer AUTOMATIQUEMENT la transaction de revenu
+  const txResult = await dbInsert('transactions', {
+    type: 'revenu',
+    amount: Number(link.amount),
+    category: 'Shooting photo',
+    note: (link.description || 'Paiement') + ' · ' + (link.client_name || ''),
+    date: todayStr()
+  });
 
-  // Ouvre automatiquement la modale du reçu
-  setTimeout(() => ouvrirRecuModal(id), 400);
+  if(txResult){
+    txs.unshift(txResult);
+  }
+
+  // 3. Rafraîchir tout
+  renderPaymentLinks();
+  refreshAll();
+  showToast(fmt(link.amount) + ' ajouté aux revenus');
+
+  // 4. Ouvrir la modale de répartition intelligente
+  setTimeout(() => ouvrirGuideRepartition(id), 500);
 }
 
 async function supprimerLien(id) {
@@ -4413,6 +4482,165 @@ function renderLienItem(l, isPaid) {
 function revOirLien(id) {
   const l = paymentLinks.find(x => x.id === id);
   if(l) afficherLienGenere(l);
+}
+// ============================================================
+// 🆕 GUIDE FINANCIER INTELLIGENT
+// Aide Henzo à répartir ses revenus par type de prestation
+// ============================================================
+
+// Règles par défaut de répartition (%)
+const REGLES_REPARTITION = {
+  'mariage':    { epargne: 30, charges: 40, libre: 30, icon: '💍', label: 'Mariage' },
+  'dot':        { epargne: 30, charges: 40, libre: 30, icon: '💐', label: 'Dot' },
+  'studio':     { epargne: 25, charges: 45, libre: 30, icon: '🎬', label: 'Studio' },
+  'shooting':   { epargne: 20, charges: 50, libre: 30, icon: '📸', label: 'Shooting' },
+  'corporate':  { epargne: 25, charges: 45, libre: 30, icon: '💼', label: 'Corporate' },
+  'drone':      { epargne: 30, charges: 40, libre: 30, icon: '🚁', label: 'Drone' },
+  'default':    { epargne: 20, charges: 50, libre: 30, icon: '💰', label: 'Paiement' }
+};
+
+// Détecter le type de prestation depuis le texte
+function detecterTypePrestation(description){
+  const d = (description || '').toLowerCase();
+  if(d.includes('mariage'))    return 'mariage';
+  if(d.includes('dot'))        return 'dot';
+  if(d.includes('studio'))     return 'studio';
+  if(d.includes('corporate') || d.includes('pme') || d.includes('entreprise')) return 'corporate';
+  if(d.includes('drone'))      return 'drone';
+  if(d.includes('shooting') || d.includes('shoot') || d.includes('séance') || d.includes('seance')) return 'shooting';
+  return 'default';
+}
+
+// Ouvre la modale de répartition intelligente
+function ouvrirGuideRepartition(linkId) {
+  const link = paymentLinks.find(l => l.id === linkId);
+  if(!link) return;
+
+  const existing = document.getElementById('guideRepartitionModal');
+  if(existing) existing.remove();
+
+  const montant = Number(link.amount);
+  const type = detecterTypePrestation(link.description);
+  const regle = REGLES_REPARTITION[type];
+
+  // Calcul de la répartition suggérée
+  const epargne = Math.round(montant * regle.epargne / 100);
+  const charges = Math.round(montant * regle.charges / 100);
+  const libre = montant - epargne - charges;
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'guideRepartitionModal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>🧠 Guide de répartition</h3>
+        <button class="close" onclick="fermerGuideRepartition()">×</button>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(52,211,153,.15),rgba(107,142,255,.10));border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Montant reçu</div>
+        <div style="font-size:32px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(montant)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px">${regle.icon} ${regle.label} · ${link.client_name || ''}</div>
+      </div>
+
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">💡 Suggestion automatique basée sur le type de prestation :</div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-weight:700;color:var(--green);font-size:14px">💰 Épargne</div>
+            <div style="font-size:11px;color:var(--muted)">${regle.epargne}% · Priorité absolue</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:800;color:var(--green);font-size:16px">${fmt(epargne)}</div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-weight:700;color:var(--yellow);font-size:14px">🏠 Charges</div>
+            <div style="font-size:11px;color:var(--muted)">${regle.charges}% · Loyer, transport, nourriture</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:800;color:var(--yellow);font-size:16px">${fmt(charges)}</div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0">
+          <div>
+            <div style="font-weight:700;color:var(--accent);font-size:14px">🎉 Libre</div>
+            <div style="font-size:11px;color:var(--muted)">${regle.libre}% · Plaisir, sortie, achat perso</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:800;color:var(--accent);font-size:16px">${fmt(libre)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.05));border:1px solid rgba(245,197,66,.25);border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--gold-soft);line-height:1.5">
+        💡 <strong>Conseil :</strong> ${getConseilGuide(type, montant, epargne)}
+      </div>
+
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;text-align:center">
+        Veux-tu appliquer cette répartition ?
+      </div>
+
+      <div style="display:grid;gap:8px">
+        <button class="btn-primary" style="margin:0;background:linear-gradient(135deg,var(--green),#10b981);width:100%;color:#000;font-weight:800" onclick="appliquerRepartition(${link.id}, ${epargne})">
+          ✅ Appliquer l'épargne (${fmt(epargne)})
+        </button>
+        <button class="btn-ghost" style="margin:0;width:100%" onclick="fermerGuideRepartition()">
+          Plus tard
+        </button>
+      </div>
+
+      <div style="font-size:11px;color:var(--muted);margin-top:12px;text-align:center;line-height:1.5">
+        Tu peux toujours ajuster manuellement tes transactions plus tard.
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// Conseil personnalisé selon le type
+function getConseilGuide(type, montant, epargne){
+  const conseils = {
+    'mariage':    `Un mariage c'est un gros paiement ponctuel. Mets de côté ${fmt(epargne)} maintenant, tu ne le regretteras pas.`,
+    'dot':        `Après un dot, mets immédiatement ton épargne de côté. C'est un revenu qu'on ne reverra pas de sitôt.`,
+    'studio':     `Le studio c'est régulier. Une épargne de ${fmt(epargne)} te construira un vrai matelas de sécurité.`,
+    'shooting':   `Les shootings s'enchaînent bien. Épargne ${fmt(epargne)} pour tes prochains investissements matériel.`,
+    'corporate':  `Un client corporate = revenu fiable. Place ${fmt(epargne)} en épargne pour équilibrer tes mois creux.`,
+    'drone':      `Le drone demande de l'entretien. Épargne ${fmt(epargne)} pour anticiper les réparations.`,
+    'default':    `Épargne ${fmt(epargne)} dès maintenant. Petit à petit, tu construis ta liberté.`
+  };
+  return conseils[type] || conseils.default;
+}
+
+// Appliquer la répartition : crée une transaction d'épargne
+async function appliquerRepartition(linkId, montantEpargne){
+  if(!confirm(`Créer une épargne de ${fmt(montantEpargne)} ?\n\n(Ça créera une transaction de dépense "Épargne" pour équilibrer)`)) return;
+
+  // Créer une transaction d'épargne (dépense qui va dans les objectifs)
+  const result = await dbInsert('transactions', {
+    type: 'depense',
+    amount: montantEpargne,
+    category: 'Épargne',
+    note: 'Épargne automatique (guide)',
+    date: todayStr()
+  });
+
+  if(!result){ alert('Erreur lors de la création'); return; }
+
+  txs.unshift(result);
+  fermerGuideRepartition();
+  refreshAll();
+  showToast(fmt(montantEpargne) + ' placé en épargne ! 🎯');
+}
+
+function fermerGuideRepartition(){
+  const m = document.getElementById('guideRepartitionModal');
+  if(m) m.remove();
 }
 // ============================================================
 // 🆕 POPUP CUSTOM DANS L'APP (glisse depuis le haut)
