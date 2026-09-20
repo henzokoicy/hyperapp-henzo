@@ -4206,11 +4206,33 @@ function ouvrirCreerLien(prefill) {
         <button class="btn-ghost" style="margin-top:10px;width:100%;padding:8px;font-size:12px;background:var(--wave);color:#000;border-color:var(--wave);font-weight:700" onclick="ouvrirAppWave()">📱 Ouvrir Wave</button>
       </div>
 
-      <label>Nom du client</label>
-      <input type="text" id="lienClientName" placeholder="Ex: M. Kouassi" list="lienClientsList" autocomplete="off" value="${(prefill.clientName || '').replace(/"/g, '&quot;')}">
+           <label>Nom du client</label>
+      <div style="display:flex;gap:6px;align-items:stretch">
+        <input type="text" id="lienClientName" placeholder="Ex: M. Kouassi" list="lienClientsList" autocomplete="off" style="flex:1" value="${(prefill.clientName || '').replace(/"/g, '&quot;')}" oninput="syncLienClientPhone()">
+        <button type="button" onclick="ouvrirNouveauClientLien()" style="width:auto;padding:0 16px;margin:0;background:var(--green);color:#000;border:none;border-radius:10px;font-weight:800;font-size:18px;cursor:pointer;flex-shrink:0" title="Créer un nouveau client">➕</button>
+      </div>
       <datalist id="lienClientsList">
         ${clients.map(c => `<option value="${c.name}">`).join('')}
       </datalist>
+
+      <div id="lienNewClientWrap" style="display:none;background:var(--card2);border-radius:12px;padding:12px;margin-top:10px;border:1px solid var(--green)">
+        <div style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:10px">➕ Nouveau client rapide</div>
+
+        <label style="margin-top:0">Nom complet *</label>
+        <input type="text" id="lienNewClientName" placeholder="Ex: Awa Kouassi">
+
+        <label>Téléphone (optionnel)</label>
+        <input type="tel" id="lienNewClientPhone" placeholder="Ex: 07 00 00 00 00">
+
+        <label>Ville (optionnel)</label>
+        <input type="text" id="lienNewClientCity" placeholder="Ex: Abidjan" list="lienNewClientCityList" autocomplete="off">
+        <datalist id="lienNewClientCityList"></datalist>
+
+        <div style="display:flex;gap:6px;margin-top:12px">
+          <button type="button" class="btn-ghost" style="margin:0;flex:1;font-size:13px" onclick="annulerNouveauClientLien()">Annuler</button>
+          <button type="button" class="btn-primary" style="margin:0;flex:2;background:var(--green);font-size:13px" onclick="sauverNouveauClientLien()">✅ Créer le client</button>
+        </div>
+      </div>
 
       <label>Téléphone (optionnel)</label>
       <input type="tel" id="lienClientPhone" placeholder="Ex: 07 00 00 00 00" value="${(prefill.clientPhone || '').replace(/"/g, '&quot;')}">
@@ -4302,6 +4324,94 @@ function mettreAJourMontant() {
   box.style.display = 'block';
 }
 
+// ============================================================
+// CRÉATION RAPIDE DE CLIENT DEPUIS LA MODALE LIEN DE PAIEMENT
+// ============================================================
+
+// Auto-remplit le téléphone quand on choisit un client existant
+function syncLienClientPhone(){
+  const nameInput = document.getElementById('lienClientName');
+  const phoneInput = document.getElementById('lienClientPhone');
+  if(!nameInput || !phoneInput) return;
+  const name = nameInput.value.trim().toLowerCase();
+  if(!name) return;
+  const found = clients.find(c => c.name.toLowerCase() === name);
+  if(found && found.phone){
+    phoneInput.value = found.phone;
+  }
+}
+
+function ouvrirNouveauClientLien(){
+  const wrap = document.getElementById('lienNewClientWrap');
+  if(!wrap) return;
+  wrap.style.display = 'block';
+
+  // Remplir la liste des villes
+  const dl = document.getElementById('lienNewClientCityList');
+  if(dl && typeof VILLES_CI !== 'undefined'){
+    dl.innerHTML = VILLES_CI.map(v => `<option value="${v}">`).join('');
+  }
+
+  setTimeout(() => document.getElementById('lienNewClientName')?.focus(), 150);
+}
+
+function annulerNouveauClientLien(){
+  const wrap = document.getElementById('lienNewClientWrap');
+  if(wrap) wrap.style.display = 'none';
+  const n = document.getElementById('lienNewClientName');
+  const p = document.getElementById('lienNewClientPhone');
+  const c = document.getElementById('lienNewClientCity');
+  if(n) n.value = '';
+  if(p) p.value = '';
+  if(c) c.value = '';
+}
+
+async function sauverNouveauClientLien(){
+  const name = (document.getElementById('lienNewClientName')?.value || '').trim();
+  const phone = (document.getElementById('lienNewClientPhone')?.value || '').trim();
+  const city = (document.getElementById('lienNewClientCity')?.value || '').trim();
+
+  if(!name){
+    alert('Le nom du client est requis');
+    document.getElementById('lienNewClientName')?.focus();
+    return;
+  }
+
+  // Créer dans Supabase
+  const result = await dbInsert('clients', {
+    name,
+    phone: phone || null,
+    email: null,
+    city: city || null,
+    notes: null
+  });
+
+  if(!result) return;
+
+  // Ajouter à la liste locale
+  clients.unshift(result);
+
+  // Remplir les champs de la modale lien
+  const nameInput = document.getElementById('lienClientName');
+  const phoneInput = document.getElementById('lienClientPhone');
+  if(nameInput) nameInput.value = result.name;
+  if(phoneInput && result.phone) phoneInput.value = result.phone;
+
+  // Rafraîchir le datalist des clients
+  const dl = document.getElementById('lienClientsList');
+  if(dl){
+    dl.innerHTML = clients.map(c => `<option value="${c.name}">`).join('');
+  }
+
+  // Cacher le mini-form
+  annulerNouveauClientLien();
+
+  // Rafraîchir la vue clients
+  if(typeof renderClients === 'function') renderClients();
+  if(typeof refreshAll === 'function') refreshAll();
+
+  showToast('✅ Client créé : ' + result.name);
+}
 async function genererLienPersonnalise() {
   const clientName = document.getElementById('lienClientName').value.trim();
   const clientPhone = document.getElementById('lienClientPhone').value.trim();
