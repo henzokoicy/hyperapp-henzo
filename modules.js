@@ -3410,7 +3410,29 @@ async function getChatStorageKey(){
   return 'chat_history_' + (user?.email || 'anon');
 }
 
+// Charge la conversation depuis Supabase (avec fallback localStorage)
 async function loadChatHistory(){
+  try {
+    const user = await getCurrentUser();
+    if(user){
+      const { data, error } = await sb.from('user_settings')
+        .select('chat_history')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if(!error && data && Array.isArray(data.chat_history)){
+        chatHistory = data.chat_history;
+        // Mettre à jour le cache local
+        const key = await getChatStorageKey();
+        localStorage.setItem(key, JSON.stringify(chatHistory));
+        return;
+      }
+    }
+  } catch(e){
+    console.warn('loadChatHistory Supabase error:', e);
+  }
+
+  // Fallback : localStorage
   try {
     const key = await getChatStorageKey();
     const raw = localStorage.getItem(key);
@@ -3418,12 +3440,30 @@ async function loadChatHistory(){
   } catch(e){ chatHistory = []; }
 }
 
+// Sauvegarde dans Supabase ET localStorage (50 derniers messages)
 async function saveChatHistory(){
+  // Limiter à 50 messages
+  const toSave = chatHistory.slice(-50);
+  chatHistory = toSave;
+
+  // 1. Sauvegarder dans localStorage (rapide)
   try {
     const key = await getChatStorageKey();
-    const toSave = chatHistory.slice(-100);
     localStorage.setItem(key, JSON.stringify(toSave));
   } catch(e){}
+
+  // 2. Sauvegarder dans Supabase (synchro entre appareils)
+  try {
+    const user = await getCurrentUser();
+    if(user){
+      await sb.from('user_settings').upsert(
+        { user_id: user.id, chat_history: toSave },
+        { onConflict: 'user_id' }
+      );
+    }
+  } catch(e){
+    console.warn('saveChatHistory Supabase error:', e);
+  }
 }
 
 async function openChat(){
@@ -3694,9 +3734,28 @@ function copyFullChat(){
 }
 
 async function clearChat(){
-  if(!confirm('Effacer toute la conversation ?')) return;
+  if(!confirm('Effacer toute la conversation sur TOUS tes appareils ?')) return;
   chatHistory = [];
-  await saveChatHistory();
+
+  // Effacer du localStorage
+  try {
+    const key = await getChatStorageKey();
+    localStorage.removeItem(key);
+  } catch(e){}
+
+  // Effacer de Supabase
+  try {
+    const user = await getCurrentUser();
+    if(user){
+      await sb.from('user_settings').upsert(
+        { user_id: user.id, chat_history: [] },
+        { onConflict: 'user_id' }
+      );
+    }
+  } catch(e){
+    console.warn('clearChat Supabase error:', e);
+  }
+
   renderChatMessages();
   closeChat();
   setTimeout(() => openChat(), 200);
