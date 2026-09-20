@@ -420,6 +420,35 @@ h1{
 .balance.pos{
   background:linear-gradient(135deg,var(--green),#6ee7b7);
   -webkit-background-clip:text;background-clip:text;
+  animation:balancePulseGreen 4s var(--ease) infinite;
+}
+
+.balance.neg{
+  background:linear-gradient(135deg,var(--red),#ff8c8c);
+  -webkit-background-clip:text;background-clip:text;
+  animation:balancePulseRed 2s var(--ease) infinite;
+}
+
+@keyframes balancePulseGreen{
+  0%, 100%{
+    filter:drop-shadow(0 0 0px rgba(52,211,153,0));
+    opacity:1;
+  }
+  50%{
+    filter:drop-shadow(0 0 12px rgba(52,211,153,.5));
+    opacity:0.92;
+  }
+}
+
+@keyframes balancePulseRed{
+  0%, 100%{
+    filter:drop-shadow(0 0 0px rgba(255,107,107,0));
+    opacity:1;
+  }
+  50%{
+    filter:drop-shadow(0 0 14px rgba(255,107,107,.6));
+    opacity:0.9;
+  }
 }
 
 .row{display:flex;gap:8px}
