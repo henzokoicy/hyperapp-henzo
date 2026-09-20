@@ -4613,7 +4613,17 @@ function afficherLienGenere(link) {
     clientName: link.client_name || 'Client',
     desc: link.description || 'Paiement',
     montant: link.amount || 0,
-    phone: link.client_phone || ''
+    phone: link.client_phone || '',
+    // 🆕 Toutes les infos supplémentaires
+    ref: ref,
+    paymentType: link.payment_type || 'complet',
+    totalAmount: link.total_amount || 0,
+    shootDate: link.shoot_date || null,
+    shootLocation: link.shoot_location || '',
+    shootType: link.shoot_type || '',
+    photoCount: link.photo_count || null,
+    shootDuration: link.shoot_duration || null,
+    paymentMethod: link.payment_method || ''
   };
 
   const typeLabels = {
@@ -4671,8 +4681,62 @@ function envoyerLienWhatsAppActuel() {
   const data = window.__lienCourant;
   if(!data) { alert('Erreur : lien introuvable'); return; }
 
-  const message = `Bonjour ${data.clientName} 👋,\n\nVoici votre lien de paiement sécurisé :\n\n📝 ${data.desc}\n💳 ${fmt(data.montant)}\n\n👉 Cliquez ici pour payer :\n${data.lien}\n\nMerci pour votre confiance !\nHENZO PHOTOGRAPHIE`;
+  // Type de paiement en clair
+  const typeLabels = {
+    'complet':  {icon: '✅', label: 'Paiement complet'},
+    'acompte30':{icon: '💰', label: 'Acompte 30%'},
+    'acompte50':{icon: '💰', label: 'Acompte 50%'},
+    'solde':    {icon: '📌', label: 'Solde restant'}
+  };
+  const typeInfo = typeLabels[data.paymentType] || typeLabels['complet'];
 
+  // Construction du message
+  let message = `Bonjour ${data.clientName} 👋,\n\n`;
+  message += `Voici votre lien de paiement sécurisé :\n\n`;
+  message += `📝 *Prestation :* ${data.desc}\n`;
+
+  // Ajouter les détails du shoot si présents
+  if(data.shootDate){
+    const d = new Date(data.shootDate);
+    const dateStr = d.toLocaleDateString('fr-FR', {weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'});
+    const timeStr = d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+    message += `📅 *Date :* ${dateStr} à ${timeStr}\n`;
+  }
+  if(data.shootLocation){
+    message += `📍 *Lieu :* ${data.shootLocation}\n`;
+  }
+  if(data.shootDuration){
+    message += `⏱ *Durée :* ${data.shootDuration}h\n`;
+  }
+  if(data.photoCount){
+    message += `📷 *Photos :* ${data.photoCount}\n`;
+  }
+  message += `\n`;
+
+  // Montant à payer + type
+  message += `${typeInfo.icon} *${typeInfo.label}*\n`;
+  message += `💵 *Montant à payer :* ${fmt(data.montant)}\n`;
+
+  // Si c'est un acompte ou un solde, afficher le total et le reste
+  if(data.totalAmount && data.totalAmount > data.montant){
+    const reste = data.totalAmount - data.montant;
+    message += `\n📊 *Détail du paiement :*\n`;
+    message += `• Total prestation : ${fmt(data.totalAmount)}\n`;
+    message += `• Vous payez maintenant : ${fmt(data.montant)}\n`;
+    message += `• Reste à payer plus tard : ${fmt(reste)}\n`;
+  }
+
+  // Référence
+  if(data.ref){
+    message += `\n📄 *Référence :* ${data.ref}\n`;
+  }
+
+  // Lien
+  message += `\n👉 *Cliquez ici pour payer :*\n${data.lien}\n\n`;
+  message += `Merci pour votre confiance !\n`;
+  message += `HENZO PHOTOGRAPHIE 📸`;
+
+  // Ouverture WhatsApp
   let url;
   if(data.phone) {
     const clean = data.phone.replace(/[^0-9]/g, '');
