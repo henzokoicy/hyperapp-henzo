@@ -1396,11 +1396,18 @@ function openShootModal(id){
 
   document.getElementById('shootModalTitle').textContent = s ? 'Modifier la séance' : 'Nouvelle séance';
 
-  const sel = document.getElementById('shootClient');
-  sel.innerHTML = '<option value="">-- Choisir --</option>' + clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    const sel = document.getElementById('shootClient');
+  sel.innerHTML = '<option value="">-- Choisir --</option>'
+    + clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')
+    + '<option value="__new__" style="color:var(--green);font-weight:700">➕ Créer un nouveau client</option>';
+
+  // Cacher le mini-formulaire à l'ouverture
+  const newWrap = document.getElementById('shootNewClientWrap');
+  if(newWrap) newWrap.style.display = 'none';
 
   if(s){
     sel.value = s.client_id || '';
+    if(newWrap) newWrap.style.display = 'none';
     const savedType = s.type || 'Mariage';
     if(TYPES_FIXES.includes(savedType)){
       document.getElementById('shootType').value = savedType;
@@ -1710,6 +1717,94 @@ function renderShoots(){
       <div class="actions" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">${actionButtons}</div>
     </div>`;
   }).join('');
+}
+
+// ============================================================
+// CRÉATION RAPIDE DE CLIENT DEPUIS LA MODALE SÉANCE
+// ============================================================
+function onShootClientChange(){
+  const sel = document.getElementById('shootClient');
+  const wrap = document.getElementById('shootNewClientWrap');
+  if(!sel || !wrap) return;
+
+  if(sel.value === '__new__'){
+    wrap.style.display = 'block';
+
+    // Remplir la liste de villes
+    const dl = document.getElementById('shootNewClientCityList');
+    if(dl && typeof VILLES_CI !== 'undefined'){
+      dl.innerHTML = VILLES_CI.map(v => `<option value="${v}">`).join('');
+    }
+
+    // Focus sur le champ nom
+    setTimeout(() => document.getElementById('shootNewClientName')?.focus(), 150);
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+function annulerNouveauClientShoot(){
+  const sel = document.getElementById('shootClient');
+  const wrap = document.getElementById('shootNewClientWrap');
+  if(sel) sel.value = '';
+  if(wrap) wrap.style.display = 'none';
+
+  // Vider les champs
+  const nameEl = document.getElementById('shootNewClientName');
+  const phoneEl = document.getElementById('shootNewClientPhone');
+  const cityEl = document.getElementById('shootNewClientCity');
+  if(nameEl) nameEl.value = '';
+  if(phoneEl) phoneEl.value = '';
+  if(cityEl) cityEl.value = '';
+}
+
+async function sauverNouveauClientShoot(){
+  const name = (document.getElementById('shootNewClientName')?.value || '').trim();
+  const phone = (document.getElementById('shootNewClientPhone')?.value || '').trim();
+  const city = (document.getElementById('shootNewClientCity')?.value || '').trim();
+
+  if(!name){
+    alert('Le nom du client est requis');
+    document.getElementById('shootNewClientName')?.focus();
+    return;
+  }
+
+  // Créer le client dans Supabase
+  const result = await dbInsert('clients', {
+    name,
+    phone: phone || null,
+    email: null,
+    city: city || null,
+    notes: null
+  });
+
+  if(!result) return;
+
+  // Ajouter à la liste locale
+  clients.unshift(result);
+
+  // Recharger le select avec le nouveau client SÉLECTIONNÉ
+  const sel = document.getElementById('shootClient');
+  sel.innerHTML = '<option value="">-- Choisir --</option>'
+    + clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')
+    + '<option value="__new__" style="color:var(--green);font-weight:700">➕ Créer un nouveau client</option>';
+
+  sel.value = result.id;
+
+  // Cacher le mini-form
+  const wrap = document.getElementById('shootNewClientWrap');
+  if(wrap) wrap.style.display = 'none';
+
+  // Vider les champs
+  document.getElementById('shootNewClientName').value = '';
+  document.getElementById('shootNewClientPhone').value = '';
+  document.getElementById('shootNewClientCity').value = '';
+
+  // Rafraîchir les autres vues (liste clients, dashboard)
+  if(typeof renderClients === 'function') renderClients();
+  if(typeof refreshAll === 'function') refreshAll();
+
+  showToast('✅ Client créé : ' + result.name);
 }
 
 function renderPhotoStats(){
@@ -4374,7 +4469,7 @@ function apercuLienActuel() {
 }
 
 // ============================================================
-// ⚠️ NE PAS MODIFIER LA SUITE — voir PARTIE 2/2
+// ⚠️ NE PAS MODIFIER LA SUITE - voir PARTIE 2/2
 // ============================================================
 // ============================================================
 // REÇU PDF CLIENT

@@ -1049,7 +1049,27 @@
   <div class="modal">
     <div class="modal-wrap"><h3 id="shootModalTitle">Nouvelle séance</h3>
       <button class="close" onclick="closeShootModal()" aria-label="Fermer">×</button></div>
-    <label for="shootClient">Client</label><select id="shootClient"></select>
+        <label for="shootClient">Client</label>
+    <select id="shootClient" onchange="onShootClientChange()"></select>
+
+    <div id="shootNewClientWrap" style="display:none;background:var(--card2);border-radius:12px;padding:12px;margin-top:10px;border:1px solid var(--accent)">
+      <div style="font-size:12px;color:var(--accent);font-weight:700;margin-bottom:10px">➕ Nouveau client rapide</div>
+
+      <label style="margin-top:0">Nom complet *</label>
+      <input type="text" id="shootNewClientName" placeholder="Ex: Awa Kouassi">
+
+      <label>Téléphone (optionnel)</label>
+      <input type="tel" id="shootNewClientPhone" placeholder="Ex: 07 00 00 00 00">
+
+      <label>Ville (optionnel)</label>
+      <input type="text" id="shootNewClientCity" placeholder="Ex: Abidjan" list="shootNewClientCityList" autocomplete="off">
+      <datalist id="shootNewClientCityList"></datalist>
+
+      <div style="display:flex;gap:6px;margin-top:12px">
+        <button type="button" class="btn-ghost" style="margin:0;flex:1;font-size:13px" onclick="annulerNouveauClientShoot()">Annuler</button>
+        <button type="button" class="btn-primary" style="margin:0;flex:2;background:var(--green);font-size:13px" onclick="sauverNouveauClientShoot()">✅ Créer le client</button>
+      </div>
+    </div>
     <label for="shootType">Type de prestation</label>
     <select id="shootType" onchange="onShootTypeChange()">
       <option>Mariage</option><option>Dot</option><option>Shooting Studio</option>
