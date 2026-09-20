@@ -4887,10 +4887,30 @@ function fermerGuideRepartition(){
 // ============================================================
 // 🆕 POPUP CUSTOM DANS L'APP (glisse depuis le haut)
 // ============================================================
-function afficherPopupNotif(title, message, emoji = '🔔', duration = 6000){
+function afficherPopupNotif(title, message, emoji = '🔔', duration = 10000){
+  // Durée minimum : 8 secondes, même si un appelant passe moins
+  if(!duration || duration < 8000) duration = 10000;
+
   // Supprime l'ancien popup s'il existe
   const old = document.getElementById('henzoPopup');
   if(old) old.remove();
+
+  // Injecte les keyframes une seule fois
+  if(!document.getElementById('henzoPopupStyles')){
+    const style = document.createElement('style');
+    style.id = 'henzoPopupStyles';
+    style.textContent = `
+      @keyframes popupEmojiPulse{
+        0%, 100%{ transform:scale(1); }
+        50%{ transform:scale(1.08); }
+      }
+      @keyframes popupSoftGlow{
+        0%, 100%{ box-shadow: 0 20px 48px rgba(0,0,0,.60), 0 0 0 1px rgba(255,255,255,.06) inset, 0 0 30px rgba(107,142,255,.20); }
+        50%      { box-shadow: 0 20px 48px rgba(0,0,0,.60), 0 0 0 1px rgba(255,255,255,.06) inset, 0 0 50px rgba(107,142,255,.45); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
   const popup = document.createElement('div');
   popup.id = 'henzoPopup';
@@ -4898,25 +4918,23 @@ function afficherPopupNotif(title, message, emoji = '🔔', duration = 6000){
     position: fixed;
     top: 20px;
     left: 50%;
-    transform: translateX(-50%) translateY(-150%);
+    transform: translateX(-50%) translateY(-180%) scale(0.85);
     max-width: 92%;
     width: 400px;
     background: linear-gradient(135deg, #141822 0%, #1c2130 100%);
-    border: 1px solid rgba(107,142,255,.40);
+    border: 1px solid rgba(107,142,255,.45);
     border-radius: 18px;
-    padding: 16px 18px;
-    box-shadow:
-      0 20px 48px rgba(0,0,0,.60),
-      0 0 0 1px rgba(255,255,255,.06) inset,
-      0 0 40px rgba(107,142,255,.20);
+    padding: 16px 18px 20px 18px;
     z-index: 99999;
     display: flex;
     align-items: center;
     gap: 14px;
-    transition: transform .5s cubic-bezier(.34,1.56,.64,1), opacity .35s;
+    transition: transform .6s cubic-bezier(.34,1.56,.64,1), opacity .4s ease;
     opacity: 0;
     pointer-events: auto;
     cursor: pointer;
+    overflow: hidden;
+    animation: popupSoftGlow 3s ease-in-out infinite;
   `;
   popup.innerHTML = `
     <div style="
@@ -4925,12 +4943,13 @@ function afficherPopupNotif(title, message, emoji = '🔔', duration = 6000){
       display:flex;align-items:center;justify-content:center;
       font-size:24px;flex-shrink:0;
       box-shadow:0 8px 20px rgba(107,142,255,.45);
+      animation: popupEmojiPulse 2s ease-in-out infinite;
     ">${emoji}</div>
     <div style="flex:1;min-width:0">
       <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:3px">${title}</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.4">${message}</div>
     </div>
-    <button onclick="event.stopPropagation();document.getElementById('henzoPopup').remove()" style="
+    <button onclick="event.stopPropagation();fermerPopupNotif()" style="
       background:rgba(255,255,255,.08);
       border:none;color:var(--muted);
       width:28px;height:28px;border-radius:50%;
@@ -4938,36 +4957,55 @@ function afficherPopupNotif(title, message, emoji = '🔔', duration = 6000){
       display:flex;align-items:center;justify-content:center;
       transition:background .2s;
     ">×</button>
+    <div id="henzoPopupProgress" style="
+      position:absolute;bottom:0;left:0;height:3px;
+      background:linear-gradient(90deg,var(--accent),var(--pink));
+      width:100%;border-radius:0 0 18px 18px;
+    "></div>
   `;
 
-  // Clic sur le popup = ferme et va sur l'app
-  popup.onclick = () => {
-    popup.remove();
-  };
+  popup.onclick = () => fermerPopupNotif();
 
   document.body.appendChild(popup);
 
   // Animation d'entrée
   requestAnimationFrame(() => {
-    popup.style.transform = 'translateX(-50%) translateY(0)';
+    popup.style.transform = 'translateX(-50%) translateY(0) scale(1)';
     popup.style.opacity = '1';
   });
+
+  // Barre de progression qui se vide
+  const bar = popup.querySelector('#henzoPopupProgress');
+  if(bar){
+    bar.style.transition = 'width ' + duration + 'ms linear';
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        bar.style.width = '0%';
+      });
+    });
+  }
 
   // Vibration sur mobile
   if(navigator.vibrate){
     try { navigator.vibrate([100, 50, 100]); } catch(e){}
   }
 
-  // Auto-suppression
-  if(duration > 0){
-    setTimeout(() => {
-      if(popup.parentNode){
-        popup.style.transform = 'translateX(-50%) translateY(-150%)';
-        popup.style.opacity = '0';
-        setTimeout(() => popup.remove(), 500);
-      }
-    }, duration);
+  // Auto-fermeture
+  window.__popupTimer = setTimeout(() => {
+    fermerPopupNotif();
+  }, duration);
+}
+
+function fermerPopupNotif(){
+  const popup = document.getElementById('henzoPopup');
+  if(!popup) return;
+  if(window.__popupTimer){
+    clearTimeout(window.__popupTimer);
+    window.__popupTimer = null;
   }
+  popup.style.transform = 'translateX(-50%) translateY(-180%) scale(0.9)';
+  popup.style.opacity = '0';
+  setTimeout(() => popup.remove(), 500);
 }
 
 // Test manuel du popup
