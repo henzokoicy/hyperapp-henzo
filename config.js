@@ -80,7 +80,7 @@ const CATEGORIES = {
 const AI_MODELS = {
   openai:    "gpt-4o-mini",
   anthropic: "claude-sonnet-4-20250514",
-  gemini:    "gemini-3.8-flash"
+  gemini:    "gemini-2.5-flash"
 };
 
 
