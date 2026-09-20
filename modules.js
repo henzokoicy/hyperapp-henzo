@@ -702,7 +702,131 @@ async function registerOneSignalPlayer(){
     console.warn('registerOneSignalPlayer:', e);
   }
 }
+// ============================================================
+// 💸 CHARGES DÉDUCTIBLES DANS LES SÉANCES
+// ============================================================
 
+const TYPES_CHARGES = [
+  { id: 'makeup',       icon: '🎨', label: 'Makeup / Coiffure' },
+  { id: 'transport',    icon: '🚗', label: 'Transport' },
+  { id: 'materiel',     icon: '📷', label: 'Location matériel' },
+  { id: 'assistant',    icon: '👤', label: 'Assistant(s)' },
+  { id: 'lieu',         icon: '🏠', label: 'Location lieu' },
+  { id: 'repas',        icon: '🍽️', label: 'Repas / Restauration' },
+  { id: 'cadeau',       icon: '🎁', label: 'Cadeau client' },
+  { id: 'autre',        icon: '✏️', label: 'Autre' }
+];
+
+function renderShootExpenses(expenses){
+  const list = document.getElementById('shootExpensesList');
+  if(!list) return;
+  list.innerHTML = '';
+
+  if(!expenses || expenses.length === 0){
+    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;text-align:center;font-style:italic">Aucune charge pour cette séance</div>';
+    calculerNetShoot();
+    return;
+  }
+
+  expenses.forEach((e, i) => ajouterLigneChargeHTML(e, i));
+  calculerNetShoot();
+}
+
+function ajouterLigneChargeHTML(expense, index){
+  const list = document.getElementById('shootExpensesList');
+  if(!list) return;
+
+  // Si "Aucune charge" est affiché, on l'enlève
+  const empty = list.querySelector('div[style*="font-style:italic"]');
+  if(empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = 'shoot-expense-row';
+  div.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px';
+
+  div.innerHTML = `
+    <select class="expense-type" style="flex:2;font-size:13px;padding:8px" onchange="onChargeTypeChange(this)">
+      ${TYPES_CHARGES.map(t => `<option value="${t.id}"${expense.type === t.id ? ' selected' : ''}>${t.icon} ${t.label}</option>`).join('')}
+    </select>
+    <input type="text" class="expense-custom-label" placeholder="Précise..." value="${(expense.customLabel || '').replace(/"/g, '&quot;')}" style="flex:2;font-size:12px;padding:8px;${expense.type === 'autre' ? '' : 'display:none'}">
+    <input type="number" class="expense-amount" placeholder="0" inputmode="decimal" value="${expense.amount || ''}" style="flex:1.5;font-size:13px;padding:8px" oninput="calculerNetShoot()">
+    <button type="button" onclick="supprimerLigneCharge(this)" style="width:auto;padding:8px 12px;margin:0;background:rgba(255,107,107,.15);color:var(--red);border:1px solid var(--red);border-radius:8px;font-weight:700;cursor:pointer;flex-shrink:0">✕</button>
+  `;
+  list.appendChild(div);
+}
+
+function ajouterLigneCharge(){
+  ajouterLigneChargeHTML({ type: 'makeup', amount: '' }, null);
+  calculerNetShoot();
+}
+
+function supprimerLigneCharge(btn){
+  const row = btn.closest('.shoot-expense-row');
+  if(row) row.remove();
+
+  const list = document.getElementById('shootExpensesList');
+  if(list && list.querySelectorAll('.shoot-expense-row').length === 0){
+    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;text-align:center;font-style:italic">Aucune charge pour cette séance</div>';
+  }
+  calculerNetShoot();
+}
+
+function onChargeTypeChange(select){
+  const row = select.closest('.shoot-expense-row');
+  if(!row) return;
+  const customInput = row.querySelector('.expense-custom-label');
+  if(!customInput) return;
+  customInput.style.display = (select.value === 'autre') ? 'block' : 'none';
+}
+
+function getShootExpensesFromForm(){
+  const list = document.getElementById('shootExpensesList');
+  if(!list) return [];
+
+  const rows = list.querySelectorAll('.shoot-expense-row');
+  const expenses = [];
+
+  rows.forEach(row => {
+    const type = row.querySelector('.expense-type')?.value;
+    const customLabel = row.querySelector('.expense-custom-label')?.value.trim() || '';
+    const amount = parseFloat(row.querySelector('.expense-amount')?.value) || 0;
+
+    if(type && amount > 0){
+      expenses.push({
+        type,
+        customLabel: (type === 'autre' && customLabel) ? customLabel : null,
+        amount: Math.round(amount)
+      });
+    }
+  });
+
+  return expenses;
+}
+
+function calculerNetShoot(){
+  const prixInput = document.getElementById('shootPrice');
+  const prix = parseFloat(prixInput?.value) || 0;
+
+  const expenses = getShootExpensesFromForm();
+  const totalCharges = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const beneficeNet = prix - totalCharges;
+
+  const recap = document.getElementById('shootNetRecap');
+  if(!recap) return;
+
+  if(prix === 0 && totalCharges === 0){
+    recap.style.display = 'none';
+    return;
+  }
+
+  recap.style.display = 'block';
+  document.getElementById('shootNetPrix').textContent = fmt(prix);
+  document.getElementById('shootNetCharges').textContent = '-' + fmt(totalCharges);
+
+  const beneficeEl = document.getElementById('shootNetBenefice');
+  beneficeEl.textContent = fmt(beneficeNet);
+  beneficeEl.style.color = beneficeNet >= 0 ? 'var(--green)' : 'var(--red)';
+}
 // ============================================================
 // MODULE OBJECTIFS
 // ============================================================
@@ -1420,6 +1544,7 @@ function openShootModal(id){
     document.getElementById('shootPhotoCount').value = s.photo_count || '';
     document.getElementById('shootDate').value = s.date ? new Date(s.date).toISOString().slice(0,16) : '';
     document.getElementById('shootPrice').value = s.price || '';
+      renderShootExpenses(s?.shoot_expenses || []);
     document.getElementById('shootPay').value = s.payment || 'impaye';
     document.getElementById('shootNotes').value = s.notes || '';
   } else {
@@ -1460,9 +1585,13 @@ async function saveShoot(){
     if(custom) type = custom;
   }
 
+  // 💸 Récupérer les charges
+  const shoot_expenses = getShootExpensesFromForm();
+
   const data = {
     client_id: clientId ? parseInt(clientId) : null,
-    type, location, photo_count, date, price, payment, notes
+    type, location, photo_count, date, price, payment, notes,
+    shoot_expenses
   };
 
   if(!editingShootId){

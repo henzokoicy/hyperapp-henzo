@@ -1086,7 +1086,34 @@
     </div>
     <label for="shootPhotoCount">Nombre de photos</label><input type="number" id="shootPhotoCount" inputmode="numeric" placeholder="0">
     <label for="shootDate">Date & heure</label><input type="datetime-local" id="shootDate">
-    <label for="shootPrice">Prix (FCFA)</label><input type="number" id="shootPrice" inputmode="decimal">
+        <label for="shootPrice">Prix client (FCFA)</label>
+    <input type="number" id="shootPrice" inputmode="decimal" oninput="calculerNetShoot()">
+
+    <!-- 💸 CHARGES DÉDUCTIBLES -->
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <label style="margin:0;font-weight:700;color:var(--yellow)">💸 Charges déductibles</label>
+        <button type="button" onclick="ajouterLigneCharge()" style="width:auto;padding:6px 12px;margin:0;background:var(--yellow);color:#000;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer">➕ Ajouter</button>
+      </div>
+
+      <div id="shootExpensesList"></div>
+
+      <!-- Récap net -->
+      <div id="shootNetRecap" style="margin-top:12px;background:linear-gradient(135deg,rgba(52,211,153,.10),rgba(107,142,255,.05));border-radius:12px;padding:12px;border:1px solid rgba(52,211,153,.25);display:none">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+          <span style="color:var(--muted)">Prix client</span>
+          <span id="shootNetPrix" style="font-weight:600">0 FCFA</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+          <span style="color:var(--yellow)">Total charges</span>
+          <span id="shootNetCharges" style="font-weight:600;color:var(--yellow)">-0 FCFA</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:15px;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)">
+          <span style="font-weight:700">💚 Bénéfice net</span>
+          <span id="shootNetBenefice" style="font-weight:800;color:var(--green)">0 FCFA</span>
+        </div>
+      </div>
+    </div>
     <label for="shootPay">Statut paiement</label>
     <select id="shootPay"><option value="impaye">Impayé</option><option value="paye">Payé</option></select>
     <label for="shootNotes">Notes</label><input type="text" id="shootNotes" placeholder="Détails...">
