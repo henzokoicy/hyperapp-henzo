@@ -1893,3 +1893,51 @@ body:not(.logged-out) #loginScreen{display:none;}
     scroll-behavior:auto !important;
   }
 }
+/* ============================================================
+   COACH PERSONNEL
+   ============================================================ */
+.coach-btn{
+  position:relative;
+  width:40px;height:40px;padding:0;border-radius:10px;
+  background:linear-gradient(135deg,#8b5cf6,#6366f1);
+  color:#fff;border:none;font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .2s var(--ease-spring), box-shadow .2s var(--ease);
+  flex-shrink:0;min-width:40px;max-width:40px;
+  box-shadow:0 4px 14px rgba(139,92,246,.4);
+}
+.coach-btn:hover{
+  transform:translateY(-1px) scale(1.05);
+  box-shadow:0 8px 24px rgba(139,92,246,.55);
+}
+.coach-btn:active{transform:scale(.95);}
+
+.coach-badge{
+  position:absolute;
+  top:-6px;right:-6px;
+  min-width:18px;height:18px;
+  padding:0 5px;
+  border-radius:9px;
+  background:var(--red);
+  color:#fff;
+  font-size:10px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid var(--bg);
+  animation:pulseBadge 2s ease-in-out infinite;
+}
+@keyframes pulseBadge{
+  0%,100%{transform:scale(1);}
+  50%{transform:scale(1.15);}
+}
+
+.coach-modal{
+  max-width:600px;
+}
+
+/* Responsive */
+@media (max-width:480px){
+  .coach-btn{
+    width:36px;min-width:36px;max-width:36px;height:36px;
+    font-size:16px;
+  }
+}

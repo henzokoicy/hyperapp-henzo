@@ -5741,6 +5741,7 @@ setInterval(() => {
 }, 60000);
 
 function init(){
+  if(typeof initCoach === 'function') initCoach();
   setType('depense');
   setupAutocomplete('shootLocation', 'shootLocationList');
   setupAutocomplete('clientCity', 'clientCityList');
