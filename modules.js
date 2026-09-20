@@ -3761,56 +3761,113 @@ async function clearChat(){
   setTimeout(() => openChat(), 200);
 }
 
+// 🆕 Nettoie le texte pour jsPDF (retire emojis et caractères non supportés)
+function cleanTextForPDF(text){
+  if(!text) return '';
+  return String(text)
+    // Emojis et symboles Unicode → à retirer
+    .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
+    .replace(/[\u{2600}-\u{27BF}]/gu, '')
+    .replace(/[\u{1F000}-\u{1F02F}]/gu, '')
+    .replace(/[\u{1F0A0}-\u{1F0FF}]/gu, '')
+    .replace(/[\u{1F100}-\u{1F1FF}]/gu, '')
+    .replace(/[\u{1F200}-\u{1F2FF}]/gu, '')
+    .replace(/[\u{1F600}-\u{1F64F}]/gu, '')
+    .replace(/[\u{1F680}-\u{1F6FF}]/gu, '')
+    .replace(/[\u{1F900}-\u{1F9FF}]/gu, '')
+    .replace(/[\u{1FA00}-\u{1FAFF}]/gu, '')
+    .replace(/[\u{2300}-\u{23FF}]/gu, '')  // symboles techniques
+    .replace(/[\u{25A0}-\u{25FF}]/gu, '')  // formes géométriques
+    .replace(/[\u{2190}-\u{21FF}]/gu, '→') // flèches → "→"
+    // Caractères typographiques spéciaux
+    .replace(/[—–]/g, '-')
+    .replace(/['']/g, "'")
+    .replace(/[""]/g, '"')
+    .replace(/…/g, '...')
+    .replace(/\u202F|\u00A0|\u2009/g, ' ') // espaces insécables
+    // Caractères de contrôle
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+    // Nettoyage final
+    .trim();
+}
 function exportChatPDF(){
   if(chatHistory.length === 0){ alert('Aucun message à exporter'); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ alert('PDF non chargé'); return; }
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  const pageWidth = 190;
+  const pageWidth = 182;
+  const margin = 14;
   let y = 20;
 
+  // En-tête
   doc.setFillColor(108, 140, 255);
   doc.rect(0, 0, 210, 28, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('Conversation avec l\'IA', 14, 14);
+  doc.text('Conversation avec l\'IA', margin, 14);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(new Date().toLocaleString('fr-FR'), 14, 22);
+  doc.text(new Date().toLocaleString('fr-FR'), margin, 22);
 
   y = 38;
 
   chatHistory.forEach(m => {
     const isUser = m.role === 'user';
-    const who = isUser ? '👤 TOI' : '🤖 IA';
+    const who = isUser ? 'TOI' : 'IA';
     const dateStr = m.ts ? new Date(m.ts).toLocaleString('fr-FR', {hour: '2-digit', minute: '2-digit'}) : '';
 
+    // 🆕 Nettoyer le contenu AVANT tout traitement
+    const cleanContent = cleanTextForPDF(m.content || '');
+
+    // Marqueur de qui parle
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(isUser ? 108 : 46, isUser ? 140 : 180, isUser ? 255 : 100);
-    if(y > 280){ doc.addPage(); y = 20; }
-    doc.text(who + (dateStr ? ' · ' + dateStr : ''), 14, y);
-    y += 6;
+    if(isUser){
+      doc.setTextColor(108, 140, 255);
+    } else {
+      doc.setTextColor(46, 180, 100);
+    }
 
+    if(y > 270){ doc.addPage(); y = 20; }
+    doc.text(who + (dateStr ? '  -  ' + dateStr : ''), margin, y);
+    y += 7;
+
+    // Contenu (nettoyé)
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(40, 40, 40);
     doc.setFontSize(10);
 
-    const lines = doc.splitTextToSize(m.content || '', pageWidth);
+    const lines = doc.splitTextToSize(cleanContent, pageWidth);
     lines.forEach(line => {
-      if(y > 285){ doc.addPage(); y = 20; }
-      doc.text(line, 14, y);
+      if(y > 275){
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(line, margin, y);
       y += 5;
     });
 
     y += 6;
   });
 
+  // Pied de page sur la dernière page
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let i = 1; i <= pageCount; i++){
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(
+      'Conversation exportée depuis Super App Henzo',
+      105,
+      290,
+      { align: 'center' }
+    );
+  }
+
   doc.save(`chat-ia-${todayStr()}.pdf`);
 }
-
 function showToast(message){
   const toast = document.createElement('div');
   toast.textContent = message;
@@ -3999,12 +4056,26 @@ function genererLienPaiementClient(shootId) {
   const clientName = client ? client.name : '';
   const clientPhone = client ? (client.phone || '') : '';
 
+  // Préparer la date pour input datetime-local
+  let shootDateLocal = '';
+  if(shoot.date){
+    const d = new Date(shoot.date);
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    shootDateLocal = new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+  }
+
   ouvrirCreerLien({
     clientName: clientName,
     clientPhone: clientPhone,
     description: shoot.type + (clientName ? ' · ' + clientName : ''),
     totalAmount: Math.round(shoot.price),
-    paymentType: 'complet'
+    paymentType: 'complet',
+    // 🆕 On transmet TOUS les détails du shoot
+    shootType: shoot.type || '',
+    shootDate: shootDateLocal,
+    shootLocation: shoot.location || '',
+    shootNotes: shoot.notes || '',
+    photoCount: shoot.photo_count || ''
   });
 }
 
@@ -4052,6 +4123,40 @@ function ouvrirCreerLien(prefill) {
       <label>Description de la prestation</label>
       <input type="text" id="lienDesc" placeholder="Ex: Shooting mariage 15 octobre" value="${(prefill.description || '').replace(/"/g, '&quot;')}">
 
+      <label>Type de prestation (optionnel)</label>
+      <input type="text" id="lienShootType" placeholder="Ex: Mariage, Portrait, Studio..." value="${(prefill.shootType || '').replace(/"/g, '&quot;')}">
+
+      <label>Date & heure du shoot (optionnel)</label>
+      <input type="datetime-local" id="lienShootDate" value="${prefill.shootDate || ''}">
+
+      <label>Lieu du shoot (optionnel)</label>
+      <input type="text" id="lienShootLocation" placeholder="Ex: Cocody, Abidjan" value="${(prefill.shootLocation || '').replace(/"/g, '&quot;')}">
+
+      <div class="row" style="gap:8px">
+        <div style="flex:1">
+          <label>Durée (h)</label>
+          <input type="number" id="lienShootDuration" placeholder="Ex: 4" step="0.5" inputmode="decimal" value="${prefill.shootDuration || ''}">
+        </div>
+        <div style="flex:1">
+          <label>Nb photos</label>
+          <input type="number" id="lienPhotoCount" placeholder="Ex: 250" inputmode="numeric" value="${prefill.photoCount || ''}">
+        </div>
+      </div>
+
+      <label>Notes libres (optionnel)</label>
+      <input type="text" id="lienShootNotes" placeholder="Ex: Retouches incluses, album 30 pages" value="${(prefill.shootNotes || '').replace(/"/g, '&quot;')}">
+
+      <label>Mode de paiement</label>
+      <select id="lienPaymentMethod">
+        <option value="Wave">💙 Wave</option>
+        <option value="Espèces">💵 Espèces</option>
+        <option value="Orange Money">🟠 Orange Money</option>
+        <option value="MTN Money">🟡 MTN Money</option>
+        <option value="Moov Money">🔵 Moov Money</option>
+        <option value="Virement bancaire">🏦 Virement</option>
+        <option value="Chèque">📝 Chèque</option>
+      </select>
+
       <label>Montant total de la prestation (FCFA)</label>
       <input type="number" id="lienTotalAmount" placeholder="Ex: 100000" inputmode="decimal" oninput="mettreAJourMontant()" value="${prefill.totalAmount || ''}">
 
@@ -4081,7 +4186,6 @@ function ouvrirCreerLien(prefill) {
     document.getElementById('lienClientName')?.focus();
   }, 300);
 }
-
 function fermerCreerLien(){
   const m = document.getElementById('creerLienModal');
   if(m) m.remove();
@@ -4111,6 +4215,15 @@ async function genererLienPersonnalise() {
   const paymentType = document.getElementById('lienPaymentType').value;
   const waveLink = document.getElementById('lienWaveUrl').value.trim();
 
+  // 🆕 Nouveaux champs détails
+  const shootType = document.getElementById('lienShootType').value.trim();
+  const shootDate = document.getElementById('lienShootDate').value || null;
+  const shootLocation = document.getElementById('lienShootLocation').value.trim();
+  const shootDuration = parseFloat(document.getElementById('lienShootDuration').value) || null;
+  const photoCount = parseInt(document.getElementById('lienPhotoCount').value) || null;
+  const shootNotes = document.getElementById('lienShootNotes').value.trim();
+  const paymentMethod = document.getElementById('lienPaymentMethod').value || 'Wave';
+
   if(!clientName) { alert('Entrez le nom du client'); return; }
   if(!totalAmount || totalAmount <= 0) { alert('Entrez le montant total'); return; }
   if(!waveLink) { alert('Collez votre lien Wave'); return; }
@@ -4128,7 +4241,15 @@ async function genererLienPersonnalise() {
     total_amount: Math.round(totalAmount),
     payment_type: paymentType,
     wave_link: waveLink,
-    status: 'pending'
+    status: 'pending',
+    // 🆕 Détails du shoot
+    shoot_type: shootType || null,
+    shoot_date: shootDate ? new Date(shootDate).toISOString() : null,
+    shoot_location: shootLocation || null,
+    shoot_duration: shootDuration,
+    photo_count: photoCount,
+    shoot_notes: shootNotes || null,
+    payment_method: paymentMethod
   });
 
   if(!result) return;
@@ -4368,11 +4489,15 @@ function genererRecuPDFClient(link) {
   const ref = 'PL-' + String(link.id).padStart(4, '0');
   const paidDate = link.paid_at ? new Date(link.paid_at) : new Date();
 
-  // ⚠️ CORRECTIF : jsPDF affiche mal les espaces insécables (U+202F, U+00A0)
-  // On les remplace par des espaces normaux
-  const formatNum = (n) => new Intl.NumberFormat('fr-FR')
-    .format(Math.round(n))
-    .replace(/[\u202F\u00A0\u2009]/g, ' ');
+  // Nettoyage des espaces insécables et caractères spéciaux
+  const cleanStr = (s) => String(s || '')
+    .replace(/[\u202F\u00A0\u2009]/g, ' ')
+    .replace(/[—–]/g, '-')
+    .replace(/['']/g, "'")
+    .replace(/[""]/g, '"')
+    .replace(/…/g, '...');
+
+  const formatNum = (n) => cleanStr(new Intl.NumberFormat('fr-FR').format(Math.round(n)));
 
   const typeLabels = {
     'complet': 'Paiement complet',
@@ -4392,7 +4517,7 @@ function genererRecuPDFClient(link) {
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-doc.text('Photographe professionnel · Côte d\'Ivoire', margin, 25);
+  doc.text('Photographe professionnel · Côte d\'Ivoire', margin, 25);
   doc.text('WhatsApp : +225 01 70 99 89 64', margin, 31);
 
   doc.setFontSize(16);
@@ -4410,55 +4535,136 @@ doc.text('Photographe professionnel · Côte d\'Ivoire', margin, 25);
   doc.setTextColor(16, 130, 80);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('✓  PAIEMENT REÇU ET CONFIRMÉ', pageWidth / 2, 59, { align: 'center' });
+  doc.text('PAIEMENT REÇU ET CONFIRMÉ', pageWidth / 2, 59, { align: 'center' });
 
-  // ---- INFOS CLIENT ----
+  // ---- BLOC CLIENT / ÉMETTEUR ----
   let y = 78;
+  const colWidth = (pageWidth - margin * 2 - 6) / 2;
+
+  // Émetteur (gauche)
   doc.setTextColor(120, 120, 120);
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.text('CLIENT', margin, y);
+  doc.text('ÉMETTEUR', margin, y);
 
   doc.setTextColor(40, 40, 40);
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.text(link.client_name || '-', margin, y + 7);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('HENZO PHOTOGRAPHIE', margin, y + 6);
 
-  if(link.client_phone) {
-    doc.setFontSize(10);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(90, 90, 90);
+  doc.text('Photographe professionnel', margin, y + 12);
+  doc.text('Abidjan · Bouaké, Côte d\'Ivoire', margin, y + 17);
+  doc.text('+225 01 70 99 89 64', margin, y + 22);
+  doc.text('henzophotographie@gmail.com', margin, y + 27);
+
+  // Client (droite)
+  const colRight = margin + colWidth + 6;
+  doc.setTextColor(120, 120, 120);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('CLIENT', colRight, y);
+
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text(cleanStr(link.client_name) || '-', colRight, y + 6);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(90, 90, 90);
+  if(link.client_phone) doc.text('Tel : ' + cleanStr(link.client_phone), colRight, y + 12);
+
+  y += 38;
+
+  // ---- DÉTAILS DE LA PRESTATION ----
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 6;
+
+  doc.setTextColor(120, 120, 120);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DÉTAILS DE LA PRESTATION', margin, y);
+  y += 8;
+
+  // Construction de la liste des détails
+  const details = [];
+  if(link.shoot_type) details.push(['Type', cleanStr(link.shoot_type)]);
+  details.push(['Description', cleanStr(link.description) || 'Paiement']);
+
+  if(link.shoot_date){
+    const d = new Date(link.shoot_date);
+    const dateStr = d.toLocaleDateString('fr-FR', {weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'});
+    const timeStr = d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+    details.push(['Date du shoot', dateStr]);
+    details.push(['Heure', timeStr]);
+  }
+  if(link.shoot_location) details.push(['Lieu', cleanStr(link.shoot_location)]);
+  if(link.shoot_duration) details.push(['Durée', link.shoot_duration + ' h']);
+  if(link.photo_count) details.push(['Nombre de photos', link.photo_count + ' photos']);
+  if(link.payment_method) details.push(['Mode de paiement', cleanStr(link.payment_method)]);
+
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+
+  details.forEach(([label, value]) => {
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(90, 90, 90);
-    doc.text('Tél : ' + link.client_phone, margin, y + 14);
+    doc.text(label + ' :', margin, y);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(40, 40, 40);
+    const valueLines = doc.splitTextToSize(value, pageWidth - margin * 2 - 50);
+    doc.text(valueLines, margin + 45, y);
+    y += Math.max(6, valueLines.length * 5);
+
+    if(y > 240){ doc.addPage(); y = 20; }
+  });
+
+  // Notes libres (si présentes)
+  if(link.shoot_notes){
+    y += 4;
+    doc.setDrawColor(240, 240, 240);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 6;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(90, 90, 90);
+    doc.setFontSize(8);
+    doc.text('NOTES', margin, y);
+    y += 5;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(40, 40, 40);
+    doc.setFontSize(10);
+    const noteLines = doc.splitTextToSize(cleanStr(link.shoot_notes), pageWidth - margin * 2);
+    noteLines.forEach(line => {
+      if(y > 270){ doc.addPage(); y = 20; }
+      doc.text(line, margin, y);
+      y += 5;
+    });
   }
 
-  y += 30;
-
-  // ---- PRESTATION ----
-  doc.setTextColor(120, 120, 120);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.text('PRESTATION', margin, y);
-
-  doc.setTextColor(40, 40, 40);
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  const descLines = doc.splitTextToSize(link.description || 'Paiement', pageWidth - margin * 2);
-  doc.text(descLines, margin, y + 7);
-
-  y += 10 + descLines.length * 6;
-
-  // ---- TYPE + DATE DE CRÉATION ----
+  // ---- TYPE DE PAIEMENT ----
+  y += 6;
   doc.setFontSize(10);
   doc.setTextColor(90, 90, 90);
-  doc.text('Type : ' + (typeLabels[link.payment_type] || 'Paiement'), margin, y + 5);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Type de paiement : ' + (typeLabels[link.payment_type] || 'Paiement'), margin, y);
 
-  if(link.created_at) {
+  if(link.created_at){
     const createdStr = new Date(link.created_at).toLocaleDateString('fr-FR');
-    doc.text('Émis le : ' + createdStr, pageWidth - margin, y + 5, { align: 'right' });
+    doc.text('Lien émis le : ' + createdStr, pageWidth - margin, y, { align: 'right' });
   }
 
-  y += 22;
+  y += 14;
 
-  // ---- TABLEAU MONTANT ----
+  // ---- BLOC MONTANT ----
   const boxHeight = 48;
   doc.setFillColor(248, 250, 255);
   doc.roundedRect(margin, y, pageWidth - margin * 2, boxHeight, 3, 3, 'F');
@@ -4467,20 +4673,17 @@ doc.text('Photographe professionnel · Côte d\'Ivoire', margin, 25);
   doc.setLineWidth(0.5);
   doc.roundedRect(margin, y, pageWidth - margin * 2, boxHeight, 3, 3, 'S');
 
-  // Titre dans la box
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(80, 90, 120);
   doc.text('MONTANT PAYÉ', margin + 8, y + 13);
 
-  // Montant en gros (avec formatNum au lieu de Intl directement)
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(16, 130, 80);
   const amountStr = formatNum(link.amount) + ' FCFA';
   doc.text(amountStr, margin + 8, y + 32);
 
-  // Sous-ligne
   if(link.total_amount && link.total_amount > link.amount) {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
@@ -4496,7 +4699,7 @@ doc.text('Photographe professionnel · Côte d\'Ivoire', margin, 25);
     doc.text('Paiement intégral', margin + 8, y + 42);
   }
 
-  y += boxHeight + 15;
+  y += boxHeight + 12;
 
   // ---- MENTION LÉGALE ----
   doc.setDrawColor(220, 220, 220);
