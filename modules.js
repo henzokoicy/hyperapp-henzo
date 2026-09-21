@@ -1495,56 +1495,176 @@ async function delShoot(id){
   refreshAll();
 }
 
-async function toggleShootPayment(id){
-  const s = shoots.find(x => x.id === id);
-  if(!s) return;
-  const newPayment = s.payment === 'paye' ? 'impaye' : 'paye';
-  const wasUnpaid = s.payment === 'impaye';
+// ============================================================
+// PAIEMENT REÇU D'UNE SÉANCE (avec montant saisi)
+// ============================================================
+function openPaiementSeance(shootId){
+  const s = shoots.find(x => x.id === shootId);
+  if(!s){ alert('Séance introuvable'); return; }
 
-  const result = await dbUpdate('shoots', id, {payment: newPayment});
-  if(!result) return;
-  s.payment = newPayment;
+  const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+  const clientName = client ? client.name : '';
 
-  if(newPayment === 'paye' && wasUnpaid && Number(s.price) > 0){
-    const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
-    const clientName = client ? client.name : '';
-    const note = (s.type || 'Séance') + (clientName ? ' · ' + clientName : '');
+  const prix = Number(s.price || 0);
+  const recu = Number(s.montant_recu || 0);
+  const resteAPayer = Math.max(0, prix - recu);
 
-    const txResult = await dbInsert('transactions', {
-      type: 'revenu',
-      amount: Number(s.price),
-      category: 'Shooting photo',
-      note: note,
-      date: todayStr(),
-      client_id: s.client_id || null,
-      client_name: clientName || null,
-      prestation_type: s.type || 'Séance',
-      location: s.location || null,
-      payment_method: 'Espèces',
-      amount_type: 'complet',
-      photo_count: s.photo_count || null
-    });
-
-    if(txResult){ txs.unshift(txResult); }
-
-    refreshAll();
-    showToast('✓ Payé · ' + fmt(s.price) + ' ajouté aux revenus');
-
-    setTimeout(() => {
-      demarrerAssistant({
-        amount: Number(s.price),
-        prestationType: s.type || 'Séance',
-        clientName: clientName,
-        location: s.location || '',
-        source: 'Séance photo'
-      });
-    }, 500);
+  if(prix <= 0){
+    alert('❌ Cette séance n\'a pas de prix défini.');
     return;
   }
 
-  refreshAll();
+  if(resteAPayer <= 0){
+    alert(`✅ Cette séance est déjà entièrement payée.\n\nPrix : ${fmt(prix)}\nReçu : ${fmt(recu)}`);
+    return;
+  }
+
+  const existing = document.getElementById('paiementSeanceModal');
+  if(existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'paiementSeanceModal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>💰 Paiement reçu</h3>
+        <button class="close" onclick="fermerPaiementSeance()">×</button>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.06));border-radius:14px;padding:14px;margin-bottom:16px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Séance</div>
+        <div style="font-weight:700;font-size:15px;margin-bottom:10px">📸 ${s.type}${clientName ? ' · ' + clientName : ''}</div>
+
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px">
+          <span style="color:var(--muted)">Prix total client</span>
+          <span style="font-weight:700">${fmt(prix)}</span>
+        </div>
+        ${recu > 0 ? `
+          <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px">
+            <span style="color:var(--muted)">Déjà reçu</span>
+            <span style="color:var(--green);font-weight:700">${fmt(recu)}</span>
+          </div>
+        ` : ''}
+        <div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--border);margin-top:6px">
+          <span style="font-weight:700;font-size:14px">⏳ Reste à payer</span>
+          <span style="font-weight:800;font-size:18px;color:var(--yellow)">${fmt(resteAPayer)}</span>
+        </div>
+      </div>
+
+      <label>Combien as-tu reçu ? (FCFA)</label>
+      <input type="number" id="paiementMontant" inputmode="decimal" value="${resteAPayer}" placeholder="0" style="font-size:20px;font-weight:700;text-align:center;color:var(--green)">
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px">
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('paiementMontant').value=${Math.round(prix*0.3)}">30%</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('paiementMontant').value=${Math.round(prix*0.5)}">50%</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('paiementMontant').value=${Math.round(prix*0.7)}">70%</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:rgba(52,211,153,.10);color:var(--green);border-color:var(--green)" onclick="document.getElementById('paiementMontant').value=${resteAPayer}">Solde</button>
+      </div>
+
+      <label style="margin-top:16px">Mode de paiement</label>
+      <select id="paiementMethod">
+        <option value="Wave">💙 Wave</option>
+        <option value="Espèces">💵 Espèces</option>
+        <option value="Orange Money">🟠 Orange Money</option>
+        <option value="MTN Money">🟡 MTN Money</option>
+        <option value="Moov Money">🔵 Moov Money</option>
+        <option value="Virement bancaire">🏦 Virement</option>
+        <option value="Chèque">📝 Chèque</option>
+      </select>
+
+      <div id="paiementInfo" style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.05));border:1px solid rgba(245,197,66,.25);border-radius:12px;padding:12px;margin-top:16px;font-size:12px;color:var(--gold-soft);line-height:1.5">
+        💡 Une transaction "Revenu" sera créée dans ton historique, puis l'assistant de répartition te proposera d'épargner.
+      </div>
+
+      <button class="btn-primary" style="margin:0;margin-top:16px;width:100%;background:linear-gradient(135deg,var(--green),#10b981);color:#000;font-weight:800;padding:16px" onclick="validerPaiementSeance(${shootId})">
+        ✅ Valider le paiement
+      </button>
+      <button class="btn-ghost" style="margin-top:8px;width:100%" onclick="fermerPaiementSeance()">
+        Annuler
+      </button>
+    </div>
+  `;
+  document.body.appendChild(modal);
 }
 
+async function validerPaiementSeance(shootId){
+  const s = shoots.find(x => x.id === shootId);
+  if(!s){ alert('Séance introuvable'); return; }
+
+  const montant = parseFloat(document.getElementById('paiementMontant')?.value) || 0;
+  const method = document.getElementById('paiementMethod')?.value || 'Wave';
+
+  if(!montant || montant <= 0){ alert('Indique un montant valide'); return; }
+
+  const prix = Number(s.price || 0);
+  const recuAvant = Number(s.montant_recu || 0);
+  const nouveauRecu = recuAvant + montant;
+
+  const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+  const clientName = client ? client.name : '';
+
+  // Déterminer le type (acompte ou complet)
+  let montantType = 'acompte';
+  if(nouveauRecu >= prix) montantType = 'complet';
+
+  // 1. Créer la transaction de revenu
+  const noteLabel = (s.type || 'Séance') + (clientName ? ' · ' + clientName : '') + (montantType === 'acompte' ? ' (acompte)' : '');
+  const txResult = await dbInsert('transactions', {
+    type: 'revenu',
+    amount: montant,
+    category: 'Shooting photo',
+    note: noteLabel,
+    date: todayStr(),
+    client_id: s.client_id || null,
+    client_name: clientName || null,
+    prestation_type: s.type || 'Séance',
+    location: s.location || null,
+    payment_method: method,
+    amount_type: montantType,
+    photo_count: s.photo_count || null
+  });
+
+  if(txResult){ txs.unshift(txResult); }
+
+  // 2. Mettre à jour la séance
+  const newPaymentStatus = nouveauRecu >= prix ? 'paye' : 'impaye';
+  const upd = await dbUpdate('shoots', shootId, {
+    montant_recu: nouveauRecu,
+    payment: newPaymentStatus
+  });
+
+  if(upd){
+    s.montant_recu = nouveauRecu;
+    s.payment = newPaymentStatus;
+  }
+
+  fermerPaiementSeance();
+  refreshAll();
+
+  const reste = Math.max(0, prix - nouveauRecu);
+  if(newPaymentStatus === 'paye'){
+    showToast(`✅ Séance payée intégralement · ${fmt(nouveauRecu)}`);
+  } else {
+    showToast(`💰 ${fmt(montant)} reçu · reste ${fmt(reste)}`);
+  }
+
+  // 3. Lancer l'assistant après un petit délai
+  setTimeout(() => {
+    demarrerAssistant({
+      amount: montant,
+      prestationType: s.type || 'Séance',
+      clientName: clientName,
+      location: s.location || '',
+      source: 'Séance photo'
+    });
+  }, 500);
+}
+
+function fermerPaiementSeance(){
+  const m = document.getElementById('paiementSeanceModal');
+  if(m) m.remove();
+}
 function filterShoots(filter, btn){
   currentShootFilter = filter;
   document.querySelectorAll('.shoot-filter-btn').forEach(b => b.classList.remove('active'));
@@ -1673,18 +1793,81 @@ function renderShoots(){
     const photoInfo = s.photo_count ? `📷 ${s.photo_count} photos` : '';
     const metaInfo = [locInfo, photoInfo].filter(x => x).join(' · ');
 
-    // 🆕 Info charges si présentes
-    let chargesInfo = '';
-    if(s.shoot_expenses && Array.isArray(s.shoot_expenses) && s.shoot_expenses.length > 0){
-      const totalCharges = s.shoot_expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-      const net = Number(s.price || 0) - totalCharges;
-      chargesInfo = `<div style="font-size:11px;color:var(--red);margin-top:4px">💸 Charges : ${fmt(totalCharges)} · 💚 Net : <strong style="color:${net >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(net)}</strong></div>`;
+    // 📊 Calculs financiers
+    const prix = Number(s.price || 0);
+    const recu = Number(s.montant_recu || 0);
+    const charges = (s.shoot_expenses || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const reparti = Number(s.montant_reparti || 0);
+    const resteAPayerClient = Math.max(0, prix - recu);
+    const netEncaisse = recu - charges;
+    const disponible = Math.max(0, netEncaisse - reparti);
+
+    // Bloc financier détaillé
+    let financeBlock = '';
+    if(prix > 0){
+      const isFullyPaid = recu >= prix;
+      const isPartiallyPaid = recu > 0 && !isFullyPaid;
+
+      financeBlock = `
+        <div style="background:var(--card);border-radius:10px;padding:10px 12px;margin-top:10px;border:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px">
+            <span style="color:var(--muted)">💵 Prix client</span>
+            <span style="font-weight:700">${fmt(prix)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px">
+            <span style="color:var(--muted)">✅ Reçu</span>
+            <span style="color:${recu > 0 ? 'var(--green)' : 'var(--muted)'};font-weight:700">${fmt(recu)}</span>
+          </div>
+          ${resteAPayerClient > 0 ? `
+            <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px">
+              <span style="color:var(--muted)">⏳ Reste à payer client</span>
+              <span style="color:var(--yellow);font-weight:700">${fmt(resteAPayerClient)}</span>
+            </div>
+          ` : ''}
+          ${charges > 0 ? `
+            <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px">
+              <span style="color:var(--muted)">💸 Charges</span>
+              <span style="color:var(--red);font-weight:700">-${fmt(charges)}</span>
+            </div>
+          ` : ''}
+          ${reparti > 0 ? `
+            <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px">
+              <span style="color:var(--muted)">💰 Déjà réparti</span>
+              <span style="color:var(--accent);font-weight:700">-${fmt(reparti)}</span>
+            </div>
+          ` : ''}
+          ${disponible > 0 ? `
+            <div style="display:flex;justify-content:space-between;padding:6px 0 0;border-top:1px solid var(--border);margin-top:4px;font-size:13px">
+              <span style="font-weight:700">🎯 Disponible à répartir</span>
+              <span style="color:var(--green);font-weight:800">${fmt(disponible)}</span>
+            </div>
+          ` : `
+            ${reparti > 0 ? `
+              <div style="text-align:center;padding:6px 0 0;border-top:1px solid var(--border);margin-top:4px;font-size:11px;color:var(--green);font-weight:700">
+                ✅ Tout est réparti
+              </div>
+            ` : ''}
+          `}
+        </div>
+      `;
     }
 
     const stat = statusInfo[s.status] || statusInfo['planifie'];
     const isCancelled = s.status === 'annule';
     const isDone = s.status === 'shoote';
     const itemClass = isCancelled ? 'cancelled' : (isDone ? 'done' : '');
+
+    // Badge paiement personnalisé
+    let paymentBadge = '';
+    if(!isCancelled && prix > 0){
+      if(recu <= 0){
+        paymentBadge = `<span class="badge impaye">Impayé</span>`;
+      } else if(recu >= prix){
+        paymentBadge = `<span class="badge paye">Payé</span>`;
+      } else {
+        paymentBadge = `<span class="badge" style="background:var(--yellow);color:#000">Acompte</span>`;
+      }
+    }
 
     let actionButtons = '';
     if(isCancelled){
@@ -1694,12 +1877,27 @@ function renderShoots(){
         <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--red);color:var(--red)" onclick="delShoot(${s.id})" title="Supprimer">🗑</button>
       `;
     } else {
-           actionButtons = `
-        <button class="btn-primary" style="margin:0;padding:6px;background:${s.payment==='paye'?'var(--yellow)':'var(--green)'};flex:1" onclick="toggleShootPayment(${s.id})">
-          ${s.payment === 'paye' ? '💸 Impayé' : '✓ Payé'}
-        </button>
-        <button class="btn-ghost" style="margin:0;padding:6px;background:linear-gradient(135deg,rgba(52,211,153,.15),rgba(107,142,255,.10));color:var(--green);border-color:var(--green);font-weight:700" onclick="ouvrirRepartitionSeance(${s.id})" title="Répartir vers un objectif">💰 Répartir</button>
-        ${s.payment === 'impaye' ? `<button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--wave);color:var(--wave)" onclick="genererLienPaiementClient(${s.id})" title="Envoyer lien de paiement">📤 Lien</button>` : ''}
+      const canPay = prix > 0 && resteAPayerClient > 0;
+      const canRepartir = disponible > 0;
+
+      actionButtons = `
+        ${canPay ? `
+          <button class="btn-primary" style="margin:0;padding:8px;background:linear-gradient(135deg,var(--green),#10b981);flex:1;font-weight:700;font-size:12px" onclick="openPaiementSeance(${s.id})">
+            💰 Paiement reçu
+          </button>
+        ` : `
+          <button class="btn-ghost" style="margin:0;padding:8px;background:rgba(52,211,153,.10);color:var(--green);border-color:var(--green);flex:1;font-weight:700;font-size:12px;opacity:0.7;cursor:default">
+            ✅ Payé intégralement
+          </button>
+        `}
+        ${canRepartir ? `
+          <button class="btn-ghost" style="margin:0;padding:8px;background:linear-gradient(135deg,rgba(107,142,255,.15),rgba(52,211,153,.10));color:var(--accent);border-color:var(--accent);font-weight:700;font-size:12px" onclick="ouvrirRepartitionSeance(${s.id})" title="Répartir vers un objectif">💰 Répartir</button>
+        ` : `
+          ${reparti > 0 ? `
+            <button class="btn-ghost" style="margin:0;padding:8px;background:rgba(52,211,153,.08);color:var(--green);border-color:var(--green);font-weight:700;font-size:12px;opacity:0.7;cursor:default" title="Tout est réparti">✅ Réparti</button>
+          ` : ''}
+        `}
+        ${s.payment === 'impaye' && resteAPayerClient > 0 ? `<button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--wave);color:var(--wave)" onclick="genererLienPaiementClient(${s.id})" title="Envoyer lien de paiement">📤 Lien</button>` : ''}
         <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})" title="Modifier">✏️</button>
         <button class="btn-ghost shoot-cancel-btn" style="margin:0;padding:6px" onclick="cancelShoot(${s.id})" title="Annuler">🚫</button>
         <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--red);color:var(--red)" onclick="delShoot(${s.id})" title="Supprimer">🗑</button>
@@ -1711,7 +1909,7 @@ function renderShoots(){
         <div class="name">📸 ${s.type}${client ? ' · ' + client.name : ''}</div>
         <div class="shoot-badges">
           <span class="shoot-status ${stat.class}">${stat.label}</span>
-          ${!isCancelled ? `<span class="badge ${s.payment}">${s.payment === 'paye' ? 'Payé' : 'Impayé'}</span>` : ''}
+          ${paymentBadge}
         </div>
       </div>
       <div class="amt">
@@ -1719,10 +1917,10 @@ function renderShoots(){
         <span style="color:var(--green);font-weight:600">${fmt(s.price)}</span>
       </div>
       ${metaInfo ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">${metaInfo}</div>` : ''}
-      ${chargesInfo}
+      ${financeBlock}
       ${isCancelled && s.cancel_reason ? `<div style="font-size:12px;color:var(--red);margin-top:6px;font-style:italic">❌ Raison : ${s.cancel_reason}</div>` : ''}
       ${s.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">${s.notes}</div>` : ''}
-      <div class="actions" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">${actionButtons}</div>
+      <div class="actions" style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${actionButtons}</div>
     </div>`;
   }).join('');
 }
@@ -1736,25 +1934,30 @@ function ouvrirRepartitionSeance(shootId) {
   const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
   const clientName = client ? client.name : '';
 
-  // Calcul du net à répartir
-  const prixTotal = Number(s.price || 0);
-  const totalCharges = (s.shoot_expenses || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
-  const netDisponible = prixTotal - totalCharges;
+  const prix = Number(s.price || 0);
+  const recu = Number(s.montant_recu || 0);
+  const charges = (s.shoot_expenses || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const reparti = Number(s.montant_reparti || 0);
+  const resteAPayerClient = Math.max(0, prix - recu);
+  const netEncaisse = recu - charges;
+  const disponible = Math.max(0, netEncaisse - reparti);
 
-  // Vérifier si déjà réparti
-  if(s.repartition_effectuee){
-    const goal = s.repartition_goal_id ? coffres.find(c => c.id === s.repartition_goal_id) : null;
-    const goalName = goal ? goal.name : 'un objectif';
-    if(!confirm(`⚠️ Cette séance a déjà été répartie.\n\nMontant réparti : ${fmt(s.repartition_amount || 0)}\nVers : ${goalName}\n\nVoulez-vous refaire une répartition ?`)) return;
-  }
-
-  // Objectifs actifs
-  const activeGoals = coffres.filter(c => Number(c.current) < Number(c.goal));
-
-  if(netDisponible <= 0){
-    alert(`❌ Rien à répartir.\n\nPrix : ${fmt(prixTotal)}\nCharges : ${fmt(totalCharges)}\nNet : ${fmt(netDisponible)}`);
+  if(recu <= 0){
+    alert(`❌ Rien à répartir.\n\nTu n'as encore rien reçu pour cette séance.\nClique d'abord sur "💰 Paiement reçu".`);
     return;
   }
+
+  if(netEncaisse <= 0){
+    alert(`❌ Rien à répartir.\n\nReçu : ${fmt(recu)}\nCharges : ${fmt(charges)}\nNet encaissé : ${fmt(netEncaisse)}`);
+    return;
+  }
+
+  if(disponible <= 0){
+    alert(`✅ Tout est déjà réparti.\n\nReçu : ${fmt(recu)}\nCharges : ${fmt(charges)}\nDéjà réparti : ${fmt(reparti)}`);
+    return;
+  }
+
+  const activeGoals = coffres.filter(c => Number(c.current) < Number(c.goal));
 
   const existing = document.getElementById('repartitionSeanceModal');
   if(existing) existing.remove();
@@ -1769,42 +1972,56 @@ function ouvrirRepartitionSeance(shootId) {
         <button class="close" onclick="fermerRepartitionSeance()">×</button>
       </div>
 
-      <!-- Récap séance -->
       <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.06));border-radius:14px;padding:14px;margin-bottom:16px">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Séance</div>
         <div style="font-weight:700;font-size:15px;margin-bottom:10px">📸 ${s.type}${clientName ? ' · ' + clientName : ''}</div>
 
-        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px">
+        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
           <span style="color:var(--muted)">Prix client</span>
-          <span style="color:var(--green);font-weight:700">${fmt(prixTotal)}</span>
+          <span style="font-weight:700">${fmt(prix)}</span>
         </div>
-        ${totalCharges > 0 ? `
-          <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px">
-            <span style="color:var(--muted)">Charges déduites</span>
-            <span style="color:var(--red);font-weight:700">-${fmt(totalCharges)}</span>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
+          <span style="color:var(--muted)">✅ Reçu</span>
+          <span style="color:var(--green);font-weight:700">${fmt(recu)}</span>
+        </div>
+        ${resteAPayerClient > 0 ? `
+          <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
+            <span style="color:var(--muted)">⏳ Reste à payer client</span>
+            <span style="color:var(--yellow);font-weight:700">${fmt(resteAPayerClient)}</span>
+          </div>
+        ` : ''}
+        ${charges > 0 ? `
+          <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
+            <span style="color:var(--muted)">💸 Charges déduites</span>
+            <span style="color:var(--red);font-weight:700">-${fmt(charges)}</span>
+          </div>
+        ` : ''}
+        ${reparti > 0 ? `
+          <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
+            <span style="color:var(--muted)">💰 Déjà réparti</span>
+            <span style="color:var(--accent);font-weight:700">-${fmt(reparti)}</span>
           </div>
         ` : ''}
         <div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--border);margin-top:6px">
-          <span style="font-weight:700;font-size:14px">💚 Net à répartir</span>
-          <span style="font-weight:800;font-size:18px;color:var(--green)">${fmt(netDisponible)}</span>
+          <span style="font-weight:700;font-size:14px">🎯 Disponible à répartir</span>
+          <span style="font-weight:800;font-size:18px;color:var(--green)">${fmt(disponible)}</span>
         </div>
       </div>
 
       ${activeGoals.length === 0 ? `
         <div style="background:rgba(245,197,66,.12);border:1px solid rgba(245,197,66,.30);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--gold-soft);line-height:1.5">
-          ⚠️ Tu n'as aucun objectif actif.<br>
-          Crée un objectif dans l'onglet 🎯 pour pouvoir y répartir cet argent.
+          ⚠️ Tu n'as aucun objectif actif.<br>Crée un objectif dans l'onglet 🎯.
         </div>
         <button class="btn-ghost" style="margin:0;width:100%" onclick="fermerRepartitionSeance(); showTab('objectifs', null); setTimeout(() => openCoffreModal(), 400);">🎯 Créer un objectif</button>
       ` : `
         <label>Combien veux-tu répartir ? (FCFA)</label>
-        <input type="number" id="repartMontant" inputmode="decimal" value="${netDisponible}" placeholder="0" style="font-size:18px;font-weight:700;text-align:center;color:var(--green)">
+        <input type="number" id="repartMontant" inputmode="decimal" value="${disponible}" placeholder="0" style="font-size:18px;font-weight:700;text-align:center;color:var(--green)" oninput="updateRepartInfo()">
 
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px">
-          <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repartMontant').value=${Math.round(netDisponible*0.25)}">25%</button>
-          <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repartMontant').value=${Math.round(netDisponible*0.5)}">50%</button>
-          <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repartMontant').value=${Math.round(netDisponible*0.75)}">75%</button>
-          <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:rgba(52,211,153,.10);color:var(--green);border-color:var(--green)" onclick="document.getElementById('repartMontant').value=${netDisponible}">Tout</button>
+          <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repartMontant').value=${Math.round(disponible*0.25)}; updateRepartInfo()">25%</button>
+          <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repartMontant').value=${Math.round(disponible*0.5)}; updateRepartInfo()">50%</button>
+          <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repartMontant').value=${Math.round(disponible*0.75)}; updateRepartInfo()">75%</button>
+          <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:rgba(52,211,153,.10);color:var(--green);border-color:var(--green)" onclick="document.getElementById('repartMontant').value=${disponible}; updateRepartInfo()">Tout</button>
         </div>
 
         <label style="margin-top:16px">Choisis l'objectif à alimenter</label>
@@ -1822,7 +2039,7 @@ function ouvrirRepartitionSeance(shootId) {
             const restStr = isMoney ? fmt(rest) : Math.round(rest) + ' ' + unit;
 
             return `
-              <button type="button" onclick="selectRepartGoal(${c.id}, this)" data-goal-id="${c.id}" style="
+              <button type="button" onclick="selectRepartGoal(${c.id}, this)" data-goal-id="${c.id}" data-goal-current="${current}" data-goal-name="${c.name.replace(/"/g, '&quot;')}" data-goal-unit="${unit}" data-goal-ismoney="${isMoney}" data-goal-goal="${goal}" style="
                 background:var(--card2);border:1px solid var(--border);
                 border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;
                 font-family:inherit;color:var(--text);width:100%;
@@ -1842,21 +2059,144 @@ function ouvrirRepartitionSeance(shootId) {
         </div>
 
         <div id="repartQuickInfo" style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.05));border:1px solid rgba(245,197,66,.25);border-radius:12px;padding:12px;margin-top:16px;font-size:12px;color:var(--gold-soft);line-height:1.5">
-          💡 <strong>Comment ça marche :</strong> le montant choisi sera ajouté à l'objectif sélectionné, et une transaction "Épargne" sera créée dans ton historique pour que tout soit cohérent dans le Dashboard.
+          💡 Sélectionne un objectif pour voir l'impact.
         </div>
 
         <button class="btn-primary" style="margin:0;margin-top:16px;width:100%;background:linear-gradient(135deg,var(--green),#10b981);color:#000;font-weight:800;padding:16px" onclick="validerRepartitionSeance(${shootId})">
           ✅ Valider la répartition
         </button>
-        <button class="btn-ghost" style="margin-top:8px;width:100%" onclick="fermerRepartitionSeance()">
-          Annuler
-        </button>
+        <button class="btn-ghost" style="margin-top:8px;width:100%" onclick="fermerRepartitionSeance()">Annuler</button>
       `}
 
       <input type="hidden" id="repartGoalId" value="">
+      <input type="hidden" id="repartDisponible" value="${disponible}">
     </div>
   `;
   document.body.appendChild(modal);
+}
+
+function updateRepartInfo(){
+  const montant = parseFloat(document.getElementById('repartMontant')?.value) || 0;
+  const goalId = parseInt(document.getElementById('repartGoalId')?.value);
+  if(!goalId) return;
+  const btn = document.querySelector(`#repartitionSeanceModal button[data-goal-id="${goalId}"]`);
+  if(btn) selectRepartGoal(goalId, btn, true);
+}
+
+function selectRepartGoal(goalId, btn, silent) {
+  // Reset visuel
+  document.querySelectorAll('#repartitionSeanceModal button[data-goal-id]').forEach(b => {
+    b.style.background = 'var(--card2)';
+    b.style.borderColor = 'var(--border)';
+    const check = b.querySelector('.repart-check');
+    if(check){
+      check.style.background = 'transparent';
+      check.style.borderColor = 'var(--border)';
+      check.style.color = 'var(--accent)';
+      check.textContent = '';
+    }
+  });
+
+  // Highlight
+  btn.style.background = 'linear-gradient(135deg,rgba(107,142,255,.20),rgba(107,142,255,.08))';
+  btn.style.borderColor = 'var(--accent)';
+  const check = btn.querySelector('.repart-check');
+  if(check){
+    check.style.background = 'var(--accent)';
+    check.style.borderColor = 'var(--accent)';
+    check.style.color = '#fff';
+    check.textContent = '✓';
+  }
+
+  const hidden = document.getElementById('repartGoalId');
+  if(hidden) hidden.value = goalId;
+
+  // Info dynamique
+  const info = document.getElementById('repartQuickInfo');
+  const current = parseFloat(btn.dataset.goalCurrent) || 0;
+  const goalVal = parseFloat(btn.dataset.goalGoal) || 1;
+  const isMoney = btn.dataset.goalIsmoney === 'true';
+  const unit = btn.dataset.goalUnit || 'FCFA';
+  const goalName = btn.dataset.goalName || '';
+  const montant = parseFloat(document.getElementById('repartMontant')?.value) || 0;
+
+  const newCurrent = current + montant;
+  const newPct = Math.min(100, (newCurrent / goalVal) * 100);
+  const newStr = isMoney ? fmt(newCurrent) : newCurrent + ' ' + unit;
+
+  if(info){
+    info.innerHTML = `💡 <strong>Après répartition :</strong> "${goalName}" passera à <strong>${newStr}</strong> (${newPct.toFixed(0)}%).`;
+  }
+}
+
+async function validerRepartitionSeance(shootId) {
+  const s = shoots.find(x => x.id === shootId);
+  if(!s){ alert('Séance introuvable'); return; }
+
+  const montant = parseFloat(document.getElementById('repartMontant')?.value) || 0;
+  const goalId = parseInt(document.getElementById('repartGoalId')?.value);
+  const disponible = parseFloat(document.getElementById('repartDisponible')?.value) || 0;
+
+  if(!montant || montant <= 0){
+    alert('Indique un montant valide');
+    return;
+  }
+  if(!goalId){
+    alert('Sélectionne un objectif à alimenter');
+    return;
+  }
+  if(montant > disponible){
+    alert(`❌ Le montant (${fmt(montant)}) dépasse le disponible (${fmt(disponible)}).`);
+    return;
+  }
+
+  const goal = coffres.find(c => c.id === goalId);
+  if(!goal){ alert('Objectif introuvable'); return; }
+
+  const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+  const clientName = client ? client.name : '';
+  const noteLabel = (s.type || 'Séance') + (clientName ? ' · ' + clientName : '');
+
+  // 1. Transaction "Épargne" (dépense)
+  const txResult = await dbInsert('transactions', {
+    type: 'depense',
+    amount: montant,
+    category: 'Épargne',
+    note: 'Épargne séance · ' + noteLabel,
+    date: todayStr(),
+    payment_method: 'Interne'
+  });
+  if(txResult){ txs.unshift(txResult); }
+
+  // 2. Alimenter l'objectif
+  const newCurrent = Number(goal.current || 0) + montant;
+  const upd = await dbUpdate('goals', goalId, {current: newCurrent});
+  if(upd){ goal.current = newCurrent; }
+
+  // 3. Mettre à jour montant_reparti cumulé
+  const oldReparti = Number(s.montant_reparti || 0);
+  const newReparti = oldReparti + montant;
+  const updShoot = await dbUpdate('shoots', shootId, {
+    montant_reparti: newReparti,
+    repartition_effectuee: true,
+    repartition_amount: montant,
+    repartition_goal_id: goalId
+  });
+  if(updShoot){
+    s.montant_reparti = newReparti;
+    s.repartition_effectuee = true;
+    s.repartition_amount = montant;
+    s.repartition_goal_id = goalId;
+  }
+
+  fermerRepartitionSeance();
+  refreshAll();
+  showToast(`✅ ${fmt(montant)} répartis dans "${goal.name}"`);
+}
+
+function fermerRepartitionSeance(){
+  const m = document.getElementById('repartitionSeanceModal');
+  if(m) m.remove();
 }
 
 function selectRepartGoal(goalId, btn) {
