@@ -1,5 +1,6 @@
 // ============================================================
 // MODULES.JS - Version complète et corrigée
+// PARTIE 1/2
 // ============================================================
 
 let editingReminderId = null;
@@ -7,6 +8,9 @@ let editingInspirationId = null;
 let editingNoteId = null;
 let editingGoalReminderId = null;
 let paymentLinks = [];
+
+// 🆕 Charges de séance
+let currentShootExpenses = [];
 
 const APP_URL = 'https://hyperapp-henzo.vercel.app';
 const WAVE_MERCHANT_ID = 'M_ci_gF0f5OK6l1I2';
@@ -51,7 +55,7 @@ function refreshAll(){
   if(typeof renderDashboardGoalReminders === 'function') renderDashboardGoalReminders();
   if(typeof renderDashboardGoals === 'function')  renderDashboardGoals();
   if(typeof renderPaymentLinks === 'function')    renderPaymentLinks();
-  render();
+  if(typeof render === 'function')                render();
 }
 
 // ============================================================
@@ -321,9 +325,12 @@ function renderNotes(){
   const withReminder = notes.filter(n => n.reminder_date && !n.reminder_sent && !n.archived).length;
   const urgent = notes.filter(n => (n.priority === 'urgente' || n.priority === 'haute') && !n.archived).length;
 
-  document.getElementById('notesCount').textContent = total;
-  document.getElementById('notesReminders').textContent = withReminder;
-  document.getElementById('notesUrgent').textContent = urgent;
+  const cEl = document.getElementById('notesCount');
+  const rEl = document.getElementById('notesReminders');
+  const uEl = document.getElementById('notesUrgent');
+  if(cEl) cEl.textContent = total;
+  if(rEl) rEl.textContent = withReminder;
+  if(uEl) uEl.textContent = urgent;
 
   const catFilter = document.getElementById('notesFilterCategory').value;
   const statusFilter = document.getElementById('notesFilterStatus').value;
@@ -552,9 +559,12 @@ function renderInspirations(){
   const favs = inspirations.filter(i => i.favorite).length;
   const cats = new Set(inspirations.map(i => i.category).filter(Boolean)).size;
 
-  document.getElementById('inspCount').textContent = count;
-  document.getElementById('inspFav').textContent = favs;
-  document.getElementById('inspCategories').textContent = cats;
+  const cEl = document.getElementById('inspCount');
+  const fEl = document.getElementById('inspFav');
+  const caEl = document.getElementById('inspCategories');
+  if(cEl) cEl.textContent = count;
+  if(fEl) fEl.textContent = favs;
+  if(caEl) caEl.textContent = cats;
 
   const filterCat = document.getElementById('inspFilterCategory');
   const currentCat = filterCat.value;
@@ -702,131 +712,7 @@ async function registerOneSignalPlayer(){
     console.warn('registerOneSignalPlayer:', e);
   }
 }
-// ============================================================
-// 💸 CHARGES DÉDUCTIBLES DANS LES SÉANCES
-// ============================================================
 
-const TYPES_CHARGES = [
-  { id: 'makeup',       icon: '🎨', label: 'Makeup / Coiffure' },
-  { id: 'transport',    icon: '🚗', label: 'Transport' },
-  { id: 'materiel',     icon: '📷', label: 'Location matériel' },
-  { id: 'assistant',    icon: '👤', label: 'Assistant(s)' },
-  { id: 'lieu',         icon: '🏠', label: 'Location lieu' },
-  { id: 'repas',        icon: '🍽️', label: 'Repas / Restauration' },
-  { id: 'cadeau',       icon: '🎁', label: 'Cadeau client' },
-  { id: 'autre',        icon: '✏️', label: 'Autre' }
-];
-
-function renderShootExpenses(expenses){
-  const list = document.getElementById('shootExpensesList');
-  if(!list) return;
-  list.innerHTML = '';
-
-  if(!expenses || expenses.length === 0){
-    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;text-align:center;font-style:italic">Aucune charge pour cette séance</div>';
-    calculerNetShoot();
-    return;
-  }
-
-  expenses.forEach((e, i) => ajouterLigneChargeHTML(e, i));
-  calculerNetShoot();
-}
-
-function ajouterLigneChargeHTML(expense, index){
-  const list = document.getElementById('shootExpensesList');
-  if(!list) return;
-
-  // Si "Aucune charge" est affiché, on l'enlève
-  const empty = list.querySelector('div[style*="font-style:italic"]');
-  if(empty) empty.remove();
-
-  const div = document.createElement('div');
-  div.className = 'shoot-expense-row';
-  div.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px';
-
-  div.innerHTML = `
-    <select class="expense-type" style="flex:2;font-size:13px;padding:8px" onchange="onChargeTypeChange(this)">
-      ${TYPES_CHARGES.map(t => `<option value="${t.id}"${expense.type === t.id ? ' selected' : ''}>${t.icon} ${t.label}</option>`).join('')}
-    </select>
-    <input type="text" class="expense-custom-label" placeholder="Précise..." value="${(expense.customLabel || '').replace(/"/g, '&quot;')}" style="flex:2;font-size:12px;padding:8px;${expense.type === 'autre' ? '' : 'display:none'}">
-    <input type="number" class="expense-amount" placeholder="0" inputmode="decimal" value="${expense.amount || ''}" style="flex:1.5;font-size:13px;padding:8px" oninput="calculerNetShoot()">
-    <button type="button" onclick="supprimerLigneCharge(this)" style="width:auto;padding:8px 12px;margin:0;background:rgba(255,107,107,.15);color:var(--red);border:1px solid var(--red);border-radius:8px;font-weight:700;cursor:pointer;flex-shrink:0">✕</button>
-  `;
-  list.appendChild(div);
-}
-
-function ajouterLigneCharge(){
-  ajouterLigneChargeHTML({ type: 'makeup', amount: '' }, null);
-  calculerNetShoot();
-}
-
-function supprimerLigneCharge(btn){
-  const row = btn.closest('.shoot-expense-row');
-  if(row) row.remove();
-
-  const list = document.getElementById('shootExpensesList');
-  if(list && list.querySelectorAll('.shoot-expense-row').length === 0){
-    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;text-align:center;font-style:italic">Aucune charge pour cette séance</div>';
-  }
-  calculerNetShoot();
-}
-
-function onChargeTypeChange(select){
-  const row = select.closest('.shoot-expense-row');
-  if(!row) return;
-  const customInput = row.querySelector('.expense-custom-label');
-  if(!customInput) return;
-  customInput.style.display = (select.value === 'autre') ? 'block' : 'none';
-}
-
-function getShootExpensesFromForm(){
-  const list = document.getElementById('shootExpensesList');
-  if(!list) return [];
-
-  const rows = list.querySelectorAll('.shoot-expense-row');
-  const expenses = [];
-
-  rows.forEach(row => {
-    const type = row.querySelector('.expense-type')?.value;
-    const customLabel = row.querySelector('.expense-custom-label')?.value.trim() || '';
-    const amount = parseFloat(row.querySelector('.expense-amount')?.value) || 0;
-
-    if(type && amount > 0){
-      expenses.push({
-        type,
-        customLabel: (type === 'autre' && customLabel) ? customLabel : null,
-        amount: Math.round(amount)
-      });
-    }
-  });
-
-  return expenses;
-}
-
-function calculerNetShoot(){
-  const prixInput = document.getElementById('shootPrice');
-  const prix = parseFloat(prixInput?.value) || 0;
-
-  const expenses = getShootExpensesFromForm();
-  const totalCharges = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const beneficeNet = prix - totalCharges;
-
-  const recap = document.getElementById('shootNetRecap');
-  if(!recap) return;
-
-  if(prix === 0 && totalCharges === 0){
-    recap.style.display = 'none';
-    return;
-  }
-
-  recap.style.display = 'block';
-  document.getElementById('shootNetPrix').textContent = fmt(prix);
-  document.getElementById('shootNetCharges').textContent = '-' + fmt(totalCharges);
-
-  const beneficeEl = document.getElementById('shootNetBenefice');
-  beneficeEl.textContent = fmt(beneficeNet);
-  beneficeEl.style.color = beneficeNet >= 0 ? 'var(--green)' : 'var(--red)';
-}
 // ============================================================
 // MODULE OBJECTIFS
 // ============================================================
@@ -846,25 +732,18 @@ function getCoffreEmoji(name){
   if(n.includes('santé') || n.includes('médec')) return '💊';
   return '🎯';
 }
-// ============================================================
-// 🆕 SYSTÈME D'OBJECTIFS LIBRES (argent OU quantité)
-// ============================================================
 
-// Détection automatique d'unité + emoji depuis le nom
 function analyzeCoffreName(name){
   const n = (name || '').toLowerCase();
   const result = { unit: null, emoji: null, quantity: null };
 
-  // Détection de quantité dans le nom (ex: "2 appareils", "3 maisons")
   const qMatch = name.match(/\b(\d+)\s+/);
   if(qMatch){
     const q = parseInt(qMatch[1]);
     if(!isNaN(q) && q > 0) result.quantity = q;
   }
 
-  // Base de données d'unités et emojis
   const dict = [
-    // Tech
     { k:['téléphone','tel','phone','iphone','samsung','smartphone'], u:'téléphone', e:'📱' },
     { k:['appareil photo','appareil','camera','boitier','reflex'], u:'appareil photo', e:'📷' },
     { k:['objectif','lens','zoom','24-70','50mm','85mm'], u:'objectif', e:'🔭' },
@@ -875,30 +754,20 @@ function analyzeCoffreName(name){
     { k:['flash','lumière','softbox'], u:'éclairage', e:'💡' },
     { k:['micro','microphone'], u:'micro', e:'🎤' },
     { k:['carte sd','sd card','disque','ssd','stockage'], u:'disque', e:'💾' },
-
-    // Immobilier
     { k:['maison','villa','appartement','appart','studio','logement'], u:'maison', e:'🏠' },
     { k:['terrain','parcelle','lot'], u:'terrain', e:'🌳' },
     { k:['bureau','local','magasin','boutique'], u:'local', e:'🏢' },
-
-    // Véhicules
     { k:['voiture','auto','bmw','toyota','mercedes'], u:'voiture', e:'🚗' },
     { k:['moto','scooter','bécane'], u:'moto', e:'🏍️' },
     { k:['vélo','bicyclette'], u:'vélo', e:'🚲' },
-
-    // Marchandises
     { k:['barrique','bidon','fût','fut'], u:'barrique', e:'🛢️' },
     { k:['sac','carton','palette'], u:'sac', e:'📦' },
     { k:['huile','jus'], u:'bidon', e:'🧴' },
     { k:['riz','farine','sucre','kg','kilo','tonne'], u:'kg', e:'🌾' },
-
-    // Vêtements / luxe
     { k:['chaussure','basket','sneaker','talon'], u:'paire', e:'👟' },
     { k:['montre','rolex','casio'], u:'montre', e:'⌚' },
     { k:['sac à main','sac femme'], u:'sac', e:'👜' },
     { k:['bijou','or','collier','bague'], u:'bijou', e:'💍' },
-
-    // Spécial
     { k:['formation','cours','diplôme','certificat'], u:'formation', e:'🎓' },
     { k:['voyage','voyages','tour'], u:'voyage', e:'✈️' },
     { k:['mariage','alliance'], u:'mariage', e:'💍' }
@@ -912,7 +781,6 @@ function analyzeCoffreName(name){
     }
   }
 
-  // Si pas détecté, on regarde le mot après la quantité
   if(!result.unit && result.quantity !== null){
     const afterQ = name.replace(/^\s*\d+\s*/, '').trim();
     const firstWord = afterQ.split(/\s+/)[0];
@@ -921,14 +789,12 @@ function analyzeCoffreName(name){
     }
   }
 
-  // Fallback général
   if(!result.emoji) result.emoji = '🎯';
   if(!result.unit) result.unit = 'unité';
 
   return result;
 }
 
-// Change le type d'objectif (argent ou quantité)
 function setGoalType(type){
   const btnMoney = document.getElementById('btnGoalMoney');
   const btnQty = document.getElementById('btnGoalQuantity');
@@ -939,7 +805,6 @@ function setGoalType(type){
   btnMoney.classList.toggle('active', isMoney);
   btnQty.classList.toggle('active', !isMoney);
 
-  // Adapter les labels
   const goalLabel = document.getElementById('coffreGoalLabel');
   const currentLabel = document.getElementById('coffreCurrentLabel');
   const unitInput = document.getElementById('coffreUnit');
@@ -955,7 +820,6 @@ function setGoalType(type){
   }
 }
 
-// Analyse en direct quand on tape le nom
 function analyzeCoffreNameLive(){
   const name = (document.getElementById('coffreName')?.value || '').trim();
   const el = document.getElementById('coffreAnalysis');
@@ -988,7 +852,6 @@ function analyzeCoffreNameLive(){
   el.innerHTML = lines.join('');
   el.classList.add('show');
 
-  // Auto-remplissage
   if(a.quantity !== null){
     const goalInput = document.getElementById('coffreGoal');
     if(goalInput && !goalInput.value) goalInput.value = a.quantity;
@@ -1008,6 +871,7 @@ function analyzeCoffreNameLive(){
     }
   }
 }
+
 function getMotivationMessage(pct){
   if(pct >= 100) return {level:5, msg:'OBJECTIF ATTEINT !'};
   if(pct >= 75) return {level:4, msg:'Tu y es presque !'};
@@ -1081,16 +945,18 @@ function renderDefiDuJour(){
 
   if(defiEl){
     defiEl.textContent = DEFIS[dayIndex];
-    dateEl.textContent = today.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
+    if(dateEl) dateEl.textContent = today.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
   }
 
   const doneKey = `defi_${dayKey}`;
-  if(localStorage.getItem(doneKey)){
-    btnEl.classList.add('done');
-    btnEl.textContent = '✅ Défi relevé !';
-  } else {
-    btnEl.classList.remove('done');
-    btnEl.textContent = '✓ J\'ai relevé le défi';
+  if(btnEl){
+    if(localStorage.getItem(doneKey)){
+      btnEl.classList.add('done');
+      btnEl.textContent = '✅ Défi relevé !';
+    } else {
+      btnEl.classList.remove('done');
+      btnEl.textContent = '✓ J\'ai relevé le défi';
+    }
   }
 
   let streak = 0;
@@ -1100,7 +966,7 @@ function renderDefiDuJour(){
     if(localStorage.getItem(k)){ streak++; d.setDate(d.getDate()-1); }
     else break;
   }
-  streakEl.textContent = streak > 0 ? `🔥 Série : ${streak} jour${streak>1?'s':''} d'affilée !` : '';
+  if(streakEl) streakEl.textContent = streak > 0 ? `🔥 Série : ${streak} jour${streak>1?'s':''} d'affilée !` : '';
 }
 
 function validerDefi(){
@@ -1124,9 +990,7 @@ function renderAnalysePercutante(){
     const isMoney = (c.goal_type || 'money') === 'money';
 
     const fmtVal = (n) => {
-      if(isMoney){
-        return fmt(n);
-      }
+      if(isMoney){ return fmt(n); }
       const numStr = (n % 1 === 0) ? Math.round(n).toString() : n.toFixed(1);
       return numStr + ' ' + unit;
     };
@@ -1140,24 +1004,12 @@ function renderAnalysePercutante(){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
       if(days > 0){
         const perMonth = (rest / days) * 30;
-        items.push({
-          cls:'',
-          title:`${c.name}`,
-          text:`Il te faut <strong>${fmtVal(perMonth)}</strong> par mois pour finir à temps.`
-        });
+        items.push({ cls:'', title:`${c.name}`, text:`Il te faut <strong>${fmtVal(perMonth)}</strong> par mois pour finir à temps.` });
       } else {
-        items.push({
-          cls:'danger',
-          title:`${c.name}`,
-          text:`Deadline dépassée. Reste ${fmtVal(rest)}.`
-        });
+        items.push({ cls:'danger', title:`${c.name}`, text:`Deadline dépassée. Reste ${fmtVal(rest)}.` });
       }
     } else {
-      items.push({
-        cls:'',
-        title:`${c.name} : ${pct.toFixed(0)}%`,
-        text:`Il te reste <strong>${fmtVal(rest)}</strong> à obtenir.`
-      });
+      items.push({ cls:'', title:`${c.name} : ${pct.toFixed(0)}%`, text:`Il te reste <strong>${fmtVal(rest)}</strong> à obtenir.` });
     }
   });
 
@@ -1171,7 +1023,6 @@ function openCoffreModal(id){
   document.getElementById('coffreModalTitle').textContent = c ? 'Modifier' : 'Nouvel objectif';
   document.getElementById('coffreSubmit').textContent = c ? 'Enregistrer' : 'Créer';
 
-  // Reset type par défaut
   setGoalType(c?.goal_type || 'money');
 
   document.getElementById('coffreName').value = c?.name || '';
@@ -1183,7 +1034,6 @@ function openCoffreModal(id){
   document.getElementById('coffreUnit').value = c?.unit || 'FCFA';
   document.getElementById('coffreDescription').value = c?.description || '';
 
-  // Reset analyse
   const analysis = document.getElementById('coffreAnalysis');
   if(analysis) {
     analysis.classList.remove('show');
@@ -1208,24 +1058,13 @@ async function saveCoffre(){
   const unit = document.getElementById('coffreUnit').value.trim() || 'FCFA';
   const description = document.getElementById('coffreDescription').value.trim();
 
-  // Détecter le type
   const btnQty = document.getElementById('btnGoalQuantity');
   const goal_type = (btnQty && btnQty.classList.contains('active')) ? 'quantity' : 'money';
 
   if(!name){ alert('Le nom de l\'objectif est requis'); return; }
   if(!goal || goal <= 0){ alert('Indique une valeur à atteindre'); return; }
 
-  const data = {
-    name,
-    goal,
-    current,
-    target_date,
-    why: why || null,
-    goal_type,
-    unit,
-    emoji: emoji || null,
-    description: description || null
-  };
+  const data = { name, goal, current, target_date, why: why || null, goal_type, unit, emoji: emoji || null, description: description || null };
 
   if(editingCoffreId){
     const result = await dbUpdate('goals', editingCoffreId, data);
@@ -1302,9 +1141,7 @@ function renderCoffres(){
     const unit = c.unit || 'FCFA';
 
     const fmtVal = (n) => {
-      if(isMoney){
-        return fmt(n);
-      }
+      if(isMoney){ return fmt(n); }
       const numStr = (n % 1 === 0) ? Math.round(n).toString() : n.toFixed(1);
       return numStr + ' ' + unit;
     };
@@ -1364,6 +1201,7 @@ function renderCoffres(){
   }).join('');
 
   const at = document.getElementById('antiTemptation');
+  if(!at) return;
   const active = coffres.filter(c => Number(c.current) < Number(c.goal));
   if(active.length === 0){
     at.innerHTML = '<div class="empty">Aucun objectif en cours</div>';
@@ -1379,6 +1217,7 @@ function renderCoffres(){
     }).join('');
   }
 }
+
 // ============================================================
 // MODULE PHOTO - CLIENTS
 // ============================================================
@@ -1437,6 +1276,7 @@ async function delClient(id){
 
 function renderClients(){
   const el = document.getElementById('clientsList');
+  if(!el) return;
   if(clients.length === 0){ el.innerHTML = '<div class="empty">Aucun client</div>'; return; }
 
   el.innerHTML = clients.map(c => `
@@ -1452,6 +1292,7 @@ function renderClients(){
       </div>
     </div>`).join('');
 }
+
 // ============================================================
 // Voir les règles de répartition
 // ============================================================
@@ -1502,7 +1343,6 @@ function ouvrirGuideRegles(){
   `;
   document.body.appendChild(modal);
 }
-
 // ============================================================
 // MODULE PHOTO - SÉANCES
 // ============================================================
@@ -1520,14 +1360,19 @@ function openShootModal(id){
 
   document.getElementById('shootModalTitle').textContent = s ? 'Modifier la séance' : 'Nouvelle séance';
 
-    const sel = document.getElementById('shootClient');
+  const sel = document.getElementById('shootClient');
   sel.innerHTML = '<option value="">-- Choisir --</option>'
     + clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')
     + '<option value="__new__" style="color:var(--green);font-weight:700">➕ Créer un nouveau client</option>';
 
-  // Cacher le mini-formulaire à l'ouverture
   const newWrap = document.getElementById('shootNewClientWrap');
   if(newWrap) newWrap.style.display = 'none';
+
+  // 🆕 Charger les charges
+  currentShootExpenses = [];
+  if(s && s.shoot_expenses && Array.isArray(s.shoot_expenses)){
+    currentShootExpenses = JSON.parse(JSON.stringify(s.shoot_expenses));
+  }
 
   if(s){
     sel.value = s.client_id || '';
@@ -1544,7 +1389,6 @@ function openShootModal(id){
     document.getElementById('shootPhotoCount').value = s.photo_count || '';
     document.getElementById('shootDate').value = s.date ? new Date(s.date).toISOString().slice(0,16) : '';
     document.getElementById('shootPrice').value = s.price || '';
-      renderShootExpenses(s?.shoot_expenses || []);
     document.getElementById('shootPay').value = s.payment || 'impaye';
     document.getElementById('shootNotes').value = s.notes || '';
   } else {
@@ -1560,12 +1404,14 @@ function openShootModal(id){
   }
 
   onShootTypeChange();
+  renderShootExpenses();
   document.getElementById('shootModalBg').classList.add('show');
 }
 
 function closeShootModal(){
   document.getElementById('shootModalBg').classList.remove('show');
   editingShootId = null;
+  currentShootExpenses = [];
 }
 
 async function saveShoot(){
@@ -1585,11 +1431,17 @@ async function saveShoot(){
     if(custom) type = custom;
   }
 
-  // 💸 Récupérer les charges
-  const shoot_expenses = getShootExpensesFromForm();
+  // 🆕 Récupérer le nom du client pour les notes de transaction
+  const clientObj = clientId && clientId !== '__new__' ? clients.find(c => c.id === parseInt(clientId)) : null;
+  const clientName = clientObj ? clientObj.name : '';
+
+  // 🆕 Nettoyer les charges (garder seulement celles avec montant > 0)
+  const shoot_expenses = currentShootExpenses
+    .filter(e => e && e.amount && Number(e.amount) > 0)
+    .map(e => ({ type: e.type, amount: Number(e.amount) }));
 
   const data = {
-    client_id: clientId ? parseInt(clientId) : null,
+    client_id: clientId && clientId !== '__new__' ? parseInt(clientId) : null,
     type, location, photo_count, date, price, payment, notes,
     shoot_expenses
   };
@@ -1599,16 +1451,38 @@ async function saveShoot(){
     data.status_updated_at = new Date().toISOString();
   }
 
+  let savedShoot = null;
   if(editingShootId){
     const result = await dbUpdate('shoots', editingShootId, data);
     if(!result) return;
     const idx = shoots.findIndex(s => s.id === editingShootId);
     shoots[idx] = result;
+    savedShoot = result;
   } else {
     const result = await dbInsert('shoots', data);
     if(!result) return;
     shoots.unshift(result);
+    savedShoot = result;
   }
+
+  // 🆕 Créer automatiquement les transactions de dépense pour chaque charge
+  if(shoot_expenses.length > 0 && savedShoot){
+    const shootLabel = type + (clientName ? ' · ' + clientName : '');
+    for(const exp of shoot_expenses){
+      const txCharge = await dbInsert('transactions', {
+        type: 'depense',
+        amount: exp.amount,
+        category: 'Business',
+        note: exp.type + ' · ' + shootLabel,
+        date: date.slice(0, 10),
+        payment_method: 'Interne'
+      });
+      if(txCharge){
+        txs.unshift(txCharge);
+      }
+    }
+  }
+
   closeShootModal();
   refreshAll();
 }
@@ -1631,9 +1505,7 @@ async function toggleShootPayment(id){
   if(!result) return;
   s.payment = newPayment;
 
-  // Si on vient de marquer comme PAYÉ, on propose la répartition
   if(newPayment === 'paye' && wasUnpaid && Number(s.price) > 0){
-    // Créer automatiquement la transaction de revenu
     const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
     const clientName = client ? client.name : '';
     const note = (s.type || 'Séance') + (clientName ? ' · ' + clientName : '');
@@ -1653,14 +1525,11 @@ async function toggleShootPayment(id){
       photo_count: s.photo_count || null
     });
 
-    if(txResult){
-      txs.unshift(txResult);
-    }
+    if(txResult){ txs.unshift(txResult); }
 
     refreshAll();
     showToast('✓ Payé · ' + fmt(s.price) + ' ajouté aux revenus');
 
-    // 🎯 Lancer l'assistant de répartition
     setTimeout(() => {
       demarrerAssistant({
         amount: Number(s.price),
@@ -1804,6 +1673,14 @@ function renderShoots(){
     const photoInfo = s.photo_count ? `📷 ${s.photo_count} photos` : '';
     const metaInfo = [locInfo, photoInfo].filter(x => x).join(' · ');
 
+    // 🆕 Info charges si présentes
+    let chargesInfo = '';
+    if(s.shoot_expenses && Array.isArray(s.shoot_expenses) && s.shoot_expenses.length > 0){
+      const totalCharges = s.shoot_expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+      const net = Number(s.price || 0) - totalCharges;
+      chargesInfo = `<div style="font-size:11px;color:var(--red);margin-top:4px">💸 Charges : ${fmt(totalCharges)} · 💚 Net : <strong style="color:${net >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(net)}</strong></div>`;
+    }
+
     const stat = statusInfo[s.status] || statusInfo['planifie'];
     const isCancelled = s.status === 'annule';
     const isDone = s.status === 'shoote';
@@ -1841,6 +1718,7 @@ function renderShoots(){
         <span style="color:var(--green);font-weight:600">${fmt(s.price)}</span>
       </div>
       ${metaInfo ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">${metaInfo}</div>` : ''}
+      ${chargesInfo}
       ${isCancelled && s.cancel_reason ? `<div style="font-size:12px;color:var(--red);margin-top:6px;font-style:italic">❌ Raison : ${s.cancel_reason}</div>` : ''}
       ${s.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">${s.notes}</div>` : ''}
       <div class="actions" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">${actionButtons}</div>
@@ -1858,14 +1736,10 @@ function onShootClientChange(){
 
   if(sel.value === '__new__'){
     wrap.style.display = 'block';
-
-    // Remplir la liste de villes
     const dl = document.getElementById('shootNewClientCityList');
     if(dl && typeof VILLES_CI !== 'undefined'){
       dl.innerHTML = VILLES_CI.map(v => `<option value="${v}">`).join('');
     }
-
-    // Focus sur le champ nom
     setTimeout(() => document.getElementById('shootNewClientName')?.focus(), 150);
   } else {
     wrap.style.display = 'none';
@@ -1877,8 +1751,6 @@ function annulerNouveauClientShoot(){
   const wrap = document.getElementById('shootNewClientWrap');
   if(sel) sel.value = '';
   if(wrap) wrap.style.display = 'none';
-
-  // Vider les champs
   const nameEl = document.getElementById('shootNewClientName');
   const phoneEl = document.getElementById('shootNewClientPhone');
   const cityEl = document.getElementById('shootNewClientCity');
@@ -1898,21 +1770,14 @@ async function sauverNouveauClientShoot(){
     return;
   }
 
-  // Créer le client dans Supabase
   const result = await dbInsert('clients', {
-    name,
-    phone: phone || null,
-    email: null,
-    city: city || null,
-    notes: null
+    name, phone: phone || null, email: null, city: city || null, notes: null
   });
 
   if(!result) return;
 
-  // Ajouter à la liste locale
   clients.unshift(result);
 
-  // Recharger le select avec le nouveau client SÉLECTIONNÉ
   const sel = document.getElementById('shootClient');
   sel.innerHTML = '<option value="">-- Choisir --</option>'
     + clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')
@@ -1920,23 +1785,112 @@ async function sauverNouveauClientShoot(){
 
   sel.value = result.id;
 
-  // Cacher le mini-form
   const wrap = document.getElementById('shootNewClientWrap');
   if(wrap) wrap.style.display = 'none';
 
-  // Vider les champs
   document.getElementById('shootNewClientName').value = '';
   document.getElementById('shootNewClientPhone').value = '';
   document.getElementById('shootNewClientCity').value = '';
 
-  // Rafraîchir les autres vues (liste clients, dashboard)
   if(typeof renderClients === 'function') renderClients();
   if(typeof refreshAll === 'function') refreshAll();
 
   showToast('✅ Client créé : ' + result.name);
 }
 
+// ============================================================
+// GESTION DES CHARGES DE SÉANCE
+// ============================================================
+const CHARGES_PRESETS = [
+  { icon: '🎨', label: 'Makeup' },
+  { icon: '🚗', label: 'Transport' },
+  { icon: '📷', label: 'Location matériel' },
+  { icon: '👤', label: 'Assistant' },
+  { icon: '🏠', label: 'Location lieu' },
+  { icon: '🍽️', label: 'Repas' },
+  { icon: '🎁', label: 'Cadeau client' },
+  { icon: '✏️', label: 'Autre' }
+];
+
+function renderShootExpenses(){
+  const el = document.getElementById('shootExpensesList');
+  if(!el) return;
+
+  if(!currentShootExpenses || currentShootExpenses.length === 0){
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px;background:var(--card2);border-radius:10px">Aucune charge ajoutée</div>';
+    calculerNetShoot();
+    return;
+  }
+
+  el.innerHTML = currentShootExpenses.map((exp, idx) => `
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;background:var(--card2);padding:8px;border-radius:10px">
+      <select onchange="updateChargeType(${idx}, this.value)" style="flex:0 0 100px;font-size:12px;padding:6px">
+        ${CHARGES_PRESETS.map(p => `<option value="${p.label}" ${exp.type === p.label ? 'selected' : ''}>${p.icon} ${p.label}</option>`).join('')}
+      </select>
+      <input type="number" value="${exp.amount || ''}" placeholder="0" inputmode="decimal"
+        oninput="updateChargeAmount(${idx}, this.value)"
+        style="flex:1;font-size:13px;padding:6px;text-align:right;font-weight:600">
+      <span style="font-size:11px;color:var(--muted);flex-shrink:0">FCFA</span>
+      <button type="button" onclick="supprimerChargeShoot(${idx})"
+        style="width:auto;padding:6px 10px;margin:0;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;font-size:14px;cursor:pointer">×</button>
+    </div>
+  `).join('');
+
+  calculerNetShoot();
+}
+
+function ajouterChargeShoot(){
+  currentShootExpenses.push({ type: 'Makeup', amount: 0 });
+  renderShootExpenses();
+}
+
+function updateChargeType(idx, type){
+  if(currentShootExpenses[idx]){
+    currentShootExpenses[idx].type = type;
+    calculerNetShoot();
+  }
+}
+
+function updateChargeAmount(idx, val){
+  if(currentShootExpenses[idx]){
+    currentShootExpenses[idx].amount = parseFloat(val) || 0;
+    calculerNetShoot();
+  }
+}
+
+function supprimerChargeShoot(idx){
+  currentShootExpenses.splice(idx, 1);
+  renderShootExpenses();
+}
+
+function calculerNetShoot(){
+  const price = parseFloat(document.getElementById('shootPrice')?.value) || 0;
+  const totalCharges = (currentShootExpenses || []).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+  const net = price - totalCharges;
+
+  const summary = document.getElementById('shootNetSummary');
+  const priceEl = document.getElementById('shootNetPrice');
+  const chargesEl = document.getElementById('shootNetCharges');
+  const resultEl = document.getElementById('shootNetResult');
+
+  if(!summary) return;
+
+  if(price > 0 || totalCharges > 0){
+    summary.style.display = 'block';
+    if(priceEl) priceEl.textContent = fmt(price);
+    if(chargesEl) chargesEl.textContent = '-' + fmt(totalCharges);
+    if(resultEl){
+      resultEl.textContent = fmt(net);
+      resultEl.style.color = net >= 0 ? 'var(--green)' : 'var(--red)';
+    }
+  } else {
+    summary.style.display = 'none';
+  }
+}
+
 function renderPhotoStats(){
+  const el = document.getElementById('photoMonthCount');
+  if(!el) return;
   const ym = monthKey();
   const monthShoots = shoots.filter(s => s.date && s.date.startsWith(ym));
   const revenue = monthShoots.filter(s => s.payment === 'paye').reduce((sum,s) => sum + Number(s.price), 0);
@@ -1956,10 +1910,14 @@ function renderOverview(){
   const revenue = monthShoots.filter(s => s.payment === 'paye').reduce((sum,s) => sum + Number(s.price), 0);
   const pending = shoots.filter(s => s.payment === 'impaye').reduce((sum,s) => sum + Number(s.price), 0);
 
-  document.getElementById('overviewClients').textContent = clients.length;
-  document.getElementById('overviewShoots').textContent = monthShoots.length;
-  document.getElementById('overviewPhotoRev').textContent = fmt(revenue);
-  document.getElementById('overviewPending').textContent = fmt(pending);
+  const cEl = document.getElementById('overviewClients');
+  const sEl = document.getElementById('overviewShoots');
+  const rEl = document.getElementById('overviewPhotoRev');
+  const pEl = document.getElementById('overviewPending');
+  if(cEl) cEl.textContent = clients.length;
+  if(sEl) sEl.textContent = monthShoots.length;
+  if(rEl) rEl.textContent = fmt(revenue);
+  if(pEl) pEl.textContent = fmt(pending);
 }
 
 function computeHealthScore(){
@@ -1989,6 +1947,7 @@ function renderHealthScore(){
   const el = document.getElementById('healthScore');
   const title = document.getElementById('healthTitle');
   const text = document.getElementById('healthText');
+  if(!el) return;
 
   let color = 'var(--accent)';
   if(score >= 75) color = 'var(--green)';
@@ -1998,9 +1957,11 @@ function renderHealthScore(){
   el.style.background = `conic-gradient(${color} 0% ${score}%, var(--card2) ${score}% 100%)`;
   el.innerHTML = `<span>${score}</span>`;
 
-  if(score >= 75){ title.textContent = '🌟 Excellente santé'; text.textContent = 'Continue !'; }
-  else if(score >= 50){ title.textContent = '👍 Bonne santé'; text.textContent = 'Quelques ajustements.'; }
-  else { title.textContent = '⚠ À améliorer'; text.textContent = 'Concentre-toi sur l\'épargne.'; }
+  if(title && text){
+    if(score >= 75){ title.textContent = '🌟 Excellente santé'; text.textContent = 'Continue !'; }
+    else if(score >= 50){ title.textContent = '👍 Bonne santé'; text.textContent = 'Quelques ajustements.'; }
+    else { title.textContent = '⚠ À améliorer'; text.textContent = 'Concentre-toi sur l\'épargne.'; }
+  }
 }
 
 function renderRevDepDonut(){
@@ -2009,19 +1970,20 @@ function renderRevDepDonut(){
   const donut = document.getElementById('donutRevDep');
   const centerText = document.getElementById('donutRevDepText');
   const legend = document.getElementById('legendRevDep');
+  if(!donut) return;
 
   if(total === 0){
     donut.style.background = 'conic-gradient(var(--card2) 0% 100%)';
-    centerText.textContent = '--';
-    legend.innerHTML = '<div class="empty" style="padding:0">Aucune donnée</div>';
+    if(centerText) centerText.textContent = '--';
+    if(legend) legend.innerHTML = '<div class="empty" style="padding:0">Aucune donnée</div>';
     return;
   }
 
   const pctIn = (s.totalIn / total) * 100;
   donut.style.background = `conic-gradient(var(--green) 0% ${pctIn}%, var(--red) ${pctIn}% 100%)`;
-  centerText.innerHTML = `<div><div style="font-size:14px">${Math.round(pctIn)}%</div><div style="font-size:9px;color:var(--muted)">Revenus</div></div>`;
+  if(centerText) centerText.innerHTML = `<div><div style="font-size:14px">${Math.round(pctIn)}%</div><div style="font-size:9px;color:var(--muted)">Revenus</div></div>`;
 
-  legend.innerHTML = `
+  if(legend) legend.innerHTML = `
     <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div><div class="legend-label">Revenus</div><div class="legend-value" style="color:var(--green)">${fmt(s.totalIn)}</div></div>
     <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div><div class="legend-label">Dépenses</div><div class="legend-value" style="color:var(--red)">${fmt(s.totalOut)}</div></div>`;
 }
@@ -2127,14 +2089,19 @@ function renderHistory(){
   const totalIn = filtered.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount), 0);
   const totalOut = filtered.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount), 0);
 
-  document.getElementById('histCount').textContent = filtered.length;
-  document.getElementById('histIn').textContent = fmt(totalIn);
-  document.getElementById('histOut').textContent = fmt(totalOut);
+  const cEl = document.getElementById('histCount');
+  const iEl = document.getElementById('histIn');
+  const oEl = document.getElementById('histOut');
+  if(cEl) cEl.textContent = filtered.length;
+  if(iEl) iEl.textContent = fmt(totalIn);
+  if(oEl) oEl.textContent = fmt(totalOut);
 
   const el = document.getElementById('histList');
+  if(!el) return;
   if(filtered.length === 0){
     el.innerHTML = '<div class="empty">Aucune transaction</div>';
-    document.getElementById('histSelectAll').checked = false;
+    const selAll = document.getElementById('histSelectAll');
+    if(selAll) selAll.checked = false;
     return;
   }
 
@@ -2155,14 +2122,16 @@ function renderHistory(){
   }).join('');
 
   const allChecked = filtered.length > 0 && filtered.every(t => selectedTxIds.has(t.id));
-  document.getElementById('histSelectAll').checked = allChecked;
+  const selAll = document.getElementById('histSelectAll');
+  if(selAll) selAll.checked = allChecked;
 }
 
 function toggleTxSelect(id, checked){
   if(checked) selectedTxIds.add(id); else selectedTxIds.delete(id);
   const filtered = getFilteredTx();
   const allChecked = filtered.length > 0 && filtered.every(t => selectedTxIds.has(t.id));
-  document.getElementById('histSelectAll').checked = allChecked;
+  const selAll = document.getElementById('histSelectAll');
+  if(selAll) selAll.checked = allChecked;
 }
 
 function toggleSelectAll(){
@@ -2294,6 +2263,7 @@ function exportHistoryPDF(){
 function generateIdeas(){
   const shuffled = [...LOCAL_IDEAS].sort(() => Math.random() - 0.5).slice(0, 5);
   const el = document.getElementById('ideasList');
+  if(!el) return;
 
   el.innerHTML = shuffled.map((i) => `
     <div class="idea">
@@ -2597,6 +2567,7 @@ async function testerNotification(){
   await showLocalNotification(msg.i + ' ' + msg.t, msg.m);
   afficherPopupNotif(msg.i + ' ' + msg.t, msg.m, msg.i, 6000);
 }
+
 async function checkAutomaticNotifications(){
   if(!isNotifEnabled()) return;
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
@@ -2657,17 +2628,12 @@ async function checkDailyReminders(){
   }
 }
 
-// ============================================================
-// 🆕 RAPPELS AUTOMATIQUES POUR LES SÉANCES PHOTO
-// 5 rappels : J-7, J-4, J-2, J-1 (à 20h), et 3h avant le shoot
-// ============================================================
 async function checkShootReminders(){
   if(!isNotifEnabled()) return;
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
   if(!shoots || shoots.length === 0) return;
 
   const now = new Date();
-  const todayKey = now.toISOString().slice(0,10);
   const hh = now.getHours();
   const mm = now.getMinutes();
 
@@ -2686,105 +2652,49 @@ async function checkShootReminders(){
     const timeStr = shootDate.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
     const dateStr = shootDate.toLocaleDateString('fr-FR', {weekday:'long', day:'2-digit', month:'long'});
 
-    // J-7
-    if(diffDays > 6.5 && diffDays < 7.5){
-      if(hh === 20 && mm < 5){
-        const key = `shoot_j7_${s.id}`;
-        if(!localStorage.getItem(key)){
-          await showLocalNotification(
-            '📸 Shoot dans 1 semaine !',
-            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`
-          );
-          afficherPopupNotif(
-            '📸 Shoot dans 1 semaine !',
-            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`,
-            '📸',
-            10000
-          );
-          localStorage.setItem(key, '1');
-        }
+    if(diffDays > 6.5 && diffDays < 7.5 && hh === 20 && mm < 5){
+      const key = `shoot_j7_${s.id}`;
+      if(!localStorage.getItem(key)){
+        await showLocalNotification('📸 Shoot dans 1 semaine !', `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`);
+        afficherPopupNotif('📸 Shoot dans 1 semaine !', `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`, '📸', 10000);
+        localStorage.setItem(key, '1');
       }
     }
-
-    // J-4
-    if(diffDays > 3.5 && diffDays < 4.5){
-      if(hh === 20 && mm < 5){
-        const key = `shoot_j4_${s.id}`;
-        if(!localStorage.getItem(key)){
-          await showLocalNotification(
-            '📸 Shoot dans 4 jours !',
-            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`
-          );
-          afficherPopupNotif(
-            '📸 Shoot dans 4 jours !',
-            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`,
-            '📸',
-            10000
-          );
-          localStorage.setItem(key, '1');
-        }
+    if(diffDays > 3.5 && diffDays < 4.5 && hh === 20 && mm < 5){
+      const key = `shoot_j4_${s.id}`;
+      if(!localStorage.getItem(key)){
+        await showLocalNotification('📸 Shoot dans 4 jours !', `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`);
+        afficherPopupNotif('📸 Shoot dans 4 jours !', `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`, '📸', 10000);
+        localStorage.setItem(key, '1');
       }
     }
-
-    // J-2
-    if(diffDays > 1.5 && diffDays < 2.5){
-      if(hh === 20 && mm < 5){
-        const key = `shoot_j2_${s.id}`;
-        if(!localStorage.getItem(key)){
-          await showLocalNotification(
-            '📸 Shoot dans 2 jours !',
-            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`
-          );
-          afficherPopupNotif(
-            '📸 Shoot dans 2 jours !',
-            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`,
-            '📸',
-            10000
-          );
-          localStorage.setItem(key, '1');
-        }
+    if(diffDays > 1.5 && diffDays < 2.5 && hh === 20 && mm < 5){
+      const key = `shoot_j2_${s.id}`;
+      if(!localStorage.getItem(key)){
+        await showLocalNotification('📸 Shoot dans 2 jours !', `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`);
+        afficherPopupNotif('📸 Shoot dans 2 jours !', `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`, '📸', 10000);
+        localStorage.setItem(key, '1');
       }
     }
-
-    // J-1 (veille)
-    if(diffDays > 0.5 && diffDays < 1.5){
-      if(hh === 20 && mm < 5){
-        const key = `shoot_j1_${s.id}`;
-        if(!localStorage.getItem(key)){
-          await showLocalNotification(
-            '📸 Shoot DEMAIN !',
-            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`
-          );
-          afficherPopupNotif(
-            '📸 Shoot DEMAIN !',
-            `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`,
-            '📸',
-            12000
-          );
-          localStorage.setItem(key, '1');
-        }
+    if(diffDays > 0.5 && diffDays < 1.5 && hh === 20 && mm < 5){
+      const key = `shoot_j1_${s.id}`;
+      if(!localStorage.getItem(key)){
+        await showLocalNotification('📸 Shoot DEMAIN !', `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`);
+        afficherPopupNotif('📸 Shoot DEMAIN !', `${s.type}${clientName} · ${dateStr} à ${timeStr}${location}`, '📸', 12000);
+        localStorage.setItem(key, '1');
       }
     }
-
-    // 3h avant
     if(diffHours > 2.75 && diffHours < 3.25){
       const key = `shoot_h3_${s.id}`;
       if(!localStorage.getItem(key)){
-        await showLocalNotification(
-          '⏰ Shoot dans 3h !',
-          `${s.type}${clientName} à ${timeStr}${location}`
-        );
-        afficherPopupNotif(
-          '⏰ Shoot dans 3h !',
-          `${s.type}${clientName} à ${timeStr}${location}`,
-          '⏰',
-          12000
-        );
+        await showLocalNotification('⏰ Shoot dans 3h !', `${s.type}${clientName} à ${timeStr}${location}`);
+        afficherPopupNotif('⏰ Shoot dans 3h !', `${s.type}${clientName} à ${timeStr}${location}`, '⏰', 12000);
         localStorage.setItem(key, '1');
       }
     }
   }
 }
+
 // ============================================================
 // MODULE RAPPELS NORMAUX
 // ============================================================
@@ -2933,7 +2843,7 @@ function renderReminders(){
 }
 
 // ============================================================
-// RAPPELS D'OBJECTIFS (goal_reminders)
+// RAPPELS D'OBJECTIFS
 // ============================================================
 const GOAL_MOTIVATION_MESSAGES = [
   '💪 Chaque petit geste compte. Épargne aujourd\'hui !',
@@ -3634,7 +3544,6 @@ async function getChatStorageKey(){
   return 'chat_history_' + (user?.email || 'anon');
 }
 
-// Charge la conversation depuis Supabase (avec fallback localStorage)
 async function loadChatHistory(){
   try {
     const user = await getCurrentUser();
@@ -3646,7 +3555,6 @@ async function loadChatHistory(){
 
       if(!error && data && Array.isArray(data.chat_history)){
         chatHistory = data.chat_history;
-        // Mettre à jour le cache local
         const key = await getChatStorageKey();
         localStorage.setItem(key, JSON.stringify(chatHistory));
         return;
@@ -3656,7 +3564,6 @@ async function loadChatHistory(){
     console.warn('loadChatHistory Supabase error:', e);
   }
 
-  // Fallback : localStorage
   try {
     const key = await getChatStorageKey();
     const raw = localStorage.getItem(key);
@@ -3664,19 +3571,15 @@ async function loadChatHistory(){
   } catch(e){ chatHistory = []; }
 }
 
-// Sauvegarde dans Supabase ET localStorage (50 derniers messages)
 async function saveChatHistory(){
-  // Limiter à 50 messages
   const toSave = chatHistory.slice(-50);
   chatHistory = toSave;
 
-  // 1. Sauvegarder dans localStorage (rapide)
   try {
     const key = await getChatStorageKey();
     localStorage.setItem(key, JSON.stringify(toSave));
   } catch(e){}
 
-  // 2. Sauvegarder dans Supabase (synchro entre appareils)
   try {
     const user = await getCurrentUser();
     if(user){
@@ -3961,13 +3864,11 @@ async function clearChat(){
   if(!confirm('Effacer toute la conversation sur TOUS tes appareils ?')) return;
   chatHistory = [];
 
-  // Effacer du localStorage
   try {
     const key = await getChatStorageKey();
     localStorage.removeItem(key);
   } catch(e){}
 
-  // Effacer de Supabase
   try {
     const user = await getCurrentUser();
     if(user){
@@ -3985,11 +3886,9 @@ async function clearChat(){
   setTimeout(() => openChat(), 200);
 }
 
-// 🆕 Nettoie le texte pour jsPDF (retire emojis et caractères non supportés)
 function cleanTextForPDF(text){
   if(!text) return '';
   return String(text)
-    // Emojis et symboles Unicode → à retirer
     .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
     .replace(/[\u{2600}-\u{27BF}]/gu, '')
     .replace(/[\u{1F000}-\u{1F02F}]/gu, '')
@@ -4000,20 +3899,18 @@ function cleanTextForPDF(text){
     .replace(/[\u{1F680}-\u{1F6FF}]/gu, '')
     .replace(/[\u{1F900}-\u{1F9FF}]/gu, '')
     .replace(/[\u{1FA00}-\u{1FAFF}]/gu, '')
-    .replace(/[\u{2300}-\u{23FF}]/gu, '')  // symboles techniques
-    .replace(/[\u{25A0}-\u{25FF}]/gu, '')  // formes géométriques
-    .replace(/[\u{2190}-\u{21FF}]/gu, '→') // flèches → "→"
-    // Caractères typographiques spéciaux
+    .replace(/[\u{2300}-\u{23FF}]/gu, '')
+    .replace(/[\u{25A0}-\u{25FF}]/gu, '')
+    .replace(/[\u{2190}-\u{21FF}]/gu, '->')
     .replace(/[—–]/g, '-')
     .replace(/['']/g, "'")
     .replace(/[""]/g, '"')
     .replace(/…/g, '...')
-    .replace(/\u202F|\u00A0|\u2009/g, ' ') // espaces insécables
-    // Caractères de contrôle
+    .replace(/\u202F|\u00A0|\u2009/g, ' ')
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
-    // Nettoyage final
     .trim();
 }
+
 function exportChatPDF(){
   if(chatHistory.length === 0){ alert('Aucun message à exporter'); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ alert('PDF non chargé'); return; }
@@ -4024,7 +3921,6 @@ function exportChatPDF(){
   const margin = 14;
   let y = 20;
 
-  // En-tête
   doc.setFillColor(108, 140, 255);
   doc.rect(0, 0, 210, 28, 'F');
   doc.setTextColor(255, 255, 255);
@@ -4042,33 +3938,24 @@ function exportChatPDF(){
     const who = isUser ? 'TOI' : 'IA';
     const dateStr = m.ts ? new Date(m.ts).toLocaleString('fr-FR', {hour: '2-digit', minute: '2-digit'}) : '';
 
-    // 🆕 Nettoyer le contenu AVANT tout traitement
     const cleanContent = cleanTextForPDF(m.content || '');
 
-    // Marqueur de qui parle
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    if(isUser){
-      doc.setTextColor(108, 140, 255);
-    } else {
-      doc.setTextColor(46, 180, 100);
-    }
+    if(isUser){ doc.setTextColor(108, 140, 255); }
+    else { doc.setTextColor(46, 180, 100); }
 
     if(y > 270){ doc.addPage(); y = 20; }
     doc.text(who + (dateStr ? '  -  ' + dateStr : ''), margin, y);
     y += 7;
 
-    // Contenu (nettoyé)
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(40, 40, 40);
     doc.setFontSize(10);
 
     const lines = doc.splitTextToSize(cleanContent, pageWidth);
     lines.forEach(line => {
-      if(y > 275){
-        doc.addPage();
-        y = 20;
-      }
+      if(y > 275){ doc.addPage(); y = 20; }
       doc.text(line, margin, y);
       y += 5;
     });
@@ -4076,22 +3963,17 @@ function exportChatPDF(){
     y += 6;
   });
 
-  // Pied de page sur la dernière page
   const pageCount = doc.internal.getNumberOfPages();
   for(let i = 1; i <= pageCount; i++){
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
-    doc.text(
-      'Conversation exportée depuis Super App Henzo',
-      105,
-      290,
-      { align: 'center' }
-    );
+    doc.text('Conversation exportée depuis Super App Henzo', 105, 290, { align: 'center' });
   }
 
   doc.save(`chat-ia-${todayStr()}.pdf`);
 }
+
 function showToast(message){
   const toast = document.createElement('div');
   toast.textContent = message;
@@ -4271,7 +4153,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ============================================================
-// LIEN DE PAIEMENT CLIENT (unifié avec payment_links)
+// LIEN DE PAIEMENT CLIENT
 // ============================================================
 function genererLienPaiementClient(shootId) {
   const shoot = shoots.find(s => s.id === shootId);
@@ -4280,7 +4162,6 @@ function genererLienPaiementClient(shootId) {
   const clientName = client ? client.name : '';
   const clientPhone = client ? (client.phone || '') : '';
 
-  // Préparer la date pour input datetime-local
   let shootDateLocal = '';
   if(shoot.date){
     const d = new Date(shoot.date);
@@ -4294,7 +4175,6 @@ function genererLienPaiementClient(shootId) {
     description: shoot.type + (clientName ? ' · ' + clientName : ''),
     totalAmount: Math.round(shoot.price),
     paymentType: 'complet',
-    // 🆕 On transmet TOUS les détails du shoot
     shootType: shoot.type || '',
     shootDate: shootDateLocal,
     shootLocation: shoot.location || '',
@@ -4303,9 +4183,6 @@ function genererLienPaiementClient(shootId) {
   });
 }
 
-// ============================================================
-// LIENS DE PAIEMENT PERSONNALISÉS (payment_links)
-// ============================================================
 async function loadPaymentLinks() {
   try {
     const user = await getCurrentUser();
@@ -4335,7 +4212,7 @@ function ouvrirCreerLien(prefill) {
         <button class="btn-ghost" style="margin-top:10px;width:100%;padding:8px;font-size:12px;background:var(--wave);color:#000;border-color:var(--wave);font-weight:700" onclick="ouvrirAppWave()">📱 Ouvrir Wave</button>
       </div>
 
-           <label>Nom du client</label>
+      <label>Nom du client</label>
       <div style="display:flex;gap:6px;align-items:stretch">
         <input type="text" id="lienClientName" placeholder="Ex: M. Kouassi" list="lienClientsList" autocomplete="off" style="flex:1" value="${(prefill.clientName || '').replace(/"/g, '&quot;')}" oninput="syncLienClientPhone()">
         <button type="button" onclick="ouvrirNouveauClientLien()" style="width:auto;padding:0 16px;margin:0;background:var(--green);color:#000;border:none;border-radius:10px;font-weight:800;font-size:18px;cursor:pointer;flex-shrink:0" title="Créer un nouveau client">➕</button>
@@ -4432,6 +4309,7 @@ function ouvrirCreerLien(prefill) {
     document.getElementById('lienClientName')?.focus();
   }, 300);
 }
+
 function fermerCreerLien(){
   const m = document.getElementById('creerLienModal');
   if(m) m.remove();
@@ -4456,8 +4334,6 @@ function mettreAJourMontant() {
 // ============================================================
 // CRÉATION RAPIDE DE CLIENT DEPUIS LA MODALE LIEN DE PAIEMENT
 // ============================================================
-
-// Auto-remplit le téléphone quand on choisit un client existant
 function syncLienClientPhone(){
   const nameInput = document.getElementById('lienClientName');
   const phoneInput = document.getElementById('lienClientPhone');
@@ -4465,9 +4341,7 @@ function syncLienClientPhone(){
   const name = nameInput.value.trim().toLowerCase();
   if(!name) return;
   const found = clients.find(c => c.name.toLowerCase() === name);
-  if(found && found.phone){
-    phoneInput.value = found.phone;
-  }
+  if(found && found.phone){ phoneInput.value = found.phone; }
 }
 
 function ouvrirNouveauClientLien(){
@@ -4475,7 +4349,6 @@ function ouvrirNouveauClientLien(){
   if(!wrap) return;
   wrap.style.display = 'block';
 
-  // Remplir la liste des villes
   const dl = document.getElementById('lienNewClientCityList');
   if(dl && typeof VILLES_CI !== 'undefined'){
     dl.innerHTML = VILLES_CI.map(v => `<option value="${v}">`).join('');
@@ -4506,41 +4379,30 @@ async function sauverNouveauClientLien(){
     return;
   }
 
-  // Créer dans Supabase
   const result = await dbInsert('clients', {
-    name,
-    phone: phone || null,
-    email: null,
-    city: city || null,
-    notes: null
+    name, phone: phone || null, email: null, city: city || null, notes: null
   });
 
   if(!result) return;
 
-  // Ajouter à la liste locale
   clients.unshift(result);
 
-  // Remplir les champs de la modale lien
   const nameInput = document.getElementById('lienClientName');
   const phoneInput = document.getElementById('lienClientPhone');
   if(nameInput) nameInput.value = result.name;
   if(phoneInput && result.phone) phoneInput.value = result.phone;
 
-  // Rafraîchir le datalist des clients
   const dl = document.getElementById('lienClientsList');
-  if(dl){
-    dl.innerHTML = clients.map(c => `<option value="${c.name}">`).join('');
-  }
+  if(dl){ dl.innerHTML = clients.map(c => `<option value="${c.name}">`).join(''); }
 
-  // Cacher le mini-form
   annulerNouveauClientLien();
 
-  // Rafraîchir la vue clients
   if(typeof renderClients === 'function') renderClients();
   if(typeof refreshAll === 'function') refreshAll();
 
   showToast('✅ Client créé : ' + result.name);
 }
+
 async function genererLienPersonnalise() {
   const clientName = document.getElementById('lienClientName').value.trim();
   const clientPhone = document.getElementById('lienClientPhone').value.trim();
@@ -4549,7 +4411,6 @@ async function genererLienPersonnalise() {
   const paymentType = document.getElementById('lienPaymentType').value;
   const waveLink = document.getElementById('lienWaveUrl').value.trim();
 
-  // 🆕 Nouveaux champs détails
   const shootType = document.getElementById('lienShootType').value.trim();
   const shootDate = document.getElementById('lienShootDate').value || null;
   const shootLocation = document.getElementById('lienShootLocation').value.trim();
@@ -4576,7 +4437,6 @@ async function genererLienPersonnalise() {
     payment_type: paymentType,
     wave_link: waveLink,
     status: 'pending',
-    // 🆕 Détails du shoot
     shoot_type: shootType || null,
     shoot_date: shootDate ? new Date(shootDate).toISOString() : null,
     shoot_location: shootLocation || null,
@@ -4614,7 +4474,6 @@ function afficherLienGenere(link) {
     desc: link.description || 'Paiement',
     montant: link.amount || 0,
     phone: link.client_phone || '',
-    // 🆕 Toutes les infos supplémentaires
     ref: ref,
     paymentType: link.payment_type || 'complet',
     totalAmount: link.total_amount || 0,
@@ -4681,7 +4540,6 @@ function envoyerLienWhatsAppActuel() {
   const data = window.__lienCourant;
   if(!data) { alert('Erreur : lien introuvable'); return; }
 
-  // Type de paiement en clair
   const typeLabels = {
     'complet':  {icon: '✅', label: 'Paiement complet'},
     'acompte30':{icon: '💰', label: 'Acompte 30%'},
@@ -4690,34 +4548,24 @@ function envoyerLienWhatsAppActuel() {
   };
   const typeInfo = typeLabels[data.paymentType] || typeLabels['complet'];
 
-  // Construction du message
   let message = `Bonjour ${data.clientName} 👋,\n\n`;
   message += `Voici votre lien de paiement sécurisé :\n\n`;
   message += `📝 *Prestation :* ${data.desc}\n`;
 
-  // Ajouter les détails du shoot si présents
   if(data.shootDate){
     const d = new Date(data.shootDate);
     const dateStr = d.toLocaleDateString('fr-FR', {weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'});
     const timeStr = d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
     message += `📅 *Date :* ${dateStr} à ${timeStr}\n`;
   }
-  if(data.shootLocation){
-    message += `📍 *Lieu :* ${data.shootLocation}\n`;
-  }
-  if(data.shootDuration){
-    message += `⏱ *Durée :* ${data.shootDuration}h\n`;
-  }
-  if(data.photoCount){
-    message += `📷 *Photos :* ${data.photoCount}\n`;
-  }
+  if(data.shootLocation){ message += `📍 *Lieu :* ${data.shootLocation}\n`; }
+  if(data.shootDuration){ message += `⏱ *Durée :* ${data.shootDuration}h\n`; }
+  if(data.photoCount){ message += `📷 *Photos :* ${data.photoCount}\n`; }
   message += `\n`;
 
-  // Montant à payer + type
   message += `${typeInfo.icon} *${typeInfo.label}*\n`;
   message += `💵 *Montant à payer :* ${fmt(data.montant)}\n`;
 
-  // Si c'est un acompte ou un solde, afficher le total et le reste
   if(data.totalAmount && data.totalAmount > data.montant){
     const reste = data.totalAmount - data.montant;
     message += `\n📊 *Détail du paiement :*\n`;
@@ -4726,17 +4574,12 @@ function envoyerLienWhatsAppActuel() {
     message += `• Reste à payer plus tard : ${fmt(reste)}\n`;
   }
 
-  // Référence
-  if(data.ref){
-    message += `\n📄 *Référence :* ${data.ref}\n`;
-  }
+  if(data.ref){ message += `\n📄 *Référence :* ${data.ref}\n`; }
 
-  // Lien
   message += `\n👉 *Cliquez ici pour payer :*\n${data.lien}\n\n`;
   message += `Merci pour votre confiance !\n`;
   message += `HENZO PHOTOGRAPHIE 📸`;
 
-  // Ouverture WhatsApp
   let url;
   if(data.phone) {
     const clean = data.phone.replace(/[^0-9]/g, '');
@@ -4772,13 +4615,8 @@ function apercuLienActuel() {
 }
 
 // ============================================================
-// ⚠️ NE PAS MODIFIER LA SUITE - voir PARTIE 2/2
-// ============================================================
-// ============================================================
 // REÇU PDF CLIENT
 // ============================================================
-
-// Ouvre la modale du reçu avec 3 actions
 function ouvrirRecuModal(linkId) {
   const l = paymentLinks.find(x => x.id === linkId);
   if(!l) { alert('Lien introuvable'); return; }
@@ -4874,7 +4712,6 @@ function fermerRecuModal() {
   if(m) m.remove();
 }
 
-// Génère le PDF du reçu (retourne le document jsPDF)
 function genererRecuPDFClient(link) {
   if(!window.jspdf || !window.jspdf.jsPDF) {
     throw new Error('Le générateur de PDF n\'est pas chargé. Vérifie ta connexion.');
@@ -4887,7 +4724,6 @@ function genererRecuPDFClient(link) {
   const ref = 'PL-' + String(link.id).padStart(4, '0');
   const paidDate = link.paid_at ? new Date(link.paid_at) : new Date();
 
-  // Nettoyage des espaces insécables et caractères spéciaux
   const cleanStr = (s) => String(s || '')
     .replace(/[\u202F\u00A0\u2009]/g, ' ')
     .replace(/[—–]/g, '-')
@@ -4904,7 +4740,6 @@ function genererRecuPDFClient(link) {
     'solde': 'Solde restant'
   };
 
-  // ---- EN-TÊTE ----
   doc.setFillColor(107, 142, 255);
   doc.rect(0, 0, pageWidth, 40, 'F');
 
@@ -4927,7 +4762,6 @@ function genererRecuPDFClient(link) {
   doc.text('N° ' + ref, pageWidth - margin, 25, { align: 'right' });
   doc.text(paidDate.toLocaleDateString('fr-FR'), pageWidth - margin, 31, { align: 'right' });
 
-  // ---- STATUT PAYÉ ----
   doc.setFillColor(240, 255, 245);
   doc.roundedRect(margin, 50, pageWidth - margin * 2, 14, 2, 2, 'F');
   doc.setTextColor(16, 130, 80);
@@ -4935,11 +4769,9 @@ function genererRecuPDFClient(link) {
   doc.setFont('helvetica', 'bold');
   doc.text('PAIEMENT REÇU ET CONFIRMÉ', pageWidth / 2, 59, { align: 'center' });
 
-  // ---- BLOC CLIENT / ÉMETTEUR ----
   let y = 78;
   const colWidth = (pageWidth - margin * 2 - 6) / 2;
 
-  // Émetteur (gauche)
   doc.setTextColor(120, 120, 120);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
@@ -4958,7 +4790,6 @@ function genererRecuPDFClient(link) {
   doc.text('+225 01 70 99 89 64', margin, y + 22);
   doc.text('henzophotographie@gmail.com', margin, y + 27);
 
-  // Client (droite)
   const colRight = margin + colWidth + 6;
   doc.setTextColor(120, 120, 120);
   doc.setFontSize(8);
@@ -4977,7 +4808,6 @@ function genererRecuPDFClient(link) {
 
   y += 38;
 
-  // ---- DÉTAILS DE LA PRESTATION ----
   doc.setDrawColor(220, 220, 220);
   doc.setLineWidth(0.3);
   doc.line(margin, y, pageWidth - margin, y);
@@ -4989,7 +4819,6 @@ function genererRecuPDFClient(link) {
   doc.text('DÉTAILS DE LA PRESTATION', margin, y);
   y += 8;
 
-  // Construction de la liste des détails
   const details = [];
   if(link.shoot_type) details.push(['Type', cleanStr(link.shoot_type)]);
   details.push(['Description', cleanStr(link.description) || 'Paiement']);
@@ -5024,7 +4853,6 @@ function genererRecuPDFClient(link) {
     if(y > 240){ doc.addPage(); y = 20; }
   });
 
-  // Notes libres (si présentes)
   if(link.shoot_notes){
     y += 4;
     doc.setDrawColor(240, 240, 240);
@@ -5048,7 +4876,6 @@ function genererRecuPDFClient(link) {
     });
   }
 
-  // ---- TYPE DE PAIEMENT ----
   y += 6;
   doc.setFontSize(10);
   doc.setTextColor(90, 90, 90);
@@ -5062,7 +4889,6 @@ function genererRecuPDFClient(link) {
 
   y += 14;
 
-  // ---- BLOC MONTANT ----
   const boxHeight = 48;
   doc.setFillColor(248, 250, 255);
   doc.roundedRect(margin, y, pageWidth - margin * 2, boxHeight, 3, 3, 'F');
@@ -5099,7 +4925,6 @@ function genererRecuPDFClient(link) {
 
   y += boxHeight + 12;
 
-  // ---- MENTION LÉGALE ----
   doc.setDrawColor(220, 220, 220);
   doc.setLineWidth(0.3);
   doc.line(margin, y, pageWidth - margin, y);
@@ -5107,32 +4932,16 @@ function genererRecuPDFClient(link) {
   doc.setFontSize(9);
   doc.setTextColor(120, 120, 120);
   doc.setFont('helvetica', 'normal');
-  doc.text(
-    'Ce reçu atteste du paiement reçu par HENZO PHOTOGRAPHIE.',
-    pageWidth / 2,
-    y + 8,
-    { align: 'center' }
-  );
-  doc.text(
-    'Merci pour votre confiance !',
-    pageWidth / 2,
-    y + 14,
-    { align: 'center' }
-  );
+  doc.text('Ce reçu atteste du paiement reçu par HENZO PHOTOGRAPHIE.', pageWidth / 2, y + 8, { align: 'center' });
+  doc.text('Merci pour votre confiance !', pageWidth / 2, y + 14, { align: 'center' });
 
-  // ---- PIED DE PAGE ----
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 150);
-  doc.text(
-    'henzophotographie@gmail.com  ·  +225 01 70 99 89 64  ·  Côte d\'Ivoire',
-    pageWidth / 2,
-    285,
-    { align: 'center' }
-  );
+  doc.text('henzophotographie@gmail.com  ·  +225 01 70 99 89 64  ·  Côte d\'Ivoire', pageWidth / 2, 285, { align: 'center' });
 
   return doc;
 }
-// Télécharger le reçu PDF
+
 function telechargerRecuClient(linkId) {
   const link = paymentLinks.find(x => x.id === linkId);
   if(!link) { alert('Lien introuvable'); return; }
@@ -5149,7 +4958,6 @@ function telechargerRecuClient(linkId) {
   }
 }
 
-// Envoyer le reçu par WhatsApp (avec partage natif si possible)
 async function envoyerRecuWhatsApp(linkId) {
   const link = paymentLinks.find(x => x.id === linkId);
   if(!link) { alert('Lien introuvable'); return; }
@@ -5157,7 +4965,6 @@ async function envoyerRecuWhatsApp(linkId) {
   const ref = 'PL-' + String(link.id).padStart(4, '0');
   const amountStr = fmt(link.amount);
 
-  // Message WhatsApp
   const message =
     `Bonjour ${link.client_name || ''} 👋,\n\n` +
     `Merci pour votre paiement de ${amountStr} 💚\n\n` +
@@ -5168,7 +4975,6 @@ async function envoyerRecuWhatsApp(linkId) {
     `Merci pour votre confiance !\n` +
     `HENZO PHOTOGRAPHIE 📸`;
 
-  // Numéro WhatsApp (format international sans +)
   let waUrl;
   if(link.client_phone) {
     const clean = link.client_phone.replace(/[^0-9]/g, '');
@@ -5178,7 +4984,6 @@ async function envoyerRecuWhatsApp(linkId) {
     waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
   }
 
-  // 1. ESSAI : Web Share API (permet d'envoyer le PDF directement)
   try {
     const doc = genererRecuPDFClient(link);
     const pdfBlob = doc.output('blob');
@@ -5195,20 +5000,14 @@ async function envoyerRecuWhatsApp(linkId) {
       return;
     }
   } catch(shareErr) {
-    // L'utilisateur a peut-être annulé le partage
     if(shareErr.name === 'AbortError') return;
     console.warn('Web Share indisponible, fallback WhatsApp Web:', shareErr);
   }
 
-  // 2. FALLBACK : télécharger le PDF + ouvrir WhatsApp
   try {
     const doc = genererRecuPDFClient(link);
     doc.save(`Recu-${ref}.pdf`);
-
-    setTimeout(() => {
-      window.open(waUrl, '_blank');
-    }, 500);
-
+    setTimeout(() => { window.open(waUrl, '_blank'); }, 500);
     showToast('Reçu téléchargé · Ajoute-le sur WhatsApp');
   } catch(e) {
     console.error(e);
@@ -5222,7 +5021,6 @@ async function marquerLienPaye(id) {
 
   if(!confirm(`Confirmer que tu as reçu ${fmt(link.amount)} pour "${link.description}" ?`)) return;
 
-  // 1. Marquer le lien comme payé
   const result = await dbUpdate('payment_links', id, {
     status: 'paid',
     paid_at: new Date().toISOString()
@@ -5232,7 +5030,6 @@ async function marquerLienPaye(id) {
   const idx = paymentLinks.findIndex(l => l.id === id);
   if(idx >= 0) paymentLinks[idx] = result;
 
-  // 2. Créer AUTOMATIQUEMENT la transaction de revenu
   const txResult = await dbInsert('transactions', {
     type: 'revenu',
     amount: Number(link.amount),
@@ -5241,17 +5038,12 @@ async function marquerLienPaye(id) {
     date: todayStr()
   });
 
-  if(txResult){
-    txs.unshift(txResult);
-  }
+  if(txResult){ txs.unshift(txResult); }
 
-  // 3. Rafraîchir tout
   renderPaymentLinks();
   refreshAll();
   showToast(fmt(link.amount) + ' ajouté aux revenus');
 
-  // 4. Ouvrir la modale de répartition intelligente
-   // 4. Lancer l'assistant conversationnel
   setTimeout(() => {
     demarrerAssistant({
       amount: Number(link.amount),
@@ -5326,12 +5118,10 @@ function revOirLien(id) {
   const l = paymentLinks.find(x => x.id === id);
   if(l) afficherLienGenere(l);
 }
-// ============================================================
-// 🆕 GUIDE FINANCIER INTELLIGENT
-// Aide Henzo à répartir ses revenus par type de prestation
-// ============================================================
 
-// Règles par défaut de répartition (%)
+// ============================================================
+// GUIDE FINANCIER INTELLIGENT
+// ============================================================
 const REGLES_REPARTITION = {
   'mariage':    { epargne: 30, charges: 40, libre: 30, icon: '💍', label: 'Mariage' },
   'dot':        { epargne: 30, charges: 40, libre: 30, icon: '💐', label: 'Dot' },
@@ -5342,7 +5132,6 @@ const REGLES_REPARTITION = {
   'default':    { epargne: 20, charges: 50, libre: 30, icon: '💰', label: 'Paiement' }
 };
 
-// Détecter le type de prestation depuis le texte
 function detecterTypePrestation(description){
   const d = (description || '').toLowerCase();
   if(d.includes('mariage'))    return 'mariage';
@@ -5354,7 +5143,6 @@ function detecterTypePrestation(description){
   return 'default';
 }
 
-// Ouvre la modale de répartition intelligente
 function ouvrirGuideRepartition(linkId) {
   const link = paymentLinks.find(l => l.id === linkId);
   if(!link) return;
@@ -5366,7 +5154,6 @@ function ouvrirGuideRepartition(linkId) {
   const type = detecterTypePrestation(link.description);
   const regle = REGLES_REPARTITION[type];
 
-  // Calcul de la répartition suggérée
   const epargne = Math.round(montant * regle.epargne / 100);
   const charges = Math.round(montant * regle.charges / 100);
   const libre = montant - epargne - charges;
@@ -5388,83 +5175,51 @@ function ouvrirGuideRepartition(linkId) {
       </div>
 
       <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">💡 Suggestion automatique basée sur le type de prestation :</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">💡 Suggestion automatique :</div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
-          <div>
-            <div style="font-weight:700;color:var(--green);font-size:14px">💰 Épargne</div>
-            <div style="font-size:11px;color:var(--muted)">${regle.epargne}% · Priorité absolue</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-weight:800;color:var(--green);font-size:16px">${fmt(epargne)}</div>
-          </div>
+          <div><div style="font-weight:700;color:var(--green);font-size:14px">💰 Épargne</div><div style="font-size:11px;color:var(--muted)">${regle.epargne}% · Priorité absolue</div></div>
+          <div style="font-weight:800;color:var(--green);font-size:16px">${fmt(epargne)}</div>
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
-          <div>
-            <div style="font-weight:700;color:var(--yellow);font-size:14px">🏠 Charges</div>
-            <div style="font-size:11px;color:var(--muted)">${regle.charges}% · Loyer, transport, nourriture</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-weight:800;color:var(--yellow);font-size:16px">${fmt(charges)}</div>
-          </div>
+          <div><div style="font-weight:700;color:var(--yellow);font-size:14px">🏠 Charges</div><div style="font-size:11px;color:var(--muted)">${regle.charges}% · Loyer, transport</div></div>
+          <div style="font-weight:800;color:var(--yellow);font-size:16px">${fmt(charges)}</div>
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0">
-          <div>
-            <div style="font-weight:700;color:var(--accent);font-size:14px">🎉 Libre</div>
-            <div style="font-size:11px;color:var(--muted)">${regle.libre}% · Plaisir, sortie, achat perso</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-weight:800;color:var(--accent);font-size:16px">${fmt(libre)}</div>
-          </div>
+          <div><div style="font-weight:700;color:var(--accent);font-size:14px">🎉 Libre</div><div style="font-size:11px;color:var(--muted)">${regle.libre}% · Plaisir</div></div>
+          <div style="font-weight:800;color:var(--accent);font-size:16px">${fmt(libre)}</div>
         </div>
-      </div>
-
-      <div style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.05));border:1px solid rgba(245,197,66,.25);border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--gold-soft);line-height:1.5">
-        💡 <strong>Conseil :</strong> ${getConseilGuide(type, montant, epargne)}
-      </div>
-
-      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;text-align:center">
-        Veux-tu appliquer cette répartition ?
       </div>
 
       <div style="display:grid;gap:8px">
         <button class="btn-primary" style="margin:0;background:linear-gradient(135deg,var(--green),#10b981);width:100%;color:#000;font-weight:800" onclick="appliquerRepartition(${link.id}, ${epargne})">
           ✅ Appliquer l'épargne (${fmt(epargne)})
         </button>
-        <button class="btn-ghost" style="margin:0;width:100%" onclick="fermerGuideRepartition()">
-          Plus tard
-        </button>
-      </div>
-
-      <div style="font-size:11px;color:var(--muted);margin-top:12px;text-align:center;line-height:1.5">
-        Tu peux toujours ajuster manuellement tes transactions plus tard.
+        <button class="btn-ghost" style="margin:0;width:100%" onclick="fermerGuideRepartition()">Plus tard</button>
       </div>
     </div>
   `;
   document.body.appendChild(modal);
 }
 
-// Conseil personnalisé selon le type
 function getConseilGuide(type, montant, epargne){
   const conseils = {
-    'mariage':    `Un mariage c'est un gros paiement ponctuel. Mets de côté ${fmt(epargne)} maintenant, tu ne le regretteras pas.`,
-    'dot':        `Après un dot, mets immédiatement ton épargne de côté. C'est un revenu qu'on ne reverra pas de sitôt.`,
-    'studio':     `Le studio c'est régulier. Une épargne de ${fmt(epargne)} te construira un vrai matelas de sécurité.`,
-    'shooting':   `Les shootings s'enchaînent bien. Épargne ${fmt(epargne)} pour tes prochains investissements matériel.`,
-    'corporate':  `Un client corporate = revenu fiable. Place ${fmt(epargne)} en épargne pour équilibrer tes mois creux.`,
-    'drone':      `Le drone demande de l'entretien. Épargne ${fmt(epargne)} pour anticiper les réparations.`,
+    'mariage':    `Un mariage c'est un gros paiement ponctuel. Mets de côté ${fmt(epargne)} maintenant.`,
+    'dot':        `Après un dot, mets immédiatement ton épargne de côté.`,
+    'studio':     `Le studio c'est régulier. Une épargne de ${fmt(epargne)} te construira un vrai matelas.`,
+    'shooting':   `Les shootings s'enchaînent bien. Épargne ${fmt(epargne)} pour tes prochains investissements.`,
+    'corporate':  `Un client corporate = revenu fiable. Place ${fmt(epargne)} en épargne.`,
+    'drone':      `Le drone demande de l'entretien. Épargne ${fmt(epargne)} pour anticiper.`,
     'default':    `Épargne ${fmt(epargne)} dès maintenant. Petit à petit, tu construis ta liberté.`
   };
   return conseils[type] || conseils.default;
 }
 
-// Appliquer la répartition : crée une transaction d'épargne
 async function appliquerRepartition(linkId, montantEpargne){
-  if(!confirm(`Créer une épargne de ${fmt(montantEpargne)} ?\n\n(Ça créera une transaction de dépense "Épargne" pour équilibrer)`)) return;
+  if(!confirm(`Créer une épargne de ${fmt(montantEpargne)} ?`)) return;
 
-  // Créer une transaction d'épargne (dépense qui va dans les objectifs)
   const result = await dbInsert('transactions', {
     type: 'depense',
     amount: montantEpargne,
@@ -5485,18 +5240,16 @@ function fermerGuideRepartition(){
   const m = document.getElementById('guideRepartitionModal');
   if(m) m.remove();
 }
+
 // ============================================================
-// 🆕 POPUP CUSTOM DANS L'APP (glisse depuis le haut)
+// POPUP CUSTOM DANS L'APP
 // ============================================================
 function afficherPopupNotif(title, message, emoji = '🔔', duration = 10000){
-  // Durée minimum : 8 secondes, même si un appelant passe moins
   if(!duration || duration < 8000) duration = 10000;
 
-  // Supprime l'ancien popup s'il existe
   const old = document.getElementById('henzoPopup');
   if(old) old.remove();
 
-  // Injecte les keyframes une seule fois
   if(!document.getElementById('henzoPopupStyles')){
     const style = document.createElement('style');
     style.id = 'henzoPopupStyles';
@@ -5538,63 +5291,36 @@ function afficherPopupNotif(title, message, emoji = '🔔', duration = 10000){
     animation: popupSoftGlow 3s ease-in-out infinite;
   `;
   popup.innerHTML = `
-    <div style="
-      width:48px;height:48px;border-radius:50%;
-      background:linear-gradient(135deg,var(--accent),var(--pink));
-      display:flex;align-items:center;justify-content:center;
-      font-size:24px;flex-shrink:0;
-      box-shadow:0 8px 20px rgba(107,142,255,.45);
-      animation: popupEmojiPulse 2s ease-in-out infinite;
-    ">${emoji}</div>
+    <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--pink));display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 8px 20px rgba(107,142,255,.45);animation: popupEmojiPulse 2s ease-in-out infinite;">${emoji}</div>
     <div style="flex:1;min-width:0">
       <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:3px">${title}</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.4">${message}</div>
     </div>
-    <button onclick="event.stopPropagation();fermerPopupNotif()" style="
-      background:rgba(255,255,255,.08);
-      border:none;color:var(--muted);
-      width:28px;height:28px;border-radius:50%;
-      cursor:pointer;font-size:16px;flex-shrink:0;
-      display:flex;align-items:center;justify-content:center;
-      transition:background .2s;
-    ">×</button>
-    <div id="henzoPopupProgress" style="
-      position:absolute;bottom:0;left:0;height:3px;
-      background:linear-gradient(90deg,var(--accent),var(--pink));
-      width:100%;border-radius:0 0 18px 18px;
-    "></div>
+    <button onclick="event.stopPropagation();fermerPopupNotif()" style="background:rgba(255,255,255,.08);border:none;color:var(--muted);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .2s;">×</button>
+    <div id="henzoPopupProgress" style="position:absolute;bottom:0;left:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--pink));width:100%;border-radius:0 0 18px 18px;"></div>
   `;
 
   popup.onclick = () => fermerPopupNotif();
-
   document.body.appendChild(popup);
 
-  // Animation d'entrée
   requestAnimationFrame(() => {
     popup.style.transform = 'translateX(-50%) translateY(0) scale(1)';
     popup.style.opacity = '1';
   });
 
-  // Barre de progression qui se vide
   const bar = popup.querySelector('#henzoPopupProgress');
   if(bar){
     bar.style.transition = 'width ' + duration + 'ms linear';
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        bar.style.width = '0%';
-      });
+      requestAnimationFrame(() => { bar.style.width = '0%'; });
     });
   }
 
-  // Vibration sur mobile
   if(navigator.vibrate){
     try { navigator.vibrate([100, 50, 100]); } catch(e){}
   }
 
-  // Auto-fermeture
-  window.__popupTimer = setTimeout(() => {
-    fermerPopupNotif();
-  }, duration);
+  window.__popupTimer = setTimeout(() => { fermerPopupNotif(); }, duration);
 }
 
 function fermerPopupNotif(){
@@ -5609,23 +5335,20 @@ function fermerPopupNotif(){
   setTimeout(() => popup.remove(), 500);
 }
 
-// Test manuel du popup
 function testerPopupNotif(){
   const msg = getNotificationMessage('midday');
   afficherPopupNotif(msg.i + ' ' + msg.t, msg.m, msg.i, 6000);
 }
 
 // ============================================================
-// 💰 MODULE ENTRÉE D'ARGENT DÉTAILLÉE
+// MODULE ENTRÉE D'ARGENT DÉTAILLÉE
 // ============================================================
 let currentRevenueType = 'complet';
 
-// Ouvre la modale
 function openRevenueModal(){
   const modal = document.getElementById('revenueModalBg');
   if(!modal) return;
 
-  // Reset des champs
   document.getElementById('revAmount').value = '';
   document.getElementById('revClientName').value = '';
   document.getElementById('revPrestationType').value = 'Mariage';
@@ -5635,20 +5358,15 @@ function openRevenueModal(){
   document.getElementById('revPhotoCount').value = '';
   document.getElementById('revDetails').value = '';
 
-  // Date/heure actuelle
   const now = new Date();
   const localISO = new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,16);
   document.getElementById('revDate').value = localISO;
 
-  // Remplir la liste des clients
   const dl = document.getElementById('revClientsList');
-  if(dl){
-    dl.innerHTML = clients.map(c => `<option value="${c.name}">`).join('');
-  }
+  if(dl){ dl.innerHTML = clients.map(c => `<option value="${c.name}">`).join(''); }
 
   setRevenueType('complet');
 
-  // Reset détails
   const body = document.getElementById('revDetailsBody');
   if(body) body.style.display = 'none';
   const arrow = document.getElementById('revDetailsArrow');
@@ -5679,7 +5397,6 @@ function toggleRevenueDetails(){
   if(arrow) arrow.classList.toggle('open', !isOpen);
 }
 
-// Sauvegarde l'entrée puis lance l'assistant
 async function saveRevenue(){
   const amount = parseFloat(document.getElementById('revAmount').value);
   if(!amount || amount <= 0){ alert('Indique un montant valide'); return; }
@@ -5729,7 +5446,6 @@ async function saveRevenue(){
   refreshAll();
   showToast('💰 ' + fmt(amount) + ' enregistré');
 
-  // 🎯 Lancer l'assistant après un court délai
   setTimeout(() => {
     demarrerAssistant({
       amount: amount,
@@ -5741,7 +5457,6 @@ async function saveRevenue(){
   }, 400);
 }
 
-// Guide de répartition simplifié (direct sur le montant)
 function ouvrirGuideRepartitionSimple(montant, prestationType, clientName){
   const d = (prestationType || '').toLowerCase();
   let type = 'default';
@@ -5780,26 +5495,17 @@ function ouvrirGuideRepartitionSimple(montant, prestationType, clientName){
         <div style="font-size:12px;color:var(--muted);margin-bottom:10px">💡 Suggestion :</div>
 
         <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
-          <div>
-            <div style="font-weight:700;color:var(--green);font-size:14px">💰 Épargne</div>
-            <div style="font-size:11px;color:var(--muted)">${regle.epargne}% · Priorité absolue</div>
-          </div>
+          <div><div style="font-weight:700;color:var(--green);font-size:14px">💰 Épargne</div><div style="font-size:11px;color:var(--muted)">${regle.epargne}%</div></div>
           <div style="font-weight:800;color:var(--green);font-size:16px">${fmt(epargne)}</div>
         </div>
 
         <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
-          <div>
-            <div style="font-weight:700;color:var(--yellow);font-size:14px">🏠 Charges</div>
-            <div style="font-size:11px;color:var(--muted)">${regle.charges}% · Loyer, transport</div>
-          </div>
+          <div><div style="font-weight:700;color:var(--yellow);font-size:14px">🏠 Charges</div><div style="font-size:11px;color:var(--muted)">${regle.charges}%</div></div>
           <div style="font-weight:800;color:var(--yellow);font-size:16px">${fmt(charges)}</div>
         </div>
 
         <div style="display:flex;justify-content:space-between;padding:10px 0">
-          <div>
-            <div style="font-weight:700;color:var(--accent);font-size:14px">🎉 Libre</div>
-            <div style="font-size:11px;color:var(--muted)">${regle.libre}% · Plaisir</div>
-          </div>
+          <div><div style="font-weight:700;color:var(--accent);font-size:14px">🎉 Libre</div><div style="font-size:11px;color:var(--muted)">${regle.libre}%</div></div>
           <div style="font-weight:800;color:var(--accent);font-size:16px">${fmt(libre)}</div>
         </div>
       </div>
@@ -5808,9 +5514,7 @@ function ouvrirGuideRepartitionSimple(montant, prestationType, clientName){
         <button class="btn-primary" style="margin:0;background:linear-gradient(135deg,var(--green),#10b981);width:100%;color:#000;font-weight:800" onclick="appliquerRepartitionDepuisEntree(${epargne})">
           ✅ Créer l'épargne (${fmt(epargne)})
         </button>
-        <button class="btn-ghost" style="margin:0;width:100%" onclick="fermerGuideRepartition()">
-          Ignorer
-        </button>
+        <button class="btn-ghost" style="margin:0;width:100%" onclick="fermerGuideRepartition()">Ignorer</button>
       </div>
     </div>
   `;
@@ -5834,7 +5538,6 @@ async function appliquerRepartitionDepuisEntree(montantEpargne){
   showToast(fmt(montantEpargne) + ' placé en épargne ! 🎯');
 }
 
-// Modifier l'affichage de l'historique pour montrer les détails
 function formatTxDetail(t){
   const parts = [];
   if(t.client_name) parts.push('👤 ' + t.client_name);
@@ -5844,15 +5547,15 @@ function formatTxDetail(t){
   if(t.photo_count) parts.push('📷 ' + t.photo_count + ' photos');
   if(t.duration_hours) parts.push('⏱ ' + t.duration_hours + 'h');
   return parts.join(' · ');
-}// ============================================================
-// 🤖 ASSISTANT FINANCIER CONVERSATIONNEL
-// Pose des questions une par une, puis calcule la répartition
-// ============================================================
+}
 
-let assistantData = null;  // Données en cours
-let assistantStep = 0;      // Étape actuelle
-let assistantAnswers = {};  // Réponses
-// Détecte automatiquement la source pour l'afficher
+// ============================================================
+// ASSISTANT FINANCIER CONVERSATIONNEL
+// ============================================================
+let assistantData = null;
+let assistantStep = 0;
+let assistantAnswers = {};
+
 function getSourceIcon(source){
   if(!source) return '💰';
   const s = source.toLowerCase();
@@ -5861,7 +5564,7 @@ function getSourceIcon(source){
   if(s.includes('entrée')) return '💰';
   return '💰';
 }
-// État initial de l'assistant
+
 function demarrerAssistant(data){
   assistantData = data;
   assistantStep = 0;
@@ -5890,7 +5593,6 @@ function closeAssistant(){
   assistantStep = 0;
 }
 
-// Calcul du type de prestation pour les règles
 function detecterTypeFromPrestation(prestationType){
   const d = (prestationType || '').toLowerCase();
   if(d.includes('mariage')) return 'mariage';
@@ -5902,7 +5604,6 @@ function detecterTypeFromPrestation(prestationType){
   return 'default';
 }
 
-// Affiche l'étape actuelle
 function renderAssistantStep(){
   const el = document.getElementById('assistantStep');
   const bar = document.getElementById('assistantProgressBar');
@@ -5915,15 +5616,14 @@ function renderAssistantStep(){
   const m = assistantData.amount;
   const regle = REGLES_REPARTITION[detecterTypeFromPrestation(assistantData.prestationType)];
 
-  // ================== ÉTAPE 0 : WELCOME ==================
   if(assistantStep === 0){
     el.innerHTML = `
       <div style="background:linear-gradient(135deg,rgba(52,211,153,.15),rgba(107,142,255,.10));border-radius:14px;padding:18px;margin-bottom:20px;text-align:center">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Entrée enregistrée</div>
         <div style="font-size:32px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(m)}</div>
         <div style="font-size:12px;color:var(--muted);margin-top:6px">
-  ${getSourceIcon(assistantData.source)} ${assistantData.source || 'Entrée'} · ${assistantData.prestationType}${assistantData.clientName ? ' · ' + assistantData.clientName : ''}
-</div>
+          ${getSourceIcon(assistantData.source)} ${assistantData.source || 'Entrée'} · ${assistantData.prestationType}${assistantData.clientName ? ' · ' + assistantData.clientName : ''}
+        </div>
       </div>
 
       <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:20px;font-size:14px;line-height:1.6;color:var(--text)">
@@ -5932,17 +5632,12 @@ function renderAssistantStep(){
         Ça prend <strong>moins d'1 minute</strong>. Prêt ?
       </div>
 
-      <button class="btn-primary" style="margin:0;width:100%;padding:16px;font-size:16px" onclick="assistantNext()">
-        🚀 C'est parti !
-      </button>
-      <button class="btn-ghost" style="margin-top:8px;width:100%" onclick="closeAssistant()">
-        Ignorer
-      </button>
+      <button class="btn-primary" style="margin:0;width:100%;padding:16px;font-size:16px" onclick="assistantNext()">🚀 C'est parti !</button>
+      <button class="btn-ghost" style="margin-top:8px;width:100%" onclick="closeAssistant()">Ignorer</button>
     `;
     return;
   }
 
-  // ================== ÉTAPE 1 : CHARGES ==================
   if(assistantStep === 1){
     el.innerHTML = `
       <div style="font-size:13px;color:var(--muted);margin-bottom:6px">Question 1 / 4</div>
@@ -5952,7 +5647,7 @@ function renderAssistantStep(){
       </div>
 
       <div style="background:linear-gradient(135deg,rgba(107,142,255,.10),rgba(255,126,179,.05));border-left:3px solid var(--accent);border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--muted);line-height:1.5">
-        💡 <strong>Exemple :</strong> Un mariage à Bouaké = 15 000 FCFA de transport + 10 000 FCFA d'assistant = 25 000 FCFA de charges.
+        💡 <strong>Exemple :</strong> Un mariage à Bouaké = 15 000 FCFA de transport + 10 000 FCFA d'assistant.
       </div>
 
       <div class="type-toggle" style="margin-bottom:14px">
@@ -5968,14 +5663,11 @@ function renderAssistantStep(){
         <textarea id="assistantChargesDetails" rows="2" placeholder="Ex: 15k transport + 10k assistant">${assistantAnswers.chargesDetails || ''}</textarea>
       </div>
 
-      <button class="btn-primary" style="margin-top:14px;width:100%;padding:14px" onclick="assistantValidateCharges()">
-        Continuer →
-      </button>
+      <button class="btn-primary" style="margin-top:14px;width:100%;padding:14px" onclick="assistantValidateCharges()">Continuer →</button>
     `;
     return;
   }
 
-  // ================== ÉTAPE 2 : OBJECTIF ==================
   if(assistantStep === 2){
     const activeGoals = coffres.filter(c => Number(c.current) < Number(c.goal));
 
@@ -5987,8 +5679,7 @@ function renderAssistantStep(){
 
       ${activeGoals.length === 0 ? `
         <div style="background:rgba(245,197,66,.12);border:1px solid rgba(245,197,66,.30);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--gold-soft);line-height:1.5">
-          ⚠️ Tu n'as pas encore d'objectif actif.<br>
-          Tu peux continuer sans, ou créer un objectif dans l'onglet 🎯.
+          ⚠️ Tu n'as pas encore d'objectif actif.
         </div>
       ` : `
         <div style="display:grid;gap:8px;margin-bottom:16px">
@@ -6001,13 +5692,7 @@ function renderAssistantStep(){
             const currentStr = isMoney ? fmt(c.current) : c.current + ' ' + unit;
             const selected = assistantAnswers.goalId === c.id;
             return `
-              <button type="button" onclick="assistantSetGoal(${c.id})" style="
-                background:${selected ? 'linear-gradient(135deg,rgba(107,142,255,.20),rgba(107,142,255,.08))' : 'var(--card2)'};
-                border:1px solid ${selected ? 'var(--accent)' : 'var(--border)'};
-                border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;
-                display:flex;justify-content:space-between;align-items:center;gap:10px;
-                font-family:inherit;color:var(--text);width:100%;
-              ">
+              <button type="button" onclick="assistantSetGoal(${c.id})" style="background:${selected ? 'linear-gradient(135deg,rgba(107,142,255,.20),rgba(107,142,255,.08))' : 'var(--card2)'};border:1px solid ${selected ? 'var(--accent)' : 'var(--border)'};border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;font-family:inherit;color:var(--text);width:100%;">
                 <div style="flex:1;min-width:0">
                   <div style="font-weight:700;font-size:14px;margin-bottom:3px">${emoji} ${c.name}</div>
                   <div style="font-size:11px;color:var(--muted)">${currentStr} / ${goalStr} · ${pct}%</div>
@@ -6016,25 +5701,15 @@ function renderAssistantStep(){
               </button>
             `;
           }).join('')}
-          <button type="button" onclick="assistantSetGoal(null)" style="
-            background:${assistantAnswers.goalId === null ? 'linear-gradient(135deg,rgba(107,142,255,.20),rgba(107,142,255,.08))' : 'var(--card2)'};
-            border:1px solid ${assistantAnswers.goalId === null ? 'var(--accent)' : 'var(--border)'};
-            border-radius:12px;padding:12px 14px;text-align:center;cursor:pointer;
-            font-family:inherit;color:var(--text);width:100%;font-weight:600;font-size:13px;
-          ">
-            🤷 Aucun objectif pour l'instant
-          </button>
+          <button type="button" onclick="assistantSetGoal(null)" style="background:${assistantAnswers.goalId === null ? 'linear-gradient(135deg,rgba(107,142,255,.20),rgba(107,142,255,.08))' : 'var(--card2)'};border:1px solid ${assistantAnswers.goalId === null ? 'var(--accent)' : 'var(--border)'};border-radius:12px;padding:12px 14px;text-align:center;cursor:pointer;font-family:inherit;color:var(--text);width:100%;font-weight:600;font-size:13px;">🤷 Aucun objectif pour l'instant</button>
         </div>
       `}
 
-      <button class="btn-primary" style="margin-top:10px;width:100%;padding:14px" onclick="assistantNext()">
-        Continuer →
-      </button>
+      <button class="btn-primary" style="margin-top:10px;width:100%;padding:14px" onclick="assistantNext()">Continuer →</button>
     `;
     return;
   }
 
-  // ================== ÉTAPE 3 : MONTANT ÉPARGNE ==================
   if(assistantStep === 3){
     const suggested = Math.round(m * regle.epargne / 100);
     const userAmount = assistantAnswers.epargneAmount || suggested;
@@ -6050,10 +5725,7 @@ function renderAssistantStep(){
       </div>
 
       <label>Montant à épargner (FCFA)</label>
-      <input type="number" id="assistantEpargneAmount" inputmode="decimal"
-        value="${userAmount}" placeholder="0"
-        oninput="assistantUpdateEpargne()"
-        style="font-size:20px;font-weight:700;text-align:center;color:var(--green)">
+      <input type="number" id="assistantEpargneAmount" inputmode="decimal" value="${userAmount}" placeholder="0" oninput="assistantUpdateEpargne()" style="font-size:20px;font-weight:700;text-align:center;color:var(--green)">
 
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px">
         <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="assistantQuickEpargne(${Math.round(m*0.1)})">10%</button>
@@ -6062,14 +5734,11 @@ function renderAssistantStep(){
         <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="assistantQuickEpargne(${Math.round(m*0.5)})">50%</button>
       </div>
 
-      <button class="btn-primary" style="margin-top:16px;width:100%;padding:14px" onclick="assistantValidateEpargne()">
-        Continuer →
-      </button>
+      <button class="btn-primary" style="margin-top:16px;width:100%;padding:14px" onclick="assistantValidateEpargne()">Continuer →</button>
     `;
     return;
   }
 
-  // ================== ÉTAPE 4 : RÉCAPITULATIF ==================
   if(assistantStep === 4){
     const charges = assistantAnswers.chargesAmount || 0;
     const epargne = assistantAnswers.epargneAmount || 0;
@@ -6080,10 +5749,7 @@ function renderAssistantStep(){
         <div style="text-align:center;padding:20px 0">
           <div style="font-size:60px;margin-bottom:10px">⚠️</div>
           <div style="font-size:18px;font-weight:700;margin-bottom:10px">Attention !</div>
-          <div style="color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:20px">
-            Tes charges + épargne dépassent le montant reçu.<br>
-            Réajuste pour continuer.
-          </div>
+          <div style="color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:20px">Tes charges + épargne dépassent le montant reçu.<br>Réajuste pour continuer.</div>
           <button class="btn-ghost" onclick="assistantStep=3;renderAssistantStep()">← Modifier</button>
         </div>
       `;
@@ -6095,9 +5761,7 @@ function renderAssistantStep(){
 
     el.innerHTML = `
       <div style="font-size:13px;color:var(--muted);margin-bottom:6px">Récapitulatif</div>
-      <div style="font-size:17px;font-weight:700;line-height:1.4;margin-bottom:16px">
-        ✨ Voici ta répartition intelligente
-      </div>
+      <div style="font-size:17px;font-weight:700;line-height:1.4;margin-bottom:16px">✨ Voici ta répartition intelligente</div>
 
       <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.06));border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Montant reçu</div>
@@ -6105,76 +5769,34 @@ function renderAssistantStep(){
       </div>
 
       <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
-
         ${charges > 0 ? `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
-            <div>
-              <div style="font-weight:700;color:var(--yellow);font-size:14px">🏠 Charges</div>
-              <div style="font-size:11px;color:var(--muted)">${assistantAnswers.chargesDetails || 'Frais liés à la prestation'}</div>
-            </div>
+            <div><div style="font-weight:700;color:var(--yellow);font-size:14px">🏠 Charges</div><div style="font-size:11px;color:var(--muted)">${assistantAnswers.chargesDetails || 'Frais liés à la prestation'}</div></div>
             <div style="font-weight:800;color:var(--yellow);font-size:16px">-${fmt(charges)}</div>
           </div>
         ` : ''}
 
         ${epargne > 0 ? `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
-            <div>
-              <div style="font-weight:700;color:var(--green);font-size:14px">💰 Épargne</div>
-              <div style="font-size:11px;color:var(--muted)">${goalName || 'Réserve générale'}</div>
-            </div>
+            <div><div style="font-weight:700;color:var(--green);font-size:14px">💰 Épargne</div><div style="font-size:11px;color:var(--muted)">${goalName || 'Réserve générale'}</div></div>
             <div style="font-weight:800;color:var(--green);font-size:16px">-${fmt(epargne)}</div>
           </div>
         ` : ''}
 
         <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
-          <div>
-            <div style="font-weight:700;color:var(--accent);font-size:14px">🎉 Pour toi</div>
-            <div style="font-size:11px;color:var(--muted)">Reste à utiliser librement</div>
-          </div>
+          <div><div style="font-weight:700;color:var(--accent);font-size:14px">🎉 Pour toi</div><div style="font-size:11px;color:var(--muted)">Reste à utiliser librement</div></div>
           <div style="font-weight:800;color:var(--accent);font-size:18px">${fmt(libre)}</div>
         </div>
       </div>
 
-      <div style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.05));border:1px solid rgba(245,197,66,.25);border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--gold-soft);line-height:1.5">
-        💡 <strong>Conseil :</strong> ${getConseilAssistant(detecterTypeFromPrestation(assistantData.prestationType), m, epargne, goalName)}
-      </div>
-
       <div style="display:grid;gap:8px">
-        <button class="btn-primary" style="margin:0;background:linear-gradient(135deg,var(--green),#10b981);width:100%;color:#000;font-weight:800;padding:16px" onclick="assistantAppliquer()">
-          ✅ Créer les transactions
-        </button>
-        <button class="btn-ghost" style="margin:0;width:100%" onclick="closeAssistant()">
-          Juste enregistrer sans répartition
-        </button>
+        <button class="btn-primary" style="margin:0;background:linear-gradient(135deg,var(--green),#10b981);width:100%;color:#000;font-weight:800;padding:16px" onclick="assistantAppliquer()">✅ Créer les transactions</button>
+        <button class="btn-ghost" style="margin:0;width:100%" onclick="closeAssistant()">Juste enregistrer sans répartition</button>
       </div>
     `;
     return;
   }
 }
-
-// Conseil intelligent selon le contexte
-function getConseilAssistant(type, montant, epargne, goalName){
-  if(epargne >= montant * 0.4){
-    return `Excellente discipline ! Tu mets ${Math.round(epargne/montant*100)}% de côté. Continue comme ça 💪`;
-  }
-  if(goalName){
-    return `Ton épargne va directement alimenter "${goalName}". Chaque entrée te rapproche de ton objectif 🎯`;
-  }
-  const conseils = {
-    'mariage': 'Un mariage = revenu rare. Épargner tôt te protège des mois creux.',
-    'dot': 'Après un dot, mets immédiatement une partie de côté. Tu ne le regretteras pas.',
-    'studio': 'Le studio c\'est régulier. Une épargne automatique te construit un vrai matelas.',
-    'shooting': 'Les shootings s\'enchaînent. Épargner 20% te laisse de la marge pour investir.',
-    'corporate': 'Client corporate = revenu fiable. Épargne pour équilibrer tes mois creux.',
-    'drone': 'Le drone demande de l\'entretien. Épargne pour anticiper les réparations.',
-    'default': 'Épargne maintenant, profite après. C\'est comme ça qu\'on devient libre 🚀'
-  };
-  return conseils[type] || conseils.default;
-}
-
-// ============================================================
-// INTERACTIONS DE L'ASSISTANT
-// ============================================================
 
 function assistantNext(){
   assistantStep++;
@@ -6237,10 +5859,7 @@ function assistantValidateEpargne(){
   const m = assistantData.amount;
   const charges = assistantAnswers.chargesAmount || 0;
 
-  if(val < 0){
-    alert('Montant invalide');
-    return;
-  }
+  if(val < 0){ alert('Montant invalide'); return; }
   if(val + charges > m){
     alert('Épargne + charges dépassent le montant reçu');
     return;
@@ -6249,7 +5868,6 @@ function assistantValidateEpargne(){
   assistantNext();
 }
 
-// Appliquer la répartition → créer les transactions
 async function assistantAppliquer(){
   const charges = assistantAnswers.chargesAmount || 0;
   const epargne = assistantAnswers.epargneAmount || 0;
@@ -6257,7 +5875,6 @@ async function assistantAppliquer(){
 
   let txCreated = 0;
 
-  // 1. Créer la transaction de charges (si > 0)
   if(charges > 0){
     const chargeResult = await dbInsert('transactions', {
       type: 'depense',
@@ -6273,7 +5890,6 @@ async function assistantAppliquer(){
     }
   }
 
-  // 2. Créer la transaction d'épargne (si > 0)
   if(epargne > 0){
     const epargneResult = await dbInsert('transactions', {
       type: 'depense',
@@ -6288,15 +5904,12 @@ async function assistantAppliquer(){
       txCreated++;
     }
 
-    // 3. Alimenter l'objectif si sélectionné
     if(goalId){
       const goal = coffres.find(c => c.id === goalId);
       if(goal){
         const newCurrent = Number(goal.current || 0) + epargne;
         const upd = await dbUpdate('goals', goalId, {current: newCurrent});
-        if(upd){
-          goal.current = newCurrent;
-        }
+        if(upd){ goal.current = newCurrent; }
       }
     }
   }
@@ -6309,6 +5922,7 @@ async function assistantAppliquer(){
     : 'Enregistré sans répartition';
   showToast(msg);
 }
+
 // ============================================================
 // INITIALISATION
 // ============================================================
@@ -6346,7 +5960,7 @@ function init(){
   setType('depense');
   setupAutocomplete('shootLocation', 'shootLocationList');
   setupAutocomplete('clientCity', 'clientCityList');
-  setupAutocomplete('revLocation', 'revLocationList');  // 🆕 Ajout
+  setupAutocomplete('revLocation', 'revLocationList');
   populateHistFilters();
   refreshAll();
   updateAiStatus();
@@ -6372,11 +5986,11 @@ function init(){
   setTimeout(verifierEpargneEnCours, 2000);
 
   setTimeout(() => {
-  checkAutomaticNotifications();
-  checkDailyReminders();
-  checkGoalReminders();
-  checkShootReminders();
-}, 2500);
+    checkAutomaticNotifications();
+    checkDailyReminders();
+    checkGoalReminders();
+    checkShootReminders();
+  }, 2500);
 }
 
 (async function bootstrap(){

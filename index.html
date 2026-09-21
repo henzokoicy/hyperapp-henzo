@@ -1086,8 +1086,33 @@
     </div>
     <label for="shootPhotoCount">Nombre de photos</label><input type="number" id="shootPhotoCount" inputmode="numeric" placeholder="0">
     <label for="shootDate">Date & heure</label><input type="datetime-local" id="shootDate">
-        <label for="shootPrice">Prix client (FCFA)</label>
+        <label for="shootPrice">💰 Prix client (FCFA)</label>
     <input type="number" id="shootPrice" inputmode="decimal" oninput="calculerNetShoot()">
+
+    <!-- 🆕 SECTION CHARGES -->
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <label style="margin:0;font-size:13px;color:var(--red);font-weight:700">💸 Charges déductibles</label>
+        <button type="button" onclick="ajouterChargeShoot()" style="width:auto;padding:4px 12px;margin:0;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">+ Ajouter</button>
+      </div>
+
+      <div id="shootExpensesList"></div>
+
+      <div id="shootNetSummary" style="display:none;background:var(--card2);border-radius:12px;padding:12px;margin-top:10px">
+        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">
+          <span style="color:var(--muted)">Prix client</span>
+          <span style="color:var(--green);font-weight:700" id="shootNetPrice">0 FCFA</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">
+          <span style="color:var(--muted)">Total charges</span>
+          <span style="color:var(--red);font-weight:700" id="shootNetCharges">0 FCFA</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0 0;border-top:1px solid var(--border);margin-top:6px">
+          <span style="font-weight:700">💚 Bénéfice net</span>
+          <span style="font-weight:800;font-size:16px" id="shootNetResult">0 FCFA</span>
+        </div>
+      </div>
+    </div>
 
     <!-- 💸 CHARGES DÉDUCTIBLES -->
     <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
