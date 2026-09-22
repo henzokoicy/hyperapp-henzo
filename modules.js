@@ -35,6 +35,7 @@ const VILLES_CI = [
 // ============================================================
 function refreshAll(){
   if(typeof renderOverview === 'function')        renderOverview();
+  if(typeof renderArgentFlow === 'function')      renderArgentFlow();
   if(typeof renderHealthScore === 'function')     renderHealthScore();
   if(typeof renderRevDepDonut === 'function')     renderRevDepDonut();
   if(typeof renderShootTypesChart === 'function') renderShootTypesChart();
@@ -2313,6 +2314,122 @@ function fermerRepartitionSeance(){
   if(m) m.remove();
 }
 // ============================================================
+// OÙ EST PASSÉ L'ARGENT (traçabilité Dashboard)
+// ============================================================
+function renderArgentFlow(){
+  const el = document.getElementById('argentFlowCard');
+  if(!el) return;
+
+  const ym = monthKey();
+  const monthTx = txs.filter(t => t.date && t.date.startsWith(ym));
+
+  if(monthTx.length === 0){
+    el.innerHTML = '<div class="empty">Aucune transaction ce mois</div>';
+    return;
+  }
+
+  // Revenus
+  const revenus = monthTx.filter(t => t.type === 'revenu');
+  const totalIn = revenus.reduce((s,t) => s + Number(t.amount || 0), 0);
+
+  // Dépenses par catégorie
+  const depenses = monthTx.filter(t => t.type === 'depense');
+  const totalOut = depenses.reduce((s,t) => s + Number(t.amount || 0), 0);
+
+  const parCategorie = {};
+  depenses.forEach(t => {
+    const cat = t.category || 'Autre';
+    parCategorie[cat] = (parCategorie[cat] || 0) + Number(t.amount || 0);
+  });
+
+  // Séances en cours (non soldées)
+  const seancesEnCours = shoots.filter(s => {
+    const prix = Number(s.price || 0);
+    const recu = Number(s.montant_recu || 0);
+    return prix > 0 && recu < prix && s.status !== 'annule';
+  });
+  const totalAttente = seancesEnCours.reduce((sum, s) => sum + Math.max(0, Number(s.price) - Number(s.montant_recu || 0)), 0);
+
+  // Épargne totale
+  const totalEpargne = coffres.reduce((sum, c) => sum + Number(c.current || 0), 0);
+
+  // Construction
+  el.innerHTML = `
+    <!-- Revenus -->
+    <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(52,211,153,.04));border-radius:12px;padding:12px;margin-bottom:10px;border-left:3px solid var(--green)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-weight:700;color:var(--green);font-size:14px">💰 Argent reçu</div>
+        <div style="font-weight:800;color:var(--green);font-size:16px">+${fmt(totalIn)}</div>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">${revenus.length} entrée${revenus.length > 1 ? 's' : ''} ce mois</div>
+    </div>
+
+    <!-- Dépenses par catégorie -->
+    ${Object.keys(parCategorie).length > 0 ? `
+      <div style="background:linear-gradient(135deg,rgba(255,107,107,.12),rgba(255,107,107,.04));border-radius:12px;padding:12px;margin-bottom:10px;border-left:3px solid var(--red)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-weight:700;color:var(--red);font-size:14px">💸 Argent sorti</div>
+          <div style="font-weight:800;color:var(--red);font-size:16px">-${fmt(totalOut)}</div>
+        </div>
+        ${Object.entries(parCategorie).sort((a,b) => b[1] - a[1]).slice(0, 5).map(([cat, amt]) => {
+          const pct = totalOut > 0 ? (amt / totalOut * 100) : 0;
+          return `
+            <div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0">
+              <span style="color:var(--muted)">• ${cat}</span>
+              <span>${fmt(amt)} <span style="color:var(--muted)">(${pct.toFixed(0)}%)</span></span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : ''}
+
+    <!-- Séances en attente de paiement -->
+    ${seancesEnCours.length > 0 ? `
+      <div style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.04));border-radius:12px;padding:12px;margin-bottom:10px;border-left:3px solid var(--yellow)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-weight:700;color:var(--yellow);font-size:14px">⏳ Argent à venir</div>
+          <div style="font-weight:800;color:var(--yellow);font-size:16px">${fmt(totalAttente)}</div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${seancesEnCours.length} séance${seancesEnCours.length > 1 ? 's' : ''} en attente de paiement</div>
+        ${seancesEnCours.slice(0, 3).map(s => {
+          const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+          const reste = Number(s.price) - Number(s.montant_recu || 0);
+          return `
+            <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">
+              <span style="color:var(--muted)">• ${s.type}${client ? ' · ' + client.name : ''}</span>
+              <span style="color:var(--yellow)">${fmt(reste)}</span>
+            </div>
+          `;
+        }).join('')}
+        ${seancesEnCours.length > 3 ? `<div style="font-size:11px;color:var(--muted);text-align:center;margin-top:4px">+${seancesEnCours.length - 3} autre(s)</div>` : ''}
+      </div>
+    ` : ''}
+
+    <!-- Épargne -->
+    ${totalEpargne > 0 ? `
+      <div style="background:linear-gradient(135deg,rgba(107,142,255,.12),rgba(107,142,255,.04));border-radius:12px;padding:12px;margin-bottom:10px;border-left:3px solid var(--accent)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700;color:var(--accent);font-size:14px">🎯 Argent épargné</div>
+          <div style="font-weight:800;color:var(--accent);font-size:16px">${fmt(totalEpargne)}</div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">réparti dans ${coffres.length} objectif${coffres.length > 1 ? 's' : ''}</div>
+      </div>
+    ` : ''}
+
+        <!-- Résumé + lien -->
+    <div style="background:var(--card2);border-radius:12px;padding:12px;border:1px solid var(--border);margin-top:10px">
+      <div style="font-size:12px;color:var(--muted);text-align:center;line-height:1.6;margin-bottom:10px">
+        Reçu <strong style="color:var(--green)">${fmt(totalIn)}</strong>
+        · Sorti <strong style="color:var(--red)">${fmt(totalOut)}</strong>
+        · Solde <strong style="color:var(--accent)">${fmt(totalIn - totalOut)}</strong>
+      </div>
+      <button class="btn-ghost" style="margin:0;width:100%;font-size:13px" onclick="showTab('historique', null)">
+        📜 Voir tout l'historique détaillé
+      </button>
+    </div>
+  `;
+}
+// ============================================================
 // CRÉATION RAPIDE DE CLIENT DEPUIS LA MODALE SÉANCE
 // ============================================================
 function onShootClientChange(){
@@ -2697,19 +2814,134 @@ function renderHistory(){
     const cls = t.type === 'revenu' ? 'pos' : 'neg';
     const checked = selectedTxIds.has(t.id) ? 'checked' : '';
 
-    return `<div class="hist-item">
-      <input type="checkbox" class="hist-check" data-id="${t.id}" ${checked} onchange="toggleTxSelect(${t.id}, this.checked)">
+    // 🆕 Détails visibles directement dans la ligne
+    const details = [];
+    if(t.client_name) details.push('👤 ' + t.client_name);
+    if(t.prestation_type) details.push('📸 ' + t.prestation_type);
+    if(t.payment_method) details.push('💳 ' + t.payment_method);
+    if(t.location) details.push('📍 ' + t.location);
+    if(t.photo_count) details.push('📷 ' + t.photo_count);
+    if(t.amount_type && t.amount_type !== 'complet') details.push('💰 ' + (t.amount_type === 'acompte' ? 'Acompte' : 'Solde'));
+
+    return `<div class="hist-item" onclick="ouvrirDetailTx(${t.id}, event)" style="cursor:pointer">
+      <input type="checkbox" class="hist-check" data-id="${t.id}" ${checked} onchange="toggleTxSelect(${t.id}, this.checked); event.stopPropagation();">
       <div class="hist-content">
-        <div class="hist-top"><span class="hist-cat">${t.category}</span><span class="hist-amt ${cls}">${sign}${fmt(t.amount)}</span></div>
+        <div class="hist-top">
+          <span class="hist-cat">${t.category}</span>
+          <span class="hist-amt ${cls}">${sign}${fmt(t.amount)}</span>
+        </div>
         <div class="hist-bottom">${d}${t.note ? ' · ' + t.note : ''}</div>
+        ${details.length > 0 ? `<div style="font-size:11px;color:var(--accent);margin-top:3px">${details.join(' · ')}</div>` : ''}
       </div>
-      <button class="hist-del" onclick="delTxFromHistory(${t.id})">×</button>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button class="hist-del" onclick="event.stopPropagation();delTxFromHistory(${t.id})" title="Supprimer">×</button>
+        <span style="color:var(--muted);font-size:18px">›</span>
+      </div>
     </div>`;
   }).join('');
 
   const allChecked = filtered.length > 0 && filtered.every(t => selectedTxIds.has(t.id));
   const selAll = document.getElementById('histSelectAll');
   if(selAll) selAll.checked = allChecked;
+}
+
+// ============================================================
+// DÉTAIL COMPLET D'UNE TRANSACTION
+// ============================================================
+function ouvrirDetailTx(txId, event){
+  if(event) event.stopPropagation();
+  const t = txs.find(x => x.id === txId);
+  if(!t){ alert('Transaction introuvable'); return; }
+
+  const existing = document.getElementById('detailTxModal');
+  if(existing) existing.remove();
+
+  const isRevenu = t.type === 'revenu';
+  const sign = isRevenu ? '+' : '-';
+  const color = isRevenu ? 'var(--green)' : 'var(--red)';
+  const dateStr = new Date(t.date).toLocaleDateString('fr-FR', {weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'});
+
+  const details = [];
+  if(t.client_name) details.push(['👤 Client', t.client_name]);
+  if(t.prestation_type) details.push(['📸 Prestation', t.prestation_type]);
+  if(t.payment_method) details.push(['💳 Mode de paiement', t.payment_method]);
+  if(t.location) details.push(['📍 Lieu', t.location]);
+  if(t.photo_count) details.push(['📷 Nombre de photos', t.photo_count + ' photos']);
+  if(t.duration_hours) details.push(['⏱ Durée', t.duration_hours + 'h']);
+  if(t.amount_type){
+    const labels = {complet: 'Complet', acompte: 'Acompte', solde: 'Solde restant'};
+    details.push(['💰 Type de paiement', labels[t.amount_type] || t.amount_type]);
+  }
+  if(t.details) details.push(['📝 Détails', t.details]);
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'detailTxModal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>📋 Détail de la transaction</h3>
+        <button class="close" onclick="fermerDetailTx()">×</button>
+      </div>
+
+      <!-- Montant en gros -->
+      <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.06));border-radius:14px;padding:18px;margin-bottom:16px;text-align:center">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">${isRevenu ? 'Revenu' : 'Dépense'}</div>
+        <div style="font-size:32px;font-weight:800;color:${color};letter-spacing:-1px">${sign}${fmt(t.amount)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px">${dateStr}</div>
+      </div>
+
+      <!-- Catégorie -->
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:12px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Catégorie</div>
+        <div style="font-weight:700;font-size:15px">${t.category || 'Non spécifiée'}</div>
+      </div>
+
+      ${t.note ? `
+        <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:12px">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Note</div>
+          <div style="font-size:14px;line-height:1.5">${t.note}</div>
+        </div>
+      ` : ''}
+
+      ${details.length > 0 ? `
+        <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:12px">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Détails</div>
+          ${details.map(([label, value]) => `
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+              <span style="color:var(--muted)">${label}</span>
+              <span style="font-weight:600;text-align:right;max-width:60%">${value}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Référence</div>
+        <div style="font-family:monospace;font-size:12px;color:var(--accent)">TX-${String(t.id).padStart(5, '0')}</div>
+      </div>
+
+      <div style="display:grid;gap:8px">
+        ${t.client_id ? `
+          <button class="btn-ghost" style="margin:0;width:100%" onclick="fermerDetailTx(); showTab('photo', null);">
+            👤 Voir ce client dans Photo
+          </button>
+        ` : ''}
+        <button class="btn-ghost" style="margin:0;width:100%;border-color:var(--red);color:var(--red)" onclick="fermerDetailTx(); setTimeout(() => delTxFromHistory(${t.id}), 200);">
+          🗑 Supprimer cette transaction
+        </button>
+        <button class="btn-primary" style="margin:0;width:100%" onclick="fermerDetailTx()">
+          Fermer
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function fermerDetailTx(){
+  const m = document.getElementById('detailTxModal');
+  if(m) m.remove();
 }
 
 function toggleTxSelect(id, checked){
