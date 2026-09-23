@@ -3453,6 +3453,225 @@ function renderGoalSuggestions(){
 }
 
 // ============================================================
+// MON ARGENT EN DÉTAIL (Dashboard détaillé)
+// ============================================================
+function renderMoneyDetails(){
+  const el = document.getElementById('moneyDetailsCard');
+  if(!el) return;
+
+  const ym = monthKey();
+  const monthTx = txs.filter(t => t.date && t.date.startsWith(ym));
+
+  // SECTION 1 : D'OÙ VIENT L'ARGENT
+  const revenus = monthTx.filter(t => t.type === 'revenu');
+  const totalIn = revenus.reduce((s,t) => s + Number(t.amount || 0), 0);
+
+  const sourcesMap = {};
+  revenus.forEach(t => {
+    const key = t.prestation_type || t.category || 'Autre';
+    if(!sourcesMap[key]) sourcesMap[key] = { total: 0, count: 0 };
+    sourcesMap[key].total += Number(t.amount || 0);
+    sourcesMap[key].count++;
+  });
+  const sources = Object.entries(sourcesMap).sort((a,b) => b[1].total - a[1].total);
+
+  // SECTION 2 : OÙ VA L'ARGENT
+  const depenses = monthTx.filter(t => t.type === 'depense');
+  const totalOut = depenses.reduce((s,t) => s + Number(t.amount || 0), 0);
+
+  const catsMap = {};
+  depenses.forEach(t => {
+    const key = t.category || 'Autre';
+    if(!catsMap[key]) catsMap[key] = { total: 0, count: 0 };
+    catsMap[key].total += Number(t.amount || 0);
+    catsMap[key].count++;
+  });
+  const cats = Object.entries(catsMap).sort((a,b) => b[1].total - a[1].total);
+
+  // SECTION 3 : ÉPARGNE PAR OBJECTIF
+  const totalEpargne = coffres.reduce((sum, c) => sum + Number(c.current || 0), 0);
+  const objectifsActifs = coffres.filter(c => Number(c.current) < Number(c.goal));
+
+  // SECTION 4 : ARGENT À VENIR
+  const seancesEnCours = shoots.filter(s => {
+    const prix = Number(s.price || 0);
+    const recu = Number(s.montant_recu || 0);
+    return prix > 0 && recu < prix && s.status !== 'annule';
+  });
+  const totalAttente = seancesEnCours.reduce((sum, s) =>
+    sum + Math.max(0, Number(s.price) - Number(s.montant_recu || 0)), 0);
+
+  let html = '';
+
+  // BLOC 1 : Revenus
+  html += `
+    <div style="background:linear-gradient(135deg,rgba(52,211,153,.10),rgba(52,211,153,.02));border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid rgba(52,211,153,.25)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700">💰 Argent reçu</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${revenus.length} entrée${revenus.length > 1 ? 's' : ''} ce mois</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:24px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(totalIn)}</div>
+        </div>
+      </div>
+      ${sources.length > 0 ? sources.slice(0, 5).map(([name, data]) => {
+        const pct = totalIn > 0 ? (data.total / totalIn * 100) : 0;
+        return `
+          <div style="margin-top:10px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+              <span style="color:var(--text)">• ${name}</span>
+              <span style="color:var(--green);font-weight:700">${fmt(data.total)} <span style="color:var(--muted);font-weight:400">(${pct.toFixed(0)}%)</span></span>
+            </div>
+            <div style="height:4px;background:rgba(52,211,153,.12);border-radius:2px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--green),#6ee7b7);border-radius:2px"></div>
+            </div>
+          </div>
+        `;
+      }).join('') : '<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px">Aucun revenu ce mois</div>'}
+    </div>
+  `;
+
+  // BLOC 2 : Dépenses
+  html += `
+    <div style="background:linear-gradient(135deg,rgba(255,107,107,.10),rgba(255,107,107,.02));border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid rgba(255,107,107,.25)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700">💸 Argent sorti</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${depenses.length} sortie${depenses.length > 1 ? 's' : ''} ce mois</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:24px;font-weight:800;color:var(--red);letter-spacing:-1px">${fmt(totalOut)}</div>
+        </div>
+      </div>
+      ${cats.length > 0 ? cats.slice(0, 6).map(([name, data]) => {
+        const pct = totalOut > 0 ? (data.total / totalOut * 100) : 0;
+        return `
+          <div style="margin-top:10px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+              <span style="color:var(--text)">• ${name}</span>
+              <span style="color:var(--red);font-weight:700">${fmt(data.total)} <span style="color:var(--muted);font-weight:400">(${pct.toFixed(0)}%)</span></span>
+            </div>
+            <div style="height:4px;background:rgba(255,107,107,.12);border-radius:2px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--red),#ff9b9b);border-radius:2px"></div>
+            </div>
+          </div>
+        `;
+      }).join('') : '<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px">Aucune dépense ce mois</div>'}
+    </div>
+  `;
+
+  // BLOC 3 : Épargne
+  if(totalEpargne > 0){
+    html += `
+      <div style="background:linear-gradient(135deg,rgba(107,142,255,.10),rgba(107,142,255,.02));border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid rgba(107,142,255,.25)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700">🎯 Argent épargné</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">${coffres.length} objectif${coffres.length > 1 ? 's' : ''} · ${objectifsActifs.length} en cours</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:24px;font-weight:800;color:var(--accent);letter-spacing:-1px">${fmt(totalEpargne)}</div>
+          </div>
+        </div>
+        ${coffres.slice(0, 4).map(c => {
+          const current = Number(c.current || 0);
+          const goal = Number(c.goal || 1);
+          const pct = Math.min(100, (current / goal) * 100);
+          const emoji = c.emoji || getCoffreEmoji(c.name);
+          const isMoney = (c.goal_type || 'money') === 'money';
+          const unit = c.unit || 'FCFA';
+          const valStr = isMoney ? fmt(current) : current + ' ' + unit;
+          const goalStr = isMoney ? fmt(goal) : goal + ' ' + unit;
+          const color = pct >= 100 ? 'var(--green)' : pct >= 50 ? 'var(--accent)' : 'var(--yellow)';
+          return `
+            <div style="margin-top:10px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+                <span style="color:var(--text)">${emoji} ${c.name}</span>
+                <span style="color:${color};font-weight:700">${valStr} <span style="color:var(--muted);font-weight:400">/ ${goalStr}</span></span>
+              </div>
+              <div style="height:4px;background:rgba(107,142,255,.12);border-radius:2px;overflow:hidden">
+                <div style="height:100%;width:${pct}%;background:${color};border-radius:2px"></div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+        ${coffres.length > 4 ? `<div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">+${coffres.length - 4} autre${coffres.length - 4 > 1 ? 's' : ''}</div>` : ''}
+      </div>
+    `;
+  }
+
+  // BLOC 4 : À venir
+  if(seancesEnCours.length > 0){
+    html += `
+      <div style="background:linear-gradient(135deg,rgba(245,197,66,.10),rgba(245,197,66,.02));border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid rgba(245,197,66,.25)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700">⏳ Argent à venir</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">${seancesEnCours.length} séance${seancesEnCours.length > 1 ? 's' : ''} en attente de paiement</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:24px;font-weight:800;color:var(--yellow);letter-spacing:-1px">${fmt(totalAttente)}</div>
+          </div>
+        </div>
+        ${seancesEnCours.slice(0, 4).map(s => {
+          const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+          const reste = Number(s.price) - Number(s.montant_recu || 0);
+          const pct = Number(s.price) > 0 ? (Number(s.montant_recu || 0) / Number(s.price) * 100) : 0;
+          const d = new Date(s.date);
+          const dateStr = d.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
+          return `
+            <div style="margin-top:10px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+                <span style="color:var(--text)">📸 ${s.type}${client ? ' · ' + client.name : ''} <span style="color:var(--muted);font-size:11px">(${dateStr})</span></span>
+                <span style="color:var(--yellow);font-weight:700">${fmt(reste)}</span>
+              </div>
+              <div style="height:4px;background:rgba(245,197,66,.12);border-radius:2px;overflow:hidden">
+                <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--yellow),#ffd97a);border-radius:2px"></div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+        ${seancesEnCours.length > 4 ? `<div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">+${seancesEnCours.length - 4} autre${seancesEnCours.length - 4 > 1 ? 's' : ''}</div>` : ''}
+        <button class="btn-ghost" style="margin-top:12px;width:100%;font-size:12px" onclick="showTab('photo', null)">
+          📸 Voir toutes les séances
+        </button>
+      </div>
+    `;
+  }
+
+  // RÉSUMÉ FINAL
+  const solde = totalIn - totalOut;
+  html += `
+    <div style="background:var(--card2);border-radius:14px;padding:16px;border:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;text-align:center;margin-bottom:12px">📊 Résumé du mois</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="text-align:center;padding:10px;background:rgba(52,211,153,.08);border-radius:10px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Reçu</div>
+          <div style="font-size:16px;font-weight:800;color:var(--green)">${fmt(totalIn)}</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:rgba(255,107,107,.08);border-radius:10px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Sorti</div>
+          <div style="font-size:16px;font-weight:800;color:var(--red)">${fmt(totalOut)}</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:rgba(107,142,255,.08);border-radius:10px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Épargné</div>
+          <div style="font-size:16px;font-weight:800;color:var(--accent)">${fmt(totalEpargne)}</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:rgba(245,197,66,.08);border-radius:10px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Solde net</div>
+          <div style="font-size:16px;font-weight:800;color:${solde >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(solde)}</div>
+        </div>
+      </div>
+      <button class="btn-ghost" style="margin-top:14px;width:100%;font-size:13px" onclick="showTab('historique', null)">
+        📜 Voir tout l'historique détaillé
+      </button>
+    </div>
+  `;
+
+  el.innerHTML = html;
+}
+// ============================================================
 // VUE GLOBALE DU DASHBOARD
 // ============================================================
 function renderGlobalOverview(){
