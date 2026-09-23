@@ -1,6 +1,6 @@
 // ============================================================
 // MODULES.JS - Version complète et corrigée
-// PARTIE 1/2
+// PARTIE 1/3
 // ============================================================
 
 let editingReminderId = null;
@@ -9,7 +9,7 @@ let editingNoteId = null;
 let editingGoalReminderId = null;
 let paymentLinks = [];
 
-// 🆕 Charges de séance
+// Charges de séance
 let currentShootExpenses = [];
 
 const APP_URL = 'https://hyperapp-henzo.vercel.app';
@@ -35,7 +35,7 @@ const VILLES_CI = [
 // ============================================================
 function refreshAll(){
   if(typeof renderOverview === 'function')        renderOverview();
-  if(typeof renderArgentFlow === 'function')      renderArgentFlow();
+  if(typeof renderMoneyDetails === 'function')    renderMoneyDetails();
   if(typeof renderHealthScore === 'function')     renderHealthScore();
   if(typeof renderRevDepDonut === 'function')     renderRevDepDonut();
   if(typeof renderShootTypesChart === 'function') renderShootTypesChart();
@@ -180,6 +180,7 @@ function analyzeNoteContent(text){
 function analyzeNoteLive(){
   const text = document.getElementById('noteContent').value;
   const analysisEl = document.getElementById('noteAnalysis');
+  if(!analysisEl) return;
   if(!text || text.length < 5){ analysisEl.classList.remove('show'); return; }
 
   const a = analyzeNoteContent(text);
@@ -333,9 +334,14 @@ function renderNotes(){
   if(rEl) rEl.textContent = withReminder;
   if(uEl) uEl.textContent = urgent;
 
-  const catFilter = document.getElementById('notesFilterCategory').value;
-  const statusFilter = document.getElementById('notesFilterStatus').value;
-  const search = (document.getElementById('notesSearch').value || '').trim().toLowerCase();
+  const catFilterEl = document.getElementById('notesFilterCategory');
+  const statusFilterEl = document.getElementById('notesFilterStatus');
+  const searchEl = document.getElementById('notesSearch');
+  if(!catFilterEl || !statusFilterEl || !searchEl) return;
+
+  const catFilter = catFilterEl.value;
+  const statusFilter = statusFilterEl.value;
+  const search = (searchEl.value || '').trim().toLowerCase();
 
   let filtered = notes.filter(n => {
     if(statusFilter === 'active' && n.archived) return false;
@@ -568,6 +574,7 @@ function renderInspirations(){
   if(caEl) caEl.textContent = cats;
 
   const filterCat = document.getElementById('inspFilterCategory');
+  if(!filterCat) return;
   const currentCat = filterCat.value;
   const allCats = [...new Set(inspirations.map(i => i.category).filter(Boolean))].sort();
 
@@ -576,8 +583,10 @@ function renderInspirations(){
   if(currentCat && [...filterCat.options].some(o => o.value === currentCat)){ filterCat.value = currentCat; }
 
   const catFilter = filterCat.value;
-  const favFilter = document.getElementById('inspFilterFav').value;
-  const search = (document.getElementById('inspSearch').value || '').trim().toLowerCase();
+  const favFilterEl = document.getElementById('inspFilterFav');
+  const searchEl = document.getElementById('inspSearch');
+  const favFilter = favFilterEl ? favFilterEl.value : 'all';
+  const search = (searchEl ? searchEl.value : '').trim().toLowerCase();
 
   let filtered = inspirations.filter(i => {
     if(catFilter !== 'all' && i.category !== catFilter) return false;
@@ -1095,8 +1104,11 @@ async function delCoffre(id){
 function openDepositModal(id){
   depositingCoffreId = id;
   const c = coffres.find(x => x.id === id);
-  document.getElementById('depositCoffreName').textContent = c.name;
-  document.getElementById('depositAmount').value = '';
+  if(!c) return;
+  const el = document.getElementById('depositCoffreName');
+  if(el) el.textContent = c.name;
+  const inp = document.getElementById('depositAmount');
+  if(inp) inp.value = '';
   document.getElementById('depositModalBg').classList.add('show');
 }
 
@@ -1110,6 +1122,7 @@ async function confirmDeposit(){
   if(!amt || amt <= 0){ alert("Montant invalide"); return; }
 
   const c = coffres.find(x => x.id === depositingCoffreId);
+  if(!c) return;
   const newCurrent = Number(c.current || 0) + amt;
   const result = await dbUpdate('goals', depositingCoffreId, {current: newCurrent});
   if(!result) return;
@@ -1344,6 +1357,7 @@ function ouvrirGuideRegles(){
   `;
   document.body.appendChild(modal);
 }
+
 // ============================================================
 // MODULE PHOTO - SÉANCES
 // ============================================================
@@ -1352,7 +1366,8 @@ let currentShootFilter = 'all';
 
 function onShootTypeChange(){
   const t = document.getElementById('shootType').value;
-  document.getElementById('shootCustomTypeWrap').style.display = (t === 'Autre') ? 'block' : 'none';
+  const wrap = document.getElementById('shootCustomTypeWrap');
+  if(wrap) wrap.style.display = (t === 'Autre') ? 'block' : 'none';
 }
 
 function openShootModal(id){
@@ -1362,22 +1377,22 @@ function openShootModal(id){
   document.getElementById('shootModalTitle').textContent = s ? 'Modifier la séance' : 'Nouvelle séance';
 
   const sel = document.getElementById('shootClient');
-  sel.innerHTML = '<option value="">-- Choisir --</option>'
-    + clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')
-    + '<option value="__new__" style="color:var(--green);font-weight:700">➕ Créer un nouveau client</option>';
+  if(sel){
+    sel.innerHTML = '<option value="">-- Choisir --</option>'
+      + clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')
+      + '<option value="__new__" style="color:var(--green);font-weight:700">➕ Créer un nouveau client</option>';
+  }
 
   const newWrap = document.getElementById('shootNewClientWrap');
   if(newWrap) newWrap.style.display = 'none';
 
-  // 🆕 Charger les charges
   currentShootExpenses = [];
   if(s && s.shoot_expenses && Array.isArray(s.shoot_expenses)){
     currentShootExpenses = JSON.parse(JSON.stringify(s.shoot_expenses));
   }
 
   if(s){
-    sel.value = s.client_id || '';
-    if(newWrap) newWrap.style.display = 'none';
+    if(sel) sel.value = s.client_id || '';
     const savedType = s.type || 'Mariage';
     if(TYPES_FIXES.includes(savedType)){
       document.getElementById('shootType').value = savedType;
@@ -1393,7 +1408,7 @@ function openShootModal(id){
     document.getElementById('shootPay').value = s.payment || 'impaye';
     document.getElementById('shootNotes').value = s.notes || '';
   } else {
-    sel.value = '';
+    if(sel) sel.value = '';
     document.getElementById('shootType').value = 'Mariage';
     document.getElementById('shootCustomType').value = '';
     document.getElementById('shootLocation').value = '';
@@ -1432,11 +1447,9 @@ async function saveShoot(){
     if(custom) type = custom;
   }
 
-  // 🆕 Récupérer le nom du client pour les notes de transaction
   const clientObj = clientId && clientId !== '__new__' ? clients.find(c => c.id === parseInt(clientId)) : null;
   const clientName = clientObj ? clientObj.name : '';
 
-  // 🆕 Nettoyer les charges (garder seulement celles avec montant > 0)
   const shoot_expenses = currentShootExpenses
     .filter(e => e && e.amount && Number(e.amount) > 0)
     .map(e => ({ type: e.type, amount: Number(e.amount) }));
@@ -1466,7 +1479,6 @@ async function saveShoot(){
     savedShoot = result;
   }
 
-  // 🆕 Créer automatiquement les transactions de dépense pour chaque charge
   if(shoot_expenses.length > 0 && savedShoot){
     const shootLabel = type + (clientName ? ' · ' + clientName : '');
     for(const exp of shoot_expenses){
@@ -1497,7 +1509,7 @@ async function delShoot(id){
 }
 
 // ============================================================
-// PAIEMENT REÇU D'UNE SÉANCE (avec montant saisi)
+// PAIEMENT REÇU D'UNE SÉANCE
 // ============================================================
 function openPaiementSeance(shootId){
   const s = shoots.find(x => x.id === shootId);
@@ -1574,7 +1586,7 @@ function openPaiementSeance(shootId){
         <option value="Chèque">📝 Chèque</option>
       </select>
 
-      <div id="paiementInfo" style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.05));border:1px solid rgba(245,197,66,.25);border-radius:12px;padding:12px;margin-top:16px;font-size:12px;color:var(--gold-soft);line-height:1.5">
+      <div style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.05));border:1px solid rgba(245,197,66,.25);border-radius:12px;padding:12px;margin-top:16px;font-size:12px;color:var(--gold-soft);line-height:1.5">
         💡 Une transaction "Revenu" sera créée dans ton historique, puis l'assistant de répartition te proposera d'épargner.
       </div>
 
@@ -1605,11 +1617,9 @@ async function validerPaiementSeance(shootId){
   const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
   const clientName = client ? client.name : '';
 
-  // Déterminer le type (acompte ou complet)
   let montantType = 'acompte';
   if(nouveauRecu >= prix) montantType = 'complet';
 
-  // 1. Créer la transaction de revenu
   const noteLabel = (s.type || 'Séance') + (clientName ? ' · ' + clientName : '') + (montantType === 'acompte' ? ' (acompte)' : '');
   const txResult = await dbInsert('transactions', {
     type: 'revenu',
@@ -1628,7 +1638,6 @@ async function validerPaiementSeance(shootId){
 
   if(txResult){ txs.unshift(txResult); }
 
-  // 2. Mettre à jour la séance
   const newPaymentStatus = nouveauRecu >= prix ? 'paye' : 'impaye';
   const upd = await dbUpdate('shoots', shootId, {
     montant_recu: nouveauRecu,
@@ -1650,7 +1659,6 @@ async function validerPaiementSeance(shootId){
     showToast(`💰 ${fmt(montant)} reçu · reste ${fmt(reste)}`);
   }
 
-  // 3. Lancer l'assistant après un petit délai
   setTimeout(() => {
     demarrerAssistant({
       amount: montant,
@@ -1666,6 +1674,7 @@ function fermerPaiementSeance(){
   const m = document.getElementById('paiementSeanceModal');
   if(m) m.remove();
 }
+
 function filterShoots(filter, btn){
   currentShootFilter = filter;
   document.querySelectorAll('.shoot-filter-btn').forEach(b => b.classList.remove('active'));
@@ -1794,7 +1803,6 @@ function renderShoots(){
     const photoInfo = s.photo_count ? `📷 ${s.photo_count} photos` : '';
     const metaInfo = [locInfo, photoInfo].filter(x => x).join(' · ');
 
-    // 📊 Calculs financiers
     const prix = Number(s.price || 0);
     const recu = Number(s.montant_recu || 0);
     const charges = (s.shoot_expenses || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
@@ -1803,12 +1811,8 @@ function renderShoots(){
     const netEncaisse = recu - charges;
     const disponible = Math.max(0, netEncaisse - reparti);
 
-    // Bloc financier détaillé
     let financeBlock = '';
     if(prix > 0){
-      const isFullyPaid = recu >= prix;
-      const isPartiallyPaid = recu > 0 && !isFullyPaid;
-
       financeBlock = `
         <div style="background:var(--card);border-radius:10px;padding:10px 12px;margin-top:10px;border:1px solid var(--border)">
           <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px">
@@ -1858,7 +1862,6 @@ function renderShoots(){
     const isDone = s.status === 'shoote';
     const itemClass = isCancelled ? 'cancelled' : (isDone ? 'done' : '');
 
-    // Badge paiement personnalisé
     let paymentBadge = '';
     if(!isCancelled && prix > 0){
       if(recu <= 0){
@@ -1925,510 +1928,7 @@ function renderShoots(){
     </div>`;
   }).join('');
 }
-// ============================================================
-// RÉPARTITION DES REVENUS DE SÉANCE VERS LES OBJECTIFS
-// ============================================================
-function ouvrirRepartitionSeance(shootId) {
-  const s = shoots.find(x => x.id === shootId);
-  if(!s){ alert('Séance introuvable'); return; }
 
-  const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
-  const clientName = client ? client.name : '';
-
-  const prix = Number(s.price || 0);
-  const recu = Number(s.montant_recu || 0);
-  const charges = (s.shoot_expenses || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
-  const reparti = Number(s.montant_reparti || 0);
-  const resteAPayerClient = Math.max(0, prix - recu);
-  const netEncaisse = recu - charges;
-  const disponible = Math.max(0, netEncaisse - reparti);
-
-  if(recu <= 0){
-    alert(`❌ Rien à répartir.\n\nTu n'as encore rien reçu pour cette séance.\nClique d'abord sur "💰 Paiement reçu".`);
-    return;
-  }
-
-  if(netEncaisse <= 0){
-    alert(`❌ Rien à répartir.\n\nReçu : ${fmt(recu)}\nCharges : ${fmt(charges)}\nNet encaissé : ${fmt(netEncaisse)}`);
-    return;
-  }
-
-  if(disponible <= 0){
-    alert(`✅ Tout est déjà réparti.\n\nReçu : ${fmt(recu)}\nCharges : ${fmt(charges)}\nDéjà réparti : ${fmt(reparti)}`);
-    return;
-  }
-
-  const activeGoals = coffres.filter(c => Number(c.current) < Number(c.goal));
-
-  const existing = document.getElementById('repartitionSeanceModal');
-  if(existing) existing.remove();
-
-  const modal = document.createElement('div');
-  modal.className = 'modal-bg show';
-  modal.id = 'repartitionSeanceModal';
-  modal.innerHTML = `
-    <div class="modal">
-      <div class="modal-wrap">
-        <h3>💰 Répartir les revenus</h3>
-        <button class="close" onclick="fermerRepartitionSeance()">×</button>
-      </div>
-
-      <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.06));border-radius:14px;padding:14px;margin-bottom:16px">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Séance</div>
-        <div style="font-weight:700;font-size:15px;margin-bottom:10px">📸 ${s.type}${clientName ? ' · ' + clientName : ''}</div>
-
-        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
-          <span style="color:var(--muted)">Prix client</span>
-          <span style="font-weight:700">${fmt(prix)}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
-          <span style="color:var(--muted)">✅ Reçu</span>
-          <span style="color:var(--green);font-weight:700">${fmt(recu)}</span>
-        </div>
-        ${resteAPayerClient > 0 ? `
-          <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
-            <span style="color:var(--muted)">⏳ Reste à payer client</span>
-            <span style="color:var(--yellow);font-weight:700">${fmt(resteAPayerClient)}</span>
-          </div>
-        ` : ''}
-        ${charges > 0 ? `
-          <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
-            <span style="color:var(--muted)">💸 Charges déduites</span>
-            <span style="color:var(--red);font-weight:700">-${fmt(charges)}</span>
-          </div>
-        ` : ''}
-        ${reparti > 0 ? `
-          <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
-            <span style="color:var(--muted)">💰 Déjà réparti</span>
-            <span style="color:var(--accent);font-weight:700">-${fmt(reparti)}</span>
-          </div>
-        ` : ''}
-        <div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--border);margin-top:6px">
-          <span style="font-weight:700;font-size:14px">🎯 Disponible à répartir</span>
-          <span style="font-weight:800;font-size:18px;color:var(--green)">${fmt(disponible)}</span>
-        </div>
-      </div>
-
-      ${activeGoals.length === 0 ? `
-        <div style="background:rgba(245,197,66,.12);border:1px solid rgba(245,197,66,.30);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--gold-soft);line-height:1.5">
-          ⚠️ Tu n'as aucun objectif actif.<br>Crée un objectif dans l'onglet 🎯.
-        </div>
-        <button class="btn-ghost" style="margin:0;width:100%" onclick="fermerRepartitionSeance(); showTab('objectifs', null); setTimeout(() => openCoffreModal(), 400);">🎯 Créer un objectif</button>
-      ` : `
-        <label>Combien veux-tu répartir ? (FCFA)</label>
-        <input type="number" id="repartMontant" inputmode="decimal" value="${disponible}" placeholder="0" style="font-size:18px;font-weight:700;text-align:center;color:var(--green)" oninput="updateRepartInfo()">
-
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px">
-          <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repartMontant').value=${Math.round(disponible*0.25)}; updateRepartInfo()">25%</button>
-          <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repartMontant').value=${Math.round(disponible*0.5)}; updateRepartInfo()">50%</button>
-          <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repartMontant').value=${Math.round(disponible*0.75)}; updateRepartInfo()">75%</button>
-          <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:rgba(52,211,153,.10);color:var(--green);border-color:var(--green)" onclick="document.getElementById('repartMontant').value=${disponible}; updateRepartInfo()">Tout</button>
-        </div>
-
-        <label style="margin-top:16px">Choisis l'objectif à alimenter</label>
-        <div style="display:grid;gap:8px">
-          ${activeGoals.map(c => {
-            const current = Number(c.current || 0);
-            const goal = Number(c.goal || 1);
-            const pct = Math.min(100, (current / goal) * 100);
-            const emoji = c.emoji || getCoffreEmoji(c.name);
-            const unit = c.unit || 'FCFA';
-            const isMoney = (c.goal_type || 'money') === 'money';
-            const rest = goal - current;
-            const goalStr = isMoney ? fmt(goal) : goal + ' ' + unit;
-            const currentStr = isMoney ? fmt(current) : current + ' ' + unit;
-            const restStr = isMoney ? fmt(rest) : Math.round(rest) + ' ' + unit;
-
-            return `
-              <button type="button" onclick="selectRepartGoal(${c.id}, this)" data-goal-id="${c.id}" data-goal-current="${current}" data-goal-name="${c.name.replace(/"/g, '&quot;')}" data-goal-unit="${unit}" data-goal-ismoney="${isMoney}" data-goal-goal="${goal}" style="
-                background:var(--card2);border:1px solid var(--border);
-                border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;
-                font-family:inherit;color:var(--text);width:100%;
-                transition:all .2s;
-              ">
-                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-                  <div style="flex:1;min-width:0">
-                    <div style="font-weight:700;font-size:14px;margin-bottom:3px">${emoji} ${c.name}</div>
-                    <div style="font-size:11px;color:var(--muted)">${currentStr} / ${goalStr} · ${pct.toFixed(0)}%</div>
-                    <div style="font-size:11px;color:var(--yellow);margin-top:2px">Reste : ${restStr}</div>
-                  </div>
-                  <div class="repart-check" style="width:24px;height:24px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--accent);font-weight:800"></div>
-                </div>
-              </button>
-            `;
-          }).join('')}
-        </div>
-
-        <div id="repartQuickInfo" style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.05));border:1px solid rgba(245,197,66,.25);border-radius:12px;padding:12px;margin-top:16px;font-size:12px;color:var(--gold-soft);line-height:1.5">
-          💡 Sélectionne un objectif pour voir l'impact.
-        </div>
-
-        <button class="btn-primary" style="margin:0;margin-top:16px;width:100%;background:linear-gradient(135deg,var(--green),#10b981);color:#000;font-weight:800;padding:16px" onclick="validerRepartitionSeance(${shootId})">
-          ✅ Valider la répartition
-        </button>
-        <button class="btn-ghost" style="margin-top:8px;width:100%" onclick="fermerRepartitionSeance()">Annuler</button>
-      `}
-
-      <input type="hidden" id="repartGoalId" value="">
-      <input type="hidden" id="repartDisponible" value="${disponible}">
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-function updateRepartInfo(){
-  const montant = parseFloat(document.getElementById('repartMontant')?.value) || 0;
-  const goalId = parseInt(document.getElementById('repartGoalId')?.value);
-  if(!goalId) return;
-  const btn = document.querySelector(`#repartitionSeanceModal button[data-goal-id="${goalId}"]`);
-  if(btn) selectRepartGoal(goalId, btn, true);
-}
-
-function selectRepartGoal(goalId, btn, silent) {
-  // Reset visuel
-  document.querySelectorAll('#repartitionSeanceModal button[data-goal-id]').forEach(b => {
-    b.style.background = 'var(--card2)';
-    b.style.borderColor = 'var(--border)';
-    const check = b.querySelector('.repart-check');
-    if(check){
-      check.style.background = 'transparent';
-      check.style.borderColor = 'var(--border)';
-      check.style.color = 'var(--accent)';
-      check.textContent = '';
-    }
-  });
-
-  // Highlight
-  btn.style.background = 'linear-gradient(135deg,rgba(107,142,255,.20),rgba(107,142,255,.08))';
-  btn.style.borderColor = 'var(--accent)';
-  const check = btn.querySelector('.repart-check');
-  if(check){
-    check.style.background = 'var(--accent)';
-    check.style.borderColor = 'var(--accent)';
-    check.style.color = '#fff';
-    check.textContent = '✓';
-  }
-
-  const hidden = document.getElementById('repartGoalId');
-  if(hidden) hidden.value = goalId;
-
-  // Info dynamique
-  const info = document.getElementById('repartQuickInfo');
-  const current = parseFloat(btn.dataset.goalCurrent) || 0;
-  const goalVal = parseFloat(btn.dataset.goalGoal) || 1;
-  const isMoney = btn.dataset.goalIsmoney === 'true';
-  const unit = btn.dataset.goalUnit || 'FCFA';
-  const goalName = btn.dataset.goalName || '';
-  const montant = parseFloat(document.getElementById('repartMontant')?.value) || 0;
-
-  const newCurrent = current + montant;
-  const newPct = Math.min(100, (newCurrent / goalVal) * 100);
-  const newStr = isMoney ? fmt(newCurrent) : newCurrent + ' ' + unit;
-
-  if(info){
-    info.innerHTML = `💡 <strong>Après répartition :</strong> "${goalName}" passera à <strong>${newStr}</strong> (${newPct.toFixed(0)}%).`;
-  }
-}
-
-async function validerRepartitionSeance(shootId) {
-  const s = shoots.find(x => x.id === shootId);
-  if(!s){ alert('Séance introuvable'); return; }
-
-  const montant = parseFloat(document.getElementById('repartMontant')?.value) || 0;
-  const goalId = parseInt(document.getElementById('repartGoalId')?.value);
-  const disponible = parseFloat(document.getElementById('repartDisponible')?.value) || 0;
-
-  if(!montant || montant <= 0){
-    alert('Indique un montant valide');
-    return;
-  }
-  if(!goalId){
-    alert('Sélectionne un objectif à alimenter');
-    return;
-  }
-  if(montant > disponible){
-    alert(`❌ Le montant (${fmt(montant)}) dépasse le disponible (${fmt(disponible)}).`);
-    return;
-  }
-
-  const goal = coffres.find(c => c.id === goalId);
-  if(!goal){ alert('Objectif introuvable'); return; }
-
-  const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
-  const clientName = client ? client.name : '';
-  const noteLabel = (s.type || 'Séance') + (clientName ? ' · ' + clientName : '');
-
-  // 1. Transaction "Épargne" (dépense)
-  const txResult = await dbInsert('transactions', {
-    type: 'depense',
-    amount: montant,
-    category: 'Épargne',
-    note: 'Épargne séance · ' + noteLabel,
-    date: todayStr(),
-    payment_method: 'Interne'
-  });
-  if(txResult){ txs.unshift(txResult); }
-
-  // 2. Alimenter l'objectif
-  const newCurrent = Number(goal.current || 0) + montant;
-  const upd = await dbUpdate('goals', goalId, {current: newCurrent});
-  if(upd){ goal.current = newCurrent; }
-
-  // 3. Mettre à jour montant_reparti cumulé
-  const oldReparti = Number(s.montant_reparti || 0);
-  const newReparti = oldReparti + montant;
-  const updShoot = await dbUpdate('shoots', shootId, {
-    montant_reparti: newReparti,
-    repartition_effectuee: true,
-    repartition_amount: montant,
-    repartition_goal_id: goalId
-  });
-  if(updShoot){
-    s.montant_reparti = newReparti;
-    s.repartition_effectuee = true;
-    s.repartition_amount = montant;
-    s.repartition_goal_id = goalId;
-  }
-
-  fermerRepartitionSeance();
-  refreshAll();
-  showToast(`✅ ${fmt(montant)} répartis dans "${goal.name}"`);
-}
-
-function fermerRepartitionSeance(){
-  const m = document.getElementById('repartitionSeanceModal');
-  if(m) m.remove();
-}
-
-function selectRepartGoal(goalId, btn) {
-  // Reset visuel de tous les boutons
-  document.querySelectorAll('#repartitionSeanceModal button[data-goal-id]').forEach(b => {
-    b.style.background = 'var(--card2)';
-    b.style.borderColor = 'var(--border)';
-    const check = b.querySelector('.repart-check');
-    if(check){
-      check.style.background = 'transparent';
-      check.style.borderColor = 'var(--border)';
-      check.textContent = '';
-    }
-  });
-
-  // Highlight le bouton sélectionné
-  btn.style.background = 'linear-gradient(135deg,rgba(107,142,255,.20),rgba(107,142,255,.08))';
-  btn.style.borderColor = 'var(--accent)';
-  const check = btn.querySelector('.repart-check');
-  if(check){
-    check.style.background = 'var(--accent)';
-    check.style.borderColor = 'var(--accent)';
-    check.style.color = '#fff';
-    check.textContent = '✓';
-  }
-
-  // Sauvegarder l'ID
-  const hidden = document.getElementById('repartGoalId');
-  if(hidden) hidden.value = goalId;
-
-  // Mise à jour de l'info
-  const info = document.getElementById('repartQuickInfo');
-  const goal = coffres.find(c => c.id === goalId);
-  const montant = parseFloat(document.getElementById('repartMontant')?.value) || 0;
-  if(info && goal){
-    const newCurrent = Number(goal.current || 0) + montant;
-    const newPct = Math.min(100, (newCurrent / Number(goal.goal)) * 100);
-    const isMoney = (goal.goal_type || 'money') === 'money';
-    const unit = goal.unit || 'FCFA';
-    const newStr = isMoney ? fmt(newCurrent) : newCurrent + ' ' + unit;
-    info.innerHTML = `💡 <strong>Après répartition :</strong> "${goal.name}" passera à <strong>${newStr}</strong> (${newPct.toFixed(0)}%).`;
-  }
-}
-
-async function validerRepartitionSeance(shootId) {
-  const s = shoots.find(x => x.id === shootId);
-  if(!s){ alert('Séance introuvable'); return; }
-
-  const montant = parseFloat(document.getElementById('repartMontant')?.value) || 0;
-  const goalId = parseInt(document.getElementById('repartGoalId')?.value);
-
-  if(!montant || montant <= 0){
-    alert('Indique un montant valide');
-    return;
-  }
-  if(!goalId){
-    alert('Sélectionne un objectif à alimenter');
-    return;
-  }
-
-  const goal = coffres.find(c => c.id === goalId);
-  if(!goal){ alert('Objectif introuvable'); return; }
-
-  // Vérifier que le montant ne dépasse pas le net disponible
-  const prixTotal = Number(s.price || 0);
-  const totalCharges = (s.shoot_expenses || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
-  const netDisponible = prixTotal - totalCharges;
-
-  if(montant > netDisponible){
-    if(!confirm(`Le montant (${fmt(montant)}) dépasse le net disponible (${fmt(netDisponible)}). Continuer quand même ?`)) return;
-  }
-
-  const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
-  const clientName = client ? client.name : '';
-  const noteLabel = (s.type || 'Séance') + (clientName ? ' · ' + clientName : '');
-
-  // 1. Créer une transaction "Épargne" (dépense)
-  const txResult = await dbInsert('transactions', {
-    type: 'depense',
-    amount: montant,
-    category: 'Épargne',
-    note: 'Épargne séance · ' + noteLabel,
-    date: todayStr(),
-    payment_method: 'Interne'
-  });
-
-  if(txResult){ txs.unshift(txResult); }
-
-  // 2. Alimenter l'objectif
-  const newCurrent = Number(goal.current || 0) + montant;
-  const upd = await dbUpdate('goals', goalId, {current: newCurrent});
-  if(upd){ goal.current = newCurrent; }
-
-  // 3. Marquer la séance comme répartie
-  const updShoot = await dbUpdate('shoots', shootId, {
-    repartition_effectuee: true,
-    repartition_amount: montant,
-    repartition_goal_id: goalId
-  });
-  if(updShoot){
-    s.repartition_effectuee = true;
-    s.repartition_amount = montant;
-    s.repartition_goal_id = goalId;
-  }
-
-  fermerRepartitionSeance();
-  refreshAll();
-
-  showToast(`✅ ${fmt(montant)} répartis dans "${goal.name}"`);
-}
-
-function fermerRepartitionSeance(){
-  const m = document.getElementById('repartitionSeanceModal');
-  if(m) m.remove();
-}
-// ============================================================
-// OÙ EST PASSÉ L'ARGENT (traçabilité Dashboard)
-// ============================================================
-function renderArgentFlow(){
-  const el = document.getElementById('argentFlowCard');
-  if(!el) return;
-
-  const ym = monthKey();
-  const monthTx = txs.filter(t => t.date && t.date.startsWith(ym));
-
-  if(monthTx.length === 0){
-    el.innerHTML = '<div class="empty">Aucune transaction ce mois</div>';
-    return;
-  }
-
-  // Revenus
-  const revenus = monthTx.filter(t => t.type === 'revenu');
-  const totalIn = revenus.reduce((s,t) => s + Number(t.amount || 0), 0);
-
-  // Dépenses par catégorie
-  const depenses = monthTx.filter(t => t.type === 'depense');
-  const totalOut = depenses.reduce((s,t) => s + Number(t.amount || 0), 0);
-
-  const parCategorie = {};
-  depenses.forEach(t => {
-    const cat = t.category || 'Autre';
-    parCategorie[cat] = (parCategorie[cat] || 0) + Number(t.amount || 0);
-  });
-
-  // Séances en cours (non soldées)
-  const seancesEnCours = shoots.filter(s => {
-    const prix = Number(s.price || 0);
-    const recu = Number(s.montant_recu || 0);
-    return prix > 0 && recu < prix && s.status !== 'annule';
-  });
-  const totalAttente = seancesEnCours.reduce((sum, s) => sum + Math.max(0, Number(s.price) - Number(s.montant_recu || 0)), 0);
-
-  // Épargne totale
-  const totalEpargne = coffres.reduce((sum, c) => sum + Number(c.current || 0), 0);
-
-  // Construction
-  el.innerHTML = `
-    <!-- Revenus -->
-    <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(52,211,153,.04));border-radius:12px;padding:12px;margin-bottom:10px;border-left:3px solid var(--green)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <div style="font-weight:700;color:var(--green);font-size:14px">💰 Argent reçu</div>
-        <div style="font-weight:800;color:var(--green);font-size:16px">+${fmt(totalIn)}</div>
-      </div>
-      <div style="font-size:12px;color:var(--muted)">${revenus.length} entrée${revenus.length > 1 ? 's' : ''} ce mois</div>
-    </div>
-
-    <!-- Dépenses par catégorie -->
-    ${Object.keys(parCategorie).length > 0 ? `
-      <div style="background:linear-gradient(135deg,rgba(255,107,107,.12),rgba(255,107,107,.04));border-radius:12px;padding:12px;margin-bottom:10px;border-left:3px solid var(--red)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="font-weight:700;color:var(--red);font-size:14px">💸 Argent sorti</div>
-          <div style="font-weight:800;color:var(--red);font-size:16px">-${fmt(totalOut)}</div>
-        </div>
-        ${Object.entries(parCategorie).sort((a,b) => b[1] - a[1]).slice(0, 5).map(([cat, amt]) => {
-          const pct = totalOut > 0 ? (amt / totalOut * 100) : 0;
-          return `
-            <div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0">
-              <span style="color:var(--muted)">• ${cat}</span>
-              <span>${fmt(amt)} <span style="color:var(--muted)">(${pct.toFixed(0)}%)</span></span>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    ` : ''}
-
-    <!-- Séances en attente de paiement -->
-    ${seancesEnCours.length > 0 ? `
-      <div style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.04));border-radius:12px;padding:12px;margin-bottom:10px;border-left:3px solid var(--yellow)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="font-weight:700;color:var(--yellow);font-size:14px">⏳ Argent à venir</div>
-          <div style="font-weight:800;color:var(--yellow);font-size:16px">${fmt(totalAttente)}</div>
-        </div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${seancesEnCours.length} séance${seancesEnCours.length > 1 ? 's' : ''} en attente de paiement</div>
-        ${seancesEnCours.slice(0, 3).map(s => {
-          const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
-          const reste = Number(s.price) - Number(s.montant_recu || 0);
-          return `
-            <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">
-              <span style="color:var(--muted)">• ${s.type}${client ? ' · ' + client.name : ''}</span>
-              <span style="color:var(--yellow)">${fmt(reste)}</span>
-            </div>
-          `;
-        }).join('')}
-        ${seancesEnCours.length > 3 ? `<div style="font-size:11px;color:var(--muted);text-align:center;margin-top:4px">+${seancesEnCours.length - 3} autre(s)</div>` : ''}
-      </div>
-    ` : ''}
-
-    <!-- Épargne -->
-    ${totalEpargne > 0 ? `
-      <div style="background:linear-gradient(135deg,rgba(107,142,255,.12),rgba(107,142,255,.04));border-radius:12px;padding:12px;margin-bottom:10px;border-left:3px solid var(--accent)">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div style="font-weight:700;color:var(--accent);font-size:14px">🎯 Argent épargné</div>
-          <div style="font-weight:800;color:var(--accent);font-size:16px">${fmt(totalEpargne)}</div>
-        </div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px">réparti dans ${coffres.length} objectif${coffres.length > 1 ? 's' : ''}</div>
-      </div>
-    ` : ''}
-
-        <!-- Résumé + lien -->
-    <div style="background:var(--card2);border-radius:12px;padding:12px;border:1px solid var(--border);margin-top:10px">
-      <div style="font-size:12px;color:var(--muted);text-align:center;line-height:1.6;margin-bottom:10px">
-        Reçu <strong style="color:var(--green)">${fmt(totalIn)}</strong>
-        · Sorti <strong style="color:var(--red)">${fmt(totalOut)}</strong>
-        · Solde <strong style="color:var(--accent)">${fmt(totalIn - totalOut)}</strong>
-      </div>
-      <button class="btn-ghost" style="margin:0;width:100%;font-size:13px" onclick="showTab('historique', null)">
-        📜 Voir tout l'historique détaillé
-      </button>
-    </div>
-  `;
-}
 // ============================================================
 // CRÉATION RAPIDE DE CLIENT DEPUIS LA MODALE SÉANCE
 // ============================================================
@@ -2482,11 +1982,12 @@ async function sauverNouveauClientShoot(){
   clients.unshift(result);
 
   const sel = document.getElementById('shootClient');
-  sel.innerHTML = '<option value="">-- Choisir --</option>'
-    + clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')
-    + '<option value="__new__" style="color:var(--green);font-weight:700">➕ Créer un nouveau client</option>';
-
-  sel.value = result.id;
+  if(sel){
+    sel.innerHTML = '<option value="">-- Choisir --</option>'
+      + clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')
+      + '<option value="__new__" style="color:var(--green);font-weight:700">➕ Créer un nouveau client</option>';
+    sel.value = result.id;
+  }
 
   const wrap = document.getElementById('shootNewClientWrap');
   if(wrap) wrap.style.display = 'none';
@@ -2775,9 +2276,14 @@ function populateHistFilters(){
 }
 
 function getFilteredTx(){
-  const month = document.getElementById('histMonth').value;
-  const type = document.getElementById('histType').value;
-  const cat = document.getElementById('histCategory').value;
+  const monthEl = document.getElementById('histMonth');
+  const typeEl = document.getElementById('histType');
+  const catEl = document.getElementById('histCategory');
+  if(!monthEl || !typeEl || !catEl) return [];
+
+  const month = monthEl.value;
+  const type = typeEl.value;
+  const cat = catEl.value;
 
   return txs.filter(t => {
     if(month !== 'all' && !t.date.startsWith(month)) return false;
@@ -2814,7 +2320,6 @@ function renderHistory(){
     const cls = t.type === 'revenu' ? 'pos' : 'neg';
     const checked = selectedTxIds.has(t.id) ? 'checked' : '';
 
-    // 🆕 Détails visibles directement dans la ligne
     const details = [];
     if(t.client_name) details.push('👤 ' + t.client_name);
     if(t.prestation_type) details.push('📸 ' + t.prestation_type);
@@ -2845,9 +2350,6 @@ function renderHistory(){
   if(selAll) selAll.checked = allChecked;
 }
 
-// ============================================================
-// DÉTAIL COMPLET D'UNE TRANSACTION
-// ============================================================
 function ouvrirDetailTx(txId, event){
   if(event) event.stopPropagation();
   const t = txs.find(x => x.id === txId);
@@ -2884,14 +2386,12 @@ function ouvrirDetailTx(txId, event){
         <button class="close" onclick="fermerDetailTx()">×</button>
       </div>
 
-      <!-- Montant en gros -->
       <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.06));border-radius:14px;padding:18px;margin-bottom:16px;text-align:center">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">${isRevenu ? 'Revenu' : 'Dépense'}</div>
         <div style="font-size:32px;font-weight:800;color:${color};letter-spacing:-1px">${sign}${fmt(t.amount)}</div>
         <div style="font-size:12px;color:var(--muted);margin-top:6px">${dateStr}</div>
       </div>
 
-      <!-- Catégorie -->
       <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:12px">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Catégorie</div>
         <div style="font-weight:700;font-size:15px">${t.category || 'Non spécifiée'}</div>
@@ -2953,7 +2453,9 @@ function toggleTxSelect(id, checked){
 }
 
 function toggleSelectAll(){
-  const isChecked = document.getElementById('histSelectAll').checked;
+  const chk = document.getElementById('histSelectAll');
+  if(!chk) return;
+  const isChecked = chk.checked;
   const filtered = getFilteredTx();
   if(isChecked) filtered.forEach(t => selectedTxIds.add(t.id));
   else filtered.forEach(t => selectedTxIds.delete(t.id));
@@ -3179,15 +2681,21 @@ async function loadIdeasAI(){
     localStorage.setItem('ideas_ai_last', data.ideas_ai);
     localStorage.setItem('ideas_ai_last_date', data.ideas_ai_date || '');
 
-    document.getElementById('ideasAIOutput').innerHTML = formatIdeasText(data.ideas_ai);
-    document.getElementById('ideasCopyBtn').disabled = false;
-    document.getElementById('ideasPdfBtn').disabled = false;
-    document.getElementById('ideasClearBtn').disabled = false;
+    const outEl = document.getElementById('ideasAIOutput');
+    if(outEl) outEl.innerHTML = formatIdeasText(data.ideas_ai);
+    const cpBtn = document.getElementById('ideasCopyBtn');
+    const pdfBtn = document.getElementById('ideasPdfBtn');
+    const clBtn = document.getElementById('ideasClearBtn');
+    if(cpBtn) cpBtn.disabled = false;
+    if(pdfBtn) pdfBtn.disabled = false;
+    if(clBtn) clBtn.disabled = false;
 
     if(data.ideas_ai_date){
       const dateEl = document.getElementById('ideasLastUpdate');
-      dateEl.textContent = '🕐 Dernière génération : ' + data.ideas_ai_date;
-      dateEl.classList.add('visible');
+      if(dateEl){
+        dateEl.textContent = '🕐 Dernière génération : ' + data.ideas_ai_date;
+        dateEl.classList.add('visible');
+      }
     }
   } catch(e){ console.warn('loadIdeasAI error:', e); }
 }
@@ -3212,11 +2720,16 @@ async function clearIdeasAI(){
     if(user) await sb.from('user_settings').update({ ideas_ai: null, ideas_ai_date: null }).eq('user_id', user.id);
   } catch(e){}
 
-  document.getElementById('ideasAIOutput').innerHTML = '<div class="empty">Clique sur <strong>Générer</strong>.</div>';
-  document.getElementById('ideasLastUpdate').classList.remove('visible');
-  document.getElementById('ideasCopyBtn').disabled = true;
-  document.getElementById('ideasPdfBtn').disabled = true;
-  document.getElementById('ideasClearBtn').disabled = true;
+  const outEl = document.getElementById('ideasAIOutput');
+  if(outEl) outEl.innerHTML = '<div class="empty">Clique sur <strong>Générer</strong>.</div>';
+  const dateEl = document.getElementById('ideasLastUpdate');
+  if(dateEl) dateEl.classList.remove('visible');
+  const cpBtn = document.getElementById('ideasCopyBtn');
+  const pdfBtn = document.getElementById('ideasPdfBtn');
+  const clBtn = document.getElementById('ideasClearBtn');
+  if(cpBtn) cpBtn.disabled = true;
+  if(pdfBtn) pdfBtn.disabled = true;
+  if(clBtn) clBtn.disabled = true;
 }
 
 async function copyIdeasAI(){
@@ -3225,8 +2738,10 @@ async function copyIdeasAI(){
   try {
     await navigator.clipboard.writeText(text);
     const btn = document.getElementById('ideasCopyBtn');
-    btn.textContent = '✅ Copié !';
-    setTimeout(() => btn.textContent = '📋 Copier', 2000);
+    if(btn){
+      btn.textContent = '✅ Copié !';
+      setTimeout(() => btn.textContent = '📋 Copier', 2000);
+    }
   } catch(e){
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -3276,6 +2791,7 @@ async function generateAIIdeas(){
   if(!cfg || !cfg.key){ alert("Configure ta clé dans l'onglet IA"); return; }
 
   const out = document.getElementById('ideasAIOutput');
+  if(!out) return;
   out.innerHTML = '<div class="empty">⏳ Génération en cours...</div>';
 
   const summary = buildSummary();
@@ -3288,13 +2804,18 @@ async function generateAIIdeas(){
     await saveIdeasAI(text);
     out.innerHTML = formatIdeasText(text);
 
-    document.getElementById('ideasCopyBtn').disabled = false;
-    document.getElementById('ideasPdfBtn').disabled = false;
-    document.getElementById('ideasClearBtn').disabled = false;
+    const cpBtn = document.getElementById('ideasCopyBtn');
+    const pdfBtn = document.getElementById('ideasPdfBtn');
+    const clBtn = document.getElementById('ideasClearBtn');
+    if(cpBtn) cpBtn.disabled = false;
+    if(pdfBtn) pdfBtn.disabled = false;
+    if(clBtn) clBtn.disabled = false;
 
     const dateEl = document.getElementById('ideasLastUpdate');
-    dateEl.textContent = '🕐 Dernière génération : ' + new Date().toLocaleString('fr-FR');
-    dateEl.classList.add('visible');
+    if(dateEl){
+      dateEl.textContent = '🕐 Dernière génération : ' + new Date().toLocaleString('fr-FR');
+      dateEl.classList.add('visible');
+    }
   } catch(e){
     out.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
   }
@@ -3357,10 +2878,18 @@ function getNotificationMessage(type){
 async function toggleNotifications(){
   if(isNotifEnabled()){ localStorage.removeItem('notif_enabled'); updateNotifButton(); return; }
 
-  if(!('Notification' in window)){ document.getElementById('notifStatus').textContent = '❌ Non supporté'; return; }
+  if(!('Notification' in window)){ 
+    const st = document.getElementById('notifStatus');
+    if(st) st.textContent = '❌ Non supporté'; 
+    return; 
+  }
 
   const permission = await Notification.requestPermission();
-  if(permission !== 'granted'){ document.getElementById('notifStatus').textContent = '❌ Permission refusée.'; return; }
+  if(permission !== 'granted'){ 
+    const st = document.getElementById('notifStatus');
+    if(st) st.textContent = '❌ Permission refusée.'; 
+    return; 
+  }
 
   try {
     const OneSignal = window.OneSignal;
@@ -3375,7 +2904,8 @@ async function toggleNotifications(){
     await showLocalNotification('🔥 Notifications activées', 'Tu recevras tes rappels sur tous tes appareils 💪');
   } catch(e){
     console.error('OneSignal error:', e);
-    document.getElementById('notifStatus').textContent = '❌ ' + e.message;
+    const st = document.getElementById('notifStatus');
+    if(st) st.textContent = '❌ ' + e.message;
   }
 }
 
@@ -3519,9 +3049,10 @@ async function checkShootReminders(){
 const REMINDER_TYPES_FIXES = ['perso','rdv','appel','paiement','Autre'];
 
 function onReminderTypeChange(){
-  const val = document.getElementById('reminderType').value;
+  const valEl = document.getElementById('reminderType');
   const wrap = document.getElementById('reminderCustomTypeWrap');
-  if(wrap) wrap.style.display = (val === 'Autre') ? 'block' : 'none';
+  if(!valEl || !wrap) return;
+  wrap.style.display = (valEl.value === 'Autre') ? 'block' : 'none';
 }
 
 function openReminderModal(id){
@@ -3695,9 +3226,10 @@ const DAILY_TIPS = [
 ];
 
 function onGoalFrequencyChange(){
-  const freq = document.getElementById('goalReminderFrequency').value;
+  const el = document.getElementById('goalReminderFrequency');
   const wrap = document.getElementById('goalReminderDayWrap');
-  if(wrap) wrap.style.display = (freq === 'weekly') ? 'block' : 'none';
+  if(!el || !wrap) return;
+  wrap.style.display = (el.value === 'weekly') ? 'block' : 'none';
 }
 
 async function openGoalReminderModal(id){
@@ -3991,13 +3523,13 @@ function renderDashboardGoals(){
     return `<div class="top-goal-item"><div class="left"><div class="title">${emoji} ${c.name}</div><div class="sub">${fmt(current)} / ${fmt(goal)} · ${pct.toFixed(0)}%</div></div><div class="progress-mini"><div style="width:${pct}%;background:${color}"></div></div><div style="font-size:11px;color:${color};font-weight:700;margin-left:6px">${pct.toFixed(0)}%</div></div>`;
   }).join('');
 }
-
 // ============================================================
 // MODULE IA
 // ============================================================
 function toggleAiConfig(){
   const body = document.getElementById('aiConfigBody');
   const arrow = document.getElementById('aiConfigArrow');
+  if(!body || !arrow) return;
   const isOpen = body.style.display !== 'none';
   body.style.display = isOpen ? 'none' : 'block';
   arrow.classList.toggle('open', !isOpen);
@@ -4079,15 +3611,21 @@ async function loadSavedAnalysis(){
     localStorage.setItem('ai_last_analysis', data.ai_analysis);
     localStorage.setItem('ai_last_analysis_date', data.ai_analysis_date || '');
 
-    document.getElementById('aiOutput').innerHTML = formatAnalysisText(data.ai_analysis);
-    document.getElementById('aiCopyBtn').disabled = false;
-    document.getElementById('aiPdfBtn').disabled = false;
-    document.getElementById('aiClearBtn').disabled = false;
+    const outEl = document.getElementById('aiOutput');
+    if(outEl) outEl.innerHTML = formatAnalysisText(data.ai_analysis);
+    const cpBtn = document.getElementById('aiCopyBtn');
+    const pdfBtn = document.getElementById('aiPdfBtn');
+    const clBtn = document.getElementById('aiClearBtn');
+    if(cpBtn) cpBtn.disabled = false;
+    if(pdfBtn) pdfBtn.disabled = false;
+    if(clBtn) clBtn.disabled = false;
 
     if(data.ai_analysis_date){
       const dateEl = document.getElementById('aiLastUpdate');
-      dateEl.textContent = '🕐 Dernière analyse : ' + data.ai_analysis_date;
-      dateEl.classList.add('visible');
+      if(dateEl){
+        dateEl.textContent = '🕐 Dernière analyse : ' + data.ai_analysis_date;
+        dateEl.classList.add('visible');
+      }
     }
   } catch(e){ console.warn('loadSavedAnalysis error:', e); }
 }
@@ -4112,11 +3650,16 @@ async function clearAnalysis(){
     if(user) await sb.from('user_settings').update({ ai_analysis: null, ai_analysis_date: null }).eq('user_id', user.id);
   } catch(e){}
 
-  document.getElementById('aiOutput').innerHTML = '<div class="empty">Clique sur <strong>Analyser</strong>.</div>';
-  document.getElementById('aiLastUpdate').classList.remove('visible');
-  document.getElementById('aiCopyBtn').disabled = true;
-  document.getElementById('aiPdfBtn').disabled = true;
-  document.getElementById('aiClearBtn').disabled = true;
+  const outEl = document.getElementById('aiOutput');
+  if(outEl) outEl.innerHTML = '<div class="empty">Clique sur <strong>Analyser</strong>.</div>';
+  const dateEl = document.getElementById('aiLastUpdate');
+  if(dateEl) dateEl.classList.remove('visible');
+  const cpBtn = document.getElementById('aiCopyBtn');
+  const pdfBtn = document.getElementById('aiPdfBtn');
+  const clBtn = document.getElementById('aiClearBtn');
+  if(cpBtn) cpBtn.disabled = true;
+  if(pdfBtn) pdfBtn.disabled = true;
+  if(clBtn) clBtn.disabled = true;
 }
 
 async function copyAnalysis(){
@@ -4125,8 +3668,10 @@ async function copyAnalysis(){
   try {
     await navigator.clipboard.writeText(text);
     const btn = document.getElementById('aiCopyBtn');
-    btn.textContent = '✅ Copié !';
-    setTimeout(() => btn.textContent = '📋 Copier', 2000);
+    if(btn){
+      btn.textContent = '✅ Copié !';
+      setTimeout(() => btn.textContent = '📋 Copier', 2000);
+    }
   } catch(e){
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -4171,9 +3716,14 @@ function exportAnalysisPDF(){
 }
 
 async function saveAiConfig(){
-  const provider = document.getElementById('aiProvider').value;
-  const key = document.getElementById('aiKey').value.trim();
-  const url = document.getElementById('aiUrl').value.trim();
+  const providerEl = document.getElementById('aiProvider');
+  const keyEl = document.getElementById('aiKey');
+  const urlEl = document.getElementById('aiUrl');
+  if(!providerEl || !keyEl || !urlEl) return;
+
+  const provider = providerEl.value;
+  const key = keyEl.value.trim();
+  const url = urlEl.value.trim();
   if(!key){ alert("Colle ta clé"); return; }
 
   const cfg = {provider, key, url};
@@ -4198,9 +3748,12 @@ function updateAiStatus(){
   if(cfg && cfg.key){
     el.textContent = 'connectée';
     el.classList.add('on');
-    document.getElementById('aiProvider').value = cfg.provider;
-    document.getElementById('aiKey').value = cfg.key;
-    if(cfg.url) document.getElementById('aiUrl').value = cfg.url;
+    const pv = document.getElementById('aiProvider');
+    const kv = document.getElementById('aiKey');
+    const uv = document.getElementById('aiUrl');
+    if(pv) pv.value = cfg.provider;
+    if(kv) kv.value = cfg.key;
+    if(uv && cfg.url) uv.value = cfg.url;
   } else {
     el.textContent = 'non configurée';
     el.classList.remove('on');
@@ -4225,8 +3778,10 @@ function toggleCustomUrl(){
   const sel = document.getElementById('aiProvider');
   if(!sel) return;
   const isCustom = sel.value === 'custom';
-  document.getElementById('aiUrlLabel').style.display = isCustom ? 'block' : 'none';
-  document.getElementById('aiUrl').style.display = isCustom ? 'block' : 'none';
+  const lbl = document.getElementById('aiUrlLabel');
+  const inp = document.getElementById('aiUrl');
+  if(lbl) lbl.style.display = isCustom ? 'block' : 'none';
+  if(inp) inp.style.display = isCustom ? 'block' : 'none';
 }
 
 function buildSummary(){
@@ -4327,6 +3882,7 @@ async function askAI(){
   if(!cfg || !cfg.key){ alert("Configure ta clé dans cette page"); return; }
 
   const out = document.getElementById('aiOutput');
+  if(!out) return;
   out.innerHTML = '<div class="empty">⏳ Analyse en cours...</div>';
 
   const summary = buildSummary();
@@ -4339,13 +3895,18 @@ async function askAI(){
     await saveAnalysis(text);
     out.innerHTML = formatAnalysisText(text);
 
-    document.getElementById('aiCopyBtn').disabled = false;
-    document.getElementById('aiPdfBtn').disabled = false;
-    document.getElementById('aiClearBtn').disabled = false;
+    const cpBtn = document.getElementById('aiCopyBtn');
+    const pdfBtn = document.getElementById('aiPdfBtn');
+    const clBtn = document.getElementById('aiClearBtn');
+    if(cpBtn) cpBtn.disabled = false;
+    if(pdfBtn) pdfBtn.disabled = false;
+    if(clBtn) clBtn.disabled = false;
 
     const dateEl = document.getElementById('aiLastUpdate');
-    dateEl.textContent = '🕐 Dernière analyse : ' + new Date().toLocaleString('fr-FR');
-    dateEl.classList.add('visible');
+    if(dateEl){
+      dateEl.textContent = '🕐 Dernière analyse : ' + new Date().toLocaleString('fr-FR');
+      dateEl.classList.add('visible');
+    }
   } catch(e){
     out.innerHTML = `<div class="empty">❌ ${e.message}</div>`;
   }
@@ -5134,10 +4695,14 @@ function fermerCreerLien(){
 }
 
 function mettreAJourMontant() {
-  const total = parseFloat(document.getElementById('lienTotalAmount').value) || 0;
-  const type = document.getElementById('lienPaymentType').value;
+  const totalEl = document.getElementById('lienTotalAmount');
+  const typeEl = document.getElementById('lienPaymentType');
   const box = document.getElementById('montantCalcule');
   const value = document.getElementById('montantCalculeValue');
+  if(!totalEl || !typeEl || !box || !value) return;
+
+  const total = parseFloat(totalEl.value) || 0;
+  const type = typeEl.value;
 
   if(!total || total <= 0) { box.style.display = 'none'; return; }
 
@@ -5149,9 +4714,6 @@ function mettreAJourMontant() {
   box.style.display = 'block';
 }
 
-// ============================================================
-// CRÉATION RAPIDE DE CLIENT DEPUIS LA MODALE LIEN DE PAIEMENT
-// ============================================================
 function syncLienClientPhone(){
   const nameInput = document.getElementById('lienClientName');
   const phoneInput = document.getElementById('lienClientPhone');
@@ -6022,19 +5584,6 @@ function ouvrirGuideRepartition(linkId) {
   document.body.appendChild(modal);
 }
 
-function getConseilGuide(type, montant, epargne){
-  const conseils = {
-    'mariage':    `Un mariage c'est un gros paiement ponctuel. Mets de côté ${fmt(epargne)} maintenant.`,
-    'dot':        `Après un dot, mets immédiatement ton épargne de côté.`,
-    'studio':     `Le studio c'est régulier. Une épargne de ${fmt(epargne)} te construira un vrai matelas.`,
-    'shooting':   `Les shootings s'enchaînent bien. Épargne ${fmt(epargne)} pour tes prochains investissements.`,
-    'corporate':  `Un client corporate = revenu fiable. Place ${fmt(epargne)} en épargne.`,
-    'drone':      `Le drone demande de l'entretien. Épargne ${fmt(epargne)} pour anticiper.`,
-    'default':    `Épargne ${fmt(epargne)} dès maintenant. Petit à petit, tu construis ta liberté.`
-  };
-  return conseils[type] || conseils.default;
-}
-
 async function appliquerRepartition(linkId, montantEpargne){
   if(!confirm(`Créer une épargne de ${fmt(montantEpargne)} ?`)) return;
 
@@ -6273,87 +5822,6 @@ async function saveRevenue(){
       source: paymentMethod
     });
   }, 400);
-}
-
-function ouvrirGuideRepartitionSimple(montant, prestationType, clientName){
-  const d = (prestationType || '').toLowerCase();
-  let type = 'default';
-  if(d.includes('mariage')) type = 'mariage';
-  else if(d.includes('dot')) type = 'dot';
-  else if(d.includes('studio')) type = 'studio';
-  else if(d.includes('corporate')) type = 'corporate';
-  else if(d.includes('drone')) type = 'drone';
-  else if(d.includes('shoot') || d.includes('extérieur') || d.includes('evenement')) type = 'shooting';
-
-  const regle = REGLES_REPARTITION[type];
-  const epargne = Math.round(montant * regle.epargne / 100);
-  const charges = Math.round(montant * regle.charges / 100);
-  const libre = montant - epargne - charges;
-
-  const existing = document.getElementById('guideRepartitionModal');
-  if(existing) existing.remove();
-
-  const modal = document.createElement('div');
-  modal.className = 'modal-bg show';
-  modal.id = 'guideRepartitionModal';
-  modal.innerHTML = `
-    <div class="modal">
-      <div class="modal-wrap">
-        <h3>🧠 Guide de répartition</h3>
-        <button class="close" onclick="fermerGuideRepartition()">×</button>
-      </div>
-
-      <div style="background:linear-gradient(135deg,rgba(52,211,153,.15),rgba(107,142,255,.10));border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Montant reçu</div>
-        <div style="font-size:32px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(montant)}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:6px">${regle.icon} ${regle.label} · ${clientName || ''}</div>
-      </div>
-
-      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">💡 Suggestion :</div>
-
-        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
-          <div><div style="font-weight:700;color:var(--green);font-size:14px">💰 Épargne</div><div style="font-size:11px;color:var(--muted)">${regle.epargne}%</div></div>
-          <div style="font-weight:800;color:var(--green);font-size:16px">${fmt(epargne)}</div>
-        </div>
-
-        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
-          <div><div style="font-weight:700;color:var(--yellow);font-size:14px">🏠 Charges</div><div style="font-size:11px;color:var(--muted)">${regle.charges}%</div></div>
-          <div style="font-weight:800;color:var(--yellow);font-size:16px">${fmt(charges)}</div>
-        </div>
-
-        <div style="display:flex;justify-content:space-between;padding:10px 0">
-          <div><div style="font-weight:700;color:var(--accent);font-size:14px">🎉 Libre</div><div style="font-size:11px;color:var(--muted)">${regle.libre}%</div></div>
-          <div style="font-weight:800;color:var(--accent);font-size:16px">${fmt(libre)}</div>
-        </div>
-      </div>
-
-      <div style="display:grid;gap:8px">
-        <button class="btn-primary" style="margin:0;background:linear-gradient(135deg,var(--green),#10b981);width:100%;color:#000;font-weight:800" onclick="appliquerRepartitionDepuisEntree(${epargne})">
-          ✅ Créer l'épargne (${fmt(epargne)})
-        </button>
-        <button class="btn-ghost" style="margin:0;width:100%" onclick="fermerGuideRepartition()">Ignorer</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-async function appliquerRepartitionDepuisEntree(montantEpargne){
-  const result = await dbInsert('transactions', {
-    type: 'depense',
-    amount: montantEpargne,
-    category: 'Épargne',
-    note: 'Épargne automatique (guide)',
-    date: todayStr(),
-    payment_method: 'Interne'
-  });
-
-  if(!result){ alert('Erreur'); return; }
-  txs.unshift(result);
-  fermerGuideRepartition();
-  refreshAll();
-  showToast(fmt(montantEpargne) + ' placé en épargne ! 🎯');
 }
 
 function formatTxDetail(t){
@@ -6625,8 +6093,10 @@ function assistantSetCharges(has){
   assistantAnswers.hasCharges = has;
   const box = document.getElementById('assistantChargesBox');
   if(box) box.style.display = has ? 'block' : 'none';
-  document.getElementById('aChargesNon')?.classList.toggle('active', !has);
-  document.getElementById('aChargesOui')?.classList.toggle('active', has);
+  const non = document.getElementById('aChargesNon');
+  const oui = document.getElementById('aChargesOui');
+  if(non) non.classList.toggle('active', !has);
+  if(oui) oui.classList.toggle('active', has);
 }
 
 function assistantUpdateChargesAmount(){
