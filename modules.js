@@ -2095,10 +2095,21 @@ function calculerNetShoot(){
 function renderPhotoStats(){
   const el = document.getElementById('photoMonthCount');
   if(!el) return;
+
   const ym = monthKey();
   const monthShoots = shoots.filter(s => s.date && s.date.startsWith(ym));
-  const revenue = monthShoots.filter(s => s.payment === 'paye').reduce((sum,s) => sum + Number(s.price), 0);
-  const pending = shoots.filter(s => s.payment === 'impaye').reduce((sum,s) => sum + Number(s.price), 0);
+
+  // 💰 Revenus = montant RÉELLEMENT reçu (acomptes inclus)
+  const revenue = monthShoots.reduce((sum, s) => sum + Number(s.montant_recu || 0), 0);
+
+  // ⏳ À encaisser = reste à payer sur TOUTES les séances non soldées
+  const pending = shoots
+    .filter(s => s.status !== 'annule')
+    .reduce((sum, s) => {
+      const prix = Number(s.price || 0);
+      const recu = Number(s.montant_recu || 0);
+      return sum + Math.max(0, prix - recu);
+    }, 0);
 
   document.getElementById('photoMonthCount').textContent = monthShoots.length;
   document.getElementById('photoMonthRevenue').textContent = fmt(revenue);
@@ -2111,8 +2122,14 @@ function renderPhotoStats(){
 function renderOverview(){
   const ym = monthKey();
   const monthShoots = shoots.filter(s => s.date && s.date.startsWith(ym));
-  const revenue = monthShoots.filter(s => s.payment === 'paye').reduce((sum,s) => sum + Number(s.price), 0);
-  const pending = shoots.filter(s => s.payment === 'impaye').reduce((sum,s) => sum + Number(s.price), 0);
+    const revenue = monthShoots.reduce((sum, s) => sum + Number(s.montant_recu || 0), 0);
+  const pending = shoots
+    .filter(s => s.status !== 'annule')
+    .reduce((sum, s) => {
+      const prix = Number(s.price || 0);
+      const recu = Number(s.montant_recu || 0);
+      return sum + Math.max(0, prix - recu);
+    }, 0);
 
   const cEl = document.getElementById('overviewClients');
   const sEl = document.getElementById('overviewShoots');
