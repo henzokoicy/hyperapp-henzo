@@ -1357,6 +1357,273 @@ function ouvrirGuideRegles(){
   `;
   document.body.appendChild(modal);
 }
+// ============================================================
+// RÉPARTITION D'UNE SÉANCE (Manuel / Auto + 3 options)
+// ============================================================
+function ouvrirRepartitionSeance(shootId){
+  const s = shoots.find(x => x.id === shootId);
+  if(!s){ alert('Séance introuvable'); return; }
+
+  const prix = Number(s.price || 0);
+  const recu = Number(s.montant_recu || 0);
+  const charges = (s.shoot_expenses || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const reparti = Number(s.montant_reparti || 0);
+  const netEncaisse = recu - charges;
+  const disponible = Math.max(0, netEncaisse - reparti);
+
+  if(disponible <= 0){
+    alert('Rien à répartir sur cette séance.');
+    return;
+  }
+
+  const existing = document.getElementById('repartitionModal');
+  if(existing) existing.remove();
+
+  const activeGoals = coffres.filter(c => Number(c.current) < Number(c.goal));
+  const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+  const clientName = client ? client.name : '';
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'repartitionModal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>💰 Répartir l'argent</h3>
+        <button class="close" onclick="fermerRepartition()">×</button>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(107,142,255,.12),rgba(52,211,153,.08));border-radius:14px;padding:16px;margin-bottom:16px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Séance</div>
+        <div style="font-weight:700;font-size:15px;margin-bottom:10px">📸 ${s.type}${clientName ? ' · ' + clientName : ''}</div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">
+          <span style="color:var(--muted)">Net encaissé</span>
+          <span style="font-weight:700">${fmt(netEncaisse)}</span>
+        </div>
+        ${reparti > 0 ? `
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">
+            <span style="color:var(--muted)">Déjà réparti</span>
+            <span style="color:var(--accent);font-weight:700">${fmt(reparti)}</span>
+          </div>
+        ` : ''}
+        <div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--border);margin-top:6px">
+          <span style="font-weight:700;font-size:14px">🎯 Disponible</span>
+          <span style="font-weight:800;font-size:18px;color:var(--green)">${fmt(disponible)}</span>
+        </div>
+      </div>
+
+      <label>Mode de répartition</label>
+      <div class="type-toggle" style="margin-bottom:14px">
+        <button type="button" id="repModeManuel" class="active" onclick="setRepartMode('manuel')">✋ Manuel</button>
+        <button type="button" id="repModeAuto" onclick="setRepartMode('auto')">🤖 Automatique</button>
+      </div>
+
+      <div id="repAutoInfo" style="display:none;background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.04));border:1px solid rgba(245,197,66,.25);border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--gold-soft);line-height:1.5">
+        🤖 L'IA va te proposer une répartition basée sur tes habitudes et tes objectifs. Tu pourras la modifier avant de valider.
+      </div>
+
+      <label>Destination</label>
+      <div style="display:grid;gap:8px;margin-bottom:14px">
+        <button type="button" id="repDest1" class="active" onclick="setRepartDest(1)" style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;font-family:inherit;color:var(--text);width:100%">
+          <div style="font-weight:700;font-size:13px;margin-bottom:2px">🎯 Objectif existant</div>
+          <div style="font-size:11px;color:var(--muted)">Alimenter un coffre que tu as déjà créé</div>
+        </button>
+        <button type="button" id="repDest2" onclick="setRepartDest(2)" style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;font-family:inherit;color:var(--text);width:100%">
+          <div style="font-weight:700;font-size:13px;margin-bottom:2px">➕ Nouvel objectif</div>
+          <div style="font-size:11px;color:var(--muted)">Créer un nouveau coffre et l'alimenter</div>
+        </button>
+        <button type="button" id="repDest3" onclick="setRepartDest(3)" style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;font-family:inherit;color:var(--text);width:100%">
+          <div style="font-weight:700;font-size:13px;margin-bottom:2px">💼 Épargne libre</div>
+          <div style="font-size:11px;color:var(--muted)">Mettre de côté sans objectif précis</div>
+        </button>
+      </div>
+
+      <div id="repDest1Box">
+        <label>Choisis l'objectif</label>
+        <select id="repGoalId">
+          ${activeGoals.length === 0
+            ? '<option value="">Aucun objectif actif</option>'
+            : activeGoals.map(c => {
+                const pct = (Number(c.current) / Number(c.goal) * 100).toFixed(0);
+                return `<option value="${c.id}">${c.emoji || '🎯'} ${c.name} (${pct}%)</option>`;
+              }).join('')
+          }
+        </select>
+      </div>
+
+      <div id="repDest2Box" style="display:none">
+        <label>Nom du nouvel objectif</label>
+        <input type="text" id="repNewGoalName" placeholder="Ex: Nouveau matériel photo">
+        <label>Montant cible (FCFA)</label>
+        <input type="number" id="repNewGoalTarget" inputmode="decimal" placeholder="Ex: 500000">
+      </div>
+
+      <div id="repDest3Box" style="display:none">
+        <div style="background:rgba(107,142,255,.08);border-radius:10px;padding:10px;font-size:12px;color:var(--muted);line-height:1.4">
+          💼 L'argent ira dans une réserve générale. Tu pourras la consulter dans la section Épargne.
+        </div>
+      </div>
+
+      <label style="margin-top:14px">Montant à répartir (FCFA)</label>
+      <input type="number" id="repAmount" inputmode="decimal" value="${disponible}" placeholder="0" style="font-size:20px;font-weight:700;text-align:center;color:var(--green)">
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px">
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repAmount').value=${Math.round(disponible*0.25)}">25%</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repAmount').value=${Math.round(disponible*0.5)}">50%</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repAmount').value=${Math.round(disponible*0.75)}">75%</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:rgba(52,211,153,.10);color:var(--green);border-color:var(--green)" onclick="document.getElementById('repAmount').value=${disponible}">Tout</button>
+      </div>
+
+      <button class="btn-primary" style="margin-top:18px;width:100%;background:linear-gradient(135deg,var(--green),#10b981);color:#000;font-weight:800;padding:16px" onclick="validerRepartition(${shootId}, ${disponible})">
+        ✅ Valider la répartition
+      </button>
+      <button class="btn-ghost" style="margin-top:8px;width:100%" onclick="fermerRepartition()">Annuler</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  window.__repartitionShootId = shootId;
+  window.__repartitionDisponible = disponible;
+  window.__repartitionMode = 'manuel';
+  window.__repartitionDest = 1;
+}
+
+function fermerRepartition(){
+  const m = document.getElementById('repartitionModal');
+  if(m) m.remove();
+  window.__repartitionShootId = null;
+}
+
+function setRepartMode(mode){
+  window.__repartitionMode = mode;
+  document.getElementById('repModeManuel').classList.toggle('active', mode === 'manuel');
+  document.getElementById('repModeAuto').classList.toggle('active', mode === 'auto');
+  document.getElementById('repAutoInfo').style.display = mode === 'auto' ? 'block' : 'none';
+}
+
+function setRepartDest(dest){
+  window.__repartitionDest = dest;
+  for(let i = 1; i <= 3; i++){
+    document.getElementById('repDest' + i).classList.toggle('active', i === dest);
+    document.getElementById('repDest' + i).style.border = (i === dest) ? '1px solid var(--accent)' : '1px solid var(--border)';
+    document.getElementById('repDest' + i).style.background = (i === dest) ? 'linear-gradient(135deg,rgba(107,142,255,.15),rgba(107,142,255,.05))' : 'var(--card2)';
+  }
+  document.getElementById('repDest1Box').style.display = dest === 1 ? 'block' : 'none';
+  document.getElementById('repDest2Box').style.display = dest === 2 ? 'block' : 'none';
+  document.getElementById('repDest3Box').style.display = dest === 3 ? 'block' : 'none';
+}
+
+async function validerRepartition(shootId, maxDisponible){
+  const montant = parseFloat(document.getElementById('repAmount').value) || 0;
+  if(montant <= 0){ alert('Montant invalide'); return; }
+  if(montant > maxDisponible){ alert('Montant supérieur au disponible'); return; }
+
+  const dest = window.__repartitionDest;
+  const s = shoots.find(x => x.id === shootId);
+  if(!s) return;
+
+  let goalId = null;
+  let goalName = '';
+
+  if(dest === 1){
+    goalId = parseInt(document.getElementById('repGoalId').value);
+    if(!goalId){ alert('Choisis un objectif'); return; }
+    const goal = coffres.find(c => c.id === goalId);
+    if(goal){
+      const newCurrent = Number(goal.current || 0) + montant;
+      const upd = await dbUpdate('goals', goalId, {current: newCurrent});
+      if(upd){ goal.current = newCurrent; }
+      goalName = goal.name;
+    }
+  } else if(dest === 2){
+    const name = document.getElementById('repNewGoalName').value.trim();
+    const target = parseFloat(document.getElementById('repNewGoalTarget').value) || 0;
+    if(!name){ alert('Donne un nom au nouvel objectif'); return; }
+    if(target <= 0){ alert('Indique un montant cible'); return; }
+    const newGoal = await dbInsert('goals', {
+      name: name,
+      goal: target,
+      current: montant,
+      goal_type: 'money',
+      unit: 'FCFA',
+      emoji: getCoffreEmoji(name),
+      why: 'Créé lors d\'une répartition',
+      description: null,
+      target_date: null
+    });
+    if(newGoal){
+      coffres.unshift(newGoal);
+      goalId = newGoal.id;
+      goalName = name;
+    }
+  } else {
+    goalName = 'Épargne libre';
+  }
+
+  // Créer une transaction "Épargne" (dépense interne)
+  const txResult = await dbInsert('transactions', {
+    type: 'depense',
+    amount: montant,
+    category: 'Épargne',
+    note: 'Répartition séance ' + s.type + (goalName ? ' · ' + goalName : ''),
+    date: todayStr(),
+    payment_method: 'Interne'
+  });
+  if(txResult){ txs.unshift(txResult); }
+
+  // Mettre à jour la séance
+  const newReparti = Number(s.montant_reparti || 0) + montant;
+  const upd = await dbUpdate('shoots', shootId, {
+    montant_reparti: newReparti,
+    repartition_effectuee: true
+  });
+  if(upd){
+    s.montant_reparti = newReparti;
+    s.repartition_effectuee = true;
+  }
+
+  fermerRepartition();
+  refreshAll();
+  showToast(`✅ ${fmt(montant)} réparti vers ${goalName}`);
+}
+
+// ============================================================
+// ANNULER UNE RÉPARTITION
+// ============================================================
+async function annulerRepartition(shootId, txId, montant, goalId){
+  if(!confirm('Annuler cette répartition ?')) return;
+
+  // Supprimer la transaction d'épargne
+  const ok = await dbDelete('transactions', txId);
+  if(!ok) return;
+  txs = txs.filter(t => t.id !== txId);
+
+  // Retirer le montant de l'objectif
+  if(goalId){
+    const goal = coffres.find(c => c.id === goalId);
+    if(goal){
+      const newCurrent = Math.max(0, Number(goal.current || 0) - montant);
+      const upd = await dbUpdate('goals', goalId, {current: newCurrent});
+      if(upd){ goal.current = newCurrent; }
+    }
+  }
+
+  // Retirer le montant de la séance
+  const s = shoots.find(x => x.id === shootId);
+  if(s){
+    const newReparti = Math.max(0, Number(s.montant_reparti || 0) - montant);
+    const upd = await dbUpdate('shoots', shootId, {
+      montant_reparti: newReparti,
+      repartition_effectuee: newReparti > 0
+    });
+    if(upd){
+      s.montant_reparti = newReparti;
+      s.repartition_effectuee = newReparti > 0;
+    }
+  }
+
+  refreshAll();
+  showToast('Répartition annulée');
+}
 
 // ============================================================
 // MODULE PHOTO - SÉANCES
