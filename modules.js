@@ -1206,10 +1206,14 @@ function renderCoffres(){
       ${c.description ? `<div class="coffre-why" style="border-left-color:var(--pink)">📝 ${c.description}</div>` : ''}
       ${c.why ? `<div class="coffre-why">"${c.why}"</div>` : ''}
       ${timeInfo}
-      <div class="coffre-actions">
-        <button class="btn-primary" style="margin:0;background:var(--green)" onclick="ouvrirEpargnePerso(${c.id})">${isMoney ? '🎯 Épargner' : '✅ Ajouter'}</button>
-        <button class="btn-ghost" style="margin:0" onclick="openCoffreModal(${c.id})">✏️ Modifier</button>
-        <button class="btn-ghost" style="margin:0" onclick="delCoffre(${c.id})">🗑</button>
+          <div class="coffre-actions">
+        ${c.locked
+          ? `<button class="btn-ghost" style="margin:0;background:rgba(245,197,66,.15);color:var(--yellow);border-color:var(--yellow);font-weight:700" onclick="deverrouillerCoffre(${c.id})">🔓 Déverrouiller</button>`
+          : `<button class="btn-primary" style="margin:0;background:var(--green)" onclick="ouvrirEpargnePerso(${c.id})">${isMoney ? '🎯 Épargner' : '✅ Ajouter'}</button>`
+        }
+        <button class="btn-ghost" style="margin:0" onclick="openCoffreModal(${c.id})">✏️</button>
+        <button class="btn-ghost" style="margin:0;border-color:${c.locked ? 'var(--yellow)' : 'var(--border)'};color:${c.locked ? 'var(--yellow)' : 'var(--text)'}" onclick="toggleCadenasCoffre(${c.id})">${c.locked ? '🔒' : '🔓'}</button>
+        <button class="btn-ghost" style="margin:0;border-color:var(--red);color:var(--red)" onclick="delCoffre(${c.id})">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -7229,6 +7233,281 @@ async function analyserEntreeArgent(amount, prestationType, clientName){
     message: `Pour ${prestationType}, la suggestion est : ${regle.epargne}% épargne (${fmt(epargne)}), ${regle.charges}% charges (${fmt(charges)}), ${(100 - regle.epargne - regle.charges)}% libre (${fmt(libre)}).`
   };
 }
+// ============================================================
+// CADENAS SUR LES COFFRES
+// ============================================================
+async function toggleCadenasCoffre(coffreId){
+  const c = coffres.find(x => x.id === coffreId);
+  if(!c) return;
+
+  const newLocked = !c.locked;
+  const msg = newLocked
+    ? `🔒 Verrouiller "${c.name}" ?\n\nTu ne pourras plus y ajouter d'argent jusqu'à ce que tu le déverrouilles. C'est pour t'aider à ne pas toucher à cet argent.`
+    : `🔓 Déverrouiller "${c.name}" ?\n\nTu pourras à nouveau ajouter de l'argent dans cet objectif.`;
+
+  if(!confirm(msg)) return;
+
+  const result = await dbUpdate('goals', coffreId, {
+    locked: newLocked,
+    locked_at: newLocked ? new Date().toISOString() : null
+  });
+
+  if(!result){ alert('Erreur'); return; }
+
+  c.locked = newLocked;
+  c.locked_at = newLocked ? new Date().toISOString() : null;
+
+  refreshAll();
+  showToast(newLocked ? '🔒 Objectif verrouillé' : '🔓 Objectif déverrouillé');
+}
+
+async function deverrouillerCoffre(coffreId){
+  const c = coffres.find(x => x.id === coffreId);
+  if(!c) return;
+
+  if(!confirm(`Déverrouiller "${c.name}" ?\n\nCet objectif était bloqué pour t'aider à ne pas y toucher. Es-tu sûr(e) ?`)) return;
+
+  const result = await dbUpdate('goals', coffreId, {
+    locked: false,
+    locked_at: null
+  });
+
+  if(!result){ alert('Erreur'); return; }
+
+  c.locked = false;
+  c.locked_at = null;
+
+  refreshAll();
+  showToast('🔓 Objectif déverrouillé');
+}
+
+// Modification de ouvrirEpargnePerso pour vérifier le cadenas
+const _oldOuvrirEpargnePerso = window.ouvrirEpargnePerso;
+window.ouvrirEpargnePerso = function(coffreId){
+  const c = coffres.find(x => x.id === coffreId);
+  if(c && c.locked){
+    alert(`🔒 "${c.name}" est verrouillé.\n\nDéverrouille-le d'abord si tu veux y ajouter de l'argent.`);
+    return;
+  }
+  if(typeof _oldOuvrirEpargnePerso === 'function') return _oldOuvrirEpargnePerso(coffreId);
+};
+
+// ============================================================
+// ÉPARGNE LIBRE (sans objectif)
+// ============================================================
+async function getEpargneLibreTotal(){
+  // Somme des transactions d'épargne qui ne sont PAS liées à un objectif
+  const epargneTxs = txs.filter(t => t.category === 'Épargne' && t.type === 'depense');
+  const total = epargneTxs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+  // Retirer les versements déjà comptés dans les objectifs (via note "· nom objectif")
+  // Pour simplifier, on compte TOUT ce qui est catégorie Épargne
+  return { total, count: epargneTxs.length };
+}
+
+function renderEpargneLibre(){
+  const el = document.getElementById('epargneLibreDisplay');
+  if(!el) return;
+
+  const { total, count } = getEpargneLibreTotal();
+
+  if(total <= 0){
+    el.innerHTML = `<div class="empty" style="padding:16px">Aucune épargne libre pour l'instant</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.06));border-radius:14px;padding:16px;text-align:center">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px">Total épargne libre</div>
+      <div style="font-size:28px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(total)}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">${count} versement${count > 1 ? 's' : ''}</div>
+    </div>
+  `;
+}
+
+async function ajouterEpargneLibre(){
+  const montantStr = prompt('💰 Combien veux-tu ajouter à ton épargne libre ?\n\n(Ex: 5000)', '');
+  if(montantStr === null) return;
+
+  const montant = parseFloat(montantStr);
+  if(!montant || montant <= 0){ alert('Montant invalide'); return; }
+
+  const noteStr = prompt('📝 Petite note (optionnel) ?', 'Épargne libre');
+  const note = noteStr === null ? 'Épargne libre' : (noteStr.trim() || 'Épargne libre');
+
+  const result = await dbInsert('transactions', {
+    type: 'depense',
+    amount: montant,
+    category: 'Épargne',
+    note: note,
+    date: todayStr(),
+    payment_method: 'Interne'
+  });
+
+  if(!result){ alert('Erreur'); return; }
+
+  txs.unshift(result);
+  refreshAll();
+  showToast(`✅ ${fmt(montant)} ajouté à ton épargne libre`);
+}
+
+async function retirerEpargneLibre(){
+  const { total } = getEpargneLibreTotal();
+
+  if(total <= 0){
+    alert('Tu n\'as pas d\'épargne libre à retirer.');
+    return;
+  }
+
+  const montantStr = prompt(`➖ Combien veux-tu retirer ?\n\nDisponible : ${fmt(total)}\n\n(Ex: 5000)`, '');
+  if(montantStr === null) return;
+
+  const montant = parseFloat(montantStr);
+  if(!montant || montant <= 0){ alert('Montant invalide'); return; }
+  if(montant > total){ alert('Montant supérieur à ton épargne libre'); return; }
+
+  const motifStr = prompt('📝 Motif du retrait ?', '');
+  const motif = motifStr === null ? '' : motifStr.trim();
+
+  const result = await dbInsert('transactions', {
+    type: 'revenu',
+    amount: montant,
+    category: 'Retrait épargne',
+    note: motif || 'Retrait épargne libre',
+    date: todayStr(),
+    payment_method: 'Interne'
+  });
+
+  if(!result){ alert('Erreur'); return; }
+
+  txs.unshift(result);
+  refreshAll();
+  showToast(`✅ ${fmt(montant)} retiré de ton épargne libre`);
+}
+
+function voirHistoriqueEpargneLibre(){
+  const epargneTxs = txs.filter(t => t.category === 'Épargne' || t.category === 'Retrait épargne')
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  const existing = document.getElementById('histoEpargneModal');
+  if(existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'histoEpargneModal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>📜 Historique épargne</h3>
+        <button class="close" onclick="document.getElementById('histoEpargneModal').remove()">×</button>
+      </div>
+
+      ${epargneTxs.length === 0
+        ? '<div class="empty" style="padding:24px">Aucun mouvement d\'épargne</div>'
+        : epargneTxs.map(t => {
+            const d = new Date(t.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'});
+            const isRetrait = t.category === 'Retrait épargne';
+            const color = isRetrait ? 'var(--red)' : 'var(--green)';
+            const sign = isRetrait ? '-' : '+';
+            return `
+              <div style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13px;font-weight:600">${t.note || t.category}</div>
+                  <div style="font-size:11px;color:var(--muted)">${d}</div>
+                </div>
+                <div style="color:${color};font-weight:700;font-size:14px">${sign}${fmt(t.amount)}</div>
+              </div>
+            `;
+          }).join('')
+      }
+
+      <button class="btn-ghost" style="margin-top:16px;width:100%" onclick="document.getElementById('histoEpargneModal').remove()">Fermer</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// ============================================================
+// MOTIVATION PERSONNALISÉE
+// ============================================================
+function getMotivationPersonnalisee(){
+  const now = new Date();
+  const hour = now.getHours();
+
+  // Trouve l'objectif le plus "urgent" (celui qui a le moins de temps ou le plus proche du but)
+  let motivation = null;
+
+  if(coffres.length > 0){
+    // Priorité : objectif proche du but + deadline proche
+    const scored = coffres
+      .filter(c => Number(c.current) < Number(c.goal))
+      .map(c => {
+        const pct = (Number(c.current) / Number(c.goal)) * 100;
+        const rest = Number(c.goal) - Number(c.current);
+        let urgency = pct; // Plus pct élevé = plus proche du but
+
+        if(c.target_date){
+          const days = Math.ceil((new Date(c.target_date) - now) / 86400000);
+          if(days > 0 && days < 30) urgency += 50; // Bonus si deadline proche
+          if(days < 0) urgency += 100; // Très urgent si en retard
+        }
+        return { c, pct, rest, urgency };
+      })
+      .sort((a, b) => b.urgency - a.urgency);
+
+    if(scored.length > 0){
+      const top = scored[0];
+      const emoji = top.c.emoji || getCoffreEmoji(top.c.name);
+
+      if(top.pct >= 90){
+        motivation = { emoji: '🎉', title: 'Dernière ligne droite !', text: `${emoji} "${top.c.name}" est à ${top.pct.toFixed(0)}%. Il te reste ${fmt(top.rest)}. Tu y es presque !` };
+      } else if(top.pct >= 50){
+        motivation = { emoji: '💪', title: 'Plus de la moitié !', text: `${emoji} "${top.c.name}" est à ${top.pct.toFixed(0)}%. Continue, chaque franc compte.` };
+      } else if(top.pct > 0){
+        motivation = { emoji: '🌱', title: 'Bon démarrage !', text: `${emoji} "${top.c.name}" est à ${top.pct.toFixed(0)}%. Reste ${fmt(top.rest)} pour finir.` };
+      } else {
+        motivation = { emoji: '🚀', title: 'Il faut commencer !', text: `${emoji} "${top.c.name}" t'attend. Un petit versement aujourd'hui peut tout changer.` };
+      }
+    }
+  }
+
+  // Si pas d'objectif → message selon l'heure
+  if(!motivation){
+    if(hour < 12){
+      motivation = { emoji: '🌅', title: 'Bonjour Henzo !', text: 'Chaque matin est une nouvelle chance de faire mieux qu\'hier. Commence par créer un objectif !' };
+    } else if(hour < 18){
+      motivation = { emoji: '☀️', title: 'Bon après-midi !', text: 'Prends 2 minutes pour noter tes dépenses du jour. Tu verras où part ton argent.' };
+    } else {
+      motivation = { emoji: '🌙', title: 'Bonsoir Henzo', text: 'Ce soir, demande-toi : qu\'est-ce que j\'ai fait aujourd\'hui pour mon futur ?' };
+    }
+  }
+
+  return motivation;
+}
+
+function afficherMotivationPersonnalisee(){
+  const motiv = getMotivationPersonnalisee();
+  const iconEl = document.getElementById('motivIcon');
+  const titleEl = document.getElementById('motivTitle');
+  const textEl = document.getElementById('motivText');
+
+  if(iconEl) iconEl.textContent = motiv.emoji;
+  if(titleEl) titleEl.textContent = motiv.title;
+  if(textEl) textEl.textContent = motiv.text;
+}
+
+// Override de renderMotivationJour pour utiliser la version personnalisée
+const _oldRenderMotivationJour = window.renderMotivationJour;
+window.renderMotivationJour = function(){
+  afficherMotivationPersonnalisee();
+};
+
+// Override de renderCoffres pour ajouter l'épargne libre
+const _oldRenderCoffres = window.renderCoffres;
+window.renderCoffres = function(){
+  if(typeof _oldRenderCoffres === 'function') _oldRenderCoffres();
+  renderEpargneLibre();
+};
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
