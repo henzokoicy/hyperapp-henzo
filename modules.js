@@ -2573,20 +2573,54 @@ function getFilteredTx(){
   const monthEl = document.getElementById('histMonth');
   const typeEl = document.getElementById('histType');
   const catEl = document.getElementById('histCategory');
+  const searchEl = document.getElementById('histSearch');
+  const sortEl = document.getElementById('histSort');
   if(!monthEl || !typeEl || !catEl) return [];
 
   const month = monthEl.value;
   const type = typeEl.value;
   const cat = catEl.value;
+  const search = (searchEl?.value || '').trim().toLowerCase();
+  const sort = sortEl?.value || 'date-desc';
 
-  return txs.filter(t => {
+  let filtered = txs.filter(t => {
     if(month !== 'all' && !t.date.startsWith(month)) return false;
     if(type !== 'all' && t.type !== type) return false;
     if(cat !== 'all' && t.category !== cat) return false;
+    if(search){
+      const haystack = [
+        t.category,
+        t.note,
+        t.client_name,
+        t.prestation_type,
+        t.location,
+        t.payment_method
+      ].filter(Boolean).join(' ').toLowerCase();
+      if(!haystack.includes(search)) return false;
+    }
     return true;
-  }).sort((a,b) => b.date.localeCompare(a.date));
-}
+  });
 
+  // Tri
+  filtered.sort((a, b) => {
+    switch(sort){
+      case 'date-asc':
+        return (a.date || '').localeCompare(b.date || '');
+      case 'amount-desc':
+        return Number(b.amount || 0) - Number(a.amount || 0);
+      case 'amount-asc':
+        return Number(a.amount || 0) - Number(b.amount || 0);
+      case 'type':
+        if(a.type !== b.type) return a.type === 'revenu' ? -1 : 1;
+        return (b.date || '').localeCompare(a.date || '');
+      case 'date-desc':
+      default:
+        return (b.date || '').localeCompare(a.date || '');
+    }
+  });
+
+  return filtered;
+}
 function renderHistory(){
   const filtered = getFilteredTx();
   const totalIn = filtered.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount), 0);
@@ -2734,13 +2768,24 @@ function ouvrirDetailTx(txId, event){
             👤 Voir ce client dans Photo
           </button>
         ` : ''}
-        <button class="btn-ghost" style="margin:0;width:100%;border-color:var(--red);color:var(--red)" onclick="fermerDetailTx(); setTimeout(() => delTxFromHistory(${t.id}), 200);">
-          🗑 Supprimer cette transaction
+        <button class="btn-ghost" style="margin:0;width:100%;border-color:var(--yellow);color:var(--yellow)" onclick="fermerDetailTx(); setTimeout(() => resetTx(${t.id}), 200);">
+          ↺ Remettre le montant à 0
+        </button>
+        ${t.cancelled
+          ? `<button class="btn-primary" style="margin:0;width:100%;background:linear-gradient(135deg,var(--green),#10b981);color:#000" onclick="fermerDetailTx(); setTimeout(() => restaurerTx(${t.id}), 200);">
+              ↺ Restaurer cette transaction
+            </button>`
+          : `<button class="btn-ghost" style="margin:0;width:100%;border-color:var(--red);color:var(--red)" onclick="fermerDetailTx(); setTimeout(() => annulerTx(${t.id}), 200);">
+              🚫 Annuler cette transaction
+            </button>`
+        }
+        <button class="btn-ghost" style="margin:0;width:100%;border-color:var(--red);color:var(--red);opacity:0.7" onclick="fermerDetailTx(); setTimeout(() => delTxFromHistory(${t.id}), 200);">
+          🗑 Supprimer définitivement
         </button>
         <button class="btn-primary" style="margin:0;width:100%" onclick="fermerDetailTx()">
           Fermer
         </button>
-      </div>
+      </div>>
     </div>
   `;
   document.body.appendChild(modal);
