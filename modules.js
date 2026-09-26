@@ -1608,7 +1608,17 @@ async function validerPaiementSeance(shootId){
   const montant = parseFloat(document.getElementById('paiementMontant')?.value) || 0;
   const method = document.getElementById('paiementMethod')?.value || 'Wave';
 
-  if(!montant || montant <= 0){ alert('Indique un montant valide'); return; }
+    if(!montant || montant <= 0){ alert('Indique un montant valide'); return; }
+
+  // 🆕 Empêcher d'encaisser plus que le reste à payer
+  const prixTotal = Number(s.price || 0);
+  const dejaRecu = Number(s.montant_recu || 0);
+  const resteAPayer = Math.max(0, prixTotal - dejaRecu);
+
+  if(montant > resteAPayer){
+    alert(`❌ Montant trop élevé.\n\nPrix total : ${fmt(prixTotal)}\nDéjà reçu : ${fmt(dejaRecu)}\nReste à payer : ${fmt(resteAPayer)}\n\nTu ne peux pas encaisser plus de ${fmt(resteAPayer)}.`);
+    return;
+  }
 
   const prix = Number(s.price || 0);
   const recuAvant = Number(s.montant_recu || 0);
