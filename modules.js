@@ -2622,27 +2622,40 @@ function renderHistory(){
     if(t.photo_count) details.push('📷 ' + t.photo_count);
     if(t.amount_type && t.amount_type !== 'complet') details.push('💰 ' + (t.amount_type === 'acompte' ? 'Acompte' : 'Solde'));
 
-    return `<div class="hist-item" onclick="ouvrirDetailTx(${t.id}, event)" style="cursor:pointer">
+      el.innerHTML = filtered.map(t => {
+    const d = new Date(t.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'});
+    const sign = t.type === 'revenu' ? '+' : '-';
+    const cls = t.type === 'revenu' ? 'pos' : 'neg';
+    const checked = selectedTxIds.has(t.id) ? 'checked' : '';
+    const isCancelled = !!t.cancelled;
+
+    const details = [];
+    if(t.client_name) details.push('👤 ' + t.client_name);
+    if(t.prestation_type) details.push('📸 ' + t.prestation_type);
+    if(t.payment_method) details.push('💳 ' + t.payment_method);
+    if(t.location) details.push('📍 ' + t.location);
+    if(t.photo_count) details.push('📷 ' + t.photo_count);
+    if(t.amount_type && t.amount_type !== 'complet') details.push('💰 ' + (t.amount_type === 'acompte' ? 'Acompte' : 'Solde'));
+
+    return `<div class="hist-item ${isCancelled ? 'cancelled' : ''}" onclick="ouvrirDetailTx(${t.id}, event)" style="cursor:pointer; ${isCancelled ? 'opacity:0.5;' : ''}">
       <input type="checkbox" class="hist-check" data-id="${t.id}" ${checked} onchange="toggleTxSelect(${t.id}, this.checked); event.stopPropagation();">
       <div class="hist-content">
         <div class="hist-top">
-          <span class="hist-cat">${t.category}</span>
-          <span class="hist-amt ${cls}">${sign}${fmt(t.amount)}</span>
+          <span class="hist-cat" style="${isCancelled ? 'text-decoration:line-through;' : ''}">${t.category}${isCancelled ? ' <span style="font-size:10px;color:var(--red);font-weight:700">ANNULÉE</span>' : ''}</span>
+          <span class="hist-amt ${cls}" style="${isCancelled ? 'text-decoration:line-through;' : ''}">${sign}${fmt(t.amount)}</span>
         </div>
         <div class="hist-bottom">${d}${t.note ? ' · ' + t.note : ''}</div>
         ${details.length > 0 ? `<div style="font-size:11px;color:var(--accent);margin-top:3px">${details.join(' · ')}</div>` : ''}
       </div>
       <div style="display:flex;align-items:center;gap:4px">
-        <button class="hist-del" onclick="event.stopPropagation();delTxFromHistory(${t.id})" title="Supprimer">×</button>
+        ${isCancelled
+          ? `<button class="hist-del" style="color:var(--green)" onclick="event.stopPropagation();restaurerTx(${t.id})" title="Restaurer">↺</button>`
+          : `<button class="hist-del" onclick="event.stopPropagation();annulerTx(${t.id})" title="Annuler">🚫</button>`
+        }
         <span style="color:var(--muted);font-size:18px">›</span>
       </div>
     </div>`;
   }).join('');
-
-  const allChecked = filtered.length > 0 && filtered.every(t => selectedTxIds.has(t.id));
-  const selAll = document.getElementById('histSelectAll');
-  if(selAll) selAll.checked = allChecked;
-}
 
 function ouvrirDetailTx(txId, event){
   if(event) event.stopPropagation();
@@ -2793,6 +2806,83 @@ async function delTxFromHistory(id){
   populateHistFilters();
   renderHistory();
   refreshAll();
+}
+
+// ============================================================
+// RESET UNE TRANSACTION À 0 (sans la supprimer)
+// ============================================================
+async function resetTx(txId){
+  const t = txs.find(x => x.id === txId);
+  if(!t){ alert('Transaction introuvable'); return; }
+
+  if(!confirm(`Remettre "${t.category}" à 0 ?\n\nLe montant sera mis à zéro mais la ligne restera visible dans l'historique.`)) return;
+
+  const result = await dbUpdate('transactions', txId, {
+    amount: 0,
+    note: (t.note || '') + ' [remis à 0]'
+  });
+  if(!result){ alert('Erreur'); return; }
+
+  const idx = txs.findIndex(x => x.id === txId);
+  if(idx >= 0) txs[idx] = result;
+
+  populateHistFilters();
+  renderHistory();
+  refreshAll();
+  showToast('Transaction remise à 0');
+}
+
+// ============================================================
+// SUPPRESSION = ANNULATION (restaurable)
+// ============================================================
+async function annulerTx(txId){
+  const t = txs.find(x => x.id === txId);
+  if(!t){ alert('Transaction introuvable'); return; }
+
+  if(t.cancelled){
+    alert('Cette transaction est déjà annulée.');
+    return;
+  }
+
+  if(!confirm(`Annuler cette transaction ?\n\nElle restera visible mais barrée, et tu pourras la restaurer.`)) return;
+
+  const result = await dbUpdate('transactions', txId, {
+    cancelled: true,
+    cancelled_at: new Date().toISOString()
+  });
+  if(!result){ alert('Erreur'); return; }
+
+  const idx = txs.findIndex(x => x.id === txId);
+  if(idx >= 0) txs[idx] = result;
+
+  populateHistFilters();
+  renderHistory();
+  refreshAll();
+  showToast('Transaction annulée (restaurable)');
+}
+
+async function restaurerTx(txId){
+  const t = txs.find(x => x.id === txId);
+  if(!t){ alert('Transaction introuvable'); return; }
+
+  if(!t.cancelled){
+    alert('Cette transaction n\'est pas annulée.');
+    return;
+  }
+
+  const result = await dbUpdate('transactions', txId, {
+    cancelled: false,
+    cancelled_at: null
+  });
+  if(!result){ alert('Erreur'); return; }
+
+  const idx = txs.findIndex(x => x.id === txId);
+  if(idx >= 0) txs[idx] = result;
+
+  populateHistFilters();
+  renderHistory();
+  refreshAll();
+  showToast('Transaction restaurée');
 }
 
 function downloadFile(content, filename, mimeType){

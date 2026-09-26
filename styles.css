@@ -1941,3 +1941,6 @@ body:not(.logged-out) #loginScreen{display:none;}
     font-size:16px;
   }
 }
+.hist-item.cancelled {
+  border-left: 3px solid var(--red);
+}
