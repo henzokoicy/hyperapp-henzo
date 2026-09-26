@@ -116,10 +116,19 @@ function coachAnalyzeClients(){
   const out = [];
   const now = new Date();
 
-  // 1. Séances impayées depuis longtemps
-  const unpaid = (shoots || []).filter(s => s.payment === 'impaye' && Number(s.price) > 0);
+    // 1. Séances avec reste à payer (acomptes déduits)
+  const unpaid = (shoots || []).filter(s => {
+    if(!s || s.status === 'annule') return false;
+    const prix = Number(s.price || 0);
+    const recu = Number(s.montant_recu || 0);
+    return prix > 0 && recu < prix;
+  });
   if(unpaid.length > 0){
-    const total = unpaid.reduce((a, b) => a + Number(b.price), 0);
+    const total = unpaid.reduce((a, b) => {
+      const prix = Number(b.price || 0);
+      const recu = Number(b.montant_recu || 0);
+      return a + Math.max(0, prix - recu);
+    }, 0);
     out.push({
       id: 'unpaid_shoots',
       severity: 'urgent',
@@ -127,11 +136,14 @@ function coachAnalyzeClients(){
       title: `${unpaid.length} séance${unpaid.length > 1 ? 's' : ''} impayée${unpaid.length > 1 ? 's' : ''}`,
       subtitle: `${fmt(total)} à encaisser. On relance ?`,
       steps: unpaid.slice(0, 5).map(sh => {
-        const client = sh.client_id ? (clients || []).find(c => c.id === sh.client_id) : null;
-        const clientName = client ? client.name : 'ce client';
-        const phone = client && client.phone ? client.phone.replace(/[^0-9]/g, '') : '';
-        const fullPhone = phone.startsWith('225') ? phone : '225' + phone;
-        const msg = `Bonjour ${clientName} 👋,\n\nJ'espère que tu vas bien. Je voulais prendre des nouvelles concernant ton shooting "${sh.type}". Le paiement de ${fmt(sh.price)} est encore en attente. Veux-tu qu'on en parle ? 📸`;
+  const client = sh.client_id ? (clients || []).find(c => c.id === sh.client_id) : null;
+  const clientName = client ? client.name : 'ce client';
+  const phone = client && client.phone ? client.phone.replace(/[^0-9]/g, '') : '';
+  const fullPhone = phone.startsWith('225') ? phone : '225' + phone;
+  const prix = Number(sh.price || 0);
+  const recu = Number(sh.montant_recu || 0);
+  const reste = Math.max(0, prix - recu);
+  const msg = `Bonjour ${clientName} 👋,\n\nJ'espère que tu vas bien. Je voulais prendre des nouvelles concernant ton shooting "${sh.type}". Il reste ${fmt(reste)} à régler. Veux-tu qu'on en parle ? 📸`;
         const url = phone
           ? `https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}`
           : `https://wa.me/?text=${encodeURIComponent(msg)}`;
