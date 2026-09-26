@@ -154,7 +154,54 @@ async function handleLogout(){
   await sb.auth.signOut();
   location.reload();
 }
+// ============================================================
+// AFFICHER / MASQUER LE MOT DE PASSE
+// ============================================================
+function togglePasswordVisibility(){
+  const input = document.getElementById('loginPassword');
+  const btn = document.getElementById('togglePwdBtn');
+  if(!input || !btn) return;
 
+  if(input.type === 'password'){
+    input.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    btn.textContent = '👁️';
+  }
+}
+
+// ============================================================
+// MOT DE PASSE OUBLIÉ
+// ============================================================
+async function handleForgotPassword(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const msg = document.getElementById('loginMessage');
+
+  if(!email){
+    msg.style.color = 'var(--red)';
+    msg.textContent = 'Renseigne d\'abord ton email.';
+    return;
+  }
+
+  try {
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://hyperapp-henzo.vercel.app'
+    });
+
+    if(error){
+      msg.style.color = 'var(--red)';
+      msg.textContent = error.message;
+      return;
+    }
+
+    msg.style.color = 'var(--green)';
+    msg.textContent = '📧 Email envoyé ! Vérifie ta boîte (et tes spams).';
+  } catch(e){
+    msg.style.color = 'var(--red)';
+    msg.textContent = 'Erreur : ' + e.message;
+  }
+}
 // ============================================================
 // CHARGEMENT DES DONNÉES
 // ============================================================

@@ -49,11 +49,15 @@
     <h1 class="login-title">Super App Henzo</h1>
     <p class="login-sub">Connecte-toi pour retrouver tes données partout</p>
     <label for="loginEmail">Email</label>
-    <input type="email" id="loginEmail" placeholder="ton@email.com" autocomplete="email">
+    <input type="email" id="loginEmail" placeholder="ton@email.com" autocomplete="email" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('loginPassword').focus();}">
     <label for="loginPassword">Mot de passe</label>
-    <input type="password" id="loginPassword" placeholder="6 caractères minimum" autocomplete="current-password">
+    <div style="position:relative">
+      <input type="password" id="loginPassword" placeholder="6 caractères minimum" autocomplete="current-password" onkeydown="if(event.key==='Enter'){event.preventDefault();handleLogin();}" style="padding-right:44px">
+      <button type="button" onclick="togglePasswordVisibility()" id="togglePwdBtn" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center" aria-label="Afficher le mot de passe">👁️</button>
+    </div>
     <button class="btn-primary" onclick="handleLogin()">Se connecter</button>
     <button class="btn-ghost" onclick="handleSignUp()">Créer un compte</button>
+    <button class="btn-ghost" style="background:none;border:none;color:var(--accent);font-size:12px;text-decoration:underline;margin-top:8px;width:auto;padding:6px" onclick="handleForgotPassword()">Mot de passe oublié ?</button>
     <div id="loginMessage" class="login-msg"></div>
   </div>
 </div>
@@ -281,7 +285,6 @@
       </div>
     </div>
 
-    <!-- 💎 MON ARGENT EN DÉTAIL -->
     <div class="card">
       <h2>💎 Mon argent en détail</h2>
       <div id="moneyDetailsCard"></div>
@@ -379,6 +382,20 @@
           </select>
         </div>
         <div><label for="histCategory">Catégorie</label><select id="histCategory" onchange="renderHistory()"></select></div>
+      </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+        <label for="histSearch">🔎 Rechercher</label>
+        <input type="text" id="histSearch" placeholder="Mot-clé, client, note..." oninput="renderHistory()">
+      </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+        <label for="histSort">📊 Trier par</label>
+        <select id="histSort" onchange="renderHistory()">
+          <option value="date-desc">📅 Date (récent → ancien)</option>
+          <option value="date-asc">📅 Date (ancien → récent)</option>
+          <option value="amount-desc">💰 Montant (élevé → faible)</option>
+          <option value="amount-asc">💰 Montant (faible → élevé)</option>
+          <option value="type">🏷️ Type (revenus puis dépenses)</option>
+        </select>
       </div>
     </div>
 
@@ -990,7 +1007,6 @@
     <label for="shootPrice">💰 Prix client (FCFA)</label>
     <input type="number" id="shootPrice" inputmode="decimal" oninput="calculerNetShoot()">
 
-    <!-- 🆕 SECTION CHARGES -->
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <label style="margin:0;font-size:13px;color:var(--red);font-weight:700">💸 Charges déductibles</label>
