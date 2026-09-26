@@ -6928,7 +6928,307 @@ function init(){
     checkShootReminders();
   }, 2500);
 }
+// ============================================================
+// RECHERCHE GLOBALE (cherche dans toute l'app)
+// ============================================================
+function ouvrirRechercheGlobale(){
+  const existing = document.getElementById('rechercheGlobaleModal');
+  if(existing) existing.remove();
 
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'rechercheGlobaleModal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>🔍 Recherche globale</h3>
+        <button class="close" onclick="fermerRechercheGlobale()">×</button>
+      </div>
+
+      <input type="text" id="rechercheGlobaleInput" placeholder="Tape un mot-clé..." autocomplete="off" oninput="lancerRechercheGlobale()" style="font-size:16px;padding:14px">
+
+      <div id="rechercheGlobaleResults" style="margin-top:16px"></div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  setTimeout(() => document.getElementById('rechercheGlobaleInput')?.focus(), 200);
+}
+
+function fermerRechercheGlobale(){
+  const m = document.getElementById('rechercheGlobaleModal');
+  if(m) m.remove();
+}
+
+function lancerRechercheGlobale(){
+  const q = (document.getElementById('rechercheGlobaleInput')?.value || '').trim().toLowerCase();
+  const el = document.getElementById('rechercheGlobaleResults');
+  if(!el) return;
+
+  if(q.length < 2){
+    el.innerHTML = '<div class="empty" style="padding:20px">Tape au moins 2 caractères</div>';
+    return;
+  }
+
+  const results = {
+    transactions: [],
+    clients: [],
+    shoots: [],
+    coffres: [],
+    notes: [],
+    inspirations: [],
+    reminders: []
+  };
+
+  // Transactions
+  txs.forEach(t => {
+    const haystack = [t.category, t.note, t.client_name, t.prestation_type, t.location, t.payment_method].filter(Boolean).join(' ').toLowerCase();
+    if(haystack.includes(q)) results.transactions.push(t);
+  });
+
+  // Clients
+  clients.forEach(c => {
+    const haystack = [c.name, c.phone, c.email, c.city, c.notes].filter(Boolean).join(' ').toLowerCase();
+    if(haystack.includes(q)) results.clients.push(c);
+  });
+
+  // Séances
+  shoots.forEach(s => {
+    const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+    const haystack = [s.type, s.location, s.notes, client?.name].filter(Boolean).join(' ').toLowerCase();
+    if(haystack.includes(q)) results.shoots.push(s);
+  });
+
+  // Objectifs
+  coffres.forEach(c => {
+    const haystack = [c.name, c.why, c.description].filter(Boolean).join(' ').toLowerCase();
+    if(haystack.includes(q)) results.coffres.push(c);
+  });
+
+  // Notes
+  notes.forEach(n => {
+    const haystack = [n.title, n.content, (n.tags || []).join(' ')].filter(Boolean).join(' ').toLowerCase();
+    if(haystack.includes(q)) results.notes.push(n);
+  });
+
+  // Inspirations
+  inspirations.forEach(i => {
+    const haystack = [i.name, i.why, i.city, i.platform, (i.tags || []).join(' ')].filter(Boolean).join(' ').toLowerCase();
+    if(haystack.includes(q)) results.inspirations.push(i);
+  });
+
+  // Rappels
+  reminders.forEach(r => {
+    if((r.text || '').toLowerCase().includes(q)) results.reminders.push(r);
+  });
+
+  const total = Object.values(results).reduce((sum, arr) => sum + arr.length, 0);
+
+  if(total === 0){
+    el.innerHTML = '<div class="empty" style="padding:24px">Aucun résultat pour "' + q + '"</div>';
+    return;
+  }
+
+  let html = `<div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:14px">${total} résultat${total > 1 ? 's' : ''}</div>`;
+
+  // Transactions
+  if(results.transactions.length > 0){
+    html += `<div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">💰 Transactions (${results.transactions.length})</div>`;
+    html += results.transactions.slice(0, 5).map(t => {
+      const d = new Date(t.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
+      const sign = t.type === 'revenu' ? '+' : '-';
+      const color = t.type === 'revenu' ? 'var(--green)' : 'var(--red)';
+      return `<div onclick="fermerRechercheGlobale();showTab('historique', null);setTimeout(() => ouvrirDetailTx(${t.id}), 400)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px">${t.category}${t.note ? ' · ' + t.note.substring(0, 30) : ''}</div>
+          <div style="font-size:11px;color:var(--muted)">${d}</div>
+        </div>
+        <div style="color:${color};font-weight:700;font-size:13px">${sign}${fmt(t.amount)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Clients
+  if(results.clients.length > 0){
+    html += `<div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px">👥 Clients (${results.clients.length})</div>`;
+    html += results.clients.slice(0, 5).map(c => `
+      <div onclick="fermerRechercheGlobale();showTab('photo', null)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer">
+        <div style="font-weight:600;font-size:13px">👤 ${c.name}</div>
+        <div style="font-size:11px;color:var(--muted)">${c.phone || ''}${c.city ? ' · 📍 ' + c.city : ''}</div>
+      </div>
+    `).join('');
+  }
+
+  // Séances
+  if(results.shoots.length > 0){
+    html += `<div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px">📸 Séances (${results.shoots.length})</div>`;
+    html += results.shoots.slice(0, 5).map(s => {
+      const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+      const d = new Date(s.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
+      return `<div onclick="fermerRechercheGlobale();showTab('photo', null)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer">
+        <div style="font-weight:600;font-size:13px">📸 ${s.type}${client ? ' · ' + client.name : ''}</div>
+        <div style="font-size:11px;color:var(--muted)">${d} · ${fmt(s.price)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Objectifs
+  if(results.coffres.length > 0){
+    html += `<div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px">🎯 Objectifs (${results.coffres.length})</div>`;
+    html += results.coffres.slice(0, 5).map(c => {
+      const pct = ((Number(c.current) / Number(c.goal)) * 100).toFixed(0);
+      const emoji = c.emoji || getCoffreEmoji(c.name);
+      return `<div onclick="fermerRechercheGlobale();showTab('objectifs', null)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer">
+        <div style="font-weight:600;font-size:13px">${emoji} ${c.name}</div>
+        <div style="font-size:11px;color:var(--muted)">${pct}% · ${fmt(c.current)} / ${fmt(c.goal)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Notes
+  if(results.notes.length > 0){
+    html += `<div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px">📝 Notes (${results.notes.length})</div>`;
+    html += results.notes.slice(0, 5).map(n => `
+      <div onclick="fermerRechercheGlobale();showTab('notes', null)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer">
+        <div style="font-weight:600;font-size:13px">📝 ${n.title || (n.content || '').substring(0, 40)}</div>
+        <div style="font-size:11px;color:var(--muted)">${n.priority || ''}</div>
+      </div>
+    `).join('');
+  }
+
+  // Inspirations
+  if(results.inspirations.length > 0){
+    html += `<div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px">💫 Inspirations (${results.inspirations.length})</div>`;
+    html += results.inspirations.slice(0, 5).map(i => `
+      <div onclick="fermerRechercheGlobale();showTab('inspiration', null)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer">
+        <div style="font-weight:600;font-size:13px">💫 ${i.name}</div>
+        <div style="font-size:11px;color:var(--muted)">${i.category || ''}${i.city ? ' · 📍 ' + i.city : ''}</div>
+      </div>
+    `).join('');
+  }
+
+  // Rappels
+  if(results.reminders.length > 0){
+    html += `<div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px">⏰ Rappels (${results.reminders.length})</div>`;
+    html += results.reminders.slice(0, 5).map(r => `
+      <div onclick="fermerRechercheGlobale();showTab('motiv', null)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer">
+        <div style="font-weight:600;font-size:13px">⏰ ${r.text}</div>
+        <div style="font-size:11px;color:var(--muted)">${r.time || ''}</div>
+      </div>
+    `).join('');
+  }
+
+  el.innerHTML = html;
+}
+
+// ============================================================
+// DÉFIS QUOTIDIENS AMÉLIORÉS (avec impact + variété + focus)
+// ============================================================
+const DEFIS_POOL = {
+  epargne: [
+    { i:'💰', t:'Épargne 1000 FCFA aujourd\'hui', d:'Chaque petit geste compte. Même 1000 FCFA x 30 jours = 30 000 FCFA par mois.' },
+    { i:'🏦', t:'Mets 10% de chaque entrée de côté', d:'La règle d\'or : paie-toi en PREMIER avant de dépenser.' },
+    { i:'🎯', t:'Alimente ton objectif principal', d:'Un petit versement aujourd\'hui te rapproche du but.' },
+    { i:'🛑', t:'Zéro dépense impulsive aujourd\'hui', d:'Chaque achat non essentiel évité = de l\'argent gagné.' },
+    { i:'📊', t:'Vérifie ton solde du mois', d:'Comprendre où tu en es te permet de mieux avancer.' }
+  ],
+  business: [
+    { i:'📸', t:'Publie une photo de ton travail', d:'Ta visibilité attire les clients. Une publication par jour = 30 par mois.' },
+    { i:'📞', t:'Contacte 1 ancien client', d:'Un client satisfait = 3 recommandations. Prends de ses nouvelles.' },
+    { i:'🎁', t:'Propose une offre spéciale à un client', d:'Une remise limitée dans le temps déclenche souvent la décision.' },
+    { i:'💼', t:'Note 3 idées business dans l\'app', d:'Les bonnes idées viennent quand tu les écris.' },
+    { i:'🌟', t:'Demande un témoignage à un client', d:'Les avis clients rassurent les futurs acheteurs.' }
+  ],
+  discipline: [
+    { i:'📝', t:'Note TOUTES tes dépenses aujourd\'hui', d:'Même 100 FCFA. Tu verras où part ton argent.' },
+    { i:'🧘', t:'Prends 5 min pour toi', d:'Un esprit reposé prend de meilleures décisions.' },
+    { i:'📵', t:'Pas de réseaux sociaux pendant 2h', d:'Ce temps peut servir à avancer sur tes objectifs.' },
+    { i:'🍽️', t:'Prépare ton repas maison', d:'Cuisiner coûte moins cher que commander.' },
+    { i:'🌅', t:'Lève-toi 30 min plus tôt', d:'Les gagnants se lèvent avant les autres.' }
+  ],
+  photo: [
+    { i:'📷', t:'Nettoie ton matériel photo', d:'Un objectif propre = des photos nettes.' },
+    { i:'🎨', t:'Retouche 3 anciennes photos', d:'Améliore ton portfolio en quelques minutes.' },
+    { i:'📚', t:'Regarde 1 tutoriel photo', d:'L\'apprentissage continu fait la différence.' },
+    { i:'💾', t:'Sauvegarde tes photos du mois', d:'Ne perds jamais ton travail à cause d\'un disque plein.' },
+    { i:'🌳', t:'Repère un nouveau lieu de shooting', d:'La variété des lieux attire plus de clients.' }
+  ]
+};
+
+function getDefiDuJourAmeliore(){
+  const today = new Date();
+  const dayKey = today.toISOString().slice(0,10);
+
+  // Détermine la catégorie selon le jour de la semaine
+  const dayOfWeek = today.getDay();
+  let categorie;
+  if(dayOfWeek === 0 || dayOfWeek === 6) categorie = 'photo';       // Week-end : focus photo
+  else if(dayOfWeek === 1) categorie = 'epargne';                    // Lundi : épargne
+  else if(dayOfWeek === 3) categorie = 'business';                   // Mercredi : business
+  else categorie = 'discipline';                                     // Autres : discipline
+
+  const liste = DEFIS_POOL[categorie];
+  const dayIndex = Math.floor(new Date(dayKey).getTime() / 86400000) % liste.length;
+  return { categorie, ...liste[dayIndex] };
+}
+
+// Override de la fonction existante renderDefiDuJour
+window.renderDefiDuJour = function(){
+  const today = new Date();
+  const dayKey = today.toISOString().slice(0,10);
+  const defi = getDefiDuJourAmeliore();
+
+  const defiEl = document.getElementById('defiText');
+  const dateEl = document.getElementById('defiDate');
+  const btnEl = document.getElementById('defiBtn');
+  const streakEl = document.getElementById('defiStreak');
+
+  if(defiEl){
+    defiEl.innerHTML = `<div style="font-size:32px;margin-bottom:10px;text-align:center">${defi.i}</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px;text-align:center">${defi.t}</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.5;text-align:center">${defi.d}</div>`;
+    if(dateEl) dateEl.textContent = today.toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
+  }
+
+  const doneKey = `defi_${dayKey}`;
+  if(btnEl){
+    if(localStorage.getItem(doneKey)){
+      btnEl.classList.add('done');
+      btnEl.textContent = '✅ Défi relevé !';
+    } else {
+      btnEl.classList.remove('done');
+      btnEl.textContent = '✓ J\'ai relevé le défi';
+    }
+  }
+
+  let streak = 0;
+  let d = new Date(today);
+  while(true){
+    const k = `defi_${d.toISOString().slice(0,10)}`;
+    if(localStorage.getItem(k)){ streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  if(streakEl) streakEl.textContent = streak > 0 ? `🔥 Série : ${streak} jour${streak>1?'s':''} d'affilée !` : '';
+};
+
+// ============================================================
+// ANALYSE AUTO D'UNE ENTRÉE D'ARGENT
+// ============================================================
+async function analyserEntreeArgent(amount, prestationType, clientName){
+  // Sugère une répartition en % selon le type de prestation
+  const regle = REGLES_REPARTITION[detecterTypePrestation(prestationType)] || REGLES_REPARTITION.default;
+
+  const epargne = Math.round(amount * regle.epargne / 100);
+  const charges = Math.round(amount * regle.charges / 100);
+  const libre = amount - epargne - charges;
+
+  return {
+    epargne,
+    charges,
+    libre,
+    regle,
+    message: `Pour ${prestationType}, la suggestion est : ${regle.epargne}% épargne (${fmt(epargne)}), ${regle.charges}% charges (${fmt(charges)}), ${(100 - regle.epargne - regle.charges)}% libre (${fmt(libre)}).`
+  };
+}
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
