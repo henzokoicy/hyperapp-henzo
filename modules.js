@@ -7508,6 +7508,224 @@ window.renderCoffres = function(){
   if(typeof _oldRenderCoffres === 'function') _oldRenderCoffres();
   renderEpargneLibre();
 };
+
+// ============================================================
+// PROJECTIONS DU MOIS
+// ============================================================
+function renderProjections(){
+  const el = document.getElementById('projectionsCard');
+  if(!el) return;
+
+  const now = new Date();
+  const ym = monthKey();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  const dayOfMonth = now.getDate();
+  const daysLeft = daysInMonth - dayOfMonth;
+
+  const monthTx = txs.filter(t => t.date && t.date.startsWith(ym));
+  const totalIn = monthTx.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount || 0), 0);
+  const totalOut = monthTx.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount || 0), 0);
+
+  // Projection : rythme actuel × jours restants
+  const avgInPerDay = dayOfMonth > 0 ? totalIn / dayOfMonth : 0;
+  const avgOutPerDay = dayOfMonth > 0 ? totalOut / dayOfMonth : 0;
+  const projectedIn = avgInPerDay * daysInMonth;
+  const projectedOut = avgOutPerDay * daysInMonth;
+  const projectedBalance = projectedIn - projectedOut;
+
+  // Séances prévues (non payées mais planifiées)
+  const shootsPlanifies = shoots.filter(s => {
+    if(s.status === 'annule' || s.status === 'shoote') return false;
+    const d = new Date(s.date);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+  const caPrevu = shootsPlanifies.reduce((sum, s) => {
+    const prix = Number(s.price || 0);
+    const recu = Number(s.montant_recu || 0);
+    return sum + Math.max(0, prix - recu);
+  }, 0);
+
+  const totalProjete = projectedIn + caPrevu;
+
+  if(monthTx.length === 0 && shootsPlanifies.length === 0){
+    el.innerHTML = '<div class="empty" style="padding:20px">Ajoute des transactions et des séances pour voir tes projections.</div>';
+    return;
+  }
+
+  el.innerHTML = `
+    <div style="background:linear-gradient(135deg,rgba(107,142,255,.12),rgba(52,211,153,.06));border-radius:14px;padding:16px;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-bottom:6px">💰 CA projeté fin de mois</div>
+      <div style="font-size:28px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(totalProjete)}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">
+        Rythme actuel (${fmt(totalIn)}) + séances à venir (${fmt(caPrevu)})
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div style="background:rgba(52,211,153,.08);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Encaissé</div>
+        <div style="font-size:16px;font-weight:800;color:var(--green)">${fmt(totalIn)}</div>
+      </div>
+      <div style="background:rgba(255,107,107,.08);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Dépensé</div>
+        <div style="font-size:16px;font-weight:800;color:var(--red)">${fmt(totalOut)}</div>
+      </div>
+    </div>
+
+    <div style="background:var(--card2);border-radius:12px;padding:14px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">📊 Détail projections</div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)">
+        <span style="color:var(--muted)">Revenus projetés (rythme)</span>
+        <span style="font-weight:700;color:var(--green)">${fmt(projectedIn)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)">
+        <span style="color:var(--muted)">Dépenses projetées</span>
+        <span style="font-weight:700;color:var(--red)">${fmt(projectedOut)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)">
+        <span style="color:var(--muted)">Séances prévues</span>
+        <span style="font-weight:700;color:var(--yellow)">${shootsPlanifies.length}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0 0;margin-top:6px;font-size:14px">
+        <span style="font-weight:700">💚 Solde projeté fin de mois</span>
+        <span style="font-weight:800;color:${projectedBalance >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(projectedBalance)}</span>
+      </div>
+    </div>
+
+    <div style="font-size:12px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.5">
+      ⏱ Il reste ${daysLeft} jour${daysLeft > 1 ? 's' : ''} dans le mois
+    </div>
+  `;
+}
+
+// ============================================================
+// SUGGESTIONS IA D'ÉPARGNE PERSONNALISÉES
+// ============================================================
+async function demanderSuggestionIAEpargne(){
+  const el = document.getElementById('iaEpargneCard');
+  if(!el) return;
+
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
+
+  if(!cfg || !cfg.key){
+    el.innerHTML = `
+      <div style="background:rgba(245,197,66,.12);border:1px solid rgba(245,197,66,.30);border-radius:12px;padding:14px;font-size:13px;color:var(--gold-soft);line-height:1.5">
+        ⚠️ Configure d'abord ta clé IA dans l'onglet 🤖 IA pour recevoir des suggestions personnalisées.
+      </div>
+    `;
+    return;
+  }
+
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">🤖 Analyse en cours...</div>';
+
+  const s = computeStats();
+  const activeGoals = coffres.filter(c => Number(c.current) < Number(c.goal));
+  const epargneLibre = getEpargneLibreTotal();
+
+  const prompt = `Tu es un conseiller financier personnel d'Henzo, photographe en Côte d'Ivoire.
+
+Situation actuelle :
+- Revenus ce mois : ${Math.round(s.totalIn)} FCFA
+- Dépenses ce mois : ${Math.round(s.totalOut)} FCFA
+- Solde : ${Math.round(s.bal)} FCFA
+- Taux d'épargne : ${(s.savingsRate * 100).toFixed(1)}%
+- Objectifs actifs : ${activeGoals.length}
+${activeGoals.map(c => `  • ${c.name} : ${Math.round(c.current)}/${Math.round(c.goal)} FCFA`).join('\n')}
+- Épargne libre : ${Math.round(epargneLibre.total)} FCFA
+
+Donne une suggestion PERSONNALISÉE en français, maximum 120 mots, structurée ainsi :
+1. Combien épargner cette semaine
+2. Sur quel objectif prioritaire
+3. Une astuce concrète pour y arriver
+
+Sois direct, chiffré, encourageant. Pas d'astérisques.`;
+
+  try {
+    const text = await callAI(prompt);
+    if(!text || !text.trim()){
+      el.innerHTML = '<div class="empty">❌ Pas de réponse.</div>';
+      return;
+    }
+
+    const formatted = text.replace(/\n/g, '<br>');
+    el.innerHTML = `
+      <div style="background:linear-gradient(135deg,rgba(107,142,255,.10),rgba(255,126,179,.05));border-left:3px solid var(--accent);border-radius:12px;padding:14px;font-size:13px;line-height:1.7">
+        ${formatted}
+      </div>
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">
+        💡 Actualisé le ${new Date().toLocaleString('fr-FR', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}
+      </div>
+    `;
+  } catch(e){
+    el.innerHTML = `<div style="color:var(--red);font-size:13px;padding:12px">❌ ${e.message}</div>`;
+  }
+}
+
+// ============================================================
+// NOTIFICATIONS ACTIONNABLES (clic → ouvre la bonne action)
+// ============================================================
+function ouvrirActionDepuisNotif(actionType, param){
+  switch(actionType){
+    case 'e pargner':
+    case 'epargner':
+      showTab('objectifs', null);
+      setTimeout(() => {
+        if(coffres.length > 0) ouvrirEpargnePerso(coffres[0].id);
+      }, 400);
+      break;
+    case 'seance':
+      showTab('photo', null);
+      break;
+    case 'client':
+      showTab('photo', null);
+      break;
+    case 'note':
+      showTab('notes', null);
+      break;
+    case 'transaction':
+      showTab('historique', null);
+      break;
+    case 'objectif':
+      showTab('objectifs', null);
+      break;
+    default:
+      // Ouvre le dashboard par défaut
+      showTab('dash', null);
+  }
+}
+
+// Vérifie si l'URL contient une action au chargement
+function verifierActionURL(){
+  const params = new URLSearchParams(window.location.search);
+  const action = params.get('action');
+  const param = params.get('param');
+
+  if(action){
+    setTimeout(() => {
+      ouvrirActionDepuisNotif(action, param);
+      // Nettoie l'URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }, 800);
+  }
+}
+
+// Override de init pour ajouter les nouvelles fonctions
+const _oldInit = window.init;
+window.init = function(){
+  if(typeof _oldInit === 'function') _oldInit();
+  renderProjections();
+  renderEpargneLibre();
+  verifierActionURL();
+};
+
+// Override de refreshAll pour inclure les projections
+const _oldRefreshAll = window.refreshAll;
+window.refreshAll = function(){
+  if(typeof _oldRefreshAll === 'function') _oldRefreshAll();
+  renderProjections();
+  renderEpargneLibre();
+};
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
