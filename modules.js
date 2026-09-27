@@ -8628,6 +8628,293 @@ window.refreshAll = function(){
   if(typeof _oldRefreshAll_v3 === 'function') _oldRefreshAll_v3();
   renderCoachCoffres();
 };
+// ============================================================
+// PHASE 1 — PARTIE 6 : RÉPARTITION AUTO + RAPPORT HEBDO
+// ============================================================
+
+// ---- Propose une répartition automatique ----
+async function proposerRepartitionAuto(montant, source){
+  // Vérifier qu'il y a des coffres
+  if(coffres.length === 0){
+    return; // Pas de coffres → pas de répartition
+  }
+
+  const activeGoals = coffres.filter(c => Number(c.current) < Number(c.goal));
+  if(activeGoals.length === 0) return;
+
+  // Détecter le type de revenu
+  const d = (source || '').toLowerCase();
+  let regle;
+  if(d.includes('mariage')) regle = { reserve: 10, objectif: 25, entreprise: 35, perso: 30, label: 'Mariage' };
+  else if(d.includes('shoot') || d.includes('studio') || d.includes('extérieur')) regle = { reserve: 10, objectif: 15, entreprise: 45, perso: 30, label: 'Shooting' };
+  else if(d.includes('corporate') || d.includes('pme')) regle = { reserve: 15, objectif: 20, entreprise: 40, perso: 25, label: 'Corporate' };
+  else regle = { reserve: 10, objectif: 20, entreprise: 40, perso: 30, label: 'Revenu' };
+
+  // Calculer les montants
+  const reserveAmt = Math.round(montant * regle.reserve / 100);
+  const objectifAmt = Math.round(montant * regle.objectif / 100);
+  const entrepriseAmt = Math.round(montant * regle.entreprise / 100);
+  const persoAmt = montant - reserveAmt - objectifAmt - entrepriseAmt;
+
+  // Trouver les coffres par type
+  const coffreReserve = coffres.find(c => c.type_coffre === 'reserve' && Number(c.current) < Number(c.goal));
+  const coffreObjectif = coffres.find(c => c.type_coffre === 'objectif' && Number(c.current) < Number(c.goal));
+  const coffreEntreprise = coffres.find(c => c.type_coffre === 'entreprise');
+  const coffrePerso = coffres.find(c => c.type_coffre === 'perso');
+
+  // Construire la proposition
+  const proposition = [];
+  if(reserveAmt > 0 && coffreReserve) proposition.push({ type: 'reserve', label: '🛡️ Réserve', montant: reserveAmt, coffre: coffreReserve });
+  if(objectifAmt > 0 && coffreObjectif) proposition.push({ type: 'objectif', label: '🎯 Objectif', montant: objectifAmt, coffre: coffreObjectif });
+  if(entrepriseAmt > 0 && coffreEntreprise) proposition.push({ type: 'entreprise', label: '💼 Entreprise', montant: entrepriseAmt, coffre: coffreEntreprise });
+  if(persoAmt > 0 && coffrePerso) proposition.push({ type: 'perso', label: '🎉 Perso', montant: persoAmt, coffre: coffrePerso });
+
+  // Si aucun coffre ne correspond → on skip
+  if(proposition.length === 0) return;
+
+  // Afficher la modale
+  afficherModaleRepartitionAuto(montant, source, proposition, regle);
+}
+
+function afficherModaleRepartitionAuto(montant, source, proposition, regle){
+  const existing = document.getElementById('repartitionAutoModal');
+  if(existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'repartitionAutoModal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>💡 Proposition de répartition</h3>
+        <button class="close" onclick="fermerRepartitionAuto()">×</button>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(107,142,255,.12),rgba(52,211,153,.08));border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Tu viens de recevoir</div>
+        <div style="font-size:28px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(montant)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px">${source || 'Revenu'} · Règle ${regle.label}</div>
+      </div>
+
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.5">
+        Voici ma proposition pour dispatcher intelligemment cet argent dans tes coffres :
+      </div>
+
+      <div id="repartitionAutoList">
+        ${proposition.map((p, i) => `
+          <div style="background:var(--card2);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:13px">${p.label}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${p.coffre.emoji || '🎯'} ${p.coffre.name}</div>
+            </div>
+            <div style="text-align:right">
+              <input type="number" id="repartAuto-${i}" value="${p.montant}" 
+                style="width:100px;padding:6px;font-size:14px;font-weight:700;text-align:right;color:var(--green);background:var(--card);border:1px solid var(--border);border-radius:8px"
+                oninput="recalculerRepartAuto(${montant})">
+              <div style="font-size:10px;color:var(--muted);margin-top:2px">FCFA</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div id="repartAutoTotal" style="background:var(--card);border-radius:12px;padding:12px;margin-top:12px;text-align:center">
+        <div style="font-size:11px;color:var(--muted)">Total alloué</div>
+        <div style="font-size:18px;font-weight:800;color:var(--accent)" id="repartAutoTotalValue">${fmt(montant)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">sur ${fmt(montant)} reçus</div>
+      </div>
+
+      <div style="display:grid;gap:8px;margin-top:16px">
+        <button class="btn-primary" style="margin:0;background:linear-gradient(135deg,var(--green),#10b981);color:#000;font-weight:800;padding:16px" onclick="validerRepartitionAuto(${montant})">
+          ✅ Valider la répartition
+        </button>
+        <button class="btn-ghost" style="margin:0" onclick="fermerRepartitionAuto()">
+          ⏭️ Plus tard (garder en libre)
+        </button>
+      </div>
+
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.5">
+        💡 Tu peux modifier chaque montant. Si tu laisses tout en libre, rien ne change.
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  window.__repartAutoProposition = proposition;
+  window.__repartAutoMontant = montant;
+}
+
+function recalculerRepartAuto(montantTotal){
+  const proposition = window.__repartAutoProposition || [];
+  let total = 0;
+  proposition.forEach((p, i) => {
+    const input = document.getElementById('repartAuto-' + i);
+    if(input) total += parseFloat(input.value) || 0;
+  });
+  const el = document.getElementById('repartAutoTotalValue');
+  if(el){
+    el.textContent = fmt(total);
+    el.style.color = total > montantTotal ? 'var(--red)' : 'var(--accent)';
+  }
+}
+
+function fermerRepartitionAuto(){
+  const m = document.getElementById('repartitionAutoModal');
+  if(m) m.remove();
+  window.__repartAutoProposition = null;
+}
+
+async function validerRepartitionAuto(montantTotal){
+  const proposition = window.__repartAutoProposition || [];
+  if(proposition.length === 0){ fermerRepartitionAuto(); return; }
+
+  // Récupérer les montants
+  const allocations = [];
+  let totalAlloue = 0;
+  proposition.forEach((p, i) => {
+    const input = document.getElementById('repartAuto-' + i);
+    const val = input ? parseFloat(input.value) || 0 : 0;
+    if(val > 0){
+      allocations.push({ ...p, montant: val });
+      totalAlloue += val;
+    }
+  });
+
+  if(totalAlloue > montantTotal){
+    alert(`❌ Total alloué (${fmt(totalAlloue)}) supérieur au montant reçu (${fmt(montantTotal)}).`);
+    return;
+  }
+
+  if(allocations.length === 0){
+    fermerRepartitionAuto();
+    return;
+  }
+
+  // Créer les transactions + mettre à jour les coffres
+  for(const a of allocations){
+    // Créer la transaction "Épargne"
+    await dbInsert('transactions', {
+      type: 'depense',
+      amount: a.montant,
+      category: 'Épargne',
+      note: 'Répartition auto · ' + a.coffre.name,
+      date: todayStr(),
+      payment_method: 'Interne'
+    });
+
+    // Mettre à jour le coffre
+    const newCurrent = Number(a.coffre.current || 0) + a.montant;
+    await dbUpdate('goals', a.coffre.id, { current: newCurrent });
+    a.coffre.current = newCurrent;
+  }
+
+  fermerRepartitionAuto();
+  refreshAll();
+  showToast(`✅ ${fmt(totalAlloue)} réparti dans ${allocations.length} coffre${allocations.length > 1 ? 's' : ''}`);
+}
+
+// ---- Override de saveRevenue pour proposer la répartition ----
+const _oldSaveRevenue = window.saveRevenue;
+window.saveRevenue = async function(){
+  if(typeof _oldSaveRevenue !== 'function') return;
+
+  // Récupérer le montant et la source AVANT la sauvegarde
+  const amountEl = document.getElementById('revAmount');
+  const prestationEl = document.getElementById('revPrestationType');
+  const montant = amountEl ? parseFloat(amountEl.value) : 0;
+  const prestation = prestationEl ? prestationEl.value : '';
+
+  // Appeler la fonction originale
+  await _oldSaveRevenue();
+
+  // Si la sauvegarde a réussi (le modal est fermé) → proposer la répartition
+  setTimeout(() => {
+    const modalEncore = document.getElementById('revenueModalBg');
+    if(!modalEncore || !modalEncore.classList.contains('show')){
+      // Le modal est fermé → sauvegarde OK
+      if(montant > 0){
+        proposerRepartitionAuto(montant, prestation);
+      }
+    }
+  }, 600);
+};
+
+// ---- RAPPORT HEBDO DU COACH ----
+async function genererRapportHebdo(){
+  const conseils = analyserCoffresCoach();
+  const now = new Date();
+  
+  let rapport = `📊 RAPPORT HEBDO DU COACH\n`;
+  rapport += `Semaine du ${now.toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'})}\n\n`;
+
+  // Stats globales
+  const totalEpargne = coffres.reduce((s, c) => s + Number(c.current || 0), 0);
+  const totalGoal = coffres.reduce((s, c) => s + Number(c.goal || 0), 0);
+  const pct = totalGoal > 0 ? ((totalEpargne / totalGoal) * 100).toFixed(0) : 0;
+
+  rapport += `💰 Total épargné : ${fmt(totalEpargne)} / ${fmt(totalGoal)} (${pct}%)\n`;
+  rapport += `🎯 Nombre de coffres : ${coffres.length}\n`;
+  rapport += `🔒 Coffres bloqués : ${coffres.filter(estCoffreBloque).length}\n\n`;
+
+  if(conseils.length > 0){
+    rapport += `🧠 CONSEILS DU COACH :\n`;
+    conseils.forEach((c, i) => {
+      rapport += `\n${i+1}. ${c.icon} ${c.title}\n${c.text.replace(/\*\*/g, '')}\n`;
+    });
+  } else {
+    rapport += `✅ Tout est en ordre. Continue comme ça !\n`;
+  }
+
+  rapport += `\n📅 Prochain rapport dans 7 jours.`;
+
+  return rapport;
+}
+
+async function sauvegarderRapportHebdo(rapport){
+  const dateStr = new Date().toLocaleString('fr-FR', {day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'});
+  localStorage.setItem('rapport_hebdo_last', rapport);
+  localStorage.setItem('rapport_hebdo_date', dateStr);
+
+  try {
+    const user = await getCurrentUser();
+    if(!user) return;
+    await sb.from('user_settings').upsert(
+      { user_id: user.id, rapport_hebdo: rapport, rapport_hebdo_date: dateStr },
+      { onConflict: 'user_id' }
+    );
+  } catch(e){ console.warn('sauvegarderRapportHebdo:', e); }
+}
+
+async function verifierRapportHebdo(){
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=dimanche
+  const today = now.toISOString().slice(0, 10);
+  const lastRapport = localStorage.getItem('rapport_hebdo_date_key');
+
+  // Rapport chaque dimanche
+  if(dayOfWeek !== 0) return;
+  if(lastRapport === today) return;
+
+  const rapport = await genererRapportHebdo();
+  await sauvegarderRapportHebdo(rapport);
+  localStorage.setItem('rapport_hebdo_date_key', today);
+
+  // Notification
+  if(typeof showLocalNotification === 'function'){
+    await showLocalNotification('📊 Rapport hebdo du coach', 'Ouvre l\'app pour voir tes conseils de la semaine !');
+  }
+
+  // Popup in-app
+  if(typeof afficherPopupNotif === 'function'){
+    afficherPopupNotif('📊 Rapport hebdo', 'Ouvre l\'onglet Objectifs pour voir le rapport complet.', '📊', 8000);
+  }
+}
+
+// ---- Override de init pour ajouter les vérifications ----
+const _oldInit_v4 = window.init;
+window.init = function(){
+  if(typeof _oldInit_v4 === 'function') _oldInit_v4();
+  setTimeout(verifierRapportHebdo, 3000);
+};
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
