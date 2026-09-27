@@ -1274,6 +1274,19 @@ function openClientModal(id){
   document.getElementById('clientEmail').value = c?.email || '';
   document.getElementById('clientCity').value = c?.city || '';
   document.getElementById('clientNotes').value = c?.notes || '';
+
+  // 🆕 Remplir les cases de catégories
+  const existingCats = Array.isArray(c?.categories) ? c.categories : [];
+  document.querySelectorAll('.client-cat').forEach(cb => {
+    cb.checked = existingCats.includes(cb.value);
+  });
+
+  // 🆕 Champ catégorie perso (si une catégorie n'est pas dans la liste)
+  const knownCats = ['VIP','Fidèle','Nouveau','Inactif','Mariage','Corporate','Portrait','Événement','Studio','Extérieur','Famille','Baptême','Scolaire','Autre'];
+  const customCats = existingCats.filter(cat => !knownCats.includes(cat));
+  const customInput = document.getElementById('clientCustomCategory');
+  if(customInput) customInput.value = customCats.join(', ');
+
   document.getElementById('clientModalBg').classList.add('show');
 }
 
@@ -1286,12 +1299,31 @@ async function saveClient(){
   const name = document.getElementById('clientName').value.trim();
   if(!name){ alert("Nom requis"); return; }
 
+  // 🆕 Récupérer les catégories cochées
+  const checkedCats = [];
+  document.querySelectorAll('.client-cat:checked').forEach(cb => {
+    checkedCats.push(cb.value);
+  });
+
+  // 🆕 Ajouter la catégorie perso si présente
+  const customInput = document.getElementById('clientCustomCategory');
+  if(customInput){
+    const customRaw = customInput.value.trim();
+    if(customRaw){
+      const customs = customRaw.split(',').map(s => s.trim()).filter(Boolean);
+      customs.forEach(c => {
+        if(!checkedCats.includes(c)) checkedCats.push(c);
+      });
+    }
+  }
+
   const data = {
     name,
     phone: document.getElementById('clientPhone').value.trim(),
     email: document.getElementById('clientEmail').value.trim(),
     city: document.getElementById('clientCity').value.trim(),
-    notes: document.getElementById('clientNotes').value.trim()
+    notes: document.getElementById('clientNotes').value.trim(),
+    categories: checkedCats
   };
 
   if(editingClientId){

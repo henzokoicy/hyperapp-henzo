@@ -1158,6 +1158,55 @@
       <div class="autocomplete-list" id="clientCityList"></div>
     </div>
     <label for="clientNotes">Notes</label><input type="text" id="clientNotes">
+    
+    <label style="margin-top:14px">🏷️ Catégories du client</label>
+    <div id="clientCategoriesBox" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+      <label class="checkbox-label" style="margin:0;padding:8px;background:var(--card2);border-radius:8px;font-size:12px">
+        <input type="checkbox" class="client-cat" value="VIP"> 🥇 VIP
+      </label>
+      <label class="checkbox-label" style="margin:0;padding:8px;background:var(--card2);border-radius:8px;font-size:12px">
+        <input type="checkbox" class="client-cat" value="Fidèle"> ⭐ Fidèle
+      </label>
+      <label class="checkbox-label" style="margin:0;padding:8px;background:var(--card2);border-radius:8px;font-size:12px">
+        <input type="checkbox" class="client-cat" value="Nouveau"> 🆕 Nouveau
+      </label>
+      <label class="checkbox-label" style="margin:0;padding:8px;background:var(--card2);border-radius:8px;font-size:12px">
+        <input type="checkbox" class="client-cat" value="Inactif"> 😴 Inactif
+      </label>
+      <label class="checkbox-label" style="margin:0;padding:8px;background:var(--card2);border-radius:8px;font-size:12px">
+        <input type="checkbox" class="client-cat" value="Mariage"> 💍 Mariage
+      </label>
+      <label class="checkbox-label" style="margin:0;padding:8px;background:var(--card2);border-radius:8px;font-size:12px">
+        <input type="checkbox" class="client-cat" value="Corporate"> 💼 Corporate
+      </label>
+      <label class="checkbox-label" style="margin:0;padding:8px;background:var(--card2);border-radius:8px;font-size:12px">
+        <input type="checkbox" class="client-cat" value="Portrait"> 📸 Portrait
+      </label>
+      <label class="checkbox-label" style="margin:0;padding:8px;background:var(--card2);border-radius:8px;font-size:12px">
+        <input type="checkbox" class="client-cat" value="Événement"> 🎉 Événement
+      </label>
+      <label class="checkbox-label" style="margin:0;padding:8px;background:var(--card2);border-radius:8px;font-size:12px">
+        <input type="checkbox" class="client-cat" value="Studio"> 🎬 Studio
+      </label>
+      <label class="checkbox-label" style="margin:0;padding:8px;background:var(--card2);border-radius:8px;font-size:12px">
+        <input type="checkbox" class="client-cat" value="Extérieur"> 🌳 Extérieur
+      </label>
+      <label class="checkbox-label" style="margin:0;padding:8px;background:var(--card2);border-radius:8px;font-size:12px">
+        <input type="checkbox" class="client-cat" value="Famille"> 👨‍👩‍👧 Famille
+      </label>
+      <label class="checkbox-label" style="margin:0;padding:8px;background:var(--card2);border-radius:8px;font-size:12px">
+        <input type="checkbox" class="client-cat" value="Baptême"> 💒 Baptême
+      </label>
+      <label class="checkbox-label" style="margin:0;padding:8px;background:var(--card2);border-radius:8px;font-size:12px">
+        <input type="checkbox" class="client-cat" value="Scolaire"> 🎓 Scolaire
+      </label>
+      <label class="checkbox-label" style="margin:0;padding:8px;background:var(--card2);border-radius:8px;font-size:12px">
+        <input type="checkbox" class="client-cat" value="Autre"> ➕ Autre
+      </label>
+    </div>
+
+    <label for="clientCustomCategory" style="font-size:12px">✏️ Ou crée une catégorie perso</label>
+    <input type="text" id="clientCustomCategory" placeholder="Ex: Grossesse, Anniversaire..." style="font-size:13px">
     <button class="btn-primary" style="background:var(--pink)" onclick="saveClient()">Enregistrer</button>
   </div>
 </div>
