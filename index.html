@@ -629,6 +629,32 @@
         <button class="ai-btn" onclick="exportClientsJSON()">📦 JSON</button>
         <button class="ai-btn" style="background:var(--pink);border:none;color:#fff" onclick="exportClientsPDF()">📄 PDF</button>
       </div>
+      
+      <div style="background:var(--card2);border-radius:12px;padding:12px;margin-bottom:12px;border:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">🔍 Filtrer les clients</div>
+
+        <label style="margin:0 0 6px;font-size:12px">Rechercher</label>
+        <input type="text" id="clientSearch" placeholder="Nom, téléphone, ville..." oninput="renderClients()" style="font-size:13px;padding:10px;margin-bottom:10px">
+
+        <label style="margin:0 0 6px;font-size:12px">🏷️ Catégorie</label>
+        <select id="clientFilterCategory" onchange="renderClients()" style="font-size:13px;padding:10px">
+          <option value="all">Toutes les catégories</option>
+          <option value="VIP">🥇 VIP</option>
+          <option value="Fidèle">⭐ Fidèle</option>
+          <option value="Nouveau">🆕 Nouveau</option>
+          <option value="Inactif">😴 Inactif</option>
+          <option value="Mariage">💍 Mariage</option>
+          <option value="Corporate">💼 Corporate</option>
+          <option value="Portrait">📸 Portrait</option>
+          <option value="Événement">🎉 Événement</option>
+          <option value="Studio">🎬 Studio</option>
+          <option value="Extérieur">🌳 Extérieur</option>
+          <option value="Famille">👨‍👩‍👧 Famille</option>
+          <option value="Baptême">💒 Baptême</option>
+          <option value="Scolaire">🎓 Scolaire</option>
+          <option value="Autre">➕ Autre</option>
+        </select>
+      </div>
       <div id="clientsList"><div class="empty">Aucun client enregistré</div></div>
       <button class="btn-ghost" style="margin-top:10px;width:100%;border-color:var(--gold-soft);color:var(--gold-soft)" onclick="ouvrirGuideRegles()">🧠 Voir mes règles de répartition</button>
     </div>

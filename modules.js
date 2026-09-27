@@ -1354,18 +1354,57 @@ function renderClients(){
   if(!el) return;
   if(clients.length === 0){ el.innerHTML = '<div class="empty">Aucun client</div>'; return; }
 
-  el.innerHTML = clients.map(c => `
-    <div class="item-card">
+  // Filtre par catégorie
+  const catFilter = document.getElementById('clientFilterCategory')?.value || 'all';
+  const searchEl = document.getElementById('clientSearch');
+  const search = (searchEl?.value || '').trim().toLowerCase();
+
+  let filtered = clients.filter(c => {
+    if(catFilter !== 'all'){
+      const cats = Array.isArray(c.categories) ? c.categories : [];
+      if(!cats.includes(catFilter)) return false;
+    }
+    if(search){
+      const haystack = [c.name, c.phone, c.email, c.city, c.notes].filter(Boolean).join(' ').toLowerCase();
+      if(!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+
+  if(filtered.length === 0){
+    el.innerHTML = '<div class="empty">Aucun client ne correspond</div>';
+    return;
+  }
+
+  // Compter pour le résumé
+  const totalClients = clients.length;
+  const affiches = filtered.length;
+
+  el.innerHTML = `
+    <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:10px">
+      ${affiches} client${affiches > 1 ? 's' : ''} affiché${affiches > 1 ? 's' : ''} sur ${totalClients}
+    </div>
+  ` + filtered.map(c => {
+    const cats = Array.isArray(c.categories) ? c.categories : [];
+    const catHtml = cats.length > 0
+      ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
+          ${cats.map(cat => `<span style="background:linear-gradient(135deg,rgba(107,142,255,.20),rgba(255,126,179,.12));color:var(--accent-2);padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700">🏷️ ${cat}</span>`).join('')}
+        </div>`
+      : '';
+
+    return `<div class="item-card">
       <div class="head"><div class="name">👤 ${c.name}</div></div>
       ${c.phone ? `<div class="amt"><span>📞 ${c.phone}</span></div>` : ''}
       ${c.email ? `<div class="amt"><span>✉️ ${c.email}</span></div>` : ''}
       ${c.city ? `<div class="amt"><span>📍 ${c.city}</span></div>` : ''}
       ${c.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">${c.notes}</div>` : ''}
+      ${catHtml}
       <div class="actions" style="display:flex;gap:6px;margin-top:8px">
         <button class="btn-ghost" style="margin:0;padding:6px" onclick="openClientModal(${c.id})">Modifier</button>
         <button class="btn-ghost" style="margin:0;padding:6px" onclick="delClient(${c.id})">×</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ============================================================
