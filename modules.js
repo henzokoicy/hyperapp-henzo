@@ -7227,27 +7227,15 @@ async function toggleCadenasCoffre(coffreId){
   const c = coffres.find(x => x.id === coffreId);
   if(!c) return;
 
-  const newLocked = !c.locked;
-  const msg = newLocked
-    ? `🔒 Verrouiller "${c.name}" ?\n\nTu ne pourras plus y ajouter d'argent jusqu'à ce que tu le déverrouilles. C'est pour t'aider à ne pas toucher à cet argent.`
-    : `🔓 Déverrouiller "${c.name}" ?\n\nTu pourras à nouveau ajouter de l'argent dans cet objectif.`;
+  // Si déjà bloqué → débloquer
+  if(estCoffreBloque(c)){
+    await debloquerCoffre(coffreId);
+    return;
+  }
 
-  if(!confirm(msg)) return;
-
-  const result = await dbUpdate('goals', coffreId, {
-    locked: newLocked,
-    locked_at: newLocked ? new Date().toISOString() : null
-  });
-
-  if(!result){ alert('Erreur'); return; }
-
-  c.locked = newLocked;
-  c.locked_at = newLocked ? new Date().toISOString() : null;
-
-  refreshAll();
-  showToast(newLocked ? '🔒 Objectif verrouillé' : '🔓 Objectif déverrouillé');
+  // Sinon → bloquer
+  await bloquerCoffre(coffreId);
 }
-
 async function deverrouillerCoffre(coffreId){
   const c = coffres.find(x => x.id === coffreId);
   if(!c) return;
