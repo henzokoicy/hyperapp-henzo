@@ -2651,20 +2651,6 @@ function renderHistory(){
     const sign = t.type === 'revenu' ? '+' : '-';
     const cls = t.type === 'revenu' ? 'pos' : 'neg';
     const checked = selectedTxIds.has(t.id) ? 'checked' : '';
-
-    const details = [];
-    if(t.client_name) details.push('👤 ' + t.client_name);
-    if(t.prestation_type) details.push('📸 ' + t.prestation_type);
-    if(t.payment_method) details.push('💳 ' + t.payment_method);
-    if(t.location) details.push('📍 ' + t.location);
-    if(t.photo_count) details.push('📷 ' + t.photo_count);
-    if(t.amount_type && t.amount_type !== 'complet') details.push('💰 ' + (t.amount_type === 'acompte' ? 'Acompte' : 'Solde'));
-
-      el.innerHTML = filtered.map(t => {
-    const d = new Date(t.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'});
-    const sign = t.type === 'revenu' ? '+' : '-';
-    const cls = t.type === 'revenu' ? 'pos' : 'neg';
-    const checked = selectedTxIds.has(t.id) ? 'checked' : '';
     const isCancelled = !!t.cancelled;
 
     const details = [];
@@ -2694,6 +2680,7 @@ function renderHistory(){
       </div>
     </div>`;
   }).join('');
+}
 
 function ouvrirDetailTx(txId, event){
   if(event) event.stopPropagation();
