@@ -7859,6 +7859,152 @@ window.refreshAll = function(){
   renderProjections();
   renderEpargneLibre();
 };
+// ============================================================
+// PHASE 1 — SYSTÈME DE COFFRES INTELLIGENTS
+// Types + Détection auto + Blocage intelligent
+// ============================================================
+
+// ---- 4 TYPES DE COFFRES ----
+const COFFRE_TYPES = {
+  reserve: {
+    id: 'reserve',
+    label: '🛡️ Réserve / Urgence',
+    icon: '🛡️',
+    color: '#ff6b6b',
+    desc: 'Ta bouée de sauvetage. Argent bloqué pour les imprévus.',
+    lockLevel: 3,          // 3 = auto-bloqué total
+    autoLock: true,        // Bloqué automatiquement
+    message: {
+      short: 'Cet argent est ta sécurité. N\'y touche pas.',
+      long: 'Ce coffre est ta BOUÉE DE SAUVETAGE.\n\nC\'est ce qui te permet de :\n• Ne pas paniquer en cas d\'imprévu (santé, panne, urgence)\n• Ne pas t\'endetter pour un accident de la vie\n• Dormir tranquille la nuit\n\nSi tu le casses maintenant, que se passera-t-il si ta moto tombe en panne demain ?'
+    }
+  },
+  objectif: {
+    id: 'objectif',
+    label: '🎯 Objectif / Long terme',
+    icon: '🎯',
+    color: '#6b8eff',
+    desc: 'Un objectif précis à atteindre. Blocage suggéré.',
+    lockLevel: 2,          // 2 = suggéré
+    autoLock: false,
+    message: {
+      short: 'Cet argent travaille pour ton objectif. Continue !',
+      long: 'Ce coffre, c\'est ton RÊVE en construction.\n\nChaque franc que tu retires aujourd\'hui, c\'est un jour de plus avant de l\'avoir.\n\nTu es sur la bonne voie. Ne lâche pas maintenant.'
+    }
+  },
+  entreprise: {
+    id: 'entreprise',
+    label: '💼 Entreprise / Charges',
+    icon: '💼',
+    color: '#f5c542',
+    desc: 'Pour les charges de ton activité. Libre mais chaque retrait est noté.',
+    lockLevel: 1,          // 1 = pas de blocage mais noté
+    autoLock: false,
+    message: {
+      short: 'Cet argent sert à ton activité. Utilise-le bien.',
+      long: 'Ce coffre finance ton ACTIVITÉ.\n\nChaque retrait doit avoir une raison : loyer, transport, matériel, assistant...\n\nL\'app va noter où va ton argent pour que tu puisses voir si ton entreprise est rentable.'
+    }
+  },
+  perso: {
+    id: 'perso',
+    label: '🎉 Perso / Plaisir',
+    icon: '🎉',
+    color: '#34d399',
+    desc: 'Ton argent personnel. Totalement libre.',
+    lockLevel: 0,          // 0 = pas de blocage
+    autoLock: false,
+    message: {
+      short: 'Fais-toi plaisir, tu l\'as mérité.',
+      long: 'Cet argent est pour TOI.\n\nTu as travaillé dur. Tu peux l\'utiliser librement pour tes sorties, tes envies, tes cadeaux.\n\nProfite ! 🎉'
+    }
+  }
+};
+
+// Types personnalisés (stockés en local + Supabase)
+let COFFRE_TYPES_PERSO = [];
+try {
+  const saved = localStorage.getItem('coffre_types_perso');
+  if(saved) COFFRE_TYPES_PERSO = JSON.parse(saved);
+} catch(e){}
+
+function getCoffreType(typeId){
+  if(COFFRE_TYPES[typeId]) return COFFRE_TYPES[typeId];
+  const perso = COFFRE_TYPES_PERSO.find(t => t.id === typeId);
+  if(perso) return perso;
+  return COFFRE_TYPES.objectif; // défaut
+}
+
+// ---- DÉTECTION INTELLIGENTE DU TYPE SELON LE NOM ----
+function detecterTypeCoffre(nom){
+  const n = (nom || '').toLowerCase();
+
+  // Réserve / Urgence
+  const motsReserve = ['urgence', 'secours', 'sécurité', 'securite', 'imprévu', 'imprevu', 'accident', 'maladie', 'santé', 'sante', 'médecine', 'medecine', 'hôpital', 'hopital', 'pharmacie', 'panne', 'réparation', 'reparation'];
+  if(motsReserve.some(m => n.includes(m))) return 'reserve';
+
+  // Entreprise / Charges
+  const motsEntreprise = ['loyer', 'charges', 'transport', 'essence', 'carburant', 'assistant', 'makeup', 'maquillage', 'matériel', 'materiel', 'studio', 'local', 'bureau', 'publicité', 'publicite', 'marketing', 'abonnement', 'internet', 'téléphone', 'telephone', 'impôts', 'impots', 'taxes', 'facture', 'matériel photo', 'location'];
+  if(motsEntreprise.some(m => n.includes(m))) return 'entreprise';
+
+  // Objectif / Long terme
+  const motsObjectif = ['appareil', 'objectif', 'boitier', 'drone', 'ordinateur', 'voiture', 'moto', 'villa', 'maison', 'terrain', 'voyage', 'vacances', 'formation', 'diplôme', 'diplome', 'investissement', 'matériel premium', 'studio pro', 'fond'];
+  if(motsObjectif.some(m => n.includes(m))) return 'objectif';
+
+  // Perso
+  const motsPerso = ['sortie', 'plaisir', 'cadeau', 'fête', 'fete', 'resto', 'restaurant', 'cinéma', 'cinema', 'shopping', 'vêtement', 'vetement', 'chaussure', 'jeu', 'loisir'];
+  if(motsPerso.some(m => n.includes(m))) return 'perso';
+
+  // Par défaut : objectif
+  return 'objectif';
+}
+
+// ---- ANALYSE INTELLIGENTE D'UN COFFRE ----
+function analyserCoffre(nom){
+  const typeId = detecterTypeCoffre(nom);
+  const type = getCoffreType(typeId);
+
+  return {
+    typeId,
+    type,
+    lockLevel: type.lockLevel,
+    autoLock: type.autoLock,
+    recommandation: type.autoLock
+      ? '🔒 Ce coffre sera BLOQUÉ AUTOMATIQUEMENT pour te protéger.'
+      : type.lockLevel === 2
+        ? '🔒 Il est RECOMMANDÉ de bloquer ce coffre jusqu\'à 100%.'
+        : '🔓 Ce coffre reste libre d\'accès.'
+  };
+}
+
+// ---- AFFICHAGE DYNAMIQUE DANS LA MODALE DE CRÉATION ----
+function afficherAnalyseCoffre(){
+  const nom = (document.getElementById('coffreName')?.value || '').trim();
+  const el = document.getElementById('coffreAnalysis');
+  if(!el) return;
+
+  if(nom.length < 3){
+    el.classList.remove('show');
+    el.innerHTML = '';
+    return;
+  }
+
+  const analyse = analyserCoffre(nom);
+  const type = analyse.type;
+
+  el.innerHTML = `
+    <div class="ai-line" style="margin-bottom:6px">
+      <strong>${type.icon}</strong> 
+      Type détecté : <span style="color:${type.color};font-weight:700">${type.label}</span>
+    </div>
+    <div class="ai-line" style="font-size:11px;line-height:1.5;color:var(--muted);margin-bottom:6px">
+      ${type.desc}
+    </div>
+    <div class="ai-line" style="font-size:12px;font-weight:700;color:${type.lockLevel >= 2 ? 'var(--yellow)' : 'var(--green)'}">
+      ${analyse.recommandation}
+    </div>
+  `;
+  el.classList.add('show');
+}
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
