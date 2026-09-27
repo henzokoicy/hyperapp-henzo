@@ -8005,6 +8005,376 @@ function afficherAnalyseCoffre(){
   `;
   el.classList.add('show');
 }
+// ============================================================
+// PHASE 1 — PARTIE 2 : BLOCAGE INTELLIGENT DES COFFRES
+// ============================================================
+
+// ---- Récupère le type d'un coffre existant ----
+function getTypeCoffre(coffre){
+  if(!coffre) return COFFRE_TYPES.objectif;
+  return getCoffreType(coffre.type_coffre || 'objectif');
+}
+
+// ---- Vérifie si un coffre est bloqué ----
+function estCoffreBloque(coffre){
+  if(!coffre) return false;
+  // Bloqué si auto_locked est true OU lock_level >= 1 (blocage manuel)
+  return !!coffre.auto_locked || Number(coffre.lock_level) >= 1;
+}
+
+// ---- Bloque un coffre ----
+async function bloquerCoffre(coffreId){
+  const c = coffres.find(x => x.id === coffreId);
+  if(!c) return;
+
+  const type = getTypeCoffre(c);
+  const msg = `🔒 Bloquer "${c.name}" ?\n\n` +
+    `Une fois bloqué :\n` +
+    `✅ Tu pourras TOUJOURS ajouter de l'argent\n` +
+    `❌ Tu ne pourras PLUS retirer sans raison valable\n\n` +
+    `Type : ${type.icon} ${type.label}\n` +
+    `Niveau de protection : ${type.lockLevel === 3 ? '🔒🔒🔒 Maximum' : '🔒🔒 Fort'}\n\n` +
+    `Confirmer ?`;
+
+  if(!confirm(msg)) return;
+
+  const result = await dbUpdate('goals', coffreId, {
+    auto_locked: true,
+    lock_level: type.lockLevel,
+    locked_at: new Date().toISOString()
+  });
+
+  if(!result){ alert('Erreur'); return; }
+
+  c.auto_locked = true;
+  c.lock_level = type.lockLevel;
+  c.locked_at = new Date().toISOString();
+
+  refreshAll();
+  showToast('🔒 Coffre bloqué');
+}
+
+// ---- Débloque un coffre ----
+async function debloquerCoffre(coffreId){
+  const c = coffres.find(x => x.id === coffreId);
+  if(!c) return;
+
+  const type = getTypeCoffre(c);
+  const lockLevel = Number(c.lock_level) || type.lockLevel;
+
+  // Niveau 3 (Réserve) → TRÈS STRICT : 3 confirmations + raison
+  if(lockLevel >= 3){
+    await debloquerCoffreTresStrict(c, type);
+    return;
+  }
+
+  // Niveau 2 (Objectif) → STRICT : 2 confirmations + raison
+  if(lockLevel === 2){
+    await debloquerCoffreStrict(c, type);
+    return;
+  }
+
+  // Niveau 1 (Entreprise) → SIMPLE : 1 confirmation + raison
+  if(lockLevel === 1){
+    await debloquerCoffreSimple(c, type);
+    return;
+  }
+
+  // Niveau 0 (Perso) → LIBRE
+  const result = await dbUpdate('goals', coffreId, {
+    auto_locked: false,
+    lock_level: 0
+  });
+  if(!result) return;
+  c.auto_locked = false;
+  c.lock_level = 0;
+  refreshAll();
+  showToast('🔓 Coffre débloqué');
+}
+
+// ---- Déblocage TRÈS STRICT (coffres vitaux) ----
+async function debloquerCoffreTresStrict(c, type){
+  // Message cognitif personnalisé selon le thème
+  const msg = `🛡️ STOP. Réfléchis 10 secondes.\n\n` +
+    `Ce coffre "${c.name}" est ta BOUÉE DE SAUVETAGE.\n\n` +
+    `C'est ce qui te permet de :\n` +
+    `• Ne pas paniquer en cas d'imprévu (santé, panne, urgence)\n` +
+    `• Ne pas t'endetter pour un accident de la vie\n` +
+    `• Dormir tranquille la nuit\n\n` +
+    `Si tu le casses maintenant, que se passera-t-il si ta moto tombe en panne demain ?\n\n` +
+    `⚠️ Pour débloquer ce coffre, tu dois :\n` +
+    `1. Écrire une raison valable\n` +
+    `2. Confirmer 3 fois\n\n` +
+    `Confirmation 1/3 : Veux-tu VRAIMENT débloquer ce coffre vital ?`;
+
+  if(!confirm(msg)) return;
+
+  const raison = prompt(
+    `📝 Confirmation 2/3 : Écris la RAISON (obligatoire).\n\n` +
+    `Pourquoi veux-tu débloquer "${c.name}" ?\n\n` +
+    `Sois honnête. Si c'est pour une vraie urgence, c'est ok.\n` +
+    `Si c'est pour un caprice, tu vas le regretter.`,
+    ''
+  );
+  if(raison === null) return;
+  if(!raison.trim() || raison.trim().length < 10){
+    alert('❌ Raison trop courte. Écris au moins 10 caractères.');
+    return;
+  }
+
+  const confirm3 = prompt(
+    `⚠️ Confirmation 3/3 — DERNIÈRE CHANCE.\n\n` +
+    `Ta raison : "${raison.trim()}"\n\n` +
+    `Ce coffre a actuellement ${fmt(c.current)} / ${fmt(c.goal)}.\n\n` +
+    `Pour confirmer, tape EXACTEMENT : OUI JE CONFIRME`,
+    ''
+  );
+  if(confirm3 === null) return;
+  if(confirm3.trim().toUpperCase() !== 'OUI JE CONFIRME'){
+    alert('❌ Confirmation échouée. Le coffre reste bloqué.');
+    return;
+  }
+
+  const result = await dbUpdate('goals', coffreId = c.id, {
+    auto_locked: false,
+    lock_level: 0,
+    unlock_reason: raison.trim(),
+    unlock_count: (Number(c.unlock_count) || 0) + 1
+  });
+
+  if(!result){ alert('Erreur'); return; }
+
+  c.auto_locked = false;
+  c.lock_level = 0;
+  c.unlock_reason = raison.trim();
+  c.unlock_count = (Number(c.unlock_count) || 0) + 1;
+
+  refreshAll();
+  showToast('🔓 Coffre débloqué (noté dans l\'historique)');
+}
+
+// ---- Déblocage STRICT (objectifs) ----
+async function debloquerCoffreStrict(c, type){
+  const pct = ((Number(c.current) / Number(c.goal)) * 100).toFixed(0);
+  const rest = Number(c.goal) - Number(c.current);
+
+  const msg = `${type.icon} Attention Henzo.\n\n` +
+    `Ce coffre "${c.name}" est un OBJECTIF important.\n\n` +
+    `Tu es à ${pct}% (${fmt(c.current)} / ${fmt(c.goal)}).\n` +
+    `Il te reste ${fmt(rest)} pour l'atteindre.\n\n` +
+    `Chaque franc retiré, c'est un jour de plus avant de l'avoir.\n\n` +
+    `⚠️ Veux-tu vraiment débloquer ce coffre ?\n\n` +
+    `(Il te faudra écrire une raison + confirmer 2 fois)`;
+
+  if(!confirm(msg)) return;
+
+  const raison = prompt(
+    `📝 Confirmation 2/2 : Pourquoi veux-tu débloquer "${c.name}" ?\n\n` +
+    `(Raison obligatoire, min 5 caractères)`,
+    ''
+  );
+  if(raison === null) return;
+  if(!raison.trim() || raison.trim().length < 5){
+    alert('❌ Raison trop courte.');
+    return;
+  }
+
+  const result = await dbUpdate('goals', c.id, {
+    auto_locked: false,
+    lock_level: 0,
+    unlock_reason: raison.trim(),
+    unlock_count: (Number(c.unlock_count) || 0) + 1
+  });
+
+  if(!result){ alert('Erreur'); return; }
+
+  c.auto_locked = false;
+  c.lock_level = 0;
+  c.unlock_reason = raison.trim();
+  c.unlock_count = (Number(c.unlock_count) || 0) + 1;
+
+  refreshAll();
+  showToast('🔓 Coffre débloqué');
+}
+
+// ---- Déblocage SIMPLE (entreprise) ----
+async function debloquerCoffreSimple(c, type){
+  const raison = prompt(
+    `${type.icon} Retirer d'un coffre entreprise\n\n` +
+    `Tu vas débloquer "${c.name}" pour retirer de l'argent.\n\n` +
+    `Pourquoi ? (obligatoire, noté dans l'historique)\n` +
+    `Ex: loyer, transport, matériel, assistant...`,
+    ''
+  );
+  if(raison === null) return;
+  if(!raison.trim()){
+    alert('❌ Raison obligatoire pour les retraits entreprise.');
+    return;
+  }
+
+  const result = await dbUpdate('goals', c.id, {
+    auto_locked: false,
+    unlock_reason: raison.trim(),
+    unlock_count: (Number(c.unlock_count) || 0) + 1
+  });
+
+  if(!result){ alert('Erreur'); return; }
+
+  c.auto_locked = false;
+  c.unlock_reason = raison.trim();
+  c.unlock_count = (Number(c.unlock_count) || 0) + 1;
+
+  refreshAll();
+  showToast('🔓 Retrait noté : ' + raison.trim());
+}
+
+// ---- Retirer de l'argent d'un coffre ----
+async function retirerCoffre(coffreId){
+  const c = coffres.find(x => x.id === coffreId);
+  if(!c){ alert('Coffre introuvable'); return; }
+
+  // Si bloqué → on demande le déblocage
+  if(estCoffreBloque(c)){
+    const type = getTypeCoffre(c);
+    const lockLevel = Number(c.lock_level) || type.lockLevel;
+
+    if(lockLevel >= 3){
+      alert(
+        `🔒🔒🔒 COFFRE VITAL BLOQUÉ\n\n` +
+        `"${c.name}" est verrouillé au maximum.\n\n` +
+        `Pour retirer, tu dois d'abord le débloquer (3 confirmations + raison).\n\n` +
+        `Clique sur "🔒 Débloquer" sur le coffre.`
+      );
+      return;
+    }
+
+    if(lockLevel === 2){
+      alert(
+        `🔒🔒 COFFRE BLOQUÉ\n\n` +
+        `"${c.name}" est verrouillé.\n\n` +
+        `Pour retirer, tu dois d'abord le débloquer (2 confirmations + raison).\n\n` +
+        `Clique sur "🔒 Débloquer" sur le coffre.`
+      );
+      return;
+    }
+  }
+
+  // Le coffre est débloqué → on peut retirer
+  const montantStr = prompt(
+    `💸 Retirer de "${c.name}"\n\n` +
+    `Actuellement : ${fmt(c.current)}\n` +
+    `Combien veux-tu retirer ?`,
+    ''
+  );
+  if(montantStr === null) return;
+
+  const montant = parseFloat(montantStr);
+  if(!montant || montant <= 0){ alert('Montant invalide'); return; }
+  if(montant > Number(c.current)){
+    alert(`❌ Tu ne peux pas retirer ${fmt(montant)}.\nTu n'as que ${fmt(c.current)} dans ce coffre.`);
+    return;
+  }
+
+  const type = getTypeCoffre(c);
+  let raison = '';
+  if(type.id !== 'perso'){
+    const raisonStr = prompt(
+      `📝 Pourquoi retires-tu ${fmt(montant)} ?\n\n` +
+      `(Obligatoire pour ce type de coffre)`,
+      ''
+    );
+    if(raisonStr === null) return;
+    raison = raisonStr.trim();
+    if(!raison){ alert('Raison obligatoire'); return; }
+  }
+
+  const nouveauMontant = Number(c.current) - montant;
+  const result = await dbUpdate('goals', coffreId, {
+    current: nouveauMontant
+  });
+  if(!result){ alert('Erreur'); return; }
+
+  // Créer une transaction "Retrait épargne"
+  await dbInsert('transactions', {
+    type: 'revenu',
+    amount: montant,
+    category: 'Retrait épargne',
+    note: 'Retrait "' + c.name + '"' + (raison ? ' · ' + raison : ''),
+    date: todayStr(),
+    payment_method: 'Interne'
+  });
+
+  c.current = nouveauMontant;
+  refreshAll();
+  showToast(`💸 ${fmt(montant)} retiré de "${c.name}"`);
+}
+
+// ---- Override de ouvrirEpargnePerso pour le blocage ----
+const _oldOuvrirEpargnePerso_v2 = window.ouvrirEpargnePerso;
+window.ouvrirEpargnePerso = function(coffreId){
+  const c = coffres.find(x => x.id === coffreId);
+  if(!c) return;
+  // L'ajout est TOUJOURS autorisé (même bloqué)
+  if(typeof _oldOuvrirEpargnePerso_v2 === 'function'){
+    return _oldOuvrirEpargnePerso_v2(coffreId);
+  }
+};
+
+// ---- Blocage auto à la création ----
+const _oldSaveCoffre = window.saveCoffre;
+window.saveCoffre = async function(){
+  const nomEl = document.getElementById('coffreName');
+  const nom = (nomEl?.value || '').trim();
+
+  if(!nom){
+    // Laisse la fonction originale gérer l'erreur
+    if(typeof _oldSaveCoffre === 'function') return _oldSaveCoffre();
+    return;
+  }
+
+  // Détection du type
+  const analyse = analyserCoffre(nom);
+
+  // Si c'est un nouveau coffre ET que c'est un coffre vital (auto-lock), on prévient
+  if(!editingCoffreId && analyse.autoLock){
+    const confirmMsg = `🛡️ COFFRE VITAL DÉTECTÉ\n\n` +
+      `"${nom}" est un coffre vital (${analyse.type.icon} ${analyse.type.label}).\n\n` +
+      `Ce coffre sera BLOQUÉ AUTOMATIQUEMENT à la création.\n\n` +
+      `✅ Tu pourras toujours AJOUTER de l'argent\n` +
+      `❌ Tu ne pourras PAS RETIRER sans 3 confirmations + raison\n\n` +
+      `C'est pour te protéger de toi-même. 💪\n\n` +
+      `Confirmer la création ?`;
+
+    if(!confirm(confirmMsg)){
+      return;
+    }
+  }
+
+  // Appelle la fonction originale
+  if(typeof _oldSaveCoffre === 'function'){
+    await _oldSaveCoffre();
+  }
+
+  // Récupère le dernier coffre créé (celui qu'on vient d'ajouter)
+  const nouveauCoffre = coffres[0];
+  if(nouveauCoffre && nouveauCoffre.name === nom){
+    // Applique le type et le blocage auto
+    const updateData = {
+      type_coffre: analyse.typeId
+    };
+
+    if(analyse.autoLock){
+      updateData.auto_locked = true;
+      updateData.lock_level = analyse.lockLevel;
+      updateData.locked_at = new Date().toISOString();
+    }
+
+    const updated = await dbUpdate('goals', nouveauCoffre.id, updateData);
+    if(updated){
+      Object.assign(nouveauCoffre, updateData);
+    }
+  }
+};
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
