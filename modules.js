@@ -2979,6 +2979,7 @@ function exportHistoryJSON(){
 
 function exportHistoryPDF(){
   const filtered = getFilteredTx();
+    // Correction : on va nettoyer les données avant de les mettre dans le PDF
   if(filtered.length === 0){ alert("Aucune transaction à exporter"); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ alert("PDF non chargé"); return; }
 
@@ -3005,9 +3006,9 @@ function exportHistoryPDF(){
   const rows = filtered.map(t => [
     new Date(t.date).toLocaleDateString('fr-FR'),
     t.type === 'revenu' ? 'Revenu' : 'Dépense',
-    t.category,
-    (t.type === 'revenu' ? '+' : '-') + fmt(t.amount),
-    t.note || ''
+    nettoyerPourPDF(t.category),
+    (t.type === 'revenu' ? '+' : '-') + nettoyerPourPDF(fmt(t.amount)),
+    nettoyerPourPDF(t.note || '')
   ]);
 
   doc.autoTable({
@@ -3214,7 +3215,7 @@ function exportIdeasAIPDF(){
   doc.setFontSize(10);
   if(date) doc.text(date, 14, 24);
 
-  const cleanText = text.replace(/\*\*/g, '').replace(/→/g, '•');
+  const cleanText = nettoyerPourPDF(text.replace(/\*\*/g, '').replace(/→/g, '-'));
   doc.setTextColor(40, 40, 40);
   doc.setFontSize(11);
   const splitText = doc.splitTextToSize(cleanText, 180);
@@ -4363,7 +4364,7 @@ function exportAnalysisPDF(){
   doc.setFontSize(10);
   if(date) doc.text(date, 14, 24);
 
-  const cleanText = text.replace(/\*\*/g, '');
+    const cleanText = nettoyerPourPDF(text.replace(/\*\*/g, ''));
   doc.setTextColor(40, 40, 40);
   doc.setFontSize(11);
   const splitText = doc.splitTextToSize(cleanText, 180);
@@ -4981,7 +4982,7 @@ function exportChatPDF(){
     const who = isUser ? 'TOI' : 'IA';
     const dateStr = m.ts ? new Date(m.ts).toLocaleString('fr-FR', {hour: '2-digit', minute: '2-digit'}) : '';
 
-    const cleanContent = cleanTextForPDF(m.content || '');
+        const cleanContent = nettoyerPourPDF(cleanTextForPDF(m.content || ''));
 
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
@@ -9095,7 +9096,7 @@ function exportClientsPDF(){
   doc.setTextColor(50, 50, 50);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text(`${totalClients} clients · ${totalSeances} séances · ${fmt(totalCA)} encaissés`, margin + 4, y + 6);
+      doc.text(`${totalClients} clients · ${totalSeances} séances · ${nettoyerPourPDF(fmt(totalCA))} encaissés`, margin + 4, y + 6);
   
   y += 25;
   
@@ -9131,7 +9132,7 @@ function exportClientsPDF(){
     // Stats
     doc.setTextColor(16, 130, 80);
     doc.setFont('helvetica', 'bold');
-    doc.text(`${c.nombreSeances} séance(s) · ${fmt(c.totalDepense)} encaissés`, margin + 4, y + 20);
+        doc.text(`${c.nombreSeances} séance(s) · ${nettoyerPourPDF(fmt(c.totalDepense))} encaissés`, margin + 4, y + 20);
     
     if(c.derniereSeance !== 'Aucune'){
       doc.setTextColor(120, 120, 120);
@@ -9144,7 +9145,7 @@ function exportClientsPDF(){
     if(c.notes){
       doc.setTextColor(100, 100, 100);
       doc.setFontSize(8);
-      const notesLines = doc.splitTextToSize('📝 ' + c.notes, pageWidth - margin * 2 - 8);
+     const notesLines = doc.splitTextToSize('Note: ' + nettoyerPourPDF(c.notes), pageWidth - margin * 2 - 8);
       notesLines.slice(0, 2).forEach((line, i) => {
         doc.text(line, margin + 4, y + 30 + (i * 4));
       });
@@ -9165,6 +9166,37 @@ function exportClientsPDF(){
   doc.save(`clients-henzo-${todayStr()}.pdf`);
   showToast(`${clients.length} clients exportés en PDF`);
 }
+// ============================================================
+// NETTOYAGE POUR LES PDF (enlève les emojis)
+// ============================================================
+function nettoyerPourPDF(texte){
+  if(!texte) return '';
+  return String(texte)
+    // Enlever les emojis (plage Unicode)
+    .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
+    .replace(/[\u{2600}-\u{27BF}]/gu, '')
+    .replace(/[\u{1F000}-\u{1F02F}]/gu, '')
+    .replace(/[\u{1F0A0}-\u{1F0FF}]/gu, '')
+    .replace(/[\u{1F100}-\u{1F1FF}]/gu, '')
+    .replace(/[\u{1F200}-\u{1F2FF}]/gu, '')
+    .replace(/[\u{1F600}-\u{1F64F}]/gu, '')
+    .replace(/[\u{1F680}-\u{1F6FF}]/gu, '')
+    .replace(/[\u{1F900}-\u{1F9FF}]/gu, '')
+    .replace(/[\u{1FA00}-\u{1FAFF}]/gu, '')
+    .replace(/[\u{2300}-\u{23FF}]/gu, '')
+    .replace(/[\u{25A0}-\u{25FF}]/gu, '')
+    .replace(/[\u{2190}-\u{21FF}]/gu, '-')
+    // Remplacer les caractères spéciaux par équivalents
+    .replace(/[—–]/g, '-')
+    .replace(/['']/g, "'")
+    .replace(/[""]/g, '"')
+    .replace(/…/g, '...')
+    .replace(/\u202F|\u00A0|\u2009/g, ' ')
+    // Nettoyer les espaces multiples
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
