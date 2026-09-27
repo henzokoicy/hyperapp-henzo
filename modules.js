@@ -2789,7 +2789,7 @@ function ouvrirDetailTx(txId, event){
         <button class="btn-primary" style="margin:0;width:100%" onclick="fermerDetailTx()">
           Fermer
         </button>
-      </div>>
+      </div>
     </div>
   `;
   document.body.appendChild(modal);
