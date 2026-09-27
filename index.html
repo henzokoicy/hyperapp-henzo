@@ -300,15 +300,19 @@
       <div id="projectionsCard"></div>
     </div>
 
-    <div class="card">
+      <div class="card">
       <h2>🤖 Suggestion IA d'épargne</h2>
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
         L'IA analyse ta situation et te dit combien épargner et où.
       </div>
+      <div class="ai-toolbar" style="margin-bottom:12px">
+        <button class="ai-btn ai-btn-primary" onclick="demanderSuggestionIAEpargne()">🤖 Analyser</button>
+        <button class="ai-btn" id="iaEpargneCopyBtn" onclick="copierSuggestionIAEpargne()" disabled>📋 Copier</button>
+        <button class="ai-btn" id="iaEpargnePdfBtn" onclick="exportSuggestionIAEpargnePDF()" disabled>📄 PDF</button>
+        <button class="ai-btn ai-btn-danger" id="iaEpargneClearBtn" onclick="effacerSuggestionIAEpargne()" disabled>🗑 Effacer</button>
+      </div>
+      <div id="iaEpargneLastUpdate" class="ai-last-update"></div>
       <div id="iaEpargneCard"></div>
-      <button class="btn-primary" style="width:100%;margin-top:12px" onclick="demanderSuggestionIAEpargne()">
-        🤖 Demander une suggestion
-      </button>
     </div>
 
     <div class="card" id="dashboardGoalRemindersCard" style="display:none">

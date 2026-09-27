@@ -6903,7 +6903,7 @@ function init(){
   renderDailyTip();
   renderDashboardGoalReminders();
   renderDashboardGoals();
-
+  loadSuggestionIAEpargne();
   loadAiConfigFromSupabase();
   loadPaymentLinks().then(() => renderPaymentLinks());
 
@@ -7586,7 +7586,7 @@ function renderProjections(){
 }
 
 // ============================================================
-// SUGGESTIONS IA D'ÉPARGNE PERSONNALISÉES
+// SUGGESTIONS IA D'ÉPARGNE PERSONNALISÉES (avec sauvegarde)
 // ============================================================
 async function demanderSuggestionIAEpargne(){
   const el = document.getElementById('iaEpargneCard');
@@ -7635,18 +7635,164 @@ Sois direct, chiffré, encourageant. Pas d'astérisques.`;
       return;
     }
 
-    const formatted = text.replace(/\n/g, '<br>');
-    el.innerHTML = `
-      <div style="background:linear-gradient(135deg,rgba(107,142,255,.10),rgba(255,126,179,.05));border-left:3px solid var(--accent);border-radius:12px;padding:14px;font-size:13px;line-height:1.7">
-        ${formatted}
-      </div>
-      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">
-        💡 Actualisé le ${new Date().toLocaleString('fr-FR', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}
-      </div>
-    `;
+    await saveSuggestionIAEpargne(text);
+    afficherSuggestionIAEpargne(text);
+
   } catch(e){
     el.innerHTML = `<div style="color:var(--red);font-size:13px;padding:12px">❌ ${e.message}</div>`;
   }
+}
+
+// ---- Sauvegarde + chargement ----
+async function saveSuggestionIAEpargne(text){
+  const dateStr = new Date().toLocaleString('fr-FR', {day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'});
+  localStorage.setItem('ia_epargne_last', text);
+  localStorage.setItem('ia_epargne_last_date', dateStr);
+  try {
+    const user = await getCurrentUser();
+    if(!user) return;
+    await sb.from('user_settings').upsert(
+      { user_id: user.id, ia_epargne: text, ia_epargne_date: dateStr },
+      { onConflict: 'user_id' }
+    );
+  } catch(e){ console.warn('saveSuggestionIAEpargne error:', e); }
+}
+
+async function loadSuggestionIAEpargne(){
+  try {
+    const user = await getCurrentUser();
+    if(!user) return;
+
+    const { data, error } = await sb.from('user_settings')
+      .select('ia_epargne, ia_epargne_date')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if(error || !data || !data.ia_epargne) return;
+
+    localStorage.setItem('ia_epargne_last', data.ia_epargne);
+    localStorage.setItem('ia_epargne_last_date', data.ia_epargne_date || '');
+
+    afficherSuggestionIAEpargne(data.ia_epargne, data.ia_epargne_date);
+  } catch(e){ console.warn('loadSuggestionIAEpargne error:', e); }
+}
+
+function afficherSuggestionIAEpargne(text, dateStr){
+  const el = document.getElementById('iaEpargneCard');
+  if(!el) return;
+
+  const formatted = text.replace(/\n/g, '<br>');
+  el.innerHTML = `
+    <div style="background:linear-gradient(135deg,rgba(107,142,255,.10),rgba(255,126,179,.05));border-left:3px solid var(--accent);border-radius:12px;padding:14px;font-size:13px;line-height:1.7">
+      ${formatted}
+    </div>
+  `;
+
+  // Afficher la date
+  const dateEl = document.getElementById('iaEpargneLastUpdate');
+  const date = dateStr || localStorage.getItem('ia_epargne_last_date');
+  if(dateEl && date){
+    dateEl.textContent = '🕐 Dernière suggestion : ' + date;
+    dateEl.classList.add('visible');
+  }
+
+  // Activer les boutons
+  const cpBtn = document.getElementById('iaEpargneCopyBtn');
+  const pdfBtn = document.getElementById('iaEpargnePdfBtn');
+  const clBtn = document.getElementById('iaEpargneClearBtn');
+  if(cpBtn) cpBtn.disabled = false;
+  if(pdfBtn) pdfBtn.disabled = false;
+  if(clBtn) clBtn.disabled = false;
+}
+
+// ---- Boutons Copier / PDF / Effacer ----
+async function copierSuggestionIAEpargne(){
+  const text = localStorage.getItem('ia_epargne_last');
+  if(!text){ alert('Aucune suggestion à copier'); return; }
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('iaEpargneCopyBtn');
+    if(btn){
+      btn.textContent = '✅ Copié !';
+      setTimeout(() => btn.textContent = '📋 Copier', 2000);
+    }
+    showToast('Suggestion copiée');
+  } catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('Suggestion copiée');
+  }
+}
+
+function exportSuggestionIAEpargnePDF(){
+  const text = localStorage.getItem('ia_epargne_last');
+  const date = localStorage.getItem('ia_epargne_last_date');
+  if(!text){ alert('Aucune suggestion à exporter'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('PDF non chargé'); return; }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFillColor(107, 142, 255);
+  doc.rect(0, 0, 210, 32, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Suggestion IA - Épargne", 14, 16);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  if(date) doc.text(date, 14, 24);
+
+  const cleanText = text.replace(/\*\*/g, '').replace(/[—–]/g, '-');
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(11);
+  const splitText = doc.splitTextToSize(cleanText, 180);
+  let y = 42;
+  const pageHeight = doc.internal.pageSize.height - 15;
+
+  splitText.forEach(line => {
+    if(y > pageHeight){ doc.addPage(); y = 15; }
+    doc.text(line, 14, y);
+    y += 6;
+  });
+
+  doc.save(`suggestion-epargne-${todayStr()}.pdf`);
+  showToast('PDF téléchargé');
+}
+
+async function effacerSuggestionIAEpargne(){
+  if(!confirm('Effacer la suggestion IA sur tous tes appareils ?')) return;
+
+  localStorage.removeItem('ia_epargne_last');
+  localStorage.removeItem('ia_epargne_last_date');
+
+  try {
+    const user = await getCurrentUser();
+    if(user){
+      await sb.from('user_settings')
+        .update({ ia_epargne: null, ia_epargne_date: null })
+        .eq('user_id', user.id);
+    }
+  } catch(e){ console.warn(e); }
+
+  const el = document.getElementById('iaEpargneCard');
+  if(el) el.innerHTML = '<div class="empty">Clique sur <strong>Analyser</strong> pour recevoir une suggestion personnalisée.</div>';
+
+  const dateEl = document.getElementById('iaEpargneLastUpdate');
+  if(dateEl) dateEl.classList.remove('visible');
+
+  const cpBtn = document.getElementById('iaEpargneCopyBtn');
+  const pdfBtn = document.getElementById('iaEpargnePdfBtn');
+  const clBtn = document.getElementById('iaEpargneClearBtn');
+  if(cpBtn) cpBtn.disabled = true;
+  if(pdfBtn) pdfBtn.disabled = true;
+  if(clBtn) clBtn.disabled = true;
+
+  showToast('Suggestion effacée');
 }
 
 // ============================================================
