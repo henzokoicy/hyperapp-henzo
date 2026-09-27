@@ -1187,7 +1187,20 @@ function renderCoffres(){
       ? '<span style="font-size:10px;color:var(--gold-soft);background:rgba(245,197,66,.12);padding:2px 8px;border-radius:8px;font-weight:700;margin-left:6px">💰 ARGENT</span>'
       : '<span style="font-size:10px;color:var(--accent-2);background:rgba(107,142,255,.12);padding:2px 8px;border-radius:8px;font-weight:700;margin-left:6px">🔢 QUANTITÉ</span>';
 
+        const type = getTypeCoffre(c);
+    const bloque = estCoffreBloque(c);
+    const lockLabel = bloque
+      ? (Number(c.lock_level) >= 3 ? '🔒🔒🔒 Verrouillé' : '🔒🔒 Bloqué')
+      : '🔓 Libre';
+
     return `<div class="coffre ${done ? 'completed' : ''}">
+      <div style="background:linear-gradient(135deg,${type.color}22,${type.color}08);border-left:3px solid ${type.color};border-radius:10px;padding:10px 12px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <div style="font-size:11px;font-weight:700;color:${type.color};text-transform:uppercase;letter-spacing:1px">${type.icon} ${type.label}</div>
+          <div style="font-size:10px;font-weight:700;color:${bloque ? 'var(--yellow)' : 'var(--muted)'}">${lockLabel}</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.4">${type.desc}</div>
+      </div>
       <div class="coffre-header">
         <div class="coffre-name" style="flex-wrap:wrap">
           <span class="coffre-emoji">${emoji}</span>${c.name}${typeTag}
@@ -1203,6 +1216,14 @@ function renderCoffres(){
         ${rest > 0 ? `<div class="rest">Reste : ${fmtVal(rest)}</div>` : ''}
       </div>
       <div class="coffre-message level-${mot.level}">${mot.msg}</div>
+           ${bloque
+        ? `<div style="background:rgba(245,197,66,.08);border-left:3px solid var(--yellow);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;line-height:1.5">
+            <div style="font-weight:700;color:var(--yellow);margin-bottom:4px">🔒 Coffre protégé</div>
+            <div style="color:var(--text)">${type.message.short}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:4px">✅ Tu peux toujours ajouter · ❌ Tu dois débloquer pour retirer</div>
+          </div>`
+        : ''
+      }
       ${c.description ? `<div class="coffre-why" style="border-left-color:var(--pink)">📝 ${c.description}</div>` : ''}
       ${c.why ? `<div class="coffre-why">"${c.why}"</div>` : ''}
       ${timeInfo}
@@ -8366,6 +8387,246 @@ window.saveCoffre = async function(){
       Object.assign(nouveauCoffre, updateData);
     }
   }
+};
+// ============================================================
+// PHASE 1 — PARTIE 5 : COACH INTELLIGENT DES COFFRES
+// ============================================================
+
+// ---- Analyse intelligente des coffres ----
+function analyserCoffresCoach(){
+  const conseils = [];
+  const now = new Date();
+
+  coffres.forEach(c => {
+    const type = getTypeCoffre(c);
+    const bloque = estCoffreBloque(c);
+    const current = Number(c.current || 0);
+    const goal = Number(c.goal || 0);
+    const pct = goal > 0 ? (current / goal) * 100 : 0;
+    const rest = goal - current;
+    const isMoney = (c.goal_type || 'money') === 'money';
+
+    const fmtVal = (n) => {
+      if(isMoney) return fmt(n);
+      return Math.round(n) + ' ' + (c.unit || 'unité');
+    };
+
+    // 🔴 CAS 1 : Coffre vital (🛡️) NON BLOQUÉ → URGENT
+    if(type.id === 'reserve' && !bloque && current > 0){
+      conseils.push({
+        severity: 'urgent',
+        icon: '🛡️',
+        title: `Bloque "${c.name}" maintenant`,
+        text: `Ce coffre est ta sécurité. Il contient ${fmtVal(current)} mais il n'est pas protégé. N'importe quelle tentation peut le vider. **Bloque-le dès maintenant.**`,
+        action: { label: '🔒 Bloquer', fn: () => bloquerCoffre(c.id) }
+      });
+      return;
+    }
+
+    // 🔴 CAS 2 : Coffre vital (🛡️) BLOQUÉ mais VIDE → à remplir
+    if(type.id === 'reserve' && bloque && current === 0){
+      conseils.push({
+        severity: 'warn',
+        icon: '🛡️',
+        title: `Remplis "${c.name}"`,
+        text: `Tu as bien bloqué ce coffre vital, mais il est VIDE. Commence par y mettre un petit montant (même 5 000 FCFA). C'est ta sécurité.`,
+        action: { label: '➕ Ajouter', fn: () => ouvrirEpargnePerso(c.id) }
+      });
+      return;
+    }
+
+    // 🔴 CAS 3 : Coffre vital (🛡️) < 30% après 30 jours → alerte
+    if(type.id === 'reserve' && c.created_at){
+      const days = Math.ceil((now - new Date(c.created_at)) / 86400000);
+      if(days > 30 && pct < 30){
+        conseils.push({
+          severity: 'warn',
+          icon: '⏰',
+          title: `"${c.name}" est en retard`,
+          text: `Ça fait ${days} jours et tu n'es qu'à ${pct.toFixed(0)}%. Ton fonds de sécurité est trop faible. Ajoute ${fmtVal(rest / 4)} cette semaine.`,
+          action: { label: '➕ Ajouter', fn: () => ouvrirEpargnePerso(c.id) }
+        });
+        return;
+      }
+    }
+
+    // 🟠 CAS 4 : Objectif (🎯) proche du but mais pas bloqué → suggestion
+    if(type.id === 'objectif' && pct >= 50 && !bloque){
+      conseils.push({
+        severity: 'warn',
+        icon: '🎯',
+        title: `Bloque "${c.name}"`,
+        text: `Tu es à ${pct.toFixed(0)}% ! Encore ${fmtVal(rest)} et c'est bon. Si tu le bloques maintenant, tu ne pourras plus reculer. **C'est le moment.**`,
+        action: { label: '🔒 Bloquer', fn: () => bloquerCoffre(c.id) }
+      });
+      return;
+    }
+
+    // 🟠 CAS 5 : Objectif (🎯) en retard
+    if(type.id === 'objectif' && c.target_date){
+      const days = Math.ceil((new Date(c.target_date) - now) / 86400000);
+      if(days < 0 && pct < 100){
+        conseils.push({
+          severity: 'urgent',
+          icon: '⚠️',
+          title: `Deadline dépassée : "${c.name}"`,
+          text: `La date cible est passée. Reste ${fmtVal(rest)}. Soit tu ajoutes de l'argent, soit tu modifies la date.`,
+          action: { label: '✏️ Modifier', fn: () => openCoffreModal(c.id) }
+        });
+        return;
+      }
+      if(days > 0 && days < 30 && pct < 80){
+        const perWeek = (rest / days) * 7;
+        conseils.push({
+          severity: 'warn',
+          icon: '⏱️',
+          title: `"${c.name}" dans ${days} jours`,
+          text: `Il faut mettre ${fmtVal(perWeek)} par semaine pour finir à temps. Tu es à ${pct.toFixed(0)}%.`,
+          action: { label: '➕ Ajouter', fn: () => ouvrirEpargnePerso(c.id) }
+        });
+        return;
+      }
+    }
+
+    // 🟢 CAS 6 : Coffre atteint → féliciter
+    if(pct >= 100 && !c._felicite){
+      conseils.push({
+        severity: 'good',
+        icon: '🏆',
+        title: `"${c.name}" atteint !`,
+        text: `Félicitations ! Tu as réussi à économiser ${fmtVal(goal)}. Fixe-toi un nouveau défi ou utilise l'argent pour ce que tu voulais.`,
+        action: { label: '🎯 Voir', fn: () => {} }
+      });
+      return;
+    }
+
+    // 🟠 CAS 7 : Coffre entreprise vide depuis longtemps
+    if(type.id === 'entreprise' && current === 0 && c.created_at){
+      const days = Math.ceil((now - new Date(c.created_at)) / 86400000);
+      if(days > 15){
+        conseils.push({
+          severity: 'warn',
+          icon: '💼',
+          title: `"${c.name}" est vide`,
+          text: `Ça fait ${days} jours et ce coffre d'entreprise est vide. N'oublie pas de provisionner pour tes charges pro.`,
+          action: { label: '➕ Ajouter', fn: () => ouvrirEpargnePerso(c.id) }
+        });
+        return;
+      }
+    }
+
+    // 🟠 CAS 8 : Coffre débloqué qui recule (retrait récent)
+    if(!bloque && current > 0 && c.unlock_reason){
+      conseils.push({
+        severity: 'warn',
+        icon: '👀',
+        title: `"${c.name}" a été retiré`,
+        text: `Raison notée : "${c.unlock_reason}". N'oublie pas de replacer cet argent quand tu peux.`,
+        action: { label: '➕ Ajouter', fn: () => ouvrirEpargnePerso(c.id) }
+      });
+      return;
+    }
+  });
+
+  // Trier par sévérité
+  const order = { urgent: 0, warn: 1, good: 2 };
+  conseils.sort((a, b) => (order[a.severity] || 9) - (order[b.severity] || 9));
+
+  return conseils.slice(0, 5); // Max 5 conseils
+}
+
+// ---- Affichage du coach dans l'onglet Objectifs ----
+function renderCoachCoffres(){
+  let el = document.getElementById('coachCoffresCard');
+  
+  // Si le conteneur n'existe pas, on le crée au début de l'onglet Objectifs
+  if(!el){
+    const pageObjectifs = document.getElementById('page-objectifs');
+    if(!pageObjectifs) return;
+    
+    const container = pageObjectifs.querySelector('.container');
+    if(!container) return;
+    
+    el = document.createElement('div');
+    el.id = 'coachCoffresCard';
+    el.className = 'card';
+    el.style.cssText = 'background:linear-gradient(135deg,rgba(139,92,246,.10),rgba(107,142,255,.05));border-left:3px solid #8b5cf6';
+    container.insertBefore(el, container.firstChild);
+  }
+
+  const conseils = analyserCoffresCoach();
+
+  if(conseils.length === 0){
+    el.style.display = 'none';
+    return;
+  }
+
+  el.style.display = 'block';
+
+  const severityColors = {
+    urgent: 'var(--red)',
+    warn: 'var(--yellow)',
+    good: 'var(--green)'
+  };
+
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2 style="margin:0;color:#8b5cf6">🧠 Coach des coffres</h2>
+      <span style="font-size:11px;color:var(--muted);font-weight:600">${conseils.length} conseil${conseils.length > 1 ? 's' : ''}</span>
+    </div>
+
+    ${conseils.map((c, i) => `
+      <div style="background:var(--card2);border-radius:12px;padding:12px 14px;margin-bottom:8px;border-left:3px solid ${severityColors[c.severity] || 'var(--accent)'}">
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
+          <div style="font-size:22px;flex-shrink:0">${c.icon}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:13px;margin-bottom:3px">${c.title}</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.5">${c.text.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text)">$1</strong>')}</div>
+          </div>
+        </div>
+        ${c.action ? `
+          <button class="btn-ghost" style="width:100%;margin:0;padding:8px;font-size:12px;font-weight:700;background:rgba(139,92,246,.10);color:#a78bfa;border-color:#8b5cf6" onclick="coachExecActionCoffre(${i})">
+            ${c.action.label}
+          </button>
+        ` : ''}
+      </div>
+    `).join('')}
+  `;
+
+  // Stocke les conseils pour pouvoir les exécuter
+  window.__coachCoffresConseils = conseils;
+}
+
+function coachExecActionCoffre(index){
+  const conseils = window.__coachCoffresConseils || [];
+  const c = conseils[index];
+  if(!c || !c.action || typeof c.action.fn !== 'function') return;
+  try {
+    c.action.fn();
+  } catch(e){
+    console.warn('coachExecActionCoffre:', e);
+  }
+}
+
+// ---- Override de renderCoffres pour ajouter le coach ----
+const _oldRenderCoffres_v3 = window.renderCoffres;
+window.renderCoffres = function(){
+  if(typeof _oldRenderCoffres_v3 === 'function') _oldRenderCoffres_v3();
+  renderCoachCoffres();
+};
+
+// ---- Override de init pour charger le coach ----
+const _oldInit_v3 = window.init;
+window.init = function(){
+  if(typeof _oldInit_v3 === 'function') _oldInit_v3();
+  renderCoachCoffres();
+};
+
+// ---- Override de refreshAll pour rafraîchir le coach ----
+const _oldRefreshAll_v3 = window.refreshAll;
+window.refreshAll = function(){
+  if(typeof _oldRefreshAll_v3 === 'function') _oldRefreshAll_v3();
+  renderCoachCoffres();
 };
 (async function bootstrap(){
   const user = await getCurrentUser();
