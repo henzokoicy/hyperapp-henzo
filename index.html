@@ -553,8 +553,13 @@
       <div id="shootsList"><div class="empty">Aucune séance planifiée</div></div>
       <button class="btn-pink" style="margin-top:10px" onclick="openShootModal()">+ Nouvelle séance</button>
     </div>
-    <div class="card">
+      <div class="card">
       <h2>👥 Clients</h2>
+      <div class="ai-toolbar" style="margin-bottom:12px">
+        <button class="ai-btn ai-btn-primary" onclick="exportClientsCSV()">📊 CSV</button>
+        <button class="ai-btn" onclick="exportClientsJSON()">📦 JSON</button>
+        <button class="ai-btn" style="background:var(--pink);border:none;color:#fff" onclick="exportClientsPDF()">📄 PDF</button>
+      </div>
       <div id="clientsList"><div class="empty">Aucun client enregistré</div></div>
       <button class="btn-ghost" style="margin-top:10px;width:100%;border-color:var(--gold-soft);color:var(--gold-soft)" onclick="ouvrirGuideRegles()">🧠 Voir mes règles de répartition</button>
     </div>

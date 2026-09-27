@@ -8915,6 +8915,256 @@ window.init = function(){
   if(typeof _oldInit_v4 === 'function') _oldInit_v4();
   setTimeout(verifierRapportHebdo, 3000);
 };
+// ============================================================
+// EXPORT CLIENTS AVEC DÉTAILS COMPLETS
+// ============================================================
+
+// ---- Construire les données enrichies de chaque client ----
+function construireDonneesClientsEnrichies(){
+  return clients.map(c => {
+    // Trouver toutes les séances de ce client
+    const clientShoots = shoots.filter(s => s.client_id === c.id);
+    
+    // Trier par date (plus récent en premier)
+    const shootsSorted = [...clientShoots].sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+    
+    // Calculer les stats
+    const totalDepense = clientShoots.reduce((sum, s) => sum + Number(s.montant_recu || 0), 0);
+    const totalFacture = clientShoots.reduce((sum, s) => sum + Number(s.price || 0), 0);
+    const nombreSeances = clientShoots.length;
+    const derniereSeance = shootsSorted[0]?.date || null;
+    const premiereSeance = shootsSorted[shootsSorted.length - 1]?.date || null;
+    
+    // Types de séances (uniques)
+    const typesSeances = [...new Set(clientShoots.map(s => s.type).filter(Boolean))];
+    
+    // Résumé des séances (format compact)
+    const seancesResume = shootsSorted.map(s => {
+      const d = s.date ? new Date(s.date).toLocaleDateString('fr-FR') : '?';
+      return `${d} · ${s.type} · ${fmt(s.price)}${s.montant_recu > 0 ? ' (reçu: ' + fmt(s.montant_recu) + ')' : ''}`;
+    }).join(' | ');
+    
+    return {
+      // Infos client
+      id: c.id,
+      nom: c.name || '',
+      telephone: c.phone || '',
+      email: c.email || '',
+      ville: c.city || '',
+      notes: c.notes || '',
+      dateAjout: c.created_at ? new Date(c.created_at).toLocaleDateString('fr-FR') : '',
+      
+      // Stats
+      nombreSeances: nombreSeances,
+      totalFacture: totalFacture,
+      totalDepense: totalDepense,
+      derniereSeance: derniereSeance ? new Date(derniereSeance).toLocaleDateString('fr-FR') : 'Aucune',
+      premiereSeance: premiereSeance ? new Date(premiereSeance).toLocaleDateString('fr-FR') : 'Aucune',
+      typesSeances: typesSeances.join(', '),
+      
+      // Détails bruts
+      seancesResume: seancesResume || 'Aucune séance',
+      seancesDetail: shootsSorted.map(s => ({
+        date: s.date,
+        type: s.type,
+        lieu: s.location,
+        prix: s.price,
+        montantRecu: s.montant_recu,
+        statut: s.status,
+        paiement: s.payment,
+        nbPhotos: s.photo_count,
+        notes: s.notes
+      }))
+    };
+  });
+}
+
+// ---- EXPORT CSV ----
+function exportClientsCSV(){
+  if(clients.length === 0){ alert('Aucun client à exporter'); return; }
+  
+  const donnees = construireDonneesClientsEnrichies();
+  
+  // En-tête CSV
+  const header = [
+    'Nom',
+    'Téléphone',
+    'Email',
+    'Ville',
+    'Date ajout',
+    'Nombre séances',
+    'Total facturé',
+    'Total encaissé',
+    'Dernière séance',
+    'Première séance',
+    'Types de séances',
+    'Notes',
+    'Détail des séances'
+  ].join(';');
+  
+  // Lignes
+  const rows = donnees.map(c => {
+    const cleanStr = (s) => String(s || '').replace(/;/g, ',').replace(/"/g, '""').replace(/\n/g, ' ');
+    return [
+      `"${cleanStr(c.nom)}"`,
+      `"${cleanStr(c.telephone)}"`,
+      `"${cleanStr(c.email)}"`,
+      `"${cleanStr(c.ville)}"`,
+      `"${cleanStr(c.dateAjout)}"`,
+      c.nombreSeances,
+      c.totalFacture,
+      c.totalDepense,
+      `"${cleanStr(c.derniereSeance)}"`,
+      `"${cleanStr(c.premiereSeance)}"`,
+      `"${cleanStr(c.typesSeances)}"`,
+      `"${cleanStr(c.notes)}"`,
+      `"${cleanStr(c.seancesResume)}"`
+    ].join(';');
+  });
+  
+  const csv = header + '\n' + rows.join('\n');
+  const blob = new Blob(['\ufeff' + csv], {type: 'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `clients-henzo-${todayStr()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  showToast(`${clients.length} clients exportés en CSV`);
+}
+
+// ---- EXPORT JSON ----
+function exportClientsJSON(){
+  if(clients.length === 0){ alert('Aucun client à exporter'); return; }
+  
+  const donnees = construireDonneesClientsEnrichies();
+  const json = JSON.stringify({
+    export_date: new Date().toISOString(),
+    total_clients: donnees.length,
+    clients: donnees
+  }, null, 2);
+  
+  const blob = new Blob([json], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `clients-henzo-${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  showToast(`${clients.length} clients exportés en JSON`);
+}
+
+// ---- EXPORT PDF ----
+function exportClientsPDF(){
+  if(clients.length === 0){ alert('Aucun client à exporter'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('PDF non chargé'); return; }
+  
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const pageWidth = 210;
+  const margin = 14;
+  
+  const donnees = construireDonneesClientsEnrichies();
+  
+  // En-tête
+  doc.setFillColor(107, 142, 255);
+  doc.rect(0, 0, pageWidth, 30, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text('HENZO PHOTOGRAPHIE', margin, 15);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Base de données clients · ' + new Date().toLocaleDateString('fr-FR'), margin, 24);
+  
+  let y = 45;
+  
+  // Stats globales
+  const totalClients = donnees.length;
+  const totalCA = donnees.reduce((sum, c) => sum + c.totalDepense, 0);
+  const totalSeances = donnees.reduce((sum, c) => sum + c.nombreSeances, 0);
+  
+  doc.setFillColor(240, 245, 255);
+  doc.roundedRect(margin, y - 4, pageWidth - margin * 2, 18, 2, 2, 'F');
+  doc.setTextColor(50, 50, 50);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${totalClients} clients · ${totalSeances} séances · ${fmt(totalCA)} encaissés`, margin + 4, y + 6);
+  
+  y += 25;
+  
+  // Pour chaque client
+  donnees.forEach((c, idx) => {
+    // Nouvelle page si nécessaire
+    if(y > 240){
+      doc.addPage();
+      y = 20;
+    }
+    
+    // Fond du bloc client
+    doc.setFillColor(250, 250, 252);
+    doc.roundedRect(margin, y - 3, pageWidth - margin * 2, 32, 2, 2, 'F');
+    
+    // Nom
+    doc.setTextColor(107, 142, 255);
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text(c.nom || 'Client sans nom', margin + 4, y + 6);
+    
+    // Infos
+    doc.setTextColor(60, 60, 60);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    
+    let ligne1 = [];
+    if(c.telephone) ligne1.push('📞 ' + c.telephone);
+    if(c.email) ligne1.push('✉ ' + c.email);
+    if(c.ville) ligne1.push('📍 ' + c.ville);
+    doc.text(ligne1.join('   '), margin + 4, y + 13);
+    
+    // Stats
+    doc.setTextColor(16, 130, 80);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${c.nombreSeances} séance(s) · ${fmt(c.totalDepense)} encaissés`, margin + 4, y + 20);
+    
+    if(c.derniereSeance !== 'Aucune'){
+      doc.setTextColor(120, 120, 120);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(`Dernière séance : ${c.derniereSeance}`, margin + 4, y + 26);
+    }
+    
+    // Notes (si présentes)
+    if(c.notes){
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(8);
+      const notesLines = doc.splitTextToSize('📝 ' + c.notes, pageWidth - margin * 2 - 8);
+      notesLines.slice(0, 2).forEach((line, i) => {
+        doc.text(line, margin + 4, y + 30 + (i * 4));
+      });
+    }
+    
+    y += 38;
+  });
+  
+  // Pied de page
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let i = 1; i <= pageCount; i++){
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text('HENZO PHOTOGRAPHIE · ' + (BRAND?.phone || '') + ' · Base de données clients', pageWidth / 2, 290, { align: 'center' });
+  }
+  
+  doc.save(`clients-henzo-${todayStr()}.pdf`);
+  showToast(`${clients.length} clients exportés en PDF`);
+}
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
