@@ -403,6 +403,23 @@
         </div>
         <div><label for="histCategory">Catégorie</label><select id="histCategory" onchange="renderHistory()"></select></div>
       </div>
+      
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+        <label style="margin-bottom:8px;display:block">📅 Filtrer par date</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label for="histDateFrom" style="font-size:12px;margin-top:0">Du</label>
+            <input type="date" id="histDateFrom" onchange="renderHistory()">
+          </div>
+          <div>
+            <label for="histDateTo" style="font-size:12px;margin-top:0">Au</label>
+            <input type="date" id="histDateTo" onchange="renderHistory()">
+          </div>
+        </div>
+        <button class="btn-ghost" style="margin-top:8px;width:100%;font-size:12px;padding:8px" onclick="resetHistDates()">
+          🔄 Effacer les dates
+        </button>
+      </div>
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
         <label for="histSearch">🔎 Rechercher</label>
         <input type="text" id="histSearch" placeholder="Mot-clé, client, note..." oninput="renderHistory()">

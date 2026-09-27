@@ -2719,6 +2719,15 @@ function populateHistFilters(){
   if(previousCat && [...catSelect.options].some(o => o.value === previousCat)) catSelect.value = previousCat;
 }
 
+// ---- Réinitialiser les filtres de date (historique) ----
+function resetHistDates(){
+  const from = document.getElementById('histDateFrom');
+  const to = document.getElementById('histDateTo');
+  if(from) from.value = '';
+  if(to) to.value = '';
+  renderHistory();
+  showToast('Dates effacées');
+}
 function getFilteredTx(){
   const monthEl = document.getElementById('histMonth');
   const typeEl = document.getElementById('histType');
@@ -2727,16 +2736,29 @@ function getFilteredTx(){
   const sortEl = document.getElementById('histSort');
   if(!monthEl || !typeEl || !catEl) return [];
 
+  const monthEl = document.getElementById('histMonth');
+  const typeEl = document.getElementById('histType');
+  const catEl = document.getElementById('histCategory');
+  const searchEl = document.getElementById('histSearch');
+  const sortEl = document.getElementById('histSort');
+  const dateFromEl = document.getElementById('histDateFrom');
+  const dateToEl = document.getElementById('histDateTo');
+  if(!monthEl || !typeEl || !catEl) return [];
+
   const month = monthEl.value;
   const type = typeEl.value;
   const cat = catEl.value;
   const search = (searchEl?.value || '').trim().toLowerCase();
   const sort = sortEl?.value || 'date-desc';
+  const dateFrom = dateFromEl?.value || '';
+  const dateTo = dateToEl?.value || '';
 
   let filtered = txs.filter(t => {
     if(month !== 'all' && !t.date.startsWith(month)) return false;
     if(type !== 'all' && t.type !== type) return false;
     if(cat !== 'all' && t.category !== cat) return false;
+    if(dateFrom && t.date < dateFrom) return false;
+    if(dateTo && t.date > dateTo) return false;
     if(search){
       const haystack = [
         t.category,
