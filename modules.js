@@ -1206,14 +1206,18 @@ function renderCoffres(){
       ${c.description ? `<div class="coffre-why" style="border-left-color:var(--pink)">📝 ${c.description}</div>` : ''}
       ${c.why ? `<div class="coffre-why">"${c.why}"</div>` : ''}
       ${timeInfo}
-          <div class="coffre-actions">
-        ${c.locked
-          ? `<button class="btn-ghost" style="margin:0;background:rgba(245,197,66,.15);color:var(--yellow);border-color:var(--yellow);font-weight:700" onclick="deverrouillerCoffre(${c.id})">🔓 Déverrouiller</button>`
-          : `<button class="btn-primary" style="margin:0;background:var(--green)" onclick="ouvrirEpargnePerso(${c.id})">${isMoney ? '🎯 Épargner' : '✅ Ajouter'}</button>`
+           <div class="coffre-actions">
+        ${estCoffreBloque(c)
+          ? `<button class="btn-ghost" style="margin:0;background:rgba(245,197,66,.15);color:var(--yellow);border-color:var(--yellow);font-weight:700;font-size:11px" onclick="debloquerCoffre(${c.id})">🔒 Débloquer</button>`
+          : `<button class="btn-ghost" style="margin:0;background:rgba(107,142,255,.10);color:var(--accent);border-color:var(--accent);font-weight:700;font-size:11px" onclick="bloquerCoffre(${c.id})">🔓 Bloquer</button>`
         }
-        <button class="btn-ghost" style="margin:0" onclick="openCoffreModal(${c.id})">✏️</button>
-        <button class="btn-ghost" style="margin:0;border-color:${c.locked ? 'var(--yellow)' : 'var(--border)'};color:${c.locked ? 'var(--yellow)' : 'var(--text)'}" onclick="toggleCadenasCoffre(${c.id})">${c.locked ? '🔒' : '🔓'}</button>
-        <button class="btn-ghost" style="margin:0;border-color:var(--red);color:var(--red)" onclick="delCoffre(${c.id})">🗑</button>
+        <button class="btn-primary" style="margin:0;background:var(--green);font-size:11px;font-weight:700" onclick="ouvrirEpargnePerso(${c.id})">➕ Ajouter</button>
+        ${!estCoffreBloque(c) && Number(c.current) > 0
+          ? `<button class="btn-ghost" style="margin:0;background:rgba(255,107,107,.10);color:var(--red);border-color:var(--red);font-weight:700;font-size:11px" onclick="retirerCoffre(${c.id})">💸 Retirer</button>`
+          : ''
+        }
+        <button class="btn-ghost" style="margin:0;padding:8px" onclick="openCoffreModal(${c.id})" title="Modifier">✏️</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;border-color:var(--red);color:var(--red)" onclick="delCoffre(${c.id})" title="Supprimer">🗑</button>
       </div>
     </div>`;
   }).join('');
