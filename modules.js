@@ -5873,14 +5873,21 @@ function fermerLienGenere(){
 function envoyerLienWhatsAppActuel() {
   const data = window.__lienCourant;
   if(!data) { alert('Erreur : lien introuvable'); return; }
+  // 🆕 Calcul intelligent du type selon le % réel
+  const montantPaye = Number(data.montant) || 0;
+  const montantTotal = Number(data.totalAmount) || 0;
+  const pct = montantTotal > 0 ? Math.round((montantPaye / montantTotal) * 100) : 0;
 
-  const typeLabels = {
-    'complet':  {icon: '✅', label: 'Paiement complet'},
-    'acompte30':{icon: '💰', label: 'Acompte 30%'},
-    'acompte50':{icon: '💰', label: 'Acompte 50%'},
-    'solde':    {icon: '📌', label: 'Solde restant'}
-  };
-  const typeInfo = typeLabels[data.paymentType] || typeLabels['complet'];
+  let typeInfo;
+  if(pct >= 100){
+    typeInfo = {icon: '✅', label: 'Paiement complet'};
+  } else if(pct === 50){
+    typeInfo = {icon: '💰', label: 'Acompte 50%'};
+  } else if(pct === 30){
+    typeInfo = {icon: '💰', label: 'Acompte 30%'};
+  } else {
+    typeInfo = {icon: '💵', label: 'Acompte ' + pct + '%'};
+  }
 
   let message = `Bonjour ${data.clientName} 👋,\n\n`;
   message += `Voici votre lien de paiement sécurisé :\n\n`;
