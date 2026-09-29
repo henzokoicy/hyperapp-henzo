@@ -5561,6 +5561,12 @@ function ouvrirCreerLien(prefill) {
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Le client devra payer</div>
         <div id="montantCalculeValue" style="font-weight:700;color:var(--green);font-size:22px">...</div>
       </div>
+     <div id="fraisWaveBox" style="display:none;margin-top:14px">
+        <button class="btn-ghost" style="margin:0;width:100%;padding:12px;background:rgba(245,197,66,.12);color:var(--gold-soft);border-color:var(--gold-soft);font-weight:700" onclick="calculerFraisWave()">
+          💸 Calculer les frais Wave
+        </button>
+        <div id="fraisWaveResult" style="display:none;margin-top:12px"></div>
+      </div>
 
       <label style="margin-top:14px">🔗 Lien Wave (créé par toi)</label>
       <input type="url" id="lienWaveUrl" placeholder="Colle ici le lien Wave que tu as créé">
@@ -5648,6 +5654,15 @@ function mettreAJourMontant() {
 
   value.textContent = new Intl.NumberFormat('fr-FR').format(Math.round(montantFinal)) + ' FCFA';
   box.style.display = 'block';
+    // 🆕 Afficher le bouton "Calculer les frais Wave" quand il y a un montant
+  const fraisBox = document.getElementById('fraisWaveBox');
+  const fraisResult = document.getElementById('fraisWaveResult');
+  if(fraisBox && montantFinal > 0){
+    fraisBox.style.display = 'block';
+  } else if(fraisBox){
+    fraisBox.style.display = 'none';
+    if(fraisResult) fraisResult.style.display = 'none';
+  }
 }
 
 function syncLienClientPhone(){
@@ -9495,6 +9510,96 @@ function nettoyerPourPDF(texte){
     .trim();
 }
 
+// ============================================================
+// CALCUL DES FRAIS WAVE (sur l'acompte uniquement)
+// ============================================================
+function calculerFraisWave(){
+  const flexEl = document.getElementById('lienMontantFlex');
+  const montantAcompte = flexEl ? (parseFloat(flexEl.value) || 0) : 0;
+  
+  if(montantAcompte <= 0){
+    alert('Renseigne d\'abord le montant à payer par le client.');
+    return;
+  }
+
+  // Le taux par défaut est 1%, mais on peut le modifier
+  let tauxFrais = parseFloat(localStorage.getItem('wave_frais_taux') || '1');
+  
+  // Demander le taux si l'utilisateur veut le modifier
+  const tauxSaisi = prompt(
+    `💸 Calcul des frais Wave\n\n` +
+    `Montant à payer par le client : ${fmt(montantAcompte)}\n\n` +
+    `Taux de frais Wave actuel : ${tauxFrais}%\n\n` +
+    `Tu peux modifier ce taux si tu veux (ou laisse tel quel et clique OK) :`,
+    tauxFrais
+  );
+  
+  if(tauxSaisi === null) return;
+  
+  const nouveauTaux = parseFloat(tauxSaisi);
+  if(!isNaN(nouveauTaux) && nouveauTaux >= 0){
+    tauxFrais = nouveauTaux;
+    localStorage.setItem('wave_frais_taux', String(tauxFrais));
+  }
+
+  // Formule : montant à saisir = acompte / (1 - taux/100)
+  const montantAvecFrais = Math.ceil(montantAcompte / (1 - (tauxFrais / 100)));
+  const frais = montantAvecFrais - montantAcompte;
+
+  const resultEl = document.getElementById('fraisWaveResult');
+  if(!resultEl) return;
+
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `
+    <div style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.04));border:1px solid rgba(245,197,66,.35);border-radius:12px;padding:14px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:700">💸 Frais Wave (${tauxFrais}%)</div>
+      
+      <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)">
+        <span style="color:var(--muted)">Acompte client</span>
+        <span style="font-weight:700">${fmt(montantAcompte)}</span>
+      </div>
+      
+      <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)">
+        <span style="color:var(--muted)">Frais Wave</span>
+        <span style="font-weight:700;color:var(--yellow)">${fmt(frais)}</span>
+      </div>
+      
+      <div style="display:flex;justify-content:space-between;padding:10px 0 0;margin-top:6px">
+        <span style="font-weight:800;font-size:14px;color:var(--gold-soft)">📌 À saisir dans Wave</span>
+        <span style="font-weight:800;font-size:20px;color:var(--gold-soft)">${fmt(montantAvecFrais)}</span>
+      </div>
+      
+      <button class="btn-primary" style="margin:12px 0 0;width:100%;background:linear-gradient(135deg,var(--gold),#e0b02f);color:#000;font-weight:800" onclick="copierMontantWave(${montantAvecFrais})">
+        📋 Copier ${fmt(montantAvecFrais)}
+      </button>
+      
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px;line-height:1.5">
+        Ouvre ton app Wave, crée le lien de paiement avec ce montant,<br>puis colle le lien Wave ci-dessous.
+      </div>
+    </div>
+  `;
+}
+
+function copierMontantWave(montant){
+  const texte = String(montant);
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(texte).then(() => {
+      showToast('✅ ' + fmt(montant) + ' copié !');
+    }).catch(() => fallbackCopierWave(texte));
+  } else {
+    fallbackCopierWave(texte);
+  }
+}
+
+function fallbackCopierWave(texte){
+  const ta = document.createElement('textarea');
+  ta.value = texte;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  showToast('✅ Montant copié !');
+}
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
