@@ -5594,22 +5594,41 @@ function mettreAJourMontant() {
   const total = parseFloat(totalEl.value) || 0;
   const type = typeEl.value;
 
-  // Si on choisit un type, on remplit le champ flex
-  if(flexEl && type !== 'libre' && total > 0){
-    let montant = total;
-    if(type === 'acompte30') montant = total * 0.30;
-    else if(type === 'acompte50') montant = total * 0.50;
+  // Étape 1 : si on a changé de type (clic utilisateur), on pré-remplit le champ
+  const lastType = typeEl.dataset.lastType || '';
+  const typeChanged = lastType !== type;
 
-    // Ne remplit que si on vient de changer le type
-    if(typeEl.dataset.lastType !== type){
-      flexEl.value = Math.round(montant);
-      typeEl.dataset.lastType = type;
+  if(typeChanged && flexEl){
+    if(type === 'acompte30'){
+      flexEl.value = total > 0 ? Math.round(total * 0.30) : '';
+    } else if(type === 'acompte50'){
+      flexEl.value = total > 0 ? Math.round(total * 0.50) : '';
+    } else if(type === 'complet'){
+      flexEl.value = total > 0 ? Math.round(total) : '';
+    } else if(type === 'libre'){
+      flexEl.value = '';
+    }
+    typeEl.dataset.lastType = type;
+  }
+
+  // Étape 2 : lire le montant final
+  let montantFinal = flexEl ? (parseFloat(flexEl.value) || 0) : 0;
+
+  // Étape 3 : DÉTECTION AUTO — si l'utilisateur tape un montant qui ne correspond pas au type choisi
+  if(!typeChanged && total > 0 && montantFinal > 0 && type !== 'libre'){
+    let montantAttendu = 0;
+    if(type === 'acompte30') montantAttendu = Math.round(total * 0.30);
+    else if(type === 'acompte50') montantAttendu = Math.round(total * 0.50);
+    else if(type === 'complet') montantAttendu = Math.round(total);
+
+    // Si le montant saisi est différent du montant attendu → bascule auto en "Montant libre"
+    if(montantAttendu > 0 && montantFinal !== montantAttendu){
+      typeEl.value = 'libre';
+      typeEl.dataset.lastType = 'libre';
     }
   }
 
-  // Calcule le % affiché en fonction du montant saisi
-  const montantFinal = flexEl ? (parseFloat(flexEl.value) || 0) : (type === 'complet' ? total : 0);
-
+  // Étape 4 : mettre à jour le badge %
   if(pctEl){
     if(total > 0 && montantFinal > 0){
       const pct = (montantFinal / total) * 100;
@@ -5621,6 +5640,7 @@ function mettreAJourMontant() {
     }
   }
 
+  // Étape 5 : afficher le récap "Le client devra payer"
   if(!total || total <= 0 || montantFinal <= 0){
     box.style.display = 'none';
     return;
