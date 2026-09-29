@@ -5740,9 +5740,27 @@ async function genererLienPersonnalise() {
   if(!waveLink) { alert('Collez votre lien Wave'); return; }
   if(!waveLink.includes('pay.wave.com')) { alert('Le lien Wave semble invalide. Il doit contenir "pay.wave.com"'); return; }
 
-  let montant = totalAmount;
-  if(paymentType === 'acompte30') montant = totalAmount * 0.30;
-  else if(paymentType === 'acompte50') montant = totalAmount * 0.50;
+   // 🆕 Lire le montant depuis le champ flex en priorité
+  const flexEl = document.getElementById('lienMontantFlex');
+  let montant = flexEl ? (parseFloat(flexEl.value) || 0) : 0;
+
+  // Fallback : si le champ flex est vide, on calcule selon le type
+  if(montant <= 0){
+    if(paymentType === 'acompte30') montant = totalAmount * 0.30;
+    else if(paymentType === 'acompte50') montant = totalAmount * 0.50;
+    else montant = totalAmount;
+  }
+
+  // 🆕 Sécurité : si le type n'est pas "libre" mais que le montant diffère du calcul normal → passe en libre
+  if(paymentType !== 'libre'){
+    let montantAttendu = totalAmount;
+    if(paymentType === 'acompte30') montantAttendu = totalAmount * 0.30;
+    else if(paymentType === 'acompte50') montantAttendu = totalAmount * 0.50;
+
+    if(Math.abs(montant - montantAttendu) > 1){
+      paymentType = 'libre';
+    }
+  }
 
   const result = await dbInsert('payment_links', {
     client_name: clientName,
