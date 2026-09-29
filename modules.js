@@ -5538,13 +5538,24 @@ function ouvrirCreerLien(prefill) {
       <label>Montant total de la prestation (FCFA)</label>
       <input type="number" id="lienTotalAmount" placeholder="Ex: 100000" inputmode="decimal" oninput="mettreAJourMontant()" value="${prefill.totalAmount || ''}">
 
-      <label>Type de paiement</label>
+            <label>Type de paiement</label>
       <select id="lienPaymentType" onchange="mettreAJourMontant()">
         <option value="acompte30"${prefill.paymentType === 'acompte30' ? ' selected' : ''}>💰 Acompte 30%</option>
         <option value="acompte50"${prefill.paymentType === 'acompte50' ? ' selected' : ''}>💰 Acompte 50%</option>
         <option value="complet"${prefill.paymentType === 'complet' ? ' selected' : ''}>✅ Paiement complet (100%)</option>
-        <option value="solde"${prefill.paymentType === 'solde' ? ' selected' : ''}>📌 Solde restant (à saisir)</option>
+        <option value="libre"${prefill.paymentType === 'libre' ? ' selected' : ''}>💵 Montant libre</option>
       </select>
+
+      <div id="montantFlexBox" style="margin-top:10px">
+        <label for="lienMontantFlex">💰 Montant à payer par le client (FCFA)</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="number" id="lienMontantFlex" placeholder="Ex: 5000" inputmode="decimal" oninput="mettreAJourMontant()" style="flex:2;font-size:18px;font-weight:700;text-align:center;color:var(--green)">
+          <div id="lienPourcentFlex" style="flex:1;text-align:center;background:var(--card2);border-radius:10px;padding:12px;font-weight:800;font-size:18px;color:var(--accent)">0%</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center">
+          Tape un montant ou choisis un % : l'app calcule l'autre automatiquement
+        </div>
+      </div>
 
       <div id="montantCalcule" style="background:linear-gradient(135deg,rgba(46,204,113,.15),rgba(108,140,255,.08));border-radius:12px;padding:14px;margin-top:14px;display:none">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Le client devra payer</div>
@@ -5573,20 +5584,49 @@ function fermerCreerLien(){
 function mettreAJourMontant() {
   const totalEl = document.getElementById('lienTotalAmount');
   const typeEl = document.getElementById('lienPaymentType');
+  const flexEl = document.getElementById('lienMontantFlex');
+  const pctEl = document.getElementById('lienPourcentFlex');
   const box = document.getElementById('montantCalcule');
   const value = document.getElementById('montantCalculeValue');
+
   if(!totalEl || !typeEl || !box || !value) return;
 
   const total = parseFloat(totalEl.value) || 0;
   const type = typeEl.value;
 
-  if(!total || total <= 0) { box.style.display = 'none'; return; }
+  // Si on choisit un type, on remplit le champ flex
+  if(flexEl && type !== 'libre' && total > 0){
+    let montant = total;
+    if(type === 'acompte30') montant = total * 0.30;
+    else if(type === 'acompte50') montant = total * 0.50;
 
-  let montant = total;
-  if(type === 'acompte30') montant = total * 0.30;
-  else if(type === 'acompte50') montant = total * 0.50;
+    // Ne remplit que si on vient de changer le type
+    if(typeEl.dataset.lastType !== type){
+      flexEl.value = Math.round(montant);
+      typeEl.dataset.lastType = type;
+    }
+  }
 
-  value.textContent = new Intl.NumberFormat('fr-FR').format(Math.round(montant)) + ' FCFA';
+  // Calcule le % affiché en fonction du montant saisi
+  const montantFinal = flexEl ? (parseFloat(flexEl.value) || 0) : (type === 'complet' ? total : 0);
+
+  if(pctEl){
+    if(total > 0 && montantFinal > 0){
+      const pct = (montantFinal / total) * 100;
+      pctEl.textContent = pct.toFixed(1).replace('.0', '') + '%';
+      pctEl.style.color = pct > 100 ? 'var(--red)' : 'var(--accent)';
+    } else {
+      pctEl.textContent = '0%';
+      pctEl.style.color = 'var(--muted)';
+    }
+  }
+
+  if(!total || total <= 0 || montantFinal <= 0){
+    box.style.display = 'none';
+    return;
+  }
+
+  value.textContent = new Intl.NumberFormat('fr-FR').format(Math.round(montantFinal)) + ' FCFA';
   box.style.display = 'block';
 }
 
