@@ -2805,13 +2805,6 @@ function getFilteredTx(){
   const catEl = document.getElementById('histCategory');
   const searchEl = document.getElementById('histSearch');
   const sortEl = document.getElementById('histSort');
-  if(!monthEl || !typeEl || !catEl) return [];
-
-  const monthEl = document.getElementById('histMonth');
-  const typeEl = document.getElementById('histType');
-  const catEl = document.getElementById('histCategory');
-  const searchEl = document.getElementById('histSearch');
-  const sortEl = document.getElementById('histSort');
   const dateFromEl = document.getElementById('histDateFrom');
   const dateToEl = document.getElementById('histDateTo');
   if(!monthEl || !typeEl || !catEl) return [];
