@@ -9954,40 +9954,25 @@ window.showToast = function(message){
 // ONGLETS INTERNES PHOTO
 // ============================================================
 function switchPhotoTab(tab){
-  // Styles des boutons
-  document.querySelectorAll('.photo-subtab, [data-subtab]').forEach(b => {
-    const isActive = b.getAttribute('data-subtab') === tab;
-    if(isActive){
-      b.style.background = 'linear-gradient(135deg,#6b8eff,#4a6ee0)';
-      b.style.color = '#fff';
-      b.style.border = '1px solid transparent';
-      b.style.boxShadow = '0 6px 20px rgba(107,142,255,.4)';
-      b.classList.add('active');
-    } else {
-      b.style.background = '#1c2130';
-      b.style.color = '#7e87a0';
-      b.style.border = '1px solid rgba(255,255,255,.06)';
-      b.style.boxShadow = 'none';
-      b.classList.remove('active');
-    }
+  // Boutons
+  document.querySelectorAll('.photo-subtab').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-subtab') === tab);
   });
 
   // Sous-pages
   document.querySelectorAll('.photo-subpage').forEach(p => {
-    p.classList.remove('active');
     p.style.display = 'none';
   });
 
   const target = document.getElementById('photo-subpage-' + tab);
   if(target){
-    target.classList.add('active');
     target.style.display = 'block';
   }
 
-  // Sauvegarder l'onglet actif
+  // Sauvegarder
   localStorage.setItem('photo_active_subtab', tab);
 
-  // Rafraîchir selon l'onglet
+  // Rafraîchir
   if(tab === 'seances' && typeof renderShoots === 'function') renderShoots();
   if(tab === 'clients' && typeof renderClients === 'function') renderClients();
   if(tab === 'liens' && typeof renderPaymentLinks === 'function') renderPaymentLinks();
