@@ -2514,9 +2514,16 @@ function renderShoots(){
             ✅ Payé intégralement
           </button>
         `}
+                ${recu > 0 ? `
+          <button class="btn-ghost" style="margin:0;padding:8px;background:rgba(255,107,107,.10);color:var(--red);border-color:var(--red);font-weight:700;font-size:12px" onclick="resetPaiementSeance(${s.id})" title="Remettre les paiements à 0">
+            ↺ Reset
+          </button>
+        ` : ''}
+
         ${canRepartir ? `
           <button class="btn-ghost" style="margin:0;padding:8px;background:linear-gradient(135deg,rgba(107,142,255,.15),rgba(52,211,153,.10));color:var(--accent);border-color:var(--accent);font-weight:700;font-size:12px" onclick="ouvrirRepartitionSeance(${s.id})" title="Répartir vers un objectif">💰 Répartir</button>
         ` : `
+
           ${reparti > 0 ? `
             <button class="btn-ghost" style="margin:0;padding:8px;background:rgba(52,211,153,.08);color:var(--green);border-color:var(--green);font-weight:700;font-size:12px;opacity:0.7;cursor:default" title="Tout est réparti">✅ Réparti</button>
           ` : ''}
@@ -10089,6 +10096,74 @@ function restorePhotoSubtab(){
   }, 100);
 }
 
+
+// ============================================================
+// RESET PAIEMENT D'UNE SÉANCE
+// ============================================================
+async function resetPaiementSeance(shootId){
+  const s = shoots.find(x => x.id === shootId);
+  if(!s){ alert('Séance introuvable'); return; }
+
+  const recu = Number(s.montant_recu || 0);
+
+  if(recu <= 0){
+    afficherToast('Cette séance n\'a rien à remettre à zéro', 'info');
+    return;
+  }
+
+  const ok = await confirmer(
+    `Remettre les paiements de cette séance à 0 ?\n\n📸 ${s.type}\n💰 Montant reçu : ${fmt(recu)}\n\n✅ La séance repassera à "Impayé"\n✅ Les transactions de revenus seront annulées (elles restent visibles dans l\'historique)`,
+    {
+      titre: '↺ Reset des paiements',
+      texteAnnuler: 'Annuler',
+      texteConfirmer: '↺ Remettre à 0',
+      type: 'warning'
+    }
+  );
+
+  if(!ok) return;
+
+  const clientName = s.client_id ? (clients.find(c => c.id === s.client_id)?.name || '') : '';
+  const txLiees = txs.filter(t => 
+    t.type === 'revenu' && 
+    !t.cancelled &&
+    t.category === 'Shooting photo' &&
+    (
+      (t.client_id && t.client_id === s.client_id && t.prestation_type === s.type) ||
+      (t.note && t.note.includes(s.type) && (!clientName || t.note.includes(clientName)))
+    )
+  );
+
+  let annulees = 0;
+  for(const t of txLiees){
+    const result = await dbUpdate('transactions', t.id, {
+      cancelled: true,
+      cancelled_at: new Date().toISOString()
+    });
+    if(result){
+      const idx = txs.findIndex(x => x.id === t.id);
+      if(idx >= 0) txs[idx] = result;
+      annulees++;
+    }
+  }
+
+  const upd = await dbUpdate('shoots', shootId, {
+    montant_recu: 0,
+    payment: 'impaye'
+  });
+
+  if(!upd){
+    afficherToast('Erreur lors de la mise à jour', 'error');
+    return;
+  }
+
+  s.montant_recu = 0;
+  s.payment = 'impaye';
+
+  refreshAll();
+  
+  afficherToast(`↺ Reset effectué · ${annulees} transaction${annulees > 1 ? 's' : ''} annulée${annulees > 1 ? 's' : ''}`, 'success');
+}
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
