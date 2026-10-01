@@ -9775,6 +9775,181 @@ function toggleCoffreHasMoney(){
   }
 }
 
+// ============================================================
+// SYSTÈME DE TOASTS + MODALES DE CONFIRMATION
+// ============================================================
+
+// ---- TOASTS ----
+function afficherToast(message, type){
+  type = type || 'success';
+  
+  const colors = {
+    success: { bg: 'linear-gradient(135deg, #10b981, #059669)', icon: '✅' },
+    error:   { bg: 'linear-gradient(135deg, #ef4444, #dc2626)', icon: '❌' },
+    warning: { bg: 'linear-gradient(135deg, #f59e0b, #d97706)', icon: '⚠️' },
+    info:    { bg: 'linear-gradient(135deg, #6b8eff, #4a6ee0)', icon: 'ℹ️' }
+  };
+  
+  const style = colors[type] || colors.success;
+  
+  // Supprimer les toasts existants pour ne pas surcharger
+  document.querySelectorAll('.henzo-toast').forEach(t => {
+    if(t.dataset.old === 'true') t.remove();
+  });
+  
+  const toast = document.createElement('div');
+  toast.className = 'henzo-toast';
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-120px);
+    background: ${style.bg};
+    color: #fff;
+    padding: 14px 22px;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.1) inset;
+    transition: transform .4s cubic-bezier(.34,1.56,.64,1), opacity .3s ease;
+    opacity: 0;
+    pointer-events: none;
+    max-width: 90vw;
+    white-space: nowrap;
+  `;
+  toast.innerHTML = `<span style="font-size:18px">${style.icon}</span><span>${message}</span>`;
+  
+  document.body.appendChild(toast);
+  
+  requestAnimationFrame(() => {
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+    toast.style.opacity = '1';
+  });
+  
+  // Vibration sur mobile
+  if(navigator.vibrate){
+    try { navigator.vibrate(type === 'error' ? [100, 50, 100] : [50]); } catch(e){}
+  }
+  
+  setTimeout(() => {
+    toast.style.transform = 'translateX(-50%) translateY(-120px)';
+    toast.style.opacity = '0';
+    toast.dataset.old = 'true';
+    setTimeout(() => toast.remove(), 500);
+  }, 2500);
+}
+
+// ---- MODALE DE CONFIRMATION ----
+function confirmer(message, options){
+  options = options || {};
+  
+  return new Promise((resolve) => {
+    const titre = options.titre || 'Confirmation';
+    const texteAnnuler = options.texteAnnuler || 'Annuler';
+    const texteConfirmer = options.texteConfirmer || 'Confirmer';
+    const typeBouton = options.type || 'danger'; // danger, warning, info
+    
+    const colors = {
+      danger:  { bg: 'linear-gradient(135deg, #ef4444, #dc2626)', icon: '🗑️' },
+      warning: { bg: 'linear-gradient(135deg, #f59e0b, #d97706)', icon: '⚠️' },
+      info:    { bg: 'linear-gradient(135deg, #6b8eff, #4a6ee0)', icon: '❓' }
+    };
+    const c = colors[typeBouton] || colors.info;
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal-bg show';
+    modal.id = 'henzoConfirmModal';
+    modal.style.zIndex = '999998';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:420px;border-radius:20px 20px 0 0">
+        <div style="text-align:center;padding:10px 0 20px">
+          <div style="font-size:52px;margin-bottom:12px">${c.icon}</div>
+          <div style="font-size:18px;font-weight:800;margin-bottom:10px;letter-spacing:-.3px">${titre}</div>
+          <div style="font-size:14px;color:var(--muted);line-height:1.6;white-space:pre-wrap;padding:0 10px">${message}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">
+          <button class="btn-ghost" style="margin:0;padding:14px;font-weight:700" onclick="window.__henzoConfirmResolve(false);document.getElementById('henzoConfirmModal').remove();">
+            ${texteAnnuler}
+          </button>
+          <button style="margin:0;padding:14px;font-weight:700;background:${c.bg};color:#fff;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:15px" onclick="window.__henzoConfirmResolve(true);document.getElementById('henzoConfirmModal').remove();">
+            ${texteConfirmer}
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Vibration
+    if(navigator.vibrate){
+      try { navigator.vibrate(50); } catch(e){}
+    }
+    
+    window.__henzoConfirmResolve = (val) => {
+      resolve(val);
+      delete window.__henzoConfirmResolve;
+    };
+    
+    // Clic sur le fond = annuler
+    modal.addEventListener('click', (e) => {
+      if(e.target === modal){
+        window.__henzoConfirmResolve(false);
+        modal.remove();
+      }
+    });
+  });
+}
+
+// ---- MODALE D'ALERTE (pour les erreurs importantes) ----
+function afficherAlerte(message, options){
+  options = options || {};
+  return new Promise((resolve) => {
+    const titre = options.titre || 'Attention';
+    const icone = options.icone || '⚠️';
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal-bg show';
+    modal.id = 'henzoAlertModal';
+    modal.style.zIndex = '999998';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:420px;border-radius:20px 20px 0 0">
+        <div style="text-align:center;padding:10px 0 20px">
+          <div style="font-size:52px;margin-bottom:12px">${icone}</div>
+          <div style="font-size:18px;font-weight:800;margin-bottom:10px;letter-spacing:-.3px">${titre}</div>
+          <div style="font-size:14px;color:var(--muted);line-height:1.6;white-space:pre-wrap;padding:0 10px">${message}</div>
+        </div>
+        <button class="btn-primary" style="margin-top:16px;width:100%;padding:14px;font-weight:700" onclick="window.__henzoAlertResolve();document.getElementById('henzoAlertModal').remove();">
+          OK
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    window.__henzoAlertResolve = () => {
+      resolve();
+      delete window.__henzoAlertResolve;
+    };
+    
+    modal.addEventListener('click', (e) => {
+      if(e.target === modal){
+        window.__henzoAlertResolve();
+        modal.remove();
+      }
+    });
+  });
+}
+
+// ---- RAFRAÎCHIR LA FONCTION showToast EXISTANTE ----
+// Redirige l'ancien showToast vers le nouveau
+const _ancienShowToast = window.showToast;
+window.showToast = function(message){
+  afficherToast(message, 'success');
+};
+
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');

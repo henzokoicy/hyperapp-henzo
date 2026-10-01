@@ -1944,3 +1944,38 @@ body:not(.logged-out) #loginScreen{display:none;}
 .hist-item.cancelled {
   border-left: 3px solid var(--red);
 }
+
+/* ============================================================
+   TOASTS HENZO
+   ============================================================ */
+.henzo-toast {
+  pointer-events: none;
+}
+
+/* ============================================================
+   MODALES DE CONFIRMATION HENZO
+   ============================================================ */
+#henzoConfirmModal,
+#henzoAlertModal {
+  align-items: center !important;
+  padding: 20px;
+}
+
+#henzoConfirmModal .modal,
+#henzoAlertModal .modal {
+  border-radius: 20px !important;
+  max-width: 420px !important;
+  padding: 24px 20px 20px !important;
+  animation: henzoModalIn .3s cubic-bezier(.34,1.56,.64,1) !important;
+}
+
+@keyframes henzoModalIn {
+  from {
+    opacity: 0;
+    transform: scale(.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
