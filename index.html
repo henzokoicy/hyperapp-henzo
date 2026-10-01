@@ -558,6 +558,8 @@
 
 <div class="page" id="page-photo">
   <div class="container">
+
+    <!-- STATS PHOTO (toujours visible) -->
     <div class="card">
       <h2>📸 Statistiques photo</h2>
       <div class="row">
@@ -566,116 +568,146 @@
         <div class="stat"><div class="v" id="photoPending" style="color:var(--yellow)">0</div><div class="l">À encaisser</div></div>
       </div>
     </div>
-       <div class="card">
-      <h2>📅 Séances & Rendez-vous</h2>
-      <div class="shoot-stats-row" id="shootStatsRow"></div>
-      <div class="shoot-filter-row" id="shootFilterRow">
-        <button class="shoot-filter-btn active" data-filter="all" onclick="filterShoots('all', this)">Toutes</button>
-        <button class="shoot-filter-btn" data-filter="planifie" onclick="filterShoots('planifie', this)">📅 Planifiées</button>
-        <button class="shoot-filter-btn" data-filter="shoote" onclick="filterShoots('shoote', this)">✅ Shootées</button>
-        <button class="shoot-filter-btn" data-filter="annule" onclick="filterShoots('annule', this)">❌ Annulées</button>
-      </div>
 
-      <!-- 🆕 Filtres avancés -->
-      <div style="background:var(--card2);border-radius:12px;padding:12px;margin-bottom:12px;border:1px solid var(--border)">
-        <div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">🔍 Filtres avancés</div>
-        
-        <label style="margin:0 0 6px;font-size:12px">Rechercher</label>
-        <input type="text" id="shootSearchInput" placeholder="Nom client, type, lieu, notes..." oninput="renderShoots()" style="font-size:13px;padding:10px;margin-bottom:10px">
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-          <div>
-            <label style="margin:0 0 6px;font-size:12px">📅 Mois</label>
-            <select id="shootMonthFilter" onchange="renderShoots()" style="font-size:13px;padding:10px">
-              <option value="all">Tous les mois</option>
-              <option value="this">Ce mois</option>
-              <option value="last">Mois dernier</option>
-              <option value="3m">3 derniers mois</option>
-              <option value="year">Cette année</option>
-            </select>
-          </div>
-          <div>
-            <label style="margin:0 0 6px;font-size:12px">📊 Trier par</label>
-            <select id="shootSortFilter" onchange="renderShoots()" style="font-size:13px;padding:10px">
-              <option value="date-desc">📅 Récent → ancien</option>
-              <option value="date-asc">📅 Ancien → récent</option>
-              <option value="price-desc">💰 Prix élevé → faible</option>
-              <option value="price-asc">💰 Prix faible → élevé</option>
-              <option value="name-asc">👤 Nom A → Z</option>
-              <option value="name-desc">👤 Nom Z → A</option>
-              <option value="paid-desc">✅ Encaissé élevé → faible</option>
-              <option value="rest-desc">⏳ Reste à payer élevé</option>
-            </select>
-          </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-          <div>
-            <label style="margin:0 0 6px;font-size:12px">💰 Prix min</label>
-            <input type="number" id="shootMinPrice" placeholder="0" oninput="renderShoots()" style="font-size:13px;padding:10px">
-          </div>
-          <div>
-            <label style="margin:0 0 6px;font-size:12px">💰 Prix max</label>
-            <input type="number" id="shootMaxPrice" placeholder="Illimité" oninput="renderShoots()" style="font-size:13px;padding:10px">
-          </div>
-        </div>
-
-        <button class="btn-ghost" style="margin:0;width:100%;font-size:12px;padding:8px" onclick="resetShootFilters()">
-          🔄 Réinitialiser les filtres
-        </button>
-      </div>
-
-      <div id="shootFiltersSummary" style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:10px"></div>
-
-      <div id="shootsList"><div class="empty">Aucune séance planifiée</div></div>
-      <button class="btn-pink" style="margin-top:10px" onclick="openShootModal()">+ Nouvelle séance</button>
-    </div>
-      <div class="card">
-      <h2>👥 Clients</h2>
-      <div class="ai-toolbar" style="margin-bottom:12px">
-        <button class="ai-btn ai-btn-primary" onclick="exportClientsCSV()">📊 CSV</button>
-        <button class="ai-btn" onclick="exportClientsJSON()">📦 JSON</button>
-        <button class="ai-btn" style="background:var(--pink);border:none;color:#fff" onclick="exportClientsPDF()">📄 PDF</button>
-      </div>
-      
-      <div style="background:var(--card2);border-radius:12px;padding:12px;margin-bottom:12px;border:1px solid var(--border)">
-        <div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">🔍 Filtrer les clients</div>
-
-        <label style="margin:0 0 6px;font-size:12px">Rechercher</label>
-        <input type="text" id="clientSearch" placeholder="Nom, téléphone, ville..." oninput="renderClients()" style="font-size:13px;padding:10px;margin-bottom:10px">
-
-        <label style="margin:0 0 6px;font-size:12px">🏷️ Catégorie</label>
-        <select id="clientFilterCategory" onchange="renderClients()" style="font-size:13px;padding:10px">
-          <option value="all">Toutes les catégories</option>
-          <option value="VIP">🥇 VIP</option>
-          <option value="Fidèle">⭐ Fidèle</option>
-          <option value="Nouveau">🆕 Nouveau</option>
-          <option value="Inactif">😴 Inactif</option>
-          <option value="Mariage">💍 Mariage</option>
-          <option value="Corporate">💼 Corporate</option>
-          <option value="Portrait">📸 Portrait</option>
-          <option value="Événement">🎉 Événement</option>
-          <option value="Studio">🎬 Studio</option>
-          <option value="Extérieur">🌳 Extérieur</option>
-          <option value="Famille">👨‍👩‍👧 Famille</option>
-          <option value="Baptême">💒 Baptême</option>
-          <option value="Scolaire">🎓 Scolaire</option>
-          <option value="Autre">➕ Autre</option>
-        </select>
-      </div>
-      <div id="clientsList"><div class="empty">Aucun client enregistré</div></div>
-      <button class="btn-ghost" style="margin-top:10px;width:100%;border-color:var(--gold-soft);color:var(--gold-soft)" onclick="ouvrirGuideRegles()">🧠 Voir mes règles de répartition</button>
-    </div>
-    <div class="card">
-      <h2>🔗 Liens de paiement</h2>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
-        Crée des liens personnalisés pour tes clients (acomptes, soldes, séances).
-      </div>
-      <div id="paymentLinksList"><div class="empty">Aucun lien créé</div></div>
-      <button class="btn-primary" style="width:100%;margin-top:12px" onclick="ouvrirCreerLien()">
-        + Créer un lien de paiement
+    <!-- ONGLETS INTERNES -->
+    <div class="photo-subtabs" style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding:4px 0">
+      <button class="photo-subtab active" data-subtab="seances" onclick="switchPhotoTab('seances')">
+        <span style="font-size:18px">📸</span>
+        <span style="font-size:12px;font-weight:700;margin-top:2px">Séances</span>
+      </button>
+      <button class="photo-subtab" data-subtab="clients" onclick="switchPhotoTab('clients')">
+        <span style="font-size:18px">👥</span>
+        <span style="font-size:12px;font-weight:700;margin-top:2px">Clients</span>
+      </button>
+      <button class="photo-subtab" data-subtab="liens" onclick="switchPhotoTab('liens')">
+        <span style="font-size:18px">🔗</span>
+        <span style="font-size:12px;font-weight:700;margin-top:2px">Liens</span>
       </button>
     </div>
+
+    <!-- SOUS-PAGE SÉANCES -->
+    <div class="photo-subpage active" id="photo-subpage-seances">
+      <div class="card">
+        <h2>📅 Séances & Rendez-vous</h2>
+        <div class="shoot-stats-row" id="shootStatsRow"></div>
+        <div class="shoot-filter-row" id="shootFilterRow">
+          <button class="shoot-filter-btn active" data-filter="all" onclick="filterShoots('all', this)">Toutes</button>
+          <button class="shoot-filter-btn" data-filter="planifie" onclick="filterShoots('planifie', this)">📅 Planifiées</button>
+          <button class="shoot-filter-btn" data-filter="shoote" onclick="filterShoots('shoote', this)">✅ Shootées</button>
+          <button class="shoot-filter-btn" data-filter="annule" onclick="filterShoots('annule', this)">❌ Annulées</button>
+        </div>
+
+        <!-- Filtres avancés -->
+        <div style="background:var(--card2);border-radius:12px;padding:12px;margin-bottom:12px;border:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">🔍 Filtres avancés</div>
+          
+          <label style="margin:0 0 6px;font-size:12px">Rechercher</label>
+          <input type="text" id="shootSearchInput" placeholder="Nom client, type, lieu, notes..." oninput="renderShoots()" style="font-size:13px;padding:10px;margin-bottom:10px">
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            <div>
+              <label style="margin:0 0 6px;font-size:12px">📅 Mois</label>
+              <select id="shootMonthFilter" onchange="renderShoots()" style="font-size:13px;padding:10px">
+                <option value="all">Tous les mois</option>
+                <option value="this">Ce mois</option>
+                <option value="last">Mois dernier</option>
+                <option value="3m">3 derniers mois</option>
+                <option value="year">Cette année</option>
+              </select>
+            </div>
+            <div>
+              <label style="margin:0 0 6px;font-size:12px">📊 Trier par</label>
+              <select id="shootSortFilter" onchange="renderShoots()" style="font-size:13px;padding:10px">
+                <option value="date-desc">📅 Récent → ancien</option>
+                <option value="date-asc">📅 Ancien → récent</option>
+                <option value="price-desc">💰 Prix élevé → faible</option>
+                <option value="price-asc">💰 Prix faible → élevé</option>
+                <option value="name-asc">👤 Nom A → Z</option>
+                <option value="name-desc">👤 Nom Z → A</option>
+                <option value="paid-desc">✅ Encaissé élevé → faible</option>
+                <option value="rest-desc">⏳ Reste à payer élevé</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            <div>
+              <label style="margin:0 0 6px;font-size:12px">💰 Prix min</label>
+              <input type="number" id="shootMinPrice" placeholder="0" oninput="renderShoots()" style="font-size:13px;padding:10px">
+            </div>
+            <div>
+              <label style="margin:0 0 6px;font-size:12px">💰 Prix max</label>
+              <input type="number" id="shootMaxPrice" placeholder="Illimité" oninput="renderShoots()" style="font-size:13px;padding:10px">
+            </div>
+          </div>
+
+          <button class="btn-ghost" style="margin:0;width:100%;font-size:12px;padding:8px" onclick="resetShootFilters()">
+            🔄 Réinitialiser les filtres
+          </button>
+        </div>
+
+        <div id="shootFiltersSummary" style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:10px"></div>
+
+        <div id="shootsList"><div class="empty">Aucune séance planifiée</div></div>
+        <button class="btn-pink" style="margin-top:10px" onclick="openShootModal()">+ Nouvelle séance</button>
+      </div>
+    </div>
+
+    <!-- SOUS-PAGE CLIENTS -->
+    <div class="photo-subpage" id="photo-subpage-clients" style="display:none">
+      <div class="card">
+        <h2>👥 Clients</h2>
+        <div class="ai-toolbar" style="margin-bottom:12px">
+          <button class="ai-btn ai-btn-primary" onclick="exportClientsCSV()">📊 CSV</button>
+          <button class="ai-btn" onclick="exportClientsJSON()">📦 JSON</button>
+          <button class="ai-btn" style="background:var(--pink);border:none;color:#fff" onclick="exportClientsPDF()">📄 PDF</button>
+        </div>
+        
+        <div style="background:var(--card2);border-radius:12px;padding:12px;margin-bottom:12px;border:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">🔍 Filtrer les clients</div>
+
+          <label style="margin:0 0 6px;font-size:12px">Rechercher</label>
+          <input type="text" id="clientSearch" placeholder="Nom, téléphone, ville..." oninput="renderClients()" style="font-size:13px;padding:10px;margin-bottom:10px">
+
+          <label style="margin:0 0 6px;font-size:12px">🏷️ Catégorie</label>
+          <select id="clientFilterCategory" onchange="renderClients()" style="font-size:13px;padding:10px">
+            <option value="all">Toutes les catégories</option>
+            <option value="VIP">🥇 VIP</option>
+            <option value="Fidèle">⭐ Fidèle</option>
+            <option value="Nouveau">🆕 Nouveau</option>
+            <option value="Inactif">😴 Inactif</option>
+            <option value="Mariage">💍 Mariage</option>
+            <option value="Corporate">💼 Corporate</option>
+            <option value="Portrait">📸 Portrait</option>
+            <option value="Événement">🎉 Événement</option>
+            <option value="Studio">🎬 Studio</option>
+            <option value="Extérieur">🌳 Extérieur</option>
+            <option value="Famille">👨‍👩‍👧 Famille</option>
+            <option value="Baptême">💒 Baptême</option>
+            <option value="Scolaire">🎓 Scolaire</option>
+            <option value="Autre">➕ Autre</option>
+          </select>
+        </div>
+        <div id="clientsList"><div class="empty">Aucun client enregistré</div></div>
+        <button class="btn-ghost" style="margin-top:10px;width:100%;border-color:var(--gold-soft);color:var(--gold-soft)" onclick="ouvrirGuideRegles()">🧠 Voir mes règles de répartition</button>
+        <button class="btn-pink" style="margin-top:10px;width:100%" onclick="openClientModal()">+ Nouveau client</button>
+      </div>
+    </div>
+
+    <!-- SOUS-PAGE LIENS -->
+    <div class="photo-subpage" id="photo-subpage-liens" style="display:none">
+      <div class="card">
+        <h2>🔗 Liens de paiement</h2>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+          Crée des liens personnalisés pour tes clients (acomptes, soldes, séances).
+        </div>
+        <div id="paymentLinksList"><div class="empty">Aucun lien créé</div></div>
+        <button class="btn-primary" style="width:100%;margin-top:12px" onclick="ouvrirCreerLien()">
+          + Créer un lien de paiement
+        </button>
+      </div>
+    </div>
+
   </div>
 </div>
 

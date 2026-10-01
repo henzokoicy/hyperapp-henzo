@@ -9950,6 +9950,47 @@ window.showToast = function(message){
   afficherToast(message, 'success');
 };
 
+// ============================================================
+// ONGLETS INTERNES PHOTO
+// ============================================================
+function switchPhotoTab(tab){
+  // Boutons
+  document.querySelectorAll('.photo-subtab').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-subtab') === tab);
+  });
+
+  // Sous-pages
+  document.querySelectorAll('.photo-subpage').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = 'none';
+  });
+
+  const target = document.getElementById('photo-subpage-' + tab);
+  if(target){
+    target.classList.add('active');
+    target.style.display = 'block';
+  }
+
+  // Sauvegarder l'onglet actif
+  localStorage.setItem('photo_active_subtab', tab);
+
+  // Rafraîchir selon l'onglet
+  if(tab === 'seances' && typeof renderShoots === 'function') renderShoots();
+  if(tab === 'clients' && typeof renderClients === 'function') renderClients();
+  if(tab === 'liens' && typeof renderPaymentLinks === 'function') renderPaymentLinks();
+}
+
+// Restaurer le dernier onglet Photo ouvert
+function restorePhotoSubtab(){
+  const saved = localStorage.getItem('photo_active_subtab') || 'seances';
+  // Vérifier que le DOM est prêt
+  setTimeout(() => {
+    if(document.getElementById('photo-subpage-' + saved)){
+      switchPhotoTab(saved);
+    }
+  }, 100);
+}
+
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
