@@ -1051,16 +1051,20 @@
       <button class="close" onclick="closeCoffreModal()" aria-label="Fermer">×</button>
     </div>
 
-    <label>Type d'objectif</label>
-    <div class="type-toggle" style="margin-bottom:14px">
-      <button type="button" id="btnGoalMoney" class="active" onclick="setGoalType('money')" data-type="money">💰 Argent</button>
-      <button type="button" id="btnGoalQuantity" onclick="setGoalType('quantity')" data-type="quantity">🔢 Quantité</button>
-    </div>
-
-    <label for="coffreName">Nom de l'objectif</label>
-    <input type="text" id="coffreName" placeholder="Ex: Acheter un 2ème appareil photo" oninput="analyzeCoffreNameLive()">
+    <label for="coffreName">Nom</label>
+    <input type="text" id="coffreName" placeholder="Ex: Coffre Loyer, Acheter un appareil, 50 mariages..." oninput="analyzeCoffreNameLive()">
 
     <div id="coffreAnalysis" class="note-analysis"></div>
+
+    <label class="checkbox-label" style="margin-top:14px;padding:12px;background:var(--card2);border-radius:10px;border:1px solid var(--border)">
+      <input type="checkbox" id="coffreHasMoney" onchange="toggleCoffreHasMoney()" checked>
+      <span style="font-weight:600">💰 Cet objectif a un montant à épargner</span>
+    </label>
+    <div style="font-size:11px;color:var(--muted);margin-top:4px;margin-bottom:10px;line-height:1.4">
+      Coche si tu veux mettre de l'argent de côté. Décoche si c'est juste un but (ex : "50 mariages cette année").
+    </div>
+
+    <div id="coffreMoneyFields">
 
     <label for="coffreEmoji">Emoji (optionnel)</label>
     <input type="text" id="coffreEmoji" placeholder="Ex: 📷 (laisse vide pour auto)" maxlength="4" style="text-align:center;font-size:20px">
@@ -1080,9 +1084,9 @@
     <label for="coffreWhy">Pourquoi cet objectif ?</label>
     <textarea id="coffreWhy" rows="2" placeholder="Ex: Pour être libre financièrement..."></textarea>
 
-    <label for="coffreDescription">Description libre (optionnel)</label>
+      <label for="coffreDescription">Description libre (optionnel)</label>
     <textarea id="coffreDescription" rows="2" placeholder="Ex: Pour les mariages haut de gamme, avec objectif 24-70mm"></textarea>
-
+    </div>
     <button class="btn-primary" id="coffreSubmit" onclick="saveCoffre()">Créer</button>
   </div>
 </div>

@@ -1033,7 +1033,13 @@ function openCoffreModal(id){
   document.getElementById('coffreModalTitle').textContent = c ? 'Modifier' : 'Nouvel objectif';
   document.getElementById('coffreSubmit').textContent = c ? 'Enregistrer' : 'Créer';
 
-  setGoalType(c?.goal_type || 'money');
+  // 🆕 Détection : c'est un objectif ou un coffre ?
+  const isCoffre = c && c.type_coffre && c.type_coffre !== 'objectif_pur';
+  
+  // Par défaut, on considère que c'est un objectif
+  const hasMoney = c ? (Number(c.goal) > 0 || (c.goal_type === 'money' && Number(c.goal) > 0)) : false;
+
+  setGoalType(c?.goal_type || (hasMoney ? 'money' : 'quantity'));
 
   document.getElementById('coffreName').value = c?.name || '';
   document.getElementById('coffreGoal').value = c?.goal || '';
@@ -1043,6 +1049,19 @@ function openCoffreModal(id){
   document.getElementById('coffreEmoji').value = c?.emoji || '';
   document.getElementById('coffreUnit').value = c?.unit || 'FCFA';
   document.getElementById('coffreDescription').value = c?.description || '';
+
+  // 🆕 Case à cocher : "Cet objectif a un montant"
+  const hasMoneyCheckbox = document.getElementById('coffreHasMoney');
+  const moneyFieldsWrap = document.getElementById('coffreMoneyFields');
+  
+  if(hasMoneyCheckbox){
+    hasMoneyCheckbox.checked = hasMoney;
+    hasMoneyCheckbox.disabled = false;
+  }
+  
+  if(moneyFieldsWrap){
+    moneyFieldsWrap.style.display = hasMoney ? 'block' : 'none';
+  }
 
   const analysis = document.getElementById('coffreAnalysis');
   if(analysis) {
@@ -1060,33 +1079,65 @@ function closeCoffreModal(){
 
 async function saveCoffre(){
   const name = document.getElementById('coffreName').value.trim();
-  const goal = parseFloat(document.getElementById('coffreGoal').value);
-  const current = parseFloat(document.getElementById('coffreCurrent').value) || 0;
+  if(!name){ alert('Le nom est requis'); return; }
+
+  const hasMoneyCheckbox = document.getElementById('coffreHasMoney');
+  const hasMoney = hasMoneyCheckbox ? hasMoneyCheckbox.checked : true;
+
+  let goal = 0;
+  let current = 0;
+  let unit = '';
+  let goal_type = 'objectif_pur';
+
+  if(hasMoney){
+    goal = parseFloat(document.getElementById('coffreGoal').value);
+    current = parseFloat(document.getElementById('coffreCurrent').value) || 0;
+    unit = document.getElementById('coffreUnit').value.trim() || 'FCFA';
+    
+    if(!goal || goal <= 0){ alert('Indique un montant à atteindre'); return; }
+
+    const btnQty = document.getElementById('btnGoalQuantity');
+    goal_type = (btnQty && btnQty.classList.contains('active')) ? 'quantity' : 'money';
+  } else {
+    // Objectif sans argent : on met un placeholder
+    goal = 1;
+    current = 0;
+    unit = 'unité';
+    goal_type = 'objectif_pur';
+  }
+
   const target_date = document.getElementById('coffreDate').value || null;
   const why = document.getElementById('coffreWhy').value.trim();
   const emoji = document.getElementById('coffreEmoji').value.trim();
-  const unit = document.getElementById('coffreUnit').value.trim() || 'FCFA';
   const description = document.getElementById('coffreDescription').value.trim();
 
-  const btnQty = document.getElementById('btnGoalQuantity');
-  const goal_type = (btnQty && btnQty.classList.contains('active')) ? 'quantity' : 'money';
-
-  if(!name){ alert('Le nom de l\'objectif est requis'); return; }
-  if(!goal || goal <= 0){ alert('Indique une valeur à atteindre'); return; }
-
-  const data = { name, goal, current, target_date, why: why || null, goal_type, unit, emoji: emoji || null, description: description || null };
+  // Détection type automatique (pour les coffres)
+  const analyseType = analyserCoffre(name);
+  
+  const data = { 
+    name, 
+    goal, 
+    current, 
+    target_date, 
+    why: why || null, 
+    goal_type, 
+    unit, 
+    emoji: emoji || null, 
+    description: description || null,
+    type_coffre: hasMoney ? analyseType.typeId : 'objectif_pur'
+  };
 
   if(editingCoffreId){
     const result = await dbUpdate('goals', editingCoffreId, data);
     if(!result) return;
     const idx = coffres.findIndex(c => c.id === editingCoffreId);
     coffres[idx] = result;
-    showToast('Objectif modifié');
+    showToast(hasMoney ? 'Coffre modifié' : 'Objectif modifié');
   } else {
     const result = await dbInsert('goals', data);
     if(!result) return;
     coffres.unshift(result);
-    showToast('Objectif créé');
+    showToast(hasMoney ? 'Coffre créé' : 'Objectif créé');
   }
 
   closeCoffreModal();
@@ -9641,6 +9692,24 @@ function fallbackCopierWave(texte){
   document.body.removeChild(ta);
   showToast('✅ Montant copié !');
 }
+// ============================================================
+// TOGGLE : "Cet objectif a un montant"
+// ============================================================
+function toggleCoffreHasMoney(){
+  const checkbox = document.getElementById('coffreHasMoney');
+  const moneyFields = document.getElementById('coffreMoneyFields');
+  if(!checkbox || !moneyFields) return;
+
+  if(checkbox.checked){
+    moneyFields.style.display = 'block';
+    setGoalType('money');
+  } else {
+    moneyFields.style.display = 'none';
+    // Quantité cachée aussi, on met un objectif sans nombre
+    setGoalType('quantity');
+  }
+}
+
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
