@@ -1392,6 +1392,25 @@ function renderClients(){
         </div>`
       : '';
 
+      // Calcul des infos date/heure
+    const dateAjout = c.created_at 
+      ? new Date(c.created_at).toLocaleString('fr-FR', {day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'})
+      : 'Date inconnue';
+    
+    // Séances de ce client
+    const clientShoots = shoots.filter(s => s.client_id === c.id);
+    const nombreSeances = clientShoots.length;
+    const totalEncaisse = clientShoots.reduce((sum, s) => sum + Number(s.montant_recu || 0), 0);
+    
+    // Dernière séance
+    let derniereSeance = 'Aucune séance';
+    if(clientShoots.length > 0){
+      const sorted = [...clientShoots].sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+      if(sorted[0]?.date){
+        derniereSeance = new Date(sorted[0].date).toLocaleString('fr-FR', {day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'});
+      }
+    }
+
     return `<div class="item-card">
       <div class="head"><div class="name">👤 ${c.name}</div></div>
       ${c.phone ? `<div class="amt"><span>📞 ${c.phone}</span></div>` : ''}
@@ -1399,6 +1418,28 @@ function renderClients(){
       ${c.city ? `<div class="amt"><span>📍 ${c.city}</span></div>` : ''}
       ${c.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">${c.notes}</div>` : ''}
       ${catHtml}
+      
+      <div style="background:var(--card);border-radius:10px;padding:10px 12px;margin-top:10px;border:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px">
+          <span style="color:var(--muted)">📅 Ajouté le</span>
+          <span style="font-weight:600;text-align:right;font-size:11px">${dateAjout}</span>
+        </div>
+        ${nombreSeances > 0 ? `
+          <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px">
+            <span style="color:var(--muted)">📸 Séances</span>
+            <span style="font-weight:600">${nombreSeances}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px">
+            <span style="color:var(--muted)">💰 Encaissé</span>
+            <span style="font-weight:600;color:var(--green)">${fmt(totalEncaisse)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px">
+            <span style="color:var(--muted)">📅 Dernière</span>
+            <span style="font-weight:600;text-align:right;font-size:11px">${derniereSeance}</span>
+          </div>
+        ` : ''}
+      </div>
+      
       <div class="actions" style="display:flex;gap:6px;margin-top:8px">
         <button class="btn-ghost" style="margin:0;padding:6px" onclick="openClientModal(${c.id})">Modifier</button>
         <button class="btn-ghost" style="margin:0;padding:6px" onclick="delClient(${c.id})">×</button>
