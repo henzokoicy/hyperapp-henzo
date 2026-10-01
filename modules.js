@@ -1189,11 +1189,44 @@ function renderCoffres(){
   renderGoalReminders();
   renderGoalSuggestions();
 
+  // 🆕 Séparer les objectifs purs et les coffres
+  const objectifsPurs = coffres.filter(c => c.goal_type === 'objectif_pur' || !c.goal || Number(c.goal) <= 1);
+  const coffresReels = coffres.filter(c => !(c.goal_type === 'objectif_pur' || !c.goal || Number(c.goal) <= 1));
+
+  // Rendu des objectifs purs
+  const elObj = document.getElementById('objectifsPursList');
+  if(elObj){
+    if(objectifsPurs.length === 0){
+      elObj.innerHTML = '<div class="empty">Aucun objectif. Crées-en un.</div>';
+    } else {
+      elObj.innerHTML = objectifsPurs.map(c => {
+        const dateStr = c.target_date ? new Date(c.target_date).toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'}) : '';
+        const emoji = c.emoji || '🎯';
+        return `<div class="coffre" style="border-left:3px solid var(--accent)">
+          <div class="coffre-header">
+            <div class="coffre-name">
+              <span class="coffre-emoji">${emoji}</span>${c.name}
+            </div>
+            <span class="coffre-badge">🎯 OBJECTIF</span>
+          </div>
+          ${c.description ? `<div class="coffre-why" style="border-left-color:var(--accent)">📝 ${c.description}</div>` : ''}
+          ${c.why ? `<div class="coffre-why">"${c.why}"</div>` : ''}
+          ${dateStr ? `<div class="coffre-next"><span>📅 Objectif : ${dateStr}</span></div>` : ''}
+          <div class="coffre-actions">
+            <button class="btn-ghost" style="margin:0;padding:8px" onclick="openCoffreModal(${c.id})" title="Modifier">✏️ Modifier</button>
+            <button class="btn-ghost" style="margin:0;padding:8px;border-color:var(--red);color:var(--red)" onclick="delCoffre(${c.id})" title="Supprimer">🗑</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  // Rendu des coffres réels
   const el = document.getElementById('coffresList');
   if(!el) return;
-  if(coffres.length === 0){ el.innerHTML = '<div class="empty">Aucun objectif. Crées-en un.</div>'; return; }
+  if(coffresReels.length === 0){ el.innerHTML = '<div class="empty">Aucun coffre. Crées-en un.</div>'; return; }
 
-  el.innerHTML = coffres.map(c => {
+  el.innerHTML = coffresReels.map(c => {
     const current = Number(c.current || 0);
     const goal = Number(c.goal || 1);
     const pct = Math.min(100, (current / goal) * 100);
