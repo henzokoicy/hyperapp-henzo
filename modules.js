@@ -1026,21 +1026,56 @@ function renderAnalysePercutante(){
   el.innerHTML = items.map(i => `<div class="analyse-item ${i.cls}"><strong>${i.title}</strong>${i.text}</div>`).join('');
 }
 
-function openCoffreModal(id){
+function openCoffreModal(id, mode){
   editingCoffreId = id || null;
   const c = id ? coffres.find(x => x.id === id) : null;
 
-  document.getElementById('coffreModalTitle').textContent = c ? 'Modifier' : 'Nouvel objectif';
-  document.getElementById('coffreSubmit').textContent = c ? 'Enregistrer' : 'Créer';
-
-  // 🆕 Détection : c'est un objectif ou un coffre ?
-  const isCoffre = c && c.type_coffre && c.type_coffre !== 'objectif_pur';
+  // 🆕 Déterminer le mode : 'objectif' ou 'coffre'
+  let currentMode = mode || 'objectif';
   
-  // Par défaut, on considère que c'est un objectif
-  const hasMoney = c ? (Number(c.goal) > 0 || (c.goal_type === 'money' && Number(c.goal) > 0)) : false;
+  // Si on édite, on déduit le mode depuis les données
+  if(c && !mode){
+    const isObjectifPur = c.goal_type === 'objectif_pur' || !c.goal || Number(c.goal) <= 1;
+    currentMode = isObjectifPur ? 'objectif' : 'coffre';
+  }
 
-  setGoalType(c?.goal_type || (hasMoney ? 'money' : 'quantity'));
+  const isCoffreMode = currentMode === 'coffre';
 
+  // Titre et bouton
+  document.getElementById('coffreModalTitle').textContent = 
+    c ? (isCoffreMode ? 'Modifier le coffre' : 'Modifier l\'objectif')
+      : (isCoffreMode ? 'Nouveau coffre' : 'Nouvel objectif');
+  
+  document.getElementById('coffreSubmit').textContent = c ? 'Enregistrer' : (isCoffreMode ? 'Créer le coffre' : 'Créer l\'objectif');
+
+  // Adapter les textes selon le mode
+  const nameInput = document.getElementById('coffreName');
+  if(nameInput){
+    nameInput.placeholder = isCoffreMode 
+      ? 'Ex: Coffre Loyer, Coffre Voiture, Coffre Réserve...'
+      : 'Ex: 50 mariages cette année, 100 clients, Apprendre le drone...';
+  }
+
+  // La case à cocher "a un montant" — pré-cochée si mode coffre
+  const hasMoneyCheckbox = document.getElementById('coffreHasMoney');
+  const moneyFieldsWrap = document.getElementById('coffreMoneyFields');
+  
+  let hasMoney;
+  if(c){
+    hasMoney = !(c.goal_type === 'objectif_pur' || !c.goal || Number(c.goal) <= 1);
+  } else {
+    hasMoney = isCoffreMode; // Par défaut : coffre = avec argent, objectif = sans argent
+  }
+
+  if(hasMoneyCheckbox){
+    hasMoneyCheckbox.checked = hasMoney;
+  }
+  if(moneyFieldsWrap){
+    moneyFieldsWrap.style.display = hasMoney ? 'block' : 'none';
+  }
+
+  // Remplir les champs
+  setGoalType(c?.goal_type === 'quantity' ? 'quantity' : 'money');
   document.getElementById('coffreName').value = c?.name || '';
   document.getElementById('coffreGoal').value = c?.goal || '';
   document.getElementById('coffreCurrent').value = c?.current || '';
@@ -1050,19 +1085,6 @@ function openCoffreModal(id){
   document.getElementById('coffreUnit').value = c?.unit || 'FCFA';
   document.getElementById('coffreDescription').value = c?.description || '';
 
-  // 🆕 Case à cocher : "Cet objectif a un montant"
-  const hasMoneyCheckbox = document.getElementById('coffreHasMoney');
-  const moneyFieldsWrap = document.getElementById('coffreMoneyFields');
-  
-  if(hasMoneyCheckbox){
-    hasMoneyCheckbox.checked = hasMoney;
-    hasMoneyCheckbox.disabled = false;
-  }
-  
-  if(moneyFieldsWrap){
-    moneyFieldsWrap.style.display = hasMoney ? 'block' : 'none';
-  }
-
   const analysis = document.getElementById('coffreAnalysis');
   if(analysis) {
     analysis.classList.remove('show');
@@ -1071,7 +1093,6 @@ function openCoffreModal(id){
 
   document.getElementById('coffreModalBg').classList.add('show');
 }
-
 function closeCoffreModal(){
   document.getElementById('coffreModalBg').classList.remove('show');
   editingCoffreId = null;
@@ -9731,15 +9752,26 @@ function fallbackCopierWave(texte){
 function toggleCoffreHasMoney(){
   const checkbox = document.getElementById('coffreHasMoney');
   const moneyFields = document.getElementById('coffreMoneyFields');
+  const titleEl = document.getElementById('coffreModalTitle');
+  const submitEl = document.getElementById('coffreSubmit');
+  const nameInput = document.getElementById('coffreName');
+  
   if(!checkbox || !moneyFields) return;
 
   if(checkbox.checked){
     moneyFields.style.display = 'block';
     setGoalType('money');
+    // Adapter les textes
+    if(titleEl && !editingCoffreId) titleEl.textContent = 'Nouveau coffre';
+    if(submitEl && !editingCoffreId) submitEl.textContent = 'Créer le coffre';
+    if(nameInput) nameInput.placeholder = 'Ex: Coffre Loyer, Coffre Voiture, Coffre Réserve...';
   } else {
     moneyFields.style.display = 'none';
-    // Quantité cachée aussi, on met un objectif sans nombre
     setGoalType('quantity');
+    // Adapter les textes
+    if(titleEl && !editingCoffreId) titleEl.textContent = 'Nouvel objectif';
+    if(submitEl && !editingCoffreId) submitEl.textContent = 'Créer l\'objectif';
+    if(nameInput) nameInput.placeholder = 'Ex: 50 mariages cette année, 100 clients...';
   }
 }
 
