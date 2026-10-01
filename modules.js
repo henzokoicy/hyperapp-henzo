@@ -9964,28 +9964,13 @@ const PHOTO_TABS = [
 ];
 
 function switchPhotoTab(tab){
-  // Trouver l'index de l'onglet
-  const idx = PHOTO_TABS.findIndex(t => t.id === tab);
-  if(idx === -1) return;
-
-  const currentTab = PHOTO_TABS[idx];
-
-  // Mettre à jour l'affichage central
-  const iconEl = document.getElementById('photoTabIcon');
-  const labelEl = document.getElementById('photoTabLabel');
-  const counterEl = document.getElementById('photoTabCounter');
-  
-  if(iconEl) iconEl.textContent = currentTab.icon;
-  if(labelEl) labelEl.textContent = currentTab.label;
-  if(counterEl) counterEl.textContent = (idx + 1) + ' / ' + PHOTO_TABS.length;
-
-  // Animation
-  const displayEl = document.getElementById('photoTabDisplay');
-  if(displayEl){
-    displayEl.classList.remove('animating');
-    void displayEl.offsetWidth;
-    displayEl.classList.add('animating');
-  }
+  // 🆕 Déplacer le bleu sur le bon onglet
+  document.querySelectorAll('.photo-subtab').forEach(b => {
+    b.classList.remove('active');
+    if(b.getAttribute('data-subtab') === tab){
+      b.classList.add('active');
+    }
+  });
 
   // Masquer toutes les sous-pages
   document.querySelectorAll('.photo-subpage').forEach(p => {
@@ -9998,10 +9983,10 @@ function switchPhotoTab(tab){
     target.style.display = 'block';
   }
 
-  // Sauvegarder l'onglet actif
+  // Sauvegarder
   localStorage.setItem('photo_active_subtab', tab);
 
-  // Rafraîchir le contenu
+  // Rafraîchir
   if(tab === 'seances' && typeof renderShoots === 'function') renderShoots();
   if(tab === 'clients' && typeof renderClients === 'function') renderClients();
   if(tab === 'liens' && typeof renderPaymentLinks === 'function') renderPaymentLinks();
