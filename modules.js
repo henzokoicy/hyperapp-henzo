@@ -9953,30 +9953,153 @@ window.showToast = function(message){
 // ============================================================
 // ONGLETS INTERNES PHOTO
 // ============================================================
-function switchPhotoTab(tab){
-  // Boutons
-  document.querySelectorAll('.photo-subtab').forEach(b => {
-    b.classList.toggle('active', b.getAttribute('data-subtab') === tab);
-  });
+// ============================================================
+// ONGLETS INTERNES PHOTO (Version flèches)
+// ============================================================
+const PHOTO_TABS = [
+  { id: 'seances', icon: '📸', label: 'Séances' },
+  { id: 'clients', icon: '👥', label: 'Clients' },
+  { id: 'liens',   icon: '🔗', label: 'Liens' }
+];
+// ============================================================
+// ONGLETS INTERNES PHOTO (Version flèches)
+// ============================================================
+const PHOTO_TABS = [
+  { id: 'seances', icon: '📸', label: 'Séances' },
+  { id: 'clients', icon: '👥', label: 'Clients' },
+  { id: 'liens',   icon: '🔗', label: 'Liens' }
+];
 
-  // Sous-pages
+function switchPhotoTab(tab){
+  // Trouver l'index de l'onglet
+  const idx = PHOTO_TABS.findIndex(t => t.id === tab);
+  if(idx === -1) return;
+
+  const currentTab = PHOTO_TABS[idx];
+
+  // Mettre à jour l'affichage central
+  const iconEl = document.getElementById('photoTabIcon');
+  const labelEl = document.getElementById('photoTabLabel');
+  const counterEl = document.getElementById('photoTabCounter');
+  
+  if(iconEl) iconEl.textContent = currentTab.icon;
+  if(labelEl) labelEl.textContent = currentTab.label;
+  if(counterEl) counterEl.textContent = (idx + 1) + ' / ' + PHOTO_TABS.length;
+
+  // Animation
+  const displayEl = document.getElementById('photoTabDisplay');
+  if(displayEl){
+    displayEl.classList.remove('animating');
+    void displayEl.offsetWidth;
+    displayEl.classList.add('animating');
+  }
+
+  // Masquer toutes les sous-pages
   document.querySelectorAll('.photo-subpage').forEach(p => {
     p.style.display = 'none';
   });
 
+  // Afficher la sous-page active
   const target = document.getElementById('photo-subpage-' + tab);
   if(target){
     target.style.display = 'block';
   }
 
-  // Sauvegarder
+  // Sauvegarder l'onglet actif
   localStorage.setItem('photo_active_subtab', tab);
 
-  // Rafraîchir
+  // Rafraîchir le contenu
   if(tab === 'seances' && typeof renderShoots === 'function') renderShoots();
   if(tab === 'clients' && typeof renderClients === 'function') renderClients();
   if(tab === 'liens' && typeof renderPaymentLinks === 'function') renderPaymentLinks();
 }
+
+function photoTabNext(){
+  const current = localStorage.getItem('photo_active_subtab') || 'seances';
+  const idx = PHOTO_TABS.findIndex(t => t.id === current);
+  const nextIdx = (idx + 1) % PHOTO_TABS.length;
+  switchPhotoTab(PHOTO_TABS[nextIdx].id);
+}
+
+function photoTabPrev(){
+  const current = localStorage.getItem('photo_active_subtab') || 'seances';
+  const idx = PHOTO_TABS.findIndex(t => t.id === current);
+  const prevIdx = (idx - 1 + PHOTO_TABS.length) % PHOTO_TABS.length;
+  switchPhotoTab(PHOTO_TABS[prevIdx].id);
+}
+
+// Swipe tactile
+document.addEventListener('DOMContentLoaded', () => {
+  const container = document.getElementById('page-photo');
+  if(!container) return;
+
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  container.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+  }, { passive: true });
+
+  container.addEventListener('touchend', (e) => {
+    const touchEndX = e.changedTouches[0].screenX;
+    const touchEndY = e.changedTouches[0].screenY;
+    const dx = touchEndX - touchStartX;
+    const dy = touchEndY - touchStartY;
+
+    if(Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 60){
+      if(dx > 0){
+        photoTabPrev();
+      } else {
+        photoTabNext();
+      }
+    }
+  }, { passive: true });
+});
+
+function photoTabNext(){
+  const current = localStorage.getItem('photo_active_subtab') || 'seances';
+  const idx = PHOTO_TABS.findIndex(t => t.id === current);
+  const nextIdx = (idx + 1) % PHOTO_TABS.length;
+  switchPhotoTab(PHOTO_TABS[nextIdx].id);
+}
+
+function photoTabPrev(){
+  const current = localStorage.getItem('photo_active_subtab') || 'seances';
+  const idx = PHOTO_TABS.findIndex(t => t.id === current);
+  const prevIdx = (idx - 1 + PHOTO_TABS.length) % PHOTO_TABS.length;
+  switchPhotoTab(PHOTO_TABS[prevIdx].id);
+}
+
+// Swipe tactile (bonus)
+document.addEventListener('DOMContentLoaded', () => {
+  const container = document.getElementById('page-photo');
+  if(!container) return;
+
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  container.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+  }, { passive: true });
+
+  container.addEventListener('touchend', (e) => {
+    const touchEndX = e.changedTouches[0].screenX;
+    const touchEndY = e.changedTouches[0].screenY;
+    const dx = touchEndX - touchStartX;
+    const dy = touchEndY - touchStartY;
+
+    // Seulement si geste horizontal (plus horizontal que vertical)
+    if(Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 60){
+      if(dx > 0){
+        photoTabPrev();
+      } else {
+        photoTabNext();
+      }
+    }
+  }, { passive: true });
+});
 // Restaurer le dernier onglet Photo ouvert
 function restorePhotoSubtab(){
   const saved = localStorage.getItem('photo_active_subtab') || 'seances';
