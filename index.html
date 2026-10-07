@@ -1269,11 +1269,31 @@
     <label for="coffreDate">Date cible (optionnel)</label>
     <input type="date" id="coffreDate">
 
-    <label for="coffreWhy">Pourquoi cet objectif ?</label>
-    <textarea id="coffreWhy" rows="2" placeholder="Ex: Pour être libre financièrement..."></textarea>
+        <!-- ═══════════ QUESTIONS POUR COMPRENDRE LE COFFRE ═══════════ -->
+    <div style="background:var(--card2);border-radius:14px;padding:14px;margin-top:14px;border:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">📝 Quelques questions pour bien comprendre ce coffre</div>
 
-      <label for="coffreDescription">Description libre (optionnel)</label>
-    <textarea id="coffreDescription" rows="2" placeholder="Ex: Pour les mariages haut de gamme, avec objectif 24-70mm"></textarea>
+      <label for="coffreWhy" style="margin-top:0">1. Pourquoi ce coffre ? <span style="color:var(--red)">*</span></label>
+      <textarea id="coffreWhy" rows="2" placeholder="Ex: Ma moto est vieille, elle peut tomber en panne" required></textarea>
+
+      <label for="coffrePurpose">2. C'est pour quoi exactement ? <span style="color:var(--red)">*</span></label>
+      <textarea id="coffrePurpose" rows="2" placeholder="Ex: Éviter de me retrouver bloqué en cas de panne" required></textarea>
+
+      <label>3. C'est urgent ?</label>
+      <div class="type-toggle" style="margin-bottom:8px">
+        <button type="button" id="coffreUrgencyUrgent" onclick="setCoffreUrgency('urgent')" data-urgency="urgent">🔴 Urgent</button>
+        <button type="button" id="coffreUrgencyMoyen" onclick="setCoffreUrgency('moyen')" data-urgency="moyen" class="active">🟡 Moyen</button>
+        <button type="button" id="coffreUrgencyLong" onclick="setCoffreUrgency('long')" data-urgency="long">🟢 Long terme</button>
+      </div>
+
+      <button type="button" class="btn-ghost" style="margin-top:10px;width:100%;background:linear-gradient(135deg,rgba(107,142,255,.15),rgba(255,126,179,.08));color:var(--accent);border-color:var(--accent);font-weight:700;font-size:13px" onclick="genererDescriptionDepuisReponses()">
+        🤖 Générer la description automatiquement
+      </button>
+    </div>
+
+    <!-- DESCRIPTION -->
+    <label for="coffreDescription" style="margin-top:14px">Description du coffre (modifiable)</label>
+    <textarea id="coffreDescription" rows="4" placeholder="L'IA va remplir ce champ automatiquement, ou tu peux écrire toi-même"></textarea>
     </div>
     <button class="btn-primary" id="coffreSubmit" onclick="saveCoffre()">Créer</button>
   </div>

@@ -1084,6 +1084,24 @@ function openCoffreModal(id, mode){
   document.getElementById('coffreEmoji').value = c?.emoji || '';
   document.getElementById('coffreUnit').value = c?.unit || 'FCFA';
   document.getElementById('coffreDescription').value = c?.description || '';
+    // Réinitialiser les nouveaux champs
+  const purposeEl = document.getElementById('coffrePurpose');
+  const urgencyEls = document.querySelectorAll('#coffreUrgencyUrgent, #coffreUrgencyMoyen, #coffreUrgencyLong');
+  
+  if(purposeEl) purposeEl.value = c?.purpose || '';
+  
+  // Urgence par défaut = moyen
+  urgencyEls.forEach(b => b.classList.remove('active'));
+  const urgencyDefault = document.getElementById('coffreUrgencyMoyen');
+  if(urgencyDefault) urgencyDefault.classList.add('active');
+  
+  // Restaurer urgence si existante
+  if(c && c.urgency){
+    urgencyEls.forEach(b => {
+      if(b.getAttribute('data-urgency') === c.urgency) b.classList.add('active');
+      else b.classList.remove('active');
+    });
+  }
 
   const analysis = document.getElementById('coffreAnalysis');
   if(analysis) {
@@ -1100,10 +1118,27 @@ function closeCoffreModal(){
 
 async function saveCoffre(){
   const name = document.getElementById('coffreName').value.trim();
-  if(!name){ alert('Le nom est requis'); return; }
+  if(!name){ afficherToast('Le nom est requis', 'error'); return; }
 
   const hasMoneyCheckbox = document.getElementById('coffreHasMoney');
   const hasMoney = hasMoneyCheckbox ? hasMoneyCheckbox.checked : true;
+
+  // Récupérer les nouvelles réponses
+  const why = (document.getElementById('coffreWhy')?.value || '').trim();
+  const purpose = (document.getElementById('coffrePurpose')?.value || '').trim();
+  const urgency = getCoffreUrgency();
+
+  // Vérifier les questions OBLIGATOIRES
+  if(!why || why.length < 5){
+    afficherToast('Réponds à la question 1 (Pourquoi ce coffre ?)', 'error');
+    document.getElementById('coffreWhy')?.focus();
+    return;
+  }
+  if(!purpose || purpose.length < 5){
+    afficherToast('Réponds à la question 2 (Pour quoi exactement ?)', 'error');
+    document.getElementById('coffrePurpose')?.focus();
+    return;
+  }
 
   let goal = 0;
   let current = 0;
@@ -1115,12 +1150,11 @@ async function saveCoffre(){
     current = parseFloat(document.getElementById('coffreCurrent').value) || 0;
     unit = document.getElementById('coffreUnit').value.trim() || 'FCFA';
     
-    if(!goal || goal <= 0){ alert('Indique un montant à atteindre'); return; }
+    if(!goal || goal <= 0){ afficherToast('Indique un montant à atteindre', 'error'); return; }
 
     const btnQty = document.getElementById('btnGoalQuantity');
     goal_type = (btnQty && btnQty.classList.contains('active')) ? 'quantity' : 'money';
   } else {
-    // Objectif sans argent : on met un placeholder
     goal = 1;
     current = 0;
     unit = 'unité';
@@ -1128,11 +1162,9 @@ async function saveCoffre(){
   }
 
   const target_date = document.getElementById('coffreDate').value || null;
-  const why = document.getElementById('coffreWhy').value.trim();
   const emoji = document.getElementById('coffreEmoji').value.trim();
   const description = document.getElementById('coffreDescription').value.trim();
 
-  // Détection type automatique (pour les coffres)
   const analyseType = analyserCoffre(name);
   
   const data = { 
@@ -1140,7 +1172,9 @@ async function saveCoffre(){
     goal, 
     current, 
     target_date, 
-    why: why || null, 
+    why,
+    purpose,
+    urgency,
     goal_type, 
     unit, 
     emoji: emoji || null, 
@@ -1153,12 +1187,12 @@ async function saveCoffre(){
     if(!result) return;
     const idx = coffres.findIndex(c => c.id === editingCoffreId);
     coffres[idx] = result;
-    showToast(hasMoney ? 'Coffre modifié' : 'Objectif modifié');
+    afficherToast(hasMoney ? 'Coffre modifié' : 'Objectif modifié', 'success');
   } else {
     const result = await dbInsert('goals', data);
     if(!result) return;
     coffres.unshift(result);
-    showToast(hasMoney ? 'Coffre créé' : 'Objectif créé');
+    afficherToast(hasMoney ? 'Coffre créé' : 'Objectif créé', 'success');
   }
 
   closeCoffreModal();
@@ -10443,6 +10477,136 @@ async function regenererDescription(coffreId){
 
   if(!ok) return;
   await genererDescriptionCoffre(coffreId);
+}
+
+// ============================================================
+// URGENCE DU COFFRE (Question 3)
+// ============================================================
+function setCoffreUrgency(urgency){
+  document.querySelectorAll('#coffreUrgencyUrgent, #coffreUrgencyMoyen, #coffreUrgencyLong').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-urgency') === urgency);
+  });
+}
+
+function getCoffreUrgency(){
+  const active = document.querySelector('#coffreUrgencyUrgent.active, #coffreUrgencyMoyen.active, #coffreUrgencyLong.active');
+  return active ? active.getAttribute('data-urgency') : 'moyen';
+}
+
+// ============================================================
+// GÉNÉRER LA DESCRIPTION À PARTIR DES RÉPONSES
+// ============================================================
+async function genererDescriptionDepuisReponses(){
+  const nameEl = document.getElementById('coffreName');
+  const whyEl = document.getElementById('coffreWhy');
+  const purposeEl = document.getElementById('coffrePurpose');
+  const goalEl = document.getElementById('coffreGoal');
+  const descriptionEl = document.getElementById('coffreDescription');
+
+  if(!nameEl || !whyEl || !purposeEl) return;
+
+  const name = nameEl.value.trim();
+  const why = whyEl.value.trim();
+  const purpose = purposeEl.value.trim();
+  const goal = parseFloat(goalEl?.value) || 0;
+  const urgency = getCoffreUrgency();
+
+  // Vérifications
+  if(!name){
+    afficherToast('Remplis d\'abord le nom du coffre', 'error');
+    nameEl.focus();
+    return;
+  }
+  if(!why){
+    afficherToast('Réponds à la question 1 (Pourquoi ?)', 'error');
+    whyEl.focus();
+    return;
+  }
+  if(!purpose){
+    afficherToast('Réponds à la question 2 (Pour quoi ?)', 'error');
+    purposeEl.focus();
+    return;
+  }
+
+  // Labels des urgences
+  const urgencyLabels = {
+    urgent: 'Urgent',
+    moyen: 'Moyen terme',
+    long: 'Long terme'
+  };
+
+  const type = getCoffreType(detecterTypeCoffre(name));
+  const goalStr = goal > 0 ? fmt(goal) : '';
+
+  // Essayer avec l'IA si configurée
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
+
+  if(cfg && cfg.key){
+    // Afficher le chargement
+    if(descriptionEl){
+      descriptionEl.value = '🤖 L\'IA rédige la description...';
+      descriptionEl.disabled = true;
+    }
+
+    const prompt = `Tu es un assistant qui aide un photographe ivoirien à décrire ses coffres d'épargne.
+
+Voici les informations du coffre :
+- Nom : "${name}"
+- Type : ${type.label}
+- Pourquoi ce coffre : "${why}"
+- Pour quoi exactement : "${purpose}"
+- Urgence : ${urgencyLabels[urgency]}
+${goalStr ? `- Objectif à atteindre : ${goalStr}` : ''}
+
+Génère une description COURTE (3 à 4 phrases max, 300 caractères max) qui :
+1. Explique CLAIREMENT à quoi sert ce coffre
+2. Rappelle POURQUOI tu l'as créé (avec tes mots)
+3. Explique l'importance (selon l'urgence)
+
+Réponds en français, ton direct, personnel, encourageant.
+Pas d'astérisques, pas de guillemets, pas d'emojis.
+Juste la description.`;
+
+    try {
+      const text = await callAI(prompt);
+      if(text && text.trim()){
+        const cleanText = text.trim().replace(/^["']|["']$/g, '');
+        if(descriptionEl){
+          descriptionEl.value = cleanText;
+          descriptionEl.disabled = false;
+        }
+        afficherToast('✅ Description générée par l\'IA', 'success');
+        return;
+      }
+    } catch(e){
+      console.warn('Erreur IA:', e);
+    }
+    
+    // Si l'IA échoue, on passe au fallback
+    if(descriptionEl) descriptionEl.disabled = false;
+  }
+
+  // Fallback : description simple sans IA
+  let description = '';
+  if(type.id === 'reserve'){
+    description = `Ce coffre sert de réserve d'urgence. ${why}. ${purpose}. Priorité : ${urgencyLabels[urgency].toLowerCase()}.`;
+  } else if(type.id === 'entreprise'){
+    description = `Ce coffre finance les charges de ton activité. ${why}. ${purpose}.`;
+  } else if(type.id === 'objectif'){
+    description = `Ce coffre te permet d'atteindre ton objectif : ${why}. ${purpose}.`;
+  } else {
+    description = `${why}. ${purpose}.`;
+  }
+
+  if(goalStr){
+    description += ` Objectif : ${goalStr}.`;
+  }
+
+  if(descriptionEl){
+    descriptionEl.value = description;
+  }
+  afficherToast('✅ Description générée', 'success');
 }
 (async function bootstrap(){
   const user = await getCurrentUser();
