@@ -10607,7 +10607,82 @@ Juste la description.`;
     descriptionEl.value = description;
   }
   afficherToast('✅ Description générée', 'success');
+}µ
+// ============================================================
+// SOUS-ÉTAPE 2a : Création automatique des 3 coffres Studio
+// ============================================================
+async function assurerCoffresStudio(){
+  const noms = {
+    salaire: 'Salaire photographe',
+    studio: 'Revenu Studio',
+    epargne: 'Épargne Studio'
+  };
+
+  let created = 0;
+
+  // 1. Salaire photographe
+  let salaire = coffres.find(c => c.name === noms.salaire);
+  if(!salaire){
+    salaire = await dbInsert('goals', {
+      name: noms.salaire,
+      goal: 999999999,
+      current: 0,
+      goal_type: 'money',
+      unit: 'FCFA',
+      emoji: '💰',
+      type_coffre: 'perso',
+      description: 'Ton salaire de photographe',
+      why: 'Avoir un vrai salaire',
+      purpose: 'Séparer mon salaire du studio',
+      urgency: 'moyen'
+    });
+    if(salaire){ coffres.unshift(salaire); created++; }
+  }
+
+  // 2. Revenu Studio
+  let studio = coffres.find(c => c.name === noms.studio);
+  if(!studio){
+    studio = await dbInsert('goals', {
+      name: noms.studio,
+      goal: 999999999,
+      current: 0,
+      goal_type: 'money',
+      unit: 'FCFA',
+      emoji: '💼',
+      type_coffre: 'entreprise',
+      description: 'Le revenu du studio',
+      why: 'Financer les charges du studio',
+      purpose: 'Payer le fonctionnement du studio',
+      urgency: 'urgent'
+    });
+    if(studio){ coffres.unshift(studio); created++; }
+  }
+
+  // 3. Épargne Studio
+  let epargne = coffres.find(c => c.name === noms.epargne);
+  if(!epargne){
+    epargne = await dbInsert('goals', {
+      name: noms.epargne,
+      goal: 999999999,
+      current: 0,
+      goal_type: 'money',
+      unit: 'FCFA',
+      emoji: '🛡️',
+      type_coffre: 'reserve',
+      description: 'L\'épargne du studio',
+      why: 'Faire grandir le studio',
+      purpose: 'Investir dans le futur',
+      urgency: 'moyen'
+    });
+    if(epargne){ coffres.unshift(epargne); created++; }
+  }
+
+  console.log('✅ Coffres Studio :', { salaire: salaire?.id, studio: studio?.id, epargne: epargne?.id, created });
+
+  if(created > 0) refreshAll();
+  return { salaire, studio, epargne };
 }
+
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
