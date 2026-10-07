@@ -1118,27 +1118,10 @@ function closeCoffreModal(){
 
 async function saveCoffre(){
   const name = document.getElementById('coffreName').value.trim();
-  if(!name){ afficherToast('Le nom est requis', 'error'); return; }
+  if(!name){ alert('Le nom est requis'); return; }
 
   const hasMoneyCheckbox = document.getElementById('coffreHasMoney');
   const hasMoney = hasMoneyCheckbox ? hasMoneyCheckbox.checked : true;
-
-  // Récupérer les nouvelles réponses
-  const why = (document.getElementById('coffreWhy')?.value || '').trim();
-  const purpose = (document.getElementById('coffrePurpose')?.value || '').trim();
-  const urgency = getCoffreUrgency();
-
-  // Vérifier les questions OBLIGATOIRES
-  if(!why || why.length < 5){
-    afficherToast('Réponds à la question 1 (Pourquoi ce coffre ?)', 'error');
-    document.getElementById('coffreWhy')?.focus();
-    return;
-  }
-  if(!purpose || purpose.length < 5){
-    afficherToast('Réponds à la question 2 (Pour quoi exactement ?)', 'error');
-    document.getElementById('coffrePurpose')?.focus();
-    return;
-  }
 
   let goal = 0;
   let current = 0;
@@ -1150,11 +1133,12 @@ async function saveCoffre(){
     current = parseFloat(document.getElementById('coffreCurrent').value) || 0;
     unit = document.getElementById('coffreUnit').value.trim() || 'FCFA';
     
-    if(!goal || goal <= 0){ afficherToast('Indique un montant à atteindre', 'error'); return; }
+    if(!goal || goal <= 0){ alert('Indique un montant à atteindre'); return; }
 
     const btnQty = document.getElementById('btnGoalQuantity');
     goal_type = (btnQty && btnQty.classList.contains('active')) ? 'quantity' : 'money';
   } else {
+    // Objectif sans argent : on met un placeholder
     goal = 1;
     current = 0;
     unit = 'unité';
@@ -1162,9 +1146,11 @@ async function saveCoffre(){
   }
 
   const target_date = document.getElementById('coffreDate').value || null;
+  const why = document.getElementById('coffreWhy').value.trim();
   const emoji = document.getElementById('coffreEmoji').value.trim();
   const description = document.getElementById('coffreDescription').value.trim();
 
+  // Détection type automatique (pour les coffres)
   const analyseType = analyserCoffre(name);
   
   const data = { 
@@ -1172,9 +1158,7 @@ async function saveCoffre(){
     goal, 
     current, 
     target_date, 
-    why,
-    purpose,
-    urgency,
+    why: why || null, 
     goal_type, 
     unit, 
     emoji: emoji || null, 
@@ -1187,12 +1171,12 @@ async function saveCoffre(){
     if(!result) return;
     const idx = coffres.findIndex(c => c.id === editingCoffreId);
     coffres[idx] = result;
-    afficherToast(hasMoney ? 'Coffre modifié' : 'Objectif modifié', 'success');
+    showToast(hasMoney ? 'Coffre modifié' : 'Objectif modifié');
   } else {
     const result = await dbInsert('goals', data);
     if(!result) return;
     coffres.unshift(result);
-    afficherToast(hasMoney ? 'Coffre créé' : 'Objectif créé', 'success');
+    showToast(hasMoney ? 'Coffre créé' : 'Objectif créé');
   }
 
   closeCoffreModal();
@@ -10607,9 +10591,7 @@ Juste la description.`;
     descriptionEl.value = description;
   }
   afficherToast('✅ Description générée', 'success');
-}µ
-
-
+}
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
