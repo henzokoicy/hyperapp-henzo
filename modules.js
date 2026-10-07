@@ -10592,6 +10592,97 @@ Juste la description.`;
   }
   afficherToast('✅ Description générée', 'success');
 }
+// ============================================================
+// FONCTION TEST : Créer les 3 coffres Studio
+// ============================================================
+async function creerCoffresStudio(){
+  console.log('🚀 Début création des coffres Studio...');
+
+  const noms = {
+    salaire: 'Salaire photographe',
+    studio: 'Revenu Studio',
+    epargne: 'Épargne Studio'
+  };
+
+  let created = 0;
+
+  // 1. SALAIRE PHOTOGRAPHE
+  let salaire = coffres.find(c => c.name === noms.salaire);
+  if(!salaire){
+    console.log('   → Création : ' + noms.salaire);
+    salaire = await dbInsert('goals', {
+      name: noms.salaire,
+      goal: 999999999,
+      current: 0,
+      goal_type: 'money',
+      unit: 'FCFA',
+      emoji: '💰',
+      type_coffre: 'perso',
+      description: 'Ton salaire de photographe',
+      why: 'Avoir un vrai salaire',
+      purpose: 'Séparer mon salaire du studio',
+      urgency: 'moyen'
+    });
+    if(salaire){ coffres.unshift(salaire); created++; }
+  } else {
+    console.log('   → Existe déjà : ' + noms.salaire);
+  }
+
+  // 2. REVENU STUDIO
+  let studio = coffres.find(c => c.name === noms.studio);
+  if(!studio){
+    console.log('   → Création : ' + noms.studio);
+    studio = await dbInsert('goals', {
+      name: noms.studio,
+      goal: 999999999,
+      current: 0,
+      goal_type: 'money',
+      unit: 'FCFA',
+      emoji: '💼',
+      type_coffre: 'entreprise',
+      description: 'Le revenu du studio',
+      why: 'Financer les charges du studio',
+      purpose: 'Payer le fonctionnement du studio',
+      urgency: 'urgent'
+    });
+    if(studio){ coffres.unshift(studio); created++; }
+  } else {
+    console.log('   → Existe déjà : ' + noms.studio);
+  }
+
+  // 3. ÉPARGNE STUDIO
+  let epargne = coffres.find(c => c.name === noms.epargne);
+  if(!epargne){
+    console.log('   → Création : ' + noms.epargne);
+    epargne = await dbInsert('goals', {
+      name: noms.epargne,
+      goal: 999999999,
+      current: 0,
+      goal_type: 'money',
+      unit: 'FCFA',
+      emoji: '🛡️',
+      type_coffre: 'reserve',
+      description: 'L\'épargne du studio',
+      why: 'Faire grandir le studio',
+      purpose: 'Investir dans le futur',
+      urgency: 'moyen'
+    });
+    if(epargne){ coffres.unshift(epargne); created++; }
+  } else {
+    console.log('   → Existe déjà : ' + noms.epargne);
+  }
+
+  console.log('✅ Terminé. ' + created + ' coffre(s) créé(s).');
+  console.log('   Salaire ID :', salaire?.id);
+  console.log('   Studio ID  :', studio?.id);
+  console.log('   Épargne ID :', epargne?.id);
+
+  if(created > 0 && typeof refreshAll === 'function') refreshAll();
+
+  return { salaire, studio, epargne, created };
+}
+
+
 (async function bootstrap(){
   const user = await getCurrentUser();
   const loading = document.getElementById('loadingScreen');
