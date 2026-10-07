@@ -10751,6 +10751,93 @@ function testerFermerModale(){
   }
 }
 
+// ============================================================
+// FONCTION : Recalculer la répartition quand on change un %
+// ============================================================
+function recalculerRepartition(type){
+  // Montant total (pour l'instant, on le lit depuis l'en-tête)
+  const montantEl = document.getElementById('repPaiementMontant');
+  if(!montantEl) return;
+
+  // Extraire le montant total depuis le texte "10 000 FCFA"
+  const montantText = montantEl.textContent.replace(/[^\d]/g, '');
+  const total = parseInt(montantText) || 0;
+  if(total <= 0) return;
+
+  // Récupérer les éléments
+  const salairePctEl = document.getElementById('repSalairePct');
+  const studioPctEl = document.getElementById('repStudioPct');
+  const epargnePctEl = document.getElementById('repEpargnePct');
+  const salaireMontantEl = document.getElementById('repSalaireMontant');
+  const studioMontantEl = document.getElementById('repStudioMontant');
+  const epargneMontantEl = document.getElementById('repEpargneMontant');
+
+  if(!salairePctEl || !studioPctEl || !epargnePctEl) return;
+
+  // Calculer les montants selon les %
+  const salairePct = parseFloat(salairePctEl.value) || 0;
+  const studioPct = parseFloat(studioPctEl.value) || 0;
+  const epargnePct = parseFloat(epargnePctEl.value) || 0;
+
+  const salaireMontant = Math.round(total * salairePct / 100);
+  const studioMontant = Math.round(total * studioPct / 100);
+  const epargneMontant = Math.round(total * epargnePct / 100);
+
+  // Mettre à jour les montants
+  if(salaireMontantEl) salaireMontantEl.value = salaireMontant;
+  if(studioMontantEl) studioMontantEl.value = studioMontant;
+  if(epargneMontantEl) epargneMontantEl.value = epargneMontant;
+
+  // Mettre à jour le compteur
+  mettreAJourCompteur(total, salaireMontant, studioMontant, epargneMontant);
+}
+
+// ============================================================
+// FONCTION : Mettre à jour le compteur visuel
+// ============================================================
+function mettreAJourCompteur(total, salaire, studio, epargne){
+  const totalReparti = salaire + studio + epargne;
+  const reste = total - totalReparti;
+
+  const compteurBox = document.getElementById('repCompteurBox');
+  const compteurBar = document.getElementById('repCompteurBar');
+  const resteText = document.getElementById('repResteText');
+  const compteurMsg = document.getElementById('repCompteurMessage');
+
+  let couleur, bgCouleur, emoji, message;
+
+  if(reste === 0){
+    couleur = 'var(--green)';
+    bgCouleur = 'linear-gradient(90deg, var(--green), #10b981)';
+    emoji = '✅';
+    message = 'Prêt à valider';
+  } else if(reste > 0){
+    couleur = 'var(--yellow)';
+    bgCouleur = 'linear-gradient(90deg, var(--yellow), #ffd97a)';
+    emoji = '🟡';
+    message = 'Il reste ' + fmt(reste) + ' à répartir';
+  } else {
+    couleur = 'var(--red)';
+    bgCouleur = 'linear-gradient(90deg, var(--red), #ff8c8c)';
+    emoji = '🚩';
+    message = 'Dépassement de ' + fmt(Math.abs(reste)) + ' — corrige';
+  }
+
+  if(compteurBox) compteurBox.style.borderColor = couleur;
+  if(resteText){
+    resteText.textContent = fmt(totalReparti) + ' / ' + fmt(total);
+    resteText.style.color = couleur;
+  }
+  if(compteurMsg){
+    compteurMsg.textContent = emoji + ' ' + message;
+    compteurMsg.style.color = couleur;
+  }
+  if(compteurBar){
+    compteurBar.style.background = bgCouleur;
+    const pct = total > 0 ? Math.min(100, (totalReparti / total) * 100) : 0;
+    compteurBar.style.width = pct + '%';
+  }
+}
 
 (async function bootstrap(){
   const user = await getCurrentUser();
