@@ -1337,6 +1337,7 @@ function renderCoffres(){
           ? `<button class="btn-ghost" style="margin:0;background:rgba(245,197,66,.15);color:var(--yellow);border-color:var(--yellow);font-weight:700;font-size:11px" onclick="debloquerCoffre(${c.id})">🔒 Débloquer</button>`
           : `<button class="btn-ghost" style="margin:0;background:rgba(107,142,255,.10);color:var(--accent);border-color:var(--accent);font-weight:700;font-size:11px" onclick="bloquerCoffre(${c.id})">🔓 Bloquer</button>`
         }
+                <button class="btn-ghost" style="margin:0;padding:8px;background:rgba(107,142,255,.10);color:var(--accent);border-color:var(--accent);font-weight:700;font-size:11px" onclick="ouvrirComprendreCoffre(${c.id})" title="Comprendre ce coffre">ℹ️</button>
         <button class="btn-primary" style="margin:0;background:var(--green);font-size:11px;font-weight:700" onclick="ouvrirEpargnePerso(${c.id})">➕ Ajouter</button>
         ${!estCoffreBloque(c) && Number(c.current) > 0
           ? `<button class="btn-ghost" style="margin:0;background:rgba(255,107,107,.10);color:var(--red);border-color:var(--red);font-weight:700;font-size:11px" onclick="retirerCoffre(${c.id})">💸 Retirer</button>`
@@ -10163,6 +10164,285 @@ async function resetPaiementSeance(shootId){
   refreshAll();
   
   afficherToast(`↺ Reset effectué · ${annulees} transaction${annulees > 1 ? 's' : ''} annulée${annulees > 1 ? 's' : ''}`, 'success');
+}
+
+// ============================================================
+// COMPRENDRE UN COFFRE (Bouton ℹ️)
+// ============================================================
+function ouvrirComprendreCoffre(coffreId){
+  const c = coffres.find(x => x.id === coffreId);
+  if(!c) return;
+
+  const type = getTypeCoffre(c);
+  const current = Number(c.current || 0);
+  const goal = Number(c.goal || 0);
+  const pct = goal > 0 ? ((current / goal) * 100).toFixed(0) : 0;
+  const rest = Math.max(0, goal - current);
+  const isMoney = (c.goal_type || 'money') === 'money';
+  const unit = c.unit || 'FCFA';
+
+  // Formatage des montants
+  const fmtVal = (n) => isMoney ? fmt(n) : Math.round(n) + ' ' + unit;
+
+  // Génération du conseil du coach (règles simples)
+  const conseil = genererConseilCoachSimple(c, current, goal, pct, rest);
+
+  // Description : si elle n'existe pas, on montre le bouton "Générer"
+  const hasDescription = c.description && c.description.trim();
+  const hasWhy = c.why && c.why.trim();
+
+  const existing = document.getElementById('comprendreCoffreModal');
+  if(existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'comprendreCoffreModal';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>📖 Comprendre ce coffre</h3>
+        <button class="close" onclick="document.getElementById('comprendreCoffreModal').remove()">×</button>
+      </div>
+
+      <!-- EN-TÊTE : type + nom -->
+      <div style="background:linear-gradient(135deg,${type.color}22,${type.color}08);border-left:3px solid ${type.color};border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;color:${type.color};text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">${type.icon} ${type.label}</div>
+        <div style="font-size:18px;font-weight:800;letter-spacing:-.3px">${c.emoji || '🎯'} ${c.name}</div>
+      </div>
+
+      <!-- DESCRIPTION -->
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:12px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700">📝 Description</div>
+        ${hasDescription
+          ? `<div style="font-size:14px;line-height:1.6;color:var(--text)">${c.description}</div>
+             <button class="btn-ghost" style="margin-top:10px;width:100%;font-size:12px;padding:6px" onclick="regenererDescription(${c.id})">🔄 Régénérer</button>`
+          : `<div style="font-size:13px;color:var(--muted);text-align:center;padding:10px;font-style:italic">Aucune description pour ce coffre</div>
+             <button class="btn-primary" style="margin-top:10px;width:100%;background:linear-gradient(135deg,var(--accent),var(--accent-dk));font-size:13px" onclick="genererDescriptionCoffre(${c.id})">🤖 Générer la description</button>`
+        }
+      </div>
+
+      <!-- MOTIVATION -->
+      ${hasWhy ? `
+        <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:12px">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700">💡 Ta motivation</div>
+          <div style="font-size:14px;line-height:1.6;color:var(--text);font-style:italic">"${c.why}"</div>
+        </div>
+      ` : ''}
+
+      <!-- STATS -->
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:12px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:700">📊 Statistiques</div>
+        
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)">
+          <span style="color:var(--muted)">Progression</span>
+          <span style="font-weight:700;color:${pct >= 100 ? 'var(--green)' : pct >= 50 ? 'var(--accent)' : 'var(--yellow)'}">${pct}%</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)">
+          <span style="color:var(--muted)">Montant actuel</span>
+          <span style="font-weight:700;color:var(--green)">${fmtVal(current)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)">
+          <span style="color:var(--muted)">Objectif</span>
+          <span style="font-weight:700">${fmtVal(goal)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)">
+          <span style="color:var(--muted)">Reste à atteindre</span>
+          <span style="font-weight:700;color:var(--yellow)">${fmtVal(rest)}</span>
+        </div>
+        ${c.target_date ? `
+          <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)">
+            <span style="color:var(--muted)">Date cible</span>
+            <span style="font-weight:700">${new Date(c.target_date).toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'})}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px">
+            <span style="color:var(--muted)">Jours restants</span>
+            <span style="font-weight:700;color:${Math.ceil((new Date(c.target_date) - new Date()) / 86400000) > 0 ? 'var(--green)' : 'var(--red)'}">${Math.ceil((new Date(c.target_date) - new Date()) / 86400000)} jours</span>
+          </div>
+        ` : ''}
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px">
+          <span style="color:var(--muted)">Bloqué</span>
+          <span style="font-weight:700;color:${estCoffreBloque(c) ? 'var(--yellow)' : 'var(--green)'}">${estCoffreBloque(c) ? '🔒 Oui' : '🔓 Non'}</span>
+        </div>
+      </div>
+
+      <!-- CONSEIL DU COACH -->
+      <div style="background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(139,92,246,.05));border-left:3px solid #8b5cf6;border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-size:11px;color:#a78bfa;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700">🧠 Conseil du coach</div>
+        <div style="font-size:13px;line-height:1.6;color:var(--text)">${conseil}</div>
+      </div>
+
+      <button class="btn-ghost" style="margin:0;width:100%" onclick="document.getElementById('comprendreCoffreModal').remove()">
+        Fermer
+      </button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+// ============================================================
+// GÉNÉRATION DU CONSEIL COACH (simple, par règles)
+// ============================================================
+function genererConseilCoachSimple(coffre, current, goal, pct, rest){
+  const type = getTypeCoffre(coffre);
+  const now = new Date();
+  const isMoney = (coffre.goal_type || 'money') === 'money';
+  const unit = coffre.unit || 'FCFA';
+  const fmtVal = (n) => isMoney ? fmt(n) : Math.round(n) + ' ' + unit;
+
+  // Objectif atteint
+  if(pct >= 100){
+    return `🏆 Bravo ! Ce coffre est complété à 100%. Tu peux soit fixer un nouvel objectif plus ambitieux, soit utiliser cet argent. Si tu veux le protéger, garde-le bloqué.`;
+  }
+
+  // Coffre vide
+  if(current === 0){
+    return `🌱 Ce coffre est encore vide. Commence par un petit montant, même ${fmtVal(1000)}. L'important c'est de créer l'habitude.`;
+  }
+
+  // Réserve non bloquée
+  if(type.id === 'reserve' && !estCoffreBloque(coffre)){
+    return `🛡️ Attention ! Ce coffre est ta sécurité. Je te conseille fortement de le BLOQUER pour ne pas être tenté de le vider.`;
+  }
+
+  // Réserve < 50%
+  if(type.id === 'reserve' && pct < 50){
+    const missing = rest / 3;
+    return `⏰ Ton fonds d'urgence est encore faible (${pct}%). Essaie d'y mettre ${fmtVal(missing)} par mois pour atteindre 100% en 3 mois.`;
+  }
+
+  // Date cible dépassée
+  if(coffre.target_date){
+    const days = Math.ceil((new Date(coffre.target_date) - now) / 86400000);
+    if(days < 0 && pct < 100){
+      return `⚠️ La date cible est dépassée. Il te reste ${fmtVal(rest)}. Soit tu ajoutes de l'argent, soit tu modifies la date pour être plus réaliste.`;
+    }
+    if(days > 0 && days < 30 && pct < 80){
+      const perDay = rest / days;
+      return `⏱ Il te reste ${days} jours. Pour finir à temps, il faudrait mettre ${fmtVal(perDay)} par jour. C'est chaud mais faisable !`;
+    }
+    if(days > 0 && days < 90){
+      const perMonth = (rest / days) * 30;
+      return `📅 Il te reste ${days} jours. En mettant ${fmtVal(perMonth)} par mois, tu finis à temps.`;
+    }
+  }
+
+  // Bon rythme
+  if(pct >= 75){
+    return `🔥 Tu es à ${pct}% ! Plus que ${fmtVal(rest)} et c'est bon. Ne lâche pas maintenant.`;
+  }
+  if(pct >= 50){
+    return `💪 Tu es à mi-chemin (${pct}%). Continue sur cette lancée, tu vas y arriver.`;
+  }
+  if(pct >= 25){
+    return `✨ Tu es à ${pct}%. Bon démarrage ! Pense à mettre un peu chaque semaine pour garder le rythme.`;
+  }
+
+  return `🌱 Tu es à ${pct}%. C'est un début. Continue à alimenter ce coffre régulièrement.`;
+}
+
+// ============================================================
+// GÉNÉRER UNE DESCRIPTION POUR UN COFFRE ANCIEN
+// ============================================================
+async function genererDescriptionCoffre(coffreId){
+  const c = coffres.find(x => x.id === coffreId);
+  if(!c) return;
+
+  // Essayer avec l'IA si configurée
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
+
+  const type = getTypeCoffre(c);
+  const goal = Number(c.goal || 0);
+  const isMoney = (c.goal_type || 'money') === 'money';
+  const unit = c.unit || 'FCFA';
+  const goalStr = isMoney ? fmt(goal) : goal + ' ' + unit;
+
+  if(cfg && cfg.key){
+    // L'IA génère la description
+    afficherToast('🤖 Génération en cours...', 'info');
+    
+    const prompt = `Tu es un assistant qui aide un photographe ivoirien à gérer ses coffres d'épargne.
+
+Coffre à décrire :
+- Nom : "${c.name}"
+- Type : ${type.label}
+- Objectif : ${goalStr}
+${c.why ? `- Motivation déjà notée : "${c.why}"` : ''}
+
+Génère une description COURTE (maximum 3 phrases, 250 caractères max) qui explique à quoi sert ce coffre. 
+Réponds en français, ton direct et amical.
+Pas d'astérisques, pas de guillemets. Juste la description.`;
+
+    try {
+      const text = await callAI(prompt);
+      if(text && text.trim()){
+        const cleanText = text.trim().replace(/^["']|["']$/g, '');
+        await dbUpdate('goals', coffreId, { description: cleanText });
+        c.description = cleanText;
+        
+        // Rafraîchir la modale
+        document.getElementById('comprendreCoffreModal')?.remove();
+        ouvrirComprendreCoffre(coffreId);
+        refreshAll();
+        afficherToast('✅ Description générée', 'success');
+        return;
+      }
+    } catch(e){
+      console.warn('Erreur IA:', e);
+    }
+  }
+
+  // Fallback : description simple sans IA
+  let description = '';
+  if(type.id === 'reserve'){
+    description = `Ce coffre sert de réserve d'urgence. Il te protège des imprévus (pannes, santé, accidents). Objectif : atteindre ${goalStr} pour être tranquille.`;
+  } else if(type.id === 'entreprise'){
+    description = `Ce coffre finance les charges de ton activité. Il sert à payer le loyer, le matériel, les assistants et autres frais professionnels. Objectif : ${goalStr}.`;
+  } else if(type.id === 'objectif'){
+    description = `Ce coffre te permet d'atteindre un objectif précis : "${c.name}". Objectif à atteindre : ${goalStr}.`;
+  } else {
+    description = `Ce coffre est pour tes plaisirs personnels. Objectif : ${goalStr}.`;
+  }
+
+  // Demander à l'utilisateur de valider
+  const ok = await confirmer(
+    `Voici la description proposée :\n\n"${description}"\n\nTu peux la modifier après.`,
+    {
+      titre: '📝 Description proposée',
+      texteAnnuler: 'Annuler',
+      texteConfirmer: '✓ Valider',
+      type: 'info'
+    }
+  );
+
+  if(!ok) return;
+
+  const result = await dbUpdate('goals', coffreId, { description });
+  if(result){
+    c.description = description;
+    document.getElementById('comprendreCoffreModal')?.remove();
+    ouvrirComprendreCoffre(coffreId);
+    refreshAll();
+    afficherToast('✅ Description ajoutée', 'success');
+  }
+}
+
+async function regenererDescription(coffreId){
+  const c = coffres.find(x => x.id === coffreId);
+  if(!c) return;
+
+  const ok = await confirmer(
+    'Régénérer la description de ce coffre ?',
+    {
+      titre: '🔄 Régénérer',
+      texteAnnuler: 'Annuler',
+      texteConfirmer: '🔄 Régénérer',
+      type: 'warning'
+    }
+  );
+
+  if(!ok) return;
+  await genererDescriptionCoffre(coffreId);
 }
 (async function bootstrap(){
   const user = await getCurrentUser();
