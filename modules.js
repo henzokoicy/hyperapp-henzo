@@ -10681,6 +10681,75 @@ async function creerCoffresStudio(){
 
   return { salaire, studio, epargne, created };
 }
+// ============================================================
+// FONCTION TEST : Ouvrir la modale de répartition
+// ============================================================
+function testerOuvrirModale(){
+  console.log('🚀 Ouverture de la modale de répartition...');
+
+  // Remplir l'en-tête avec des données de test
+  const clientEl = document.getElementById('repPaiementClient');
+  const montantEl = document.getElementById('repPaiementMontant');
+  
+  if(clientEl) clientEl.textContent = 'Test · Client de test';
+  if(montantEl) montantEl.textContent = '10 000 FCFA';
+
+  // Mettre les % par défaut
+  const salairePct = document.getElementById('repSalairePct');
+  const studioPct = document.getElementById('repStudioPct');
+  const epargnePct = document.getElementById('repEpargnePct');
+  const salaireMontant = document.getElementById('repSalaireMontant');
+  const studioMontant = document.getElementById('repStudioMontant');
+  const epargneMontant = document.getElementById('repEpargneMontant');
+
+  if(salairePct) salairePct.value = 50;
+  if(studioPct) studioPct.value = 30;
+  if(epargnePct) epargnePct.value = 20;
+
+  // Calculer les montants (10 000 FCFA)
+  if(salaireMontant) salaireMontant.value = 5000;
+  if(studioMontant) studioMontant.value = 3000;
+  if(epargneMontant) epargneMontant.value = 2000;
+
+  // Afficher les noms des coffres
+  const cSalaire = coffres.find(c => c.name === 'Salaire photographe');
+  const cStudio = coffres.find(c => c.name === 'Revenu Studio');
+  const cEpargne = coffres.find(c => c.name === 'Épargne Studio');
+
+  const nomSalaire = document.getElementById('repSalaireCoffreNom');
+  const nomStudio = document.getElementById('repStudioCoffreNom');
+  const nomEpargne = document.getElementById('repEpargneCoffreNom');
+
+  if(nomSalaire) nomSalaire.textContent = cSalaire ? (cSalaire.emoji || '💰') + ' ' + cSalaire.name : '⚠️ Non trouvé';
+  if(nomStudio) nomStudio.textContent = cStudio ? (cStudio.emoji || '💼') + ' ' + cStudio.name : '⚠️ Non trouvé';
+  if(nomEpargne) nomEpargne.textContent = cEpargne ? (cEpargne.emoji || '🛡️') + ' ' + cEpargne.name : '⚠️ Non trouvé';
+
+  // Mettre à jour le compteur
+  const resteText = document.getElementById('repResteText');
+  const compteurMsg = document.getElementById('repCompteurMessage');
+  if(resteText) resteText.textContent = '10 000 / 10 000 FCFA';
+  if(compteurMsg) compteurMsg.textContent = '✅ Prêt à valider';
+
+  // Ouvrir la modale
+  const modal = document.getElementById('repartitionPaiementBg');
+  if(modal){
+    modal.classList.add('show');
+    console.log('✅ Modale ouverte');
+  } else {
+    console.error('❌ Modale introuvable (id: repartitionPaiementBg)');
+  }
+}
+
+// ============================================================
+// FONCTION TEST : Fermer la modale
+// ============================================================
+function testerFermerModale(){
+  const modal = document.getElementById('repartitionPaiementBg');
+  if(modal){
+    modal.classList.remove('show');
+    console.log('✅ Modale fermée');
+  }
+}
 
 
 (async function bootstrap(){
