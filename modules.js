@@ -10832,6 +10832,21 @@ function mettreAJourCompteur(total, salaire, studio, epargne){
     const pct = total > 0 ? Math.min(100, (totalReparti / total) * 100) : 0;
     compteurBar.style.width = pct + '%';
   }
+    // 🆕 Bloquer/Débloquer le bouton "Valider"
+  const validerBtn = document.getElementById('repValiderBtn');
+  if(validerBtn){
+    if(reste === 0){
+      validerBtn.disabled = false;
+      validerBtn.style.opacity = '1';
+      validerBtn.style.cursor = 'pointer';
+      validerBtn.style.background = 'linear-gradient(135deg, var(--green), #10b981)';
+    } else {
+      validerBtn.disabled = true;
+      validerBtn.style.opacity = '0.4';
+      validerBtn.style.cursor = 'not-allowed';
+      validerBtn.style.background = 'linear-gradient(135deg, #666, #444)';
+    }
+  }
 }
 // ============================================================
 // OUVRIR LA MODALE AVEC LES VRAIES DONNÉES DE LA SÉANCE
@@ -10893,6 +10908,93 @@ function testerOuvrirModaleAvecDonnees(montant, clientName, shootType, shootId){
   // Ouvrir la modale
   const modal = document.getElementById('repartitionPaiementBg');
   if(modal) modal.classList.add('show');
+}
+// ============================================================
+// SÉLECTEUR DE COFFRE
+// ============================================================
+function ouvrirSelecteurCoffre(type){
+  console.log('📂 Ouverture sélecteur pour :', type);
+
+  // Titre selon le type
+  let titre = '💰 Choisir un coffre';
+  if(type === 'salaire') titre = '💰 Coffre pour Salaire photographe';
+  if(type === 'studio') titre = '💼 Coffre pour Revenu Studio';
+  if(type === 'epargne') titre = '🛡️ Coffre pour Épargne Studio';
+
+  // Fermer s'il existe déjà
+  document.getElementById('selecteurCoffreModal')?.remove();
+
+  // Créer la liste des coffres
+  let listeHTML = '';
+  if(coffres.length === 0){
+    listeHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Aucun coffre disponible</div>';
+  } else {
+    listeHTML = coffres.map(c => {
+      const emoji = c.emoji || '🎯';
+      const current = Number(c.current || 0);
+      const goal = Number(c.goal || 0);
+      const isMoney = (c.goal_type || 'money') === 'money';
+      const unit = c.unit || 'FCFA';
+      const fmtVal = (n) => isMoney ? fmt(n) : Math.round(n) + ' ' + unit;
+      
+      return `
+        <button type="button" class="btn-ghost" style="margin:0;width:100%;padding:14px;text-align:left;font-size:13px;border-radius:10px;margin-bottom:6px" onclick="choisirCoffrePourLigne('${type}', ${c.id})">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px">${emoji} ${c.name}</div>
+          <div style="font-size:11px;color:var(--muted)">${fmtVal(current)} / ${fmtVal(goal)}</div>
+        </button>
+      `;
+    }).join('');
+  }
+
+  // Créer la modale
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'selecteurCoffreModal';
+  modal.style.zIndex = '999999';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>${titre}</h3>
+        <button class="close" onclick="document.getElementById('selecteurCoffreModal').remove()">×</button>
+      </div>
+      <div style="max-height:60vh;overflow-y:auto;margin-bottom:12px">
+        ${listeHTML}
+      </div>
+      <button class="btn-ghost" style="margin:0;width:100%" onclick="document.getElementById('selecteurCoffreModal').remove()">
+        Annuler
+      </button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function choisirCoffrePourLigne(type, coffreId){
+  console.log('✅ Coffre choisi :', type, '→', coffreId);
+  
+  const c = coffres.find(x => x.id === coffreId);
+  if(!c) return;
+
+  const emoji = c.emoji || '🎯';
+  
+  // Mettre à jour l'affichage
+  if(type === 'salaire'){
+    const el = document.getElementById('repSalaireCoffreNom');
+    if(el) el.textContent = emoji + ' ' + c.name;
+    window.__repSalaireCoffreId = coffreId;
+  }
+  if(type === 'studio'){
+    const el = document.getElementById('repStudioCoffreNom');
+    if(el) el.textContent = emoji + ' ' + c.name;
+    window.__repStudioCoffreId = coffreId;
+  }
+  if(type === 'epargne'){
+    const el = document.getElementById('repEpargneCoffreNom');
+    if(el) el.textContent = emoji + ' ' + c.name;
+    window.__repEpargneCoffreId = coffreId;
+  }
+
+  // Fermer le sélecteur
+  document.getElementById('selecteurCoffreModal')?.remove();
 }
 
 
