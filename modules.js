@@ -10996,6 +10996,128 @@ function choisirCoffrePourLigne(type, coffreId){
   // Fermer le sélecteur
   document.getElementById('selecteurCoffreModal')?.remove();
 }
+// ============================================================
+// VALIDER LA RÉPARTITION DU PAIEMENT
+// ============================================================
+async function validerRepartitionPaiement(){
+  console.log('🚀 Validation de la répartition...');
+
+  // 1. Récupérer les montants
+  const montantEl = document.getElementById('repPaiementMontant');
+  if(!montantEl){ afficherToast('Erreur : montant introuvable', 'error'); return; }
+
+  const montantText = montantEl.textContent.replace(/[^\d]/g, '');
+  const total = parseInt(montantText) || 0;
+
+  const salaireMontant = parseFloat(document.getElementById('repSalaireMontant')?.value) || 0;
+  const studioMontant = parseFloat(document.getElementById('repStudioMontant')?.value) || 0;
+  const epargneMontant = parseFloat(document.getElementById('repEpargneMontant')?.value) || 0;
+  const totalReparti = salaireMontant + studioMontant + epargneMontant;
+
+  console.log('   Total :', total, '| Réparti :', totalReparti);
+
+  // 2. Vérifier que c'est équilibré
+  if(totalReparti !== total){
+    afficherToast('Le total réparti doit être égal au montant reçu', 'error');
+    return;
+  }
+
+  // 3. Récupérer les IDs des coffres
+  const salaireId = window.__repSalaireCoffreId;
+  const studioId = window.__repStudioCoffreId;
+  const epargneId = window.__repEpargneCoffreId;
+
+  if(!salaireId || !studioId || !epargneId){
+    afficherToast('Assigne tous les coffres avant de valider', 'error');
+    return;
+  }
+
+  // 4. Récupérer la séance
+  const shootId = window.__repPaiementShootId;
+  const s = shoots.find(x => x.id === shootId);
+
+  // 5. Créer la transaction "Revenu"
+  const clientName = s ? (s.client_id ? (clients.find(c => c.id === s.client_id)?.name || '') : '') : '';
+  const shootType = s ? (s.type || 'Séance') : 'Séance';
+
+  const txResult = await dbInsert('transactions', {
+    type: 'revenu',
+    amount: total,
+    category: 'Shooting photo',
+    note: shootType + (clientName ? ' · ' + clientName : ''),
+    date: todayStr(),
+    client_id: s?.client_id || null,
+    client_name: clientName || null,
+    prestation_type: shootType,
+    payment_method: 'Interne'
+  });
+
+  if(txResult) txs.unshift(txResult);
+  console.log('   ✅ Transaction Revenu créée');
+
+  // 6. Créer les 3 versements dans les coffres
+  const versements = [
+    { coffreId: salaireId, montant: salaireMontant, label: 'Salaire photographe' },
+    { coffreId: studioId, montant: studioMontant, label: 'Revenu Studio' },
+    { coffreId: epargneId, montant: epargneMontant, label: 'Épargne Studio' }
+  ];
+
+  for(const v of versements){
+    if(v.montant <= 0) continue;
+    const c = coffres.find(x => x.id === v.coffreId);
+    if(!c) continue;
+
+    // Mettre à jour le coffre
+    const newCurrent = Number(c.current || 0) + v.montant;
+    await dbUpdate('goals', v.coffreId, { current: newCurrent });
+    c.current = newCurrent;
+
+    // Transaction "Épargne"
+    await dbInsert('transactions', {
+      type: 'depense',
+      amount: v.montant,
+      category: 'Épargne',
+      note: v.label + ' · ' + shootType,
+      date: todayStr(),
+      payment_method: 'Interne'
+    });
+    console.log('   ✅ Versement ' + v.label + ' :', v.montant);
+  }
+
+  // 7. Mettre à jour la séance
+  if(s){
+    const recuActuel = Number(s.montant_recu || 0);
+    const nouveauRecu = recuActuel + total;
+    const prix = Number(s.price || 0);
+    const newPaymentStatus = nouveauRecu >= prix ? 'paye' : 'impaye';
+
+    await dbUpdate('shoots', shootId, {
+      montant_recu: nouveauRecu,
+      payment: newPaymentStatus
+    });
+
+    s.montant_recu = nouveauRecu;
+    s.payment = newPaymentStatus;
+    console.log('   ✅ Séance mise à jour :', nouveauRecu);
+  }
+
+  // 8. Fermer la modale et rafraîchir
+  document.getElementById('repartitionPaiementBg').classList.remove('show');
+  
+  // Nettoyer les variables
+  window.__repSalaireCoffreId = null;
+  window.__repStudioCoffreId = null;
+  window.__repEpargneCoffreId = null;
+  window.__repPaiementShootId = null;
+
+  refreshAll();
+
+  // 9. Toast de succès
+  afficherToast(
+    `✅ ${fmt(total)} répartis · 💰 ${fmt(salaireMontant)} · 💼 ${fmt(studioMontant)} · 🛡️ ${fmt(epargneMontant)}`,
+    'success'
+  );
+}
 
 
 (async function bootstrap(){
