@@ -11000,8 +11000,17 @@ function choisirCoffrePourLigne(type, coffreId){
 // VALIDER LA RÉPARTITION DU PAIEMENT
 // ============================================================
 async function validerRepartitionPaiement(){
+ 
   console.log('🚀 Validation de la répartition...');
-
+   // 🆕 Anti-doublon : bloquer si déjà en cours
+  const btn = document.getElementById('repValiderBtn');
+  if(btn && btn.disabled) return;
+  if(btn){
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'wait';
+    btn.textContent = '⏳ En cours...';
+  }
   // 1. Récupérer les montants
   const montantEl = document.getElementById('repPaiementMontant');
   if(!montantEl){ afficherToast('Erreur : montant introuvable', 'error'); return; }
@@ -11117,6 +11126,14 @@ async function validerRepartitionPaiement(){
     `✅ ${fmt(total)} répartis · 💰 ${fmt(salaireMontant)} · 💼 ${fmt(studioMontant)} · 🛡️ ${fmt(epargneMontant)}`,
     'success'
   );
+
+  // 10. Réactiver le bouton (au cas où)
+  if(btn){
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+    btn.textContent = '✅ Valider et créer';
+  }
 }
 
 
