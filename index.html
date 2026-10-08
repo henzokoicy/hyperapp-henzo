@@ -506,7 +506,6 @@
       <button class="defi-btn" id="defiBtn" onclick="validerDefi()">✓ J'ai relevé le défi</button>
       <div class="defi-streak" id="defiStreak"></div>
     </div>
-
     <!-- 3. MES OBJECTIFS -->
     <div class="card">
       <h2>🎯 Mes objectifs</h2>
@@ -516,6 +515,10 @@
       <div id="objectifsPursList"><div class="empty">Aucun objectif. Crées-en un.</div></div>
       <button class="btn-ghost" onclick="openCoffreModal(null, 'objectif')">+ Créer un objectif</button>
     </div>
+
+    <!-- FERMETURE SOUS-PAGE OBJECTIFS -->
+    </div>
+
     <!-- 4. MES COFFRES -->
     <div id="obj-subpage-coffres" class="obj-subpage" style="display:none">
     <div class="card">
@@ -526,7 +529,9 @@
       <div id="coffresList"><div class="empty">Aucun coffre. Crées-en un.</div></div>
       <button class="btn-ghost" onclick="openCoffreModal(null, 'coffre')">+ Créer un coffre</button>
     </div>
-  </div>
+    </div>
+    <!-- FERMETURE SOUS-PAGE COFFRES -->
+
     <!-- 5. STATS D'ÉPARGNE -->
     <div class="card" id="goalStatsCard">
       <h2>📊 Mes statistiques d'épargne</h2>
@@ -901,155 +906,6 @@
   </div>
 </div>
 
-<div class="page" id="page-inspiration">
-  <div class="container">
-    <div class="card">
-      <h2>💫 Mes inspirations</h2>
-      <div class="row">
-        <div class="stat"><div class="v" id="inspCount">0</div><div class="l">Personnes</div></div>
-        <div class="stat"><div class="v" id="inspFav" style="color:var(--yellow)">0</div><div class="l">Favoris</div></div>
-        <div class="stat"><div class="v" id="inspCategories" style="color:var(--accent)">0</div><div class="l">Catégories</div></div>
-      </div>
-    </div>
-    <div class="card">
-      <h2>🔍 Filtrer</h2>
-      <div class="filters-grid">
-        <div><label for="inspFilterCategory">Catégorie</label><select id="inspFilterCategory" onchange="renderInspirations()"></select></div>
-        <div><label for="inspFilterFav">Favoris</label>
-          <select id="inspFilterFav" onchange="renderInspirations()">
-            <option value="all">Tous</option>
-            <option value="fav">⭐ Favoris</option>
-          </select>
-        </div>
-        <div><label for="inspSearch">Rechercher</label><input type="text" id="inspSearch" placeholder="Nom, tag, ville..." oninput="renderInspirations()"></div>
-      </div>
-    </div>
-    <div class="card">
-      <h2>📋 Toutes mes inspirations</h2>
-      <div id="inspirationsList"><div class="empty">Aucune inspiration.</div></div>
-      <button class="btn-pink" style="margin-top:12px;width:100%" onclick="openInspirationModal()">+ Ajouter une inspiration</button>
-    </div>
-  </div>
-</div>
-
-<div class="page" id="page-notes">
-  <div class="container">
-    <div class="card">
-      <h2>📝 Mes notes</h2>
-      <div class="row">
-        <div class="stat"><div class="v" id="notesCount">0</div><div class="l">Totales</div></div>
-        <div class="stat"><div class="v" id="notesReminders" style="color:var(--yellow)">0</div><div class="l">Avec rappel</div></div>
-        <div class="stat"><div class="v" id="notesUrgent" style="color:var(--red)">0</div><div class="l">Urgentes</div></div>
-      </div>
-    </div>
-    <div class="card">
-      <h2>🔍 Filtrer</h2>
-      <div class="filters-grid">
-        <div>
-          <label for="notesFilterCategory">Catégorie</label>
-          <select id="notesFilterCategory" onchange="renderNotes()">
-            <option value="all">Toutes</option>
-            <option value="idee">💡 Idée</option>
-            <option value="todo">✅ À faire</option>
-            <option value="appel">📞 Appel</option>
-            <option value="rdv">📅 RDV</option>
-            <option value="achat">🛒 Achat</option>
-            <option value="business">💼 Business</option>
-            <option value="note">📝 Note</option>
-          </select>
-        </div>
-        <div>
-          <label for="notesFilterStatus">Statut</label>
-          <select id="notesFilterStatus" onchange="renderNotes()">
-            <option value="active">📌 Actives</option>
-            <option value="all">Toutes</option>
-            <option value="archived">🗄️ Archivées</option>
-          </select>
-        </div>
-        <div><label for="notesSearch">Recherche</label><input type="text" id="notesSearch" placeholder="Mot-clé, tag..." oninput="renderNotes()"></div>
-      </div>
-    </div>
-    <div class="card">
-      <h2>📋 Toutes mes notes</h2>
-      <div id="notesList"><div class="empty">Aucune note. Crée ta première !</div></div>
-      <button class="btn-primary" style="margin-top:12px;width:100%" onclick="openNoteModal()">+ Nouvelle note</button>
-    </div>
-  </div>
-</div>
-
-<div class="page" id="page-motiv">
-  <div class="container">
-    <div class="quote-box">
-      <div class="emoji" id="quoteEmoji">💪</div>
-      <div class="q" id="quoteText">Chargement...</div>
-      <div class="a" id="quoteAuthor"></div>
-      <button class="btn-ghost" style="margin-top:14px;width:auto;padding:8px 16px" onclick="newQuote()">🔄 Nouvelle citation</button>
-    </div>
-
-    <div class="card">
-      <h2>🔔 Notifications automatiques</h2>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6">
-        Active les notifications pour recevoir automatiquement :
-        <br>🌅 <strong>Matin (8h)</strong> : motivation
-        <br>☀️ <strong>Midi (13h)</strong> : conseil
-        <br>🌙 <strong>Soir (20h)</strong> : rappel d'épargner
-      </div>
-      <button class="btn-primary" id="notifBtn" onclick="toggleNotifications()">🔔 Activer les notifications</button>
-      <div id="notifStatus" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center"></div>
-      <button class="btn-ghost" style="margin-top:10px;font-size:13px" onclick="testerPopupNotif()">✨ Tester le popup</button>
-    </div>
-
-    <div class="card">
-      <h2>⏰ Mes rappels quotidiens</h2>
-      <div id="remindersList"><div class="empty">Aucun rappel</div></div>
-      <button class="btn-ghost" onclick="openReminderModal()">+ Ajouter un rappel</button>
-    </div>
-  </div>
-</div>
-
-<div class="page" id="page-ia">
-  <div class="container">
-    <div class="card">
-      <div class="collapsible-head" onclick="toggleAiConfig()">
-        <h2 style="margin:0">🤖 Connexion IA <span class="pill" id="aiStatus">non configurée</span></h2>
-        <span class="collapse-arrow" id="aiConfigArrow">▼</span>
-      </div>
-      <div id="aiConfigBody" style="display:none;margin-top:14px">
-        <label for="aiProvider">Fournisseur</label>
-        <select id="aiProvider">
-          <option value="openai">OpenAI (GPT)</option>
-          <option value="anthropic">Anthropic (Claude)</option>
-          <option value="gemini">Google (Gemini)</option>
-          <option value="custom">Autre (compatible OpenAI)</option>
-        </select>
-        <label for="aiKey">Clé API</label>
-        <input type="password" id="aiKey" placeholder="sk-...">
-        <label id="aiUrlLabel" for="aiUrl" style="display:none">URL de l'API</label>
-        <input type="text" id="aiUrl" placeholder="https://..." style="display:none">
-        <button class="btn-primary" onclick="saveAiConfig()">Enregistrer</button>
-        <div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5">
-          🔒 Clé stockée uniquement sur cet appareil.
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>🔮 Analyse financière personnalisée</h2>
-      <div class="ai-toolbar">
-        <button class="ai-btn ai-btn-primary" onclick="askAI()">🔮 Analyser</button>
-        <button class="ai-btn" style="background:linear-gradient(135deg,var(--pink),var(--accent));color:#fff;border:none" onclick="openChat()">💬 Discuter avec l'IA</button>
-        <button class="ai-btn" id="aiCopyBtn" onclick="copyAnalysis()" disabled>📋 Copier</button>
-        <button class="ai-btn" id="aiPdfBtn" onclick="exportAnalysisPDF()" disabled>📄 PDF</button>
-        <button class="ai-btn ai-btn-danger" id="aiClearBtn" onclick="clearAnalysis()" disabled>🗑 Effacer</button>
-      </div>
-      <div id="aiLastUpdate" class="ai-last-update"></div>
-      <div class="ai-output-clean" id="aiOutput">
-        <div class="empty">Clique sur <strong>Analyser</strong> pour obtenir ton bilan personnalisé.</div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <button class="fab" onclick="openModal()">+ Transaction</button>
 
 <div class="modal-bg" id="profileModalBg" onclick="if(event.target===this)closeProfileModal()">
@@ -1337,14 +1193,6 @@
     <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.5">
       ⚠️ La répartition est <strong>obligatoire</strong>. Aucun paiement ne sera enregistré tant que ce n'est pas validé.
     </div>
-  </div>
-</div>
-
-    <div style="height:6px;background:var(--card2);border-radius:3px;overflow:hidden;margin-bottom:20px">
-      <div id="assistantProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--pink));transition:width .4s ease;border-radius:3px"></div>
-    </div>
-
-    <div id="assistantStep"></div>
   </div>
 </div>
 
