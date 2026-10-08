@@ -10678,6 +10678,438 @@ async function creerCoffresStudio(){
 }
 
 
+// ══════════════════════════════════════════════════════════════
+// SYSTÈME DE RÉPARTITION DU PAIEMENT (v2 - Bloc complet)
+// ══════════════════════════════════════════════════════════════
+
+// Stockage global
+let _repIsProcessing = false;
+let _repCoffreIds = { salaire: null, studio: null, epargne: null };
+let _repShootId = null;
+
+// ──────────────────────────────────────────────────────────────
+// 1. OUVRIR LA MODALE DE RÉPARTITION
+// ──────────────────────────────────────────────────────────────
+async function ouvrirRepartitionPaiement(montant, clientName, shootType, shootId){
+  console.log('🚀 Ouverture modale répartition');
+  console.log('   Montant :', montant, '| Client :', clientName, '| Type :', shootType);
+
+  // Reset
+  _repIsProcessing = false;
+  _repCoffreIds = { salaire: null, studio: null, epargne: null };
+  _repShootId = shootId;
+
+  // Assurer que les 3 coffres existent
+  await assurerCoffresStudio();
+  console.log('   Coffres :', _repCoffreIds);
+
+  // Remplir l'en-tête
+  const clientEl = document.getElementById('repPaiementClient');
+  const montantEl = document.getElementById('repPaiementMontant');
+  if(clientEl) clientEl.textContent = shootType + (clientName ? ' · ' + clientName : '');
+  if(montantEl) montantEl.textContent = fmt(montant);
+
+  // Reset des %
+  const salairePct = document.getElementById('repSalairePct');
+  const studioPct = document.getElementById('repStudioPct');
+  const epargnePct = document.getElementById('repEpargnePct');
+  if(salairePct) salairePct.value = 50;
+  if(studioPct) studioPct.value = 30;
+  if(epargnePct) epargnePct.value = 20;
+
+  // Afficher les noms des coffres
+  mettreAJourNomsCoffres();
+
+  // Calculer
+  recalculerRepartition();
+
+  // Réactiver le bouton
+  const btn = document.getElementById('repValiderBtn');
+  if(btn){
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+    btn.textContent = '✅ Valider et créer';
+  }
+
+  // Ouvrir
+  const modal = document.getElementById('repartitionPaiementBg');
+  if(modal) modal.classList.add('show');
+}
+
+// ──────────────────────────────────────────────────────────────
+// 2. ASSURER QUE LES 3 COFFRES STUDIO EXISTENT
+// ──────────────────────────────────────────────────────────────
+async function assurerCoffresStudio(){
+  const noms = {
+    salaire: 'Salaire photographe',
+    studio: 'Revenu Studio',
+    epargne: 'Épargne Studio'
+  };
+
+  // 1. Salaire
+  let salaire = coffres.find(c => c.name === noms.salaire);
+  if(!salaire){
+    salaire = await dbInsert('goals', {
+      name: noms.salaire, goal: 999999999, current: 0,
+      goal_type: 'money', unit: 'FCFA', emoji: '💰',
+      type_coffre: 'perso',
+      description: 'Ton salaire de photographe',
+      why: 'Avoir un vrai salaire',
+      purpose: 'Séparer mon salaire du studio',
+      urgency: 'moyen'
+    });
+    if(salaire) coffres.unshift(salaire);
+  }
+  _repCoffreIds.salaire = salaire?.id || null;
+
+  // 2. Studio
+  let studio = coffres.find(c => c.name === noms.studio);
+  if(!studio){
+    studio = await dbInsert('goals', {
+      name: noms.studio, goal: 999999999, current: 0,
+      goal_type: 'money', unit: 'FCFA', emoji: '💼',
+      type_coffre: 'entreprise',
+      description: 'Le revenu du studio',
+      why: 'Financer les charges du studio',
+      purpose: 'Payer le fonctionnement du studio',
+      urgency: 'urgent'
+    });
+    if(studio) coffres.unshift(studio);
+  }
+  _repCoffreIds.studio = studio?.id || null;
+
+  // 3. Épargne
+  let epargne = coffres.find(c => c.name === noms.epargne);
+  if(!epargne){
+    epargne = await dbInsert('goals', {
+      name: noms.epargne, goal: 999999999, current: 0,
+      goal_type: 'money', unit: 'FCFA', emoji: '🛡️',
+      type_coffre: 'reserve',
+      description: 'L\'épargne du studio',
+      why: 'Faire grandir le studio',
+      purpose: 'Investir dans le futur',
+      urgency: 'moyen'
+    });
+    if(epargne) coffres.unshift(epargne);
+  }
+  _repCoffreIds.epargne = epargne?.id || null;
+
+  if(_repCoffreIds.salaire && _repCoffreIds.studio && _repCoffreIds.epargne){
+    refreshAll();
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// 3. AFFICHER LES NOMS DES COFFRES DANS LA MODALE
+// ──────────────────────────────────────────────────────────────
+function mettreAJourNomsCoffres(){
+  const cSalaire = coffres.find(c => c.id === _repCoffreIds.salaire);
+  const cStudio = coffres.find(c => c.id === _repCoffreIds.studio);
+  const cEpargne = coffres.find(c => c.id === _repCoffreIds.epargne);
+
+  const el1 = document.getElementById('repSalaireCoffreNom');
+  const el2 = document.getElementById('repStudioCoffreNom');
+  const el3 = document.getElementById('repEpargneCoffreNom');
+
+  if(el1) el1.textContent = cSalaire ? (cSalaire.emoji || '💰') + ' ' + cSalaire.name : '⚠️ Non assigné';
+  if(el2) el2.textContent = cStudio ? (cStudio.emoji || '💼') + ' ' + cStudio.name : '⚠️ Non assigné';
+  if(el3) el3.textContent = cEpargne ? (cEpargne.emoji || '🛡️') + ' ' + cEpargne.name : '⚠️ Non assigné';
+}
+
+// ──────────────────────────────────────────────────────────────
+// 4. RECALCULER LA RÉPARTITION
+// ──────────────────────────────────────────────────────────────
+function recalculerRepartition(){
+  const montantEl = document.getElementById('repPaiementMontant');
+  if(!montantEl) return;
+
+  const total = parseInt(montantEl.textContent.replace(/[^\d]/g, '')) || 0;
+  if(total <= 0) return;
+
+  const salairePct = parseFloat(document.getElementById('repSalairePct')?.value) || 0;
+  const studioPct = parseFloat(document.getElementById('repStudioPct')?.value) || 0;
+  const epargnePct = parseFloat(document.getElementById('repEpargnePct')?.value) || 0;
+
+  const salaire = Math.round(total * salairePct / 100);
+  const studio = Math.round(total * studioPct / 100);
+  const epargne = Math.round(total * epargnePct / 100);
+
+  const sEl = document.getElementById('repSalaireMontant');
+  const stEl = document.getElementById('repStudioMontant');
+  const eEl = document.getElementById('repEpargneMontant');
+  if(sEl) sEl.value = salaire;
+  if(stEl) stEl.value = studio;
+  if(eEl) eEl.value = epargne;
+
+  mettreAJourCompteur(total, salaire, studio, epargne);
+}
+
+// ──────────────────────────────────────────────────────────────
+// 5. METTRE À JOUR LE COMPTEUR + BOUTON
+// ──────────────────────────────────────────────────────────────
+function mettreAJourCompteur(total, salaire, studio, epargne){
+  const totalReparti = salaire + studio + epargne;
+  const reste = total - totalReparti;
+
+  const box = document.getElementById('repCompteurBox');
+  const bar = document.getElementById('repCompteurBar');
+  const txt = document.getElementById('repResteText');
+  const msg = document.getElementById('repCompteurMessage');
+  const btn = document.getElementById('repValiderBtn');
+
+  let couleur, bg, emoji, message, canValidate;
+
+  if(reste === 0){
+    couleur = 'var(--green)';
+    bg = 'linear-gradient(90deg, var(--green), #10b981)';
+    emoji = '✅'; message = 'Prêt à valider';
+    canValidate = true;
+  } else if(reste > 0){
+    couleur = 'var(--yellow)';
+    bg = 'linear-gradient(90deg, var(--yellow), #ffd97a)';
+    emoji = '🟡'; message = 'Il reste ' + fmt(reste) + ' à répartir';
+    canValidate = false;
+  } else {
+    couleur = 'var(--red)';
+    bg = 'linear-gradient(90deg, var(--red), #ff8c8c)';
+    emoji = '🚩'; message = 'Dépassement de ' + fmt(Math.abs(reste)) + ' — corrige';
+    canValidate = false;
+  }
+
+  if(box) box.style.borderColor = couleur;
+  if(txt){ txt.textContent = fmt(totalReparti) + ' / ' + fmt(total); txt.style.color = couleur; }
+  if(msg){ msg.textContent = emoji + ' ' + message; msg.style.color = couleur; }
+  if(bar){
+    bar.style.background = bg;
+    bar.style.width = (total > 0 ? Math.min(100, (totalReparti / total) * 100) : 0) + '%';
+  }
+  if(btn && !_repIsProcessing){
+    btn.disabled = !canValidate;
+    btn.style.opacity = canValidate ? '1' : '0.4';
+    btn.style.cursor = canValidate ? 'pointer' : 'not-allowed';
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// 6. OUVRIR LE SÉLECTEUR DE COFFRES
+// ──────────────────────────────────────────────────────────────
+function ouvrirSelecteurCoffre(type){
+  console.log('📂 Sélecteur pour :', type);
+
+  let titre = '💰 Choisir un coffre';
+  if(type === 'salaire') titre = '💰 Coffre pour Salaire';
+  if(type === 'studio') titre = '💼 Coffre pour Studio';
+  if(type === 'epargne') titre = '🛡️ Coffre pour Épargne';
+
+  document.getElementById('selecteurCoffreModal')?.remove();
+
+  let listeHTML = '';
+  if(coffres.length === 0){
+    listeHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Aucun coffre disponible</div>';
+  } else {
+    listeHTML = coffres.map(c => {
+      const emoji = c.emoji || '🎯';
+      const cur = Number(c.current || 0);
+      const goal = Number(c.goal || 0);
+      const isMoney = (c.goal_type || 'money') === 'money';
+      const unit = c.unit || 'FCFA';
+      const fv = (n) => isMoney ? fmt(n) : Math.round(n) + ' ' + unit;
+      return `<button type="button" class="btn-ghost" style="margin:0;width:100%;padding:14px;text-align:left;font-size:13px;border-radius:10px;margin-bottom:6px" onclick="choisirCoffrePourLigne('${type}', ${c.id})">
+        <div style="font-weight:700;font-size:14px;margin-bottom:4px">${emoji} ${c.name}</div>
+        <div style="font-size:11px;color:var(--muted)">${fv(cur)} / ${fv(goal)}</div>
+      </button>`;
+    }).join('');
+  }
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'selecteurCoffreModal';
+  modal.style.zIndex = '999999';
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap">
+        <h3>${titre}</h3>
+        <button class="close" onclick="document.getElementById('selecteurCoffreModal').remove()">×</button>
+      </div>
+      <div style="max-height:60vh;overflow-y:auto;margin-bottom:12px">${listeHTML}</div>
+      <button class="btn-ghost" style="margin:0;width:100%" onclick="document.getElementById('selecteurCoffreModal').remove()">Annuler</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function choisirCoffrePourLigne(type, coffreId){
+  const c = coffres.find(x => x.id === coffreId);
+  if(!c) return;
+  const emoji = c.emoji || '🎯';
+  if(type === 'salaire'){
+    _repCoffreIds.salaire = coffreId;
+    const el = document.getElementById('repSalaireCoffreNom');
+    if(el) el.textContent = emoji + ' ' + c.name;
+  }
+  if(type === 'studio'){
+    _repCoffreIds.studio = coffreId;
+    const el = document.getElementById('repStudioCoffreNom');
+    if(el) el.textContent = emoji + ' ' + c.name;
+  }
+  if(type === 'epargne'){
+    _repCoffreIds.epargne = coffreId;
+    const el = document.getElementById('repEpargneCoffreNom');
+    if(el) el.textContent = emoji + ' ' + c.name;
+  }
+  document.getElementById('selecteurCoffreModal')?.remove();
+}
+
+// ──────────────────────────────────────────────────────────────
+// 7. FERMER LA MODALE
+// ──────────────────────────────────────────────────────────────
+function fermerRepartitionPaiement(){
+  document.getElementById('repartitionPaiementBg').classList.remove('show');
+  _repShootId = null;
+}
+
+// ──────────────────────────────────────────────────────────────
+// 8. VALIDER LA RÉPARTITION (avec anti-doublon)
+// ──────────────────────────────────────────────────────────────
+async function validerRepartitionPaiement(){
+  // 🔒 ANTI-DOUBLON
+  if(_repIsProcessing){
+    console.log('⚠️ Déjà en cours, clic ignoré');
+    return;
+  }
+  _repIsProcessing = true;
+
+  const btn = document.getElementById('repValiderBtn');
+  if(btn){
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'wait';
+    btn.textContent = '⏳ En cours...';
+  }
+
+  try {
+    console.log('🚀 Validation répartition');
+
+    // Récupérer le total
+    const montantEl = document.getElementById('repPaiementMontant');
+    const total = parseInt(montantEl.textContent.replace(/[^\d]/g, '')) || 0;
+
+    const salaireM = parseFloat(document.getElementById('repSalaireMontant')?.value) || 0;
+    const studioM = parseFloat(document.getElementById('repStudioMontant')?.value) || 0;
+    const epargneM = parseFloat(document.getElementById('repEpargneMontant')?.value) || 0;
+    const totalReparti = salaireM + studioM + epargneM;
+
+    if(totalReparti !== total){
+      afficherToast('Le total doit être équilibré', 'error');
+      return;
+    }
+
+    if(!_repCoffreIds.salaire || !_repCoffreIds.studio || !_repCoffreIds.epargne){
+      afficherToast('Assigne les 3 coffres', 'error');
+      return;
+    }
+
+    const s = shoots.find(x => x.id === _repShootId);
+    const clientName = s?.client_id ? (clients.find(c => c.id === s.client_id)?.name || '') : '';
+    const shootType = s?.type || 'Séance';
+
+    // 1. Transaction Revenu
+    const tx = await dbInsert('transactions', {
+      type: 'revenu', amount: total, category: 'Shooting photo',
+      note: shootType + (clientName ? ' · ' + clientName : ''),
+      date: todayStr(), client_id: s?.client_id || null,
+      client_name: clientName || null, prestation_type: shootType,
+      payment_method: 'Interne'
+    });
+    if(tx) txs.unshift(tx);
+
+    // 2. Les 3 versements
+    const versements = [
+      { id: _repCoffreIds.salaire, montant: salaireM, label: 'Salaire photographe' },
+      { id: _repCoffreIds.studio, montant: studioM, label: 'Revenu Studio' },
+      { id: _repCoffreIds.epargne, montant: epargneM, label: 'Épargne Studio' }
+    ];
+
+    for(const v of versements){
+      if(v.montant <= 0) continue;
+      const c = coffres.find(x => x.id === v.id);
+      if(!c) continue;
+      const newCur = Number(c.current || 0) + v.montant;
+      await dbUpdate('goals', v.id, { current: newCur });
+      c.current = newCur;
+      await dbInsert('transactions', {
+        type: 'depense', amount: v.montant, category: 'Épargne',
+        note: v.label + ' · ' + shootType,
+        date: todayStr(), payment_method: 'Interne'
+      });
+    }
+
+    // 3. Mettre à jour la séance
+    if(s){
+      const newRecu = Number(s.montant_recu || 0) + total;
+      const prix = Number(s.price || 0);
+      const statut = newRecu >= prix ? 'paye' : 'impaye';
+      await dbUpdate('shoots', _repShootId, { montant_recu: newRecu, payment: statut });
+      s.montant_recu = newRecu;
+      s.payment = statut;
+    }
+
+    // 4. Fermer + refresh
+    document.getElementById('repartitionPaiementBg').classList.remove('show');
+    _repShootId = null;
+    refreshAll();
+    afficherToast(`✅ ${fmt(total)} répartis · 💰 ${fmt(salaireM)} · 💼 ${fmt(studioM)} · 🛡️ ${fmt(epargneM)}`, 'success');
+
+  } catch(e){
+    console.error('Erreur validation:', e);
+    afficherToast('Erreur : ' + e.message, 'error');
+  } finally {
+    _repIsProcessing = false;
+    if(btn){
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+      btn.textContent = '✅ Valider et créer';
+    }
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// 9. BRANCHER SUR "VALIDER LE PAIEMENT"
+// ──────────────────────────────────────────────────────────────
+const _oldValiderPaiementSeance = validerPaiementSeance;
+validerPaiementSeance = async function(shootId){
+  const s = shoots.find(x => x.id === shootId);
+  if(!s){ alert('Séance introuvable'); return; }
+
+  const montant = parseFloat(document.getElementById('paiementMontant')?.value) || 0;
+  const method = document.getElementById('paiementMethod')?.value || 'Wave';
+
+  if(!montant || montant <= 0){ alert('Indique un montant valide'); return; }
+
+  const prixTotal = Number(s.price || 0);
+  const dejaRecu = Number(s.montant_recu || 0);
+  const resteAPayer = Math.max(0, prixTotal - dejaRecu);
+
+  if(montant > resteAPayer){
+    alert(`❌ Montant trop élevé.\nReste à payer : ${fmt(resteAPayer)}`);
+    return;
+  }
+
+  // Fermer la modale "Paiement reçu"
+  const modalPaiement = document.getElementById('paiementSeanceModal');
+  if(modalPaiement) modalPaiement.remove();
+
+  // Ouvrir la modale de répartition
+  const clientName = s.client_id ? (clients.find(c => c.id === s.client_id)?.name || '') : '';
+  await ouvrirRepartitionPaiement(montant, clientName, s.type || 'Séance', shootId);
+};
+
+// ══════════════════════════════════════════════════════════════
+// FIN DU SYSTÈME DE RÉPARTITION
+// ══════════════════════════════════════════════════════════════
+
 
 (async function bootstrap(){
   const user = await getCurrentUser();
