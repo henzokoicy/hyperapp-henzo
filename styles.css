@@ -2043,3 +2043,42 @@ body:not(.logged-out) #loginScreen{display:none;}
 .photo-subpage {
   animation: pageIn .3s cubic-bezier(.16,1,.3,1);
 }
+
+/* ============================================================
+   ONGLETS INTERNES OBJECTIFS / COFFRES
+   ============================================================ */
+.objectif-subtab {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 4px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .25s cubic-bezier(.4,0,.2,1);
+  text-align: center;
+}
+
+.objectif-subtab:hover:not(.active) {
+  background: var(--card3);
+  color: var(--text);
+  transform: translateY(-2px);
+}
+
+.objectif-subtab.active {
+  background: linear-gradient(135deg, #6b8eff, #4a6ee0);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 6px 20px rgba(107,142,255,.4);
+}
+
+.obj-subpage {
+  animation: pageIn .3s cubic-bezier(.16,1,.3,1);
+}

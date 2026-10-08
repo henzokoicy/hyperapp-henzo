@@ -474,6 +474,21 @@
 <div class="page" id="page-objectifs">
   <div class="container">
 
+        <!-- ONGLETS INTERNES : OBJECTIFS / COFFRES -->
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button onclick="switchObjectifTab('objectifs')" data-objtab="objectifs" class="objectif-subtab active">
+        <span style="font-size:20px;line-height:1">🎯</span>
+        <span style="font-size:11px;font-weight:700">Objectifs</span>
+      </button>
+      <button onclick="switchObjectifTab('coffres')" data-objtab="coffres" class="objectif-subtab">
+        <span style="font-size:20px;line-height:1">🏦</span>
+        <span style="font-size:11px;font-weight:700">Coffres</span>
+      </button>
+    </div>
+
+    <!-- SOUS-PAGE OBJECTIFS -->
+    <div id="obj-subpage-objectifs" class="obj-subpage" style="display:block">
+
     <!-- 1. MOTIVATION DU JOUR -->
     <div class="card motivation-card">
       <div class="motiv-icon" id="motivIcon">🔥</div>
@@ -501,8 +516,8 @@
       <div id="objectifsPursList"><div class="empty">Aucun objectif. Crées-en un.</div></div>
       <button class="btn-ghost" onclick="openCoffreModal(null, 'objectif')">+ Créer un objectif</button>
     </div>
-
     <!-- 4. MES COFFRES -->
+    <div id="obj-subpage-coffres" class="obj-subpage" style="display:none">
     <div class="card">
       <h2>🏦 Mes coffres (mes épargnes)</h2>
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
@@ -511,7 +526,7 @@
       <div id="coffresList"><div class="empty">Aucun coffre. Crées-en un.</div></div>
       <button class="btn-ghost" onclick="openCoffreModal(null, 'coffre')">+ Créer un coffre</button>
     </div>
-
+  </div>
     <!-- 5. STATS D'ÉPARGNE -->
     <div class="card" id="goalStatsCard">
       <h2>📊 Mes statistiques d'épargne</h2>

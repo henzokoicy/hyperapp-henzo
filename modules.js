@@ -11109,7 +11109,42 @@ validerPaiementSeance = async function(shootId){
 // ══════════════════════════════════════════════════════════════
 // FIN DU SYSTÈME DE RÉPARTITION
 // ══════════════════════════════════════════════════════════════
+// ============================================================
+// ONGLETS INTERNES OBJECTIFS / COFFRES
+// ============================================================
+function switchObjectifTab(tab){
+  // Boutons
+  document.querySelectorAll('.objectif-subtab').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-objtab') === tab);
+  });
 
+  // Sous-pages
+  document.querySelectorAll('.obj-subpage').forEach(p => {
+    p.style.display = 'none';
+  });
+
+  const target = document.getElementById('obj-subpage-' + tab);
+  if(target){
+    target.style.display = 'block';
+  }
+
+  // Sauvegarder
+  localStorage.setItem('objectif_active_subtab', tab);
+
+  // Rafraîchir
+  if(tab === 'objectifs' && typeof renderCoffres === 'function') renderCoffres();
+  if(tab === 'coffres' && typeof renderCoffres === 'function') renderCoffres();
+}
+
+// Restaurer le dernier onglet
+function restoreObjectifSubtab(){
+  const saved = localStorage.getItem('objectif_active_subtab') || 'objectifs';
+  setTimeout(() => {
+    if(document.getElementById('obj-subpage-' + saved)){
+      switchObjectifTab(saved);
+    }
+  }, 100);
+}
 
 (async function bootstrap(){
   const user = await getCurrentUser();
