@@ -2202,13 +2202,8 @@ async function validerPaiementSeance(shootId){
   }
 
   setTimeout(() => {
-    demarrerAssistant({
-      amount: montant,
-      prestationType: s.type || 'Séance',
-      clientName: clientName,
-      location: s.location || '',
-      source: 'Séance photo'
-    });
+    // 🆕 NOUVEAU : Ouvrir la nouvelle modale de répartition
+    testerOuvrirModaleAvecDonnees(montant, clientName, s.type || 'Séance', shootId);
   }, 500);
 }
 
@@ -10838,6 +10833,68 @@ function mettreAJourCompteur(total, salaire, studio, epargne){
     compteurBar.style.width = pct + '%';
   }
 }
+// ============================================================
+// OUVRIR LA MODALE AVEC LES VRAIES DONNÉES DE LA SÉANCE
+// ============================================================
+function testerOuvrirModaleAvecDonnees(montant, clientName, shootType, shootId){
+  console.log('🚀 Ouverture modale avec données réelles');
+  console.log('   Montant :', montant);
+  console.log('   Client :', clientName);
+  console.log('   Type :', shootType);
+
+  // Remplir l'en-tête
+  const clientEl = document.getElementById('repPaiementClient');
+  const montantEl = document.getElementById('repPaiementMontant');
+  
+  if(clientEl) clientEl.textContent = shootType + (clientName ? ' · ' + clientName : '');
+  if(montantEl) montantEl.textContent = fmt(montant);
+
+  // Mémoriser les infos
+  window.__repPaiementShootId = shootId;
+
+  // Initialiser les % par défaut
+  const salairePct = document.getElementById('repSalairePct');
+  const studioPct = document.getElementById('repStudioPct');
+  const epargnePct = document.getElementById('repEpargnePct');
+  
+  if(salairePct) salairePct.value = 50;
+  if(studioPct) studioPct.value = 30;
+  if(epargnePct) epargnePct.value = 20;
+
+  // Calculer les montants
+  const salaire = Math.round(montant * 0.5);
+  const studio = Math.round(montant * 0.3);
+  const epargne = montant - salaire - studio;
+
+  const salaireMontant = document.getElementById('repSalaireMontant');
+  const studioMontant = document.getElementById('repStudioMontant');
+  const epargneMontant = document.getElementById('repEpargneMontant');
+  
+  if(salaireMontant) salaireMontant.value = salaire;
+  if(studioMontant) studioMontant.value = studio;
+  if(epargneMontant) epargneMontant.value = epargne;
+
+  // Afficher les noms des coffres
+  const cSalaire = coffres.find(c => c.name === 'Salaire photographe');
+  const cStudio = coffres.find(c => c.name === 'Revenu Studio');
+  const cEpargne = coffres.find(c => c.name === 'Épargne Studio');
+
+  const nomSalaire = document.getElementById('repSalaireCoffreNom');
+  const nomStudio = document.getElementById('repStudioCoffreNom');
+  const nomEpargne = document.getElementById('repEpargneCoffreNom');
+
+  if(nomSalaire) nomSalaire.textContent = cSalaire ? (cSalaire.emoji || '💰') + ' ' + cSalaire.name : '⚠️ Non trouvé';
+  if(nomStudio) nomStudio.textContent = cStudio ? (cStudio.emoji || '💼') + ' ' + cStudio.name : '⚠️ Non trouvé';
+  if(nomEpargne) nomEpargne.textContent = cEpargne ? (cEpargne.emoji || '🛡️') + ' ' + cEpargne.name : '⚠️ Non trouvé';
+
+  // Mettre à jour le compteur
+  mettreAJourCompteur(montant, salaire, studio, epargne);
+
+  // Ouvrir la modale
+  const modal = document.getElementById('repartitionPaiementBg');
+  if(modal) modal.classList.add('show');
+}
+
 
 (async function bootstrap(){
   const user = await getCurrentUser();
