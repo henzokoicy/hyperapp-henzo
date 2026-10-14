@@ -1974,6 +1974,26 @@ async function saveShoot(){
 
   if(!date){ alert("Date requise"); return; }
 
+  // 🆕 Alerte si une autre séance (non annulée) est prévue à moins de 3h de celle-ci
+  const FENETRE_CONFLIT_MS = 3 * 60 * 60 * 1000;
+  const dateMsConflit = new Date(date).getTime();
+  if(!isNaN(dateMsConflit)){
+    const conflit = shoots.find(s => {
+      if(editingShootId && s.id === editingShootId) return false;
+      if(s.status === 'annule') return false;
+      if(!s.date) return false;
+      const sMs = new Date(s.date).getTime();
+      if(isNaN(sMs)) return false;
+      return Math.abs(sMs - dateMsConflit) < FENETRE_CONFLIT_MS;
+    });
+    if(conflit){
+      const conflitClient = conflit.client_id ? clients.find(c => c.id === conflit.client_id) : null;
+      const conflitDate = new Date(conflit.date).toLocaleString('fr-FR', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
+      const conflitTxt = `⚠️ Tu as déjà une séance prévue à moins de 3h de cette heure-là :\n${conflit.type}${conflitClient ? ' · ' + conflitClient.name : ''} — ${conflitDate}\n\nEnregistrer quand même ?`;
+      if(!confirm(conflitTxt)) return;
+    }
+  }
+
   if(type === 'Autre'){
     const custom = document.getElementById('shootCustomType').value.trim();
     if(custom) type = custom;
@@ -2378,11 +2398,36 @@ function renderShoots(){
   }
 
   // 🆕 Tri
-  const sortFilter = document.getElementById('shootSortFilter')?.value || 'date-desc';
+  const sortFilter = document.getElementById('shootSortFilter')?.value || 'agenda';
+  const maintenant = new Date().toISOString().slice(0,16);
   list.sort((a, b) => {
     switch(sortFilter){
-      case 'date-desc': return (b.date || '').localeCompare(a.date || '');
-      case 'date-asc': return (a.date || '').localeCompare(b.date || '');
+      // 🆕 Agenda : les rendez-vous à venir en premier (le plus proche d'abord),
+      // puis les rendez-vous passés en dessous (le plus récent passé d'abord).
+      // À date strictement identique, la séance enregistrée le plus récemment passe devant.
+      case 'agenda': {
+        const aFutur = (a.date || '') >= maintenant;
+        const bFutur = (b.date || '') >= maintenant;
+        if(aFutur !== bFutur) return aFutur ? -1 : 1;
+        if(aFutur){
+          // les deux sont à venir : le plus proche d'abord
+          const cmp = (a.date || '').localeCompare(b.date || '');
+          if(cmp !== 0) return cmp;
+        } else {
+          // les deux sont passés : le plus récent d'abord
+          const cmp = (b.date || '').localeCompare(a.date || '');
+          if(cmp !== 0) return cmp;
+        }
+        return (b.created_at || '').localeCompare(a.created_at || '');
+      }
+      case 'date-desc': {
+        const cmp = (b.date || '').localeCompare(a.date || '');
+        return cmp !== 0 ? cmp : (b.created_at || '').localeCompare(a.created_at || '');
+      }
+      case 'date-asc': {
+        const cmp = (a.date || '').localeCompare(b.date || '');
+        return cmp !== 0 ? cmp : (b.created_at || '').localeCompare(a.created_at || '');
+      }
       case 'price-desc': return Number(b.price || 0) - Number(a.price || 0);
       case 'price-asc': return Number(a.price || 0) - Number(b.price || 0);
       case 'paid-desc': return Number(b.montant_recu || 0) - Number(a.montant_recu || 0);
@@ -2433,6 +2478,7 @@ function renderShoots(){
     const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
     const d = new Date(s.date);
     const dStr = d.toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'}) + ' à ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    const urgence = (typeof urgenceSeance === 'function') ? urgenceSeance(s.date) : '';
     const locInfo = s.location ? `📍 ${s.location}` : '';
     const photoInfo = s.photo_count ? `📷 ${s.photo_count} photos` : '';
     const metaInfo = [locInfo, photoInfo].filter(x => x).join(' · ');
@@ -2558,7 +2604,7 @@ function renderShoots(){
         </div>
       </div>
       <div class="amt">
-        <span>📅 ${dStr}</span>
+        <span>📅 ${dStr}${urgence ? ` · <span style="color:var(--accent);font-weight:700">${urgence}</span>` : ''}</span>
         <span style="color:var(--green);font-weight:600">${fmt(s.price)}</span>
       </div>
       ${metaInfo ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">${metaInfo}</div>` : ''}
@@ -2580,7 +2626,7 @@ function resetShootFilters(){
   
   if(search) search.value = '';
   if(month) month.value = 'all';
-  if(sort) sort.value = 'date-desc';
+  if(sort) sort.value = 'agenda';
   if(minP) minP.value = '';
   if(maxP) maxP.value = '';
   
@@ -4564,6 +4610,39 @@ function renderDashboardGoals(){
     const color = getProgressionColor(pct);
     const emoji = getCoffreEmoji(c.name);
     return `<div class="top-goal-item"><div class="left"><div class="title">${emoji} ${c.name}</div><div class="sub">${fmt(current)} / ${fmt(goal)} · ${pct.toFixed(0)}%</div></div><div class="progress-mini"><div style="width:${pct}%;background:${color}"></div></div><div style="font-size:11px;color:${color};font-weight:700;margin-left:6px">${pct.toFixed(0)}%</div></div>`;
+  }).join('');
+}
+
+// 🆕 Bandeau "Prochaines séances" du Tableau : les rendez-vous des 7
+// prochains jours (ni annulés, ni déjà shootés), le plus proche en premier.
+function renderDashboardUpcoming(){
+  const card = document.getElementById('upcomingShootsCard');
+  const list = document.getElementById('upcomingShootsList');
+  if(!card || !list) return;
+
+  const now = new Date();
+  const nowStr = now.toISOString().slice(0,16);
+  const limiteStr = new Date(now.getTime() + 7*24*60*60*1000).toISOString().slice(0,16);
+
+  const prochaines = (shoots || [])
+    .filter(s => s.date && s.date >= nowStr && s.date <= limiteStr && s.status !== 'annule' && s.status !== 'shoote')
+    .sort((a,b) => (a.date || '').localeCompare(b.date || ''));
+
+  if(prochaines.length === 0){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  list.innerHTML = prochaines.map(s => {
+    const client  = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+    const d       = new Date(s.date);
+    const heure   = d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    const urgence = (typeof urgenceSeance === 'function') ? urgenceSeance(s.date) : '';
+    return `<div onclick="showTab('photo', null)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <div>
+        <div style="font-weight:700;font-size:13px">📸 ${s.type}${client ? ' · ' + client.name : ''}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${heure}${s.location ? ' · 📍 ' + s.location : ''}</div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--accent);white-space:nowrap">${urgence}</div>
+    </div>`;
   }).join('');
 }
 // ============================================================
