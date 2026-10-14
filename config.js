@@ -131,3 +131,9 @@ const LOCAL_IDEAS = [
   {t:"Vente de presets / LUTs", d:"Vends tes filtres de retouche.", tags:["Passif"]},
   {t:"Box cadeau 'shooting offert'", d:"Vends des cartes cadeaux.", tags:["Produit","Cash"]}
 ];
+
+// ============================================================
+// 9. GALERIE CLIENTS (connexion automatique)
+// ============================================================
+const GALERIE_URL    = "https://galerie-clients.onrender.com/admin.html";
+const GALERIE_ORIGIN = "https://galerie-clients.onrender.com";
