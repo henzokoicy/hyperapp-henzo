@@ -735,7 +735,28 @@ function envoyerMotDePasseGalerie(pwd){
   const frame = document.getElementById('galerieFrame');
   if(!frame || !frame.contentWindow) return;
   console.log('[Galerie] envoi du mot de passe au cadre, vers l\'origine', GALERIE_ORIGIN);
-  frame.contentWindow.postMessage({ type: 'henzo-auto-login', pwd: pwd }, GALERIE_ORIGIN);
+  // 🆕 On envoie aussi la liste des clients (nom, téléphone, dernière séance)
+  // en même temps que le mot de passe : galerie-clients peut ainsi proposer
+  // de choisir un client existant plutôt que de retaper son nom et son
+  // numéro à la main à chaque nouvelle galerie. On ne transmet que le
+  // strict nécessaire (pas l'email, la ville ou les notes du client).
+  const clientsAEnvoyer = (clients || [])
+    .filter(c => c && c.name)
+    .map(c => {
+      const seancesClient = (shoots || [])
+        .filter(s => s.client_id === c.id && s.status !== 'annule')
+        .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      return {
+        id: c.id,
+        nom: c.name,
+        telephone: c.phone || '',
+        derniereSeance: seancesClient[0] ? (seancesClient[0].type || '') : ''
+      };
+    });
+  frame.contentWindow.postMessage(
+    { type: 'henzo-auto-login', pwd: pwd, clients: clientsAEnvoyer },
+    GALERIE_ORIGIN
+  );
 }
 
 // Réponse envoyée par galerie-clients pour confirmer ce qu'il se passe
