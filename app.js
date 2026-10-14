@@ -703,6 +703,7 @@ async function ouvrirOngletGalerie(){
   if(frame && !frame.getAttribute('data-charge')){
     console.log('[Galerie] premier chargement du cadre vers', GALERIE_URL);
     frame.setAttribute('data-charge', '1');
+    frame.onload = onGalerieFrameLoad;
     frame.src = GALERIE_URL;
   } else if(pwd){
     envoyerMotDePasseGalerie(pwd);
@@ -720,6 +721,15 @@ function envoyerMotDePasseGalerie(pwd){
   console.log('[Galerie] envoi du mot de passe au cadre, vers l\'origine', GALERIE_ORIGIN);
   frame.contentWindow.postMessage({ type: 'henzo-auto-login', pwd: pwd }, GALERIE_ORIGIN);
 }
+ 
+// Réponse envoyée par galerie-clients pour confirmer ce qu'il se passe
+// de son côté (juste pour voir dans cette même console, sans changer d'onglet)
+window.addEventListener('message', function(event){
+  if(event.origin !== GALERIE_ORIGIN) return;
+  if(event.data && event.data.type === 'henzo-auto-login-ack'){
+    console.log('[Galerie] réponse de galerie-clients :', event.data.step);
+  }
+});
  
 async function saveGaleriePwd(){
   const pwd = document.getElementById('galeriePwdInput').value.trim();
