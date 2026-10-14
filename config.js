@@ -1,9 +1,10 @@
+
 // ============================================================
 // CONFIG.JS - Réglages de HENZO PHOTOGRAPHIE
 // Modifie ce fichier pour personnaliser ton application
 // ============================================================
-
-
+ 
+ 
 // ============================================================
 // 1. INFOS DE LA MARQUE
 // ============================================================
@@ -18,30 +19,30 @@ const BRAND = {
   waveId:   "M_ci_gF0f5OK6l1I2",        // ton ID Wave Marchand
   waveName: "HENZO PHOTOGRAPHIE"
 };
-
-
+ 
+ 
 // ============================================================
 // 2. CONNEXION SUPABASE
 // ============================================================
 // Ne touche pas, sauf si tu changes de projet Supabase
 const SUPABASE_URL = "https://lzxvktkryxizclkdetaa.supabase.co";
 const SUPABASE_KEY = "sb_publishable_L4Udla2VCbZsNjdm9IRuJw_ExshPrPc";
-
-
+ 
+ 
 // ============================================================
 // 3. DEVISE
 // ============================================================
 // "FCFA", "€", "$", "MAD"... ce que tu veux
 const CURRENCY = "FCFA";
-
-
+ 
+ 
 // ============================================================
 // 4. OBJECTIF D'ÉPARGNE
 // ============================================================
 // 0.20 = 20% des revenus à épargner automatiquement
 const SAVINGS_TARGET = 0.20;
-
-
+ 
+ 
 // ============================================================
 // 5. CATÉGORIES
 // ============================================================
@@ -68,8 +69,8 @@ const CATEGORIES = {
     "Autre"
   ]
 };
-
-
+ 
+ 
 // ============================================================
 // 6. MODÈLES IA
 // ============================================================
@@ -82,8 +83,8 @@ const AI_MODELS = {
   anthropic: "claude-sonnet-4-20250514",
   gemini:    "gemini-3.6-flash"
 };
-
-
+ 
+ 
 // ============================================================
 // 7. CITATIONS MOTIVANTES
 // ============================================================
@@ -108,8 +109,8 @@ const QUOTES = [
   {q:"Une photo vaut mille mots, mais une bonne photo vaut un million d'émotions.", a:"Henzo Koicy", e:"✨"},
   {q:"Le talent sans discipline, c'est juste un potentiel gaspillé.", a:"Anonyme", e:"🏆"}
 ];
-
-
+ 
+ 
 // ============================================================
 // 8. IDÉES BUSINESS
 // ============================================================
@@ -131,9 +132,11 @@ const LOCAL_IDEAS = [
   {t:"Vente de presets / LUTs", d:"Vends tes filtres de retouche.", tags:["Passif"]},
   {t:"Box cadeau 'shooting offert'", d:"Vends des cartes cadeaux.", tags:["Produit","Cash"]}
 ];
-
+ 
+ 
 // ============================================================
 // 9. GALERIE CLIENTS (connexion automatique)
 // ============================================================
 const GALERIE_URL    = "https://galerie-clients.onrender.com/admin.html";
 const GALERIE_ORIGIN = "https://galerie-clients.onrender.com";
+
