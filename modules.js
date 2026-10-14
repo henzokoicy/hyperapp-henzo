@@ -3011,27 +3011,10 @@ function renderPhotoStats(){
 // ============================================================
 // DASHBOARD
 // ============================================================
-function renderOverview(){
-  const ym = monthKey();
-  const monthShoots = shoots.filter(s => s.date && s.date.startsWith(ym));
-    const revenue = monthShoots.reduce((sum, s) => sum + Number(s.montant_recu || 0), 0);
-  const pending = shoots
-    .filter(s => s.status !== 'annule')
-    .reduce((sum, s) => {
-      const prix = Number(s.price || 0);
-      const recu = Number(s.montant_recu || 0);
-      return sum + Math.max(0, prix - recu);
-    }, 0);
-
-  const cEl = document.getElementById('overviewClients');
-  const sEl = document.getElementById('overviewShoots');
-  const rEl = document.getElementById('overviewPhotoRev');
-  const pEl = document.getElementById('overviewPending');
-  if(cEl) cEl.textContent = clients.length;
-  if(sEl) sEl.textContent = monthShoots.length;
-  if(rEl) rEl.textContent = fmt(revenue);
-  if(pEl) pEl.textContent = fmt(pending);
-}
+// 🆕 NETTOYAGE : renderOverview() écrivait dans des éléments HTML
+// (overviewClients/overviewShoots/overviewPhotoRev/overviewPending) qui
+// n'existent nulle part dans la page — elle ne faisait donc jamais rien.
+// Son travail est déjà fait correctement par renderPhotoStats(). Supprimée.
 
 function computeHealthScore(){
   const s = computeStats();
