@@ -32,6 +32,24 @@ const fmt      = n => new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' '
 const todayStr = () => new Date().toISOString().slice(0,10);
 const monthKey = d => (d || todayStr()).slice(0,7);
  
+// 🆕 Urgence d'une séance (Aujourd'hui / Demain / Dans N jours...), utilisé
+// par la liste des séances et par le bandeau "Prochaines séances" du Tableau.
+function urgenceSeance(dateStr){
+  if(!dateStr) return '';
+  const cible = new Date(dateStr);
+  if(isNaN(cible.getTime())) return '';
+  const now = new Date();
+  const jC = new Date(cible.getFullYear(), cible.getMonth(), cible.getDate());
+  const jN = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diff = Math.round((jC - jN) / (1000*60*60*24));
+  if(diff === 0) return "Aujourd'hui";
+  if(diff === 1) return 'Demain';
+  if(diff === -1) return 'Hier';
+  if(diff > 1 && diff <= 7) return `Dans ${diff} jours`;
+  if(diff < -1 && diff >= -7) return `Il y a ${-diff} jours`;
+  return '';
+}
+ 
 // ============================================================
 // PROFIL UTILISATEUR
 // ============================================================
