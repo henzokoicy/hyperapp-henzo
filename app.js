@@ -1,4 +1,5 @@
 
+
 // ============================================================
 // APP.JS - Coeur de l'app + connexion Supabase
 // ============================================================
@@ -673,21 +674,26 @@ let galeriePwdActuel = '';
 async function getGaleriePwd(){
   try {
     const user = await getCurrentUser();
+    console.log('[Galerie] utilisateur Super App connecté ?', !!user);
     if(user){
-      const { data } = await sb.from('user_settings')
+      const { data, error } = await sb.from('user_settings')
         .select('galerie_admin_pwd')
         .eq('user_id', user.id)
         .maybeSingle();
+      console.log('[Galerie] lecture Supabase -> data:', data, 'erreur:', error);
       if(data && data.galerie_admin_pwd) return data.galerie_admin_pwd;
     }
   } catch(e){
-    console.warn('getGaleriePwd:', e);
+    console.warn('[Galerie] getGaleriePwd a échoué:', e);
   }
-  return localStorage.getItem('galerie_admin_pwd') || '';
+  const local = localStorage.getItem('galerie_admin_pwd') || '';
+  console.log('[Galerie] mot de passe trouvé en local (secours) ?', !!local);
+  return local;
 }
  
 async function ouvrirOngletGalerie(){
   const pwd = await getGaleriePwd();
+  console.log('[Galerie] mot de passe trouvé au total ?', !!pwd);
   galeriePwdActuel = pwd;
  
   const box   = document.getElementById('galerieConfigBox');
@@ -695,6 +701,7 @@ async function ouvrirOngletGalerie(){
   if(box) box.style.display = pwd ? 'none' : 'block';
  
   if(frame && !frame.getAttribute('data-charge')){
+    console.log('[Galerie] premier chargement du cadre vers', GALERIE_URL);
     frame.setAttribute('data-charge', '1');
     frame.src = GALERIE_URL;
   } else if(pwd){
@@ -703,12 +710,14 @@ async function ouvrirOngletGalerie(){
 }
  
 function onGalerieFrameLoad(){
+  console.log('[Galerie] cadre chargé/rechargé. Mot de passe en mémoire ?', !!galeriePwdActuel);
   if(galeriePwdActuel) envoyerMotDePasseGalerie(galeriePwdActuel);
 }
  
 function envoyerMotDePasseGalerie(pwd){
   const frame = document.getElementById('galerieFrame');
   if(!frame || !frame.contentWindow) return;
+  console.log('[Galerie] envoi du mot de passe au cadre, vers l\'origine', GALERIE_ORIGIN);
   frame.contentWindow.postMessage({ type: 'henzo-auto-login', pwd: pwd }, GALERIE_ORIGIN);
 }
  
