@@ -2589,6 +2589,8 @@ function renderShoots(){
           ` : ''}
         `}
         ${s.payment === 'impaye' && resteAPayerClient > 0 ? `<button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--wave);color:var(--wave)" onclick="genererLienPaiementClient(${s.id})" title="Envoyer lien de paiement">📤 Lien</button>` : ''}
+        <button class="btn-ghost" style="margin:0;padding:6px;background:linear-gradient(135deg,#25D366,#128C7E);border:none;color:#fff" onclick="confirmerSeanceWhatsApp(${s.id})" title="Confirmer par WhatsApp">💬</button>
+        <button class="btn-ghost" style="margin:0;padding:6px" onclick="exporterShootCalendrier(${s.id})" title="Ajouter à mon calendrier">📆</button>
         <button class="btn-ghost" style="margin:0;padding:6px" onclick="openShootModal(${s.id})" title="Modifier">✏️</button>
         <button class="btn-ghost shoot-cancel-btn" style="margin:0;padding:6px" onclick="cancelShoot(${s.id})" title="Annuler">🚫</button>
         <button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--red);color:var(--red)" onclick="delShoot(${s.id})" title="Supprimer">🗑</button>
@@ -2614,6 +2616,101 @@ function renderShoots(){
       <div class="actions" style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${actionButtons}</div>
     </div>`;
   }).join('');
+
+  if(typeof renderArgentAEncaisser === 'function') renderArgentAEncaisser();
+}
+
+// 🆕 Message de confirmation de rendez-vous envoyé au client par WhatsApp
+function confirmerSeanceWhatsApp(id){
+  const s = shoots.find(x => x.id === id);
+  if(!s) return;
+  const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+  if(!client || !client.phone){
+    alert("Ce client n'a pas de numéro de téléphone enregistré.");
+    return;
+  }
+
+  const d = new Date(s.date);
+  const dateStr = d.toLocaleDateString('fr-FR', {weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'});
+  const timeStr = d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+
+  let message = `Bonjour ${client.name} 👋,\n\n`;
+  message += `Je vous confirme votre séance *${s.type}* :\n\n`;
+  message += `📅 *Date :* ${dateStr} à ${timeStr}\n`;
+  if(s.location) message += `📍 *Lieu :* ${s.location}\n`;
+  message += `\nÀ très bientôt !\n`;
+  message += `HENZO PHOTOGRAPHIE 📸`;
+
+  const clean = client.phone.replace(/[^0-9]/g, '');
+  const fullPhone = clean.startsWith('225') ? clean : '225' + clean;
+  const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank');
+}
+
+// 🆕 Télécharge un fichier .ics pour ajouter la séance au calendrier du téléphone
+function exporterShootCalendrier(id){
+  const s = shoots.find(x => x.id === id);
+  if(!s || !s.date) return;
+  const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+
+  const debut = new Date(s.date);
+  if(isNaN(debut.getTime())) return;
+  const fin = new Date(debut.getTime() + 2*60*60*1000); // 2h par défaut
+
+  const toICS = d => d.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
+  const nettoie = txt => String(txt || '').replace(/[\r\n]+/g, ' ');
+
+  const titre = `${s.type}${client ? ' - ' + client.name : ''}`;
+
+  const lignes = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Henzo Studio//Super App//FR',
+    'BEGIN:VEVENT',
+    `UID:shoot-${s.id}@henzostudio`,
+    `DTSTAMP:${toICS(new Date())}`,
+    `DTSTART:${toICS(debut)}`,
+    `DTEND:${toICS(fin)}`,
+    `SUMMARY:${nettoie(titre)}`,
+    s.location ? `LOCATION:${nettoie(s.location)}` : '',
+    s.notes ? `DESCRIPTION:${nettoie(s.notes)}` : '',
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].filter(Boolean);
+
+  const blob = new Blob([lignes.join('\r\n')], {type: 'text/calendar;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `seance-${s.id}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+// 🆕 Encadré "argent à encaisser" : séances non annulées avec un reste à payer
+function renderArgentAEncaisser(){
+  const box = document.getElementById('shootArgentEncaisserBox');
+  if(!box) return;
+
+  const concernees = (shoots || []).filter(s => {
+    if(s.status === 'annule') return false;
+    const reste = Number(s.price || 0) - Number(s.montant_recu || 0);
+    return reste > 0;
+  });
+
+  if(concernees.length === 0){ box.style.display = 'none'; box.innerHTML = ''; return; }
+
+  const total = concernees.reduce((sum, s) => sum + Math.max(0, Number(s.price || 0) - Number(s.montant_recu || 0)), 0);
+
+  box.style.display = 'block';
+  box.innerHTML = `
+    <div style="background:rgba(245,185,66,.10);border:1px solid var(--yellow);border-radius:12px;padding:12px;margin-bottom:12px">
+      <div style="font-weight:700;font-size:13px;color:var(--yellow)">💰 ${concernees.length} séance${concernees.length > 1 ? 's' : ''} à encaisser · ${fmt(total)}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Reste à payer sur des séances non annulées. Utilise le filtre "Reste à payer élevé" pour les voir en premier.</div>
+    </div>
+  `;
 }
 
 // ---- Réinitialiser les filtres ----
