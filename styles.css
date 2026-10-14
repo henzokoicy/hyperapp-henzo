@@ -1246,6 +1246,38 @@ body:not(.logged-out) #loginScreen{display:none;}
   border-color:var(--green);
   box-shadow:0 0 28px rgba(52,211,153,.25);
 }
+
+/* 🆕 HARMONISATION : les cartes de séance (.item-card) avaient un style plus
+   plat que les cartes coffre/objectif (pas de dégradé, pas d'effet au survol).
+   On leur donne le même "chrome" pour une interface plus cohérente. */
+.item-card{
+  background:linear-gradient(160deg,var(--card2) 0%,var(--card) 100%);
+  transition:border-color .25s var(--ease), box-shadow .3s var(--ease), transform .25s var(--ease);
+}
+.item-card:hover{
+  border-color:var(--border-2);
+  box-shadow:var(--shadow);
+  transform:translateY(-2px);
+}
+
+/* 🆕 Cadre pour la Galerie clients intégrée (iframe), pour qu'elle s'intègre
+   visuellement au reste de l'app au lieu d'être un simple rectangle brut. */
+.galerie-frame-wrap{
+  background:var(--card2);
+  border:1px solid var(--border-2);
+  border-radius:16px;
+  padding:6px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.galerie-frame-wrap iframe{
+  display:block;
+  width:100%;
+  height:80vh;
+  border:none;
+  border-radius:12px;
+  background:#fff;
+}
 .coffre-header{
   display:flex;justify-content:space-between;align-items:center;
   margin-bottom:12px;gap:8px;
@@ -1899,16 +1931,17 @@ body:not(.logged-out) #loginScreen{display:none;}
 .coach-btn{
   position:relative;
   width:40px;height:40px;padding:0;border-radius:10px;
-  background:linear-gradient(135deg,#8b5cf6,#6366f1);
+  /* 🆕 CORRECTION : violet hors palette, remplacé par le bleu "accent" de l'app */
+  background:linear-gradient(135deg,var(--accent),var(--accent-dk));
   color:#fff;border:none;font-size:18px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
   transition:transform .2s var(--ease-spring), box-shadow .2s var(--ease);
   flex-shrink:0;min-width:40px;max-width:40px;
-  box-shadow:0 4px 14px rgba(139,92,246,.4);
+  box-shadow:0 4px 14px rgba(107,142,255,.4);
 }
 .coach-btn:hover{
   transform:translateY(-1px) scale(1.05);
-  box-shadow:0 8px 24px rgba(139,92,246,.55);
+  box-shadow:0 8px 24px rgba(107,142,255,.55);
 }
 .coach-btn:active{transform:scale(.95);}
 
@@ -1966,7 +1999,7 @@ body:not(.logged-out) #loginScreen{display:none;}
   border-radius: 20px !important;
   max-width: 420px !important;
   padding: 24px 20px 20px !important;
-  animation: henzoModalIn .3s cubic-bezier(.34,1.56,.64,1) !important;
+  animation: henzoModalIn .3s var(--ease-spring) !important;
 }
 
 @keyframes henzoModalIn {
@@ -1987,7 +2020,7 @@ body:not(.logged-out) #loginScreen{display:none;}
 }
 
 #photoTabIcon {
-  transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+  transition: transform .3s var(--ease-spring);
 }
 
 #photoTabCounter {
@@ -2022,7 +2055,7 @@ body:not(.logged-out) #loginScreen{display:none;}
   color: var(--muted);
   cursor: pointer;
   font-family: inherit;
-  transition: all .25s cubic-bezier(.4,0,.2,1);
+  transition: all .25s var(--ease);
   text-align: center;
 }
 
@@ -2033,7 +2066,7 @@ body:not(.logged-out) #loginScreen{display:none;}
 }
 
 .photo-subtab.active {
-  background: linear-gradient(135deg, #6b8eff, #4a6ee0);
+  background: linear-gradient(135deg, var(--accent), var(--accent-dk));
   color: #fff;
   border-color: transparent;
   box-shadow: 0 6px 20px rgba(107,142,255,.4);
@@ -2041,7 +2074,7 @@ body:not(.logged-out) #loginScreen{display:none;}
 }
 
 .photo-subpage {
-  animation: pageIn .3s cubic-bezier(.16,1,.3,1);
+  animation: pageIn .3s var(--ease-out);
 }
 
 /* ============================================================
@@ -2062,7 +2095,7 @@ body:not(.logged-out) #loginScreen{display:none;}
   color: var(--muted);
   cursor: pointer;
   font-family: inherit;
-  transition: all .25s cubic-bezier(.4,0,.2,1);
+  transition: all .25s var(--ease);
   text-align: center;
 }
 
@@ -2073,12 +2106,12 @@ body:not(.logged-out) #loginScreen{display:none;}
 }
 
 .objectif-subtab.active {
-  background: linear-gradient(135deg, #6b8eff, #4a6ee0);
+  background: linear-gradient(135deg, var(--accent), var(--accent-dk));
   color: #fff;
   border-color: transparent;
   box-shadow: 0 6px 20px rgba(107,142,255,.4);
 }
 
 .obj-subpage {
-  animation: pageIn .3s cubic-bezier(.16,1,.3,1);
+  animation: pageIn .3s var(--ease-out);
 }
