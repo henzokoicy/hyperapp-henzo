@@ -237,6 +237,9 @@
   <button class="tab-btn" data-tab="ia" onclick="showTab('ia',this)">
     <span class="tab-icon">🤖</span><span class="tab-label">IA</span>
   </button>
+  <button class="tab-btn" data-tab="galerie" onclick="showTab('galerie',this)">
+    <span class="tab-icon">🖼️</span><span class="tab-label">Galerie</span>
+  </button>
 </nav>
 
 <div class="page active" id="page-dash">
@@ -902,6 +905,21 @@
     <div class="card">
       <h2>🚀 Mes idées sauvegardées</h2>
       <div id="savedIdeasList"><div class="empty">Aucune idée sauvegardée</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-galerie">
+  <div class="container">
+    <div class="card">
+      <h2>🖼️ Galerie clients</h2>
+      <div id="galerieConfigBox" style="margin-bottom:14px">
+        <label for="galeriePwdInput">Mot de passe admin de galerie-clients</label>
+        <input type="password" id="galeriePwdInput" placeholder="Ton mot de passe admin galerie-clients">
+        <button class="btn-primary" onclick="saveGaleriePwd()">💾 Enregistrer et se connecter</button>
+        <div style="font-size:12px;opacity:0.7;margin-top:6px">Il reste enregistré ici pour te reconnecter automatiquement la prochaine fois.</div>
+      </div>
+      <iframe id="galerieFrame" onload="onGalerieFrameLoad()" style="width:100%;height:80vh;border:none;border-radius:12px" title="Galerie clients"></iframe>
     </div>
   </div>
 </div>
