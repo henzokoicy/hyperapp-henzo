@@ -1469,7 +1469,15 @@ async function delClient(id){
   const ok = await dbDelete('clients', id);
   if(!ok) return;
   clients = clients.filter(c => c.id !== id);
-  shoots.forEach(s => { if(s.client_id === id) s.client_id = null; });
+
+  // 🆕 CORRECTION : on détachait le client seulement en mémoire (ça revenait
+  // au rechargement de la page). On enregistre maintenant aussi dans Supabase.
+  const seancesLiees = shoots.filter(s => s.client_id === id);
+  for(const s of seancesLiees){
+    const upd = await dbUpdate('shoots', s.id, { client_id: null });
+    if(upd) s.client_id = null;
+  }
+
   refreshAll();
 }
 
@@ -2006,9 +2014,18 @@ async function saveShoot(){
     .filter(e => e && e.amount && Number(e.amount) > 0)
     .map(e => ({ type: e.type, amount: Number(e.amount) }));
 
+  // 🆕 CORRECTION : le statut "payé/impayé" venait uniquement du menu déroulant,
+  // qui pouvait rester sur une vieille valeur si le prix était modifié après coup
+  // (ex: prix augmenté sans toucher au statut). On le recalcule à partir du
+  // montant déjà reçu, sauf à la création où il n'y a encore rien reçu.
+  const recuExistant = editingShootId
+    ? Number((shoots.find(s => s.id === editingShootId) || {}).montant_recu || 0)
+    : 0;
+  const paymentCalcule = (recuExistant > 0 && recuExistant >= price) ? 'paye' : 'impaye';
+
   const data = {
     client_id: clientId && clientId !== '__new__' ? parseInt(clientId) : null,
-    type, location, photo_count, date, price, payment, notes,
+    type, location, photo_count, date, price, payment: paymentCalcule, notes,
     shoot_expenses
   };
 
@@ -2016,6 +2033,13 @@ async function saveShoot(){
     data.status = 'planifie';
     data.status_updated_at = new Date().toISOString();
   }
+
+  // 🆕 CORRECTION : avant d'écraser la séance, on garde les anciennes charges
+  // pour ne PAS recréer une transaction pour une charge déjà enregistrée
+  // (sinon chaque modification de la séance dupliquait toutes ses charges).
+  const oldExpenses = editingShootId
+    ? JSON.parse(JSON.stringify((shoots.find(s => s.id === editingShootId)?.shoot_expenses) || []))
+    : [];
 
   let savedShoot = null;
   if(editingShootId){
@@ -2033,7 +2057,24 @@ async function saveShoot(){
 
   if(shoot_expenses.length > 0 && savedShoot){
     const shootLabel = type + (clientName ? ' · ' + clientName : '');
+
+    // Multiset des anciennes charges (type|montant) pour repérer ce qui existait déjà
+    const resteAncien = {};
+    oldExpenses.forEach(e => {
+      const key = (e.type || '') + '|' + Number(e.amount || 0);
+      resteAncien[key] = (resteAncien[key] || 0) + 1;
+    });
+
+    let nbNouvelles = 0;
     for(const exp of shoot_expenses){
+      const key = (exp.type || '') + '|' + Number(exp.amount || 0);
+      if(resteAncien[key] > 0){
+        // Cette charge existait déjà avant la modif → elle a déjà sa transaction, on ne la recrée pas
+        resteAncien[key]--;
+        continue;
+      }
+      // Charge réellement nouvelle → on crée sa transaction
+      nbNouvelles++;
       const txCharge = await dbInsert('transactions', {
         type: 'depense',
         amount: exp.amount,
@@ -2046,6 +2087,14 @@ async function saveShoot(){
         txs.unshift(txCharge);
       }
     }
+
+    // Si des charges ont été retirées du formulaire, on prévient Henzo : leur
+    // transaction reste dans l'historique (par sécurité, on ne la supprime jamais
+    // automatiquement) et doit être supprimée à la main si besoin.
+    const nbSupprimees = Object.values(resteAncien).reduce((a,b) => a + Math.max(0,b), 0);
+    if(nbSupprimees > 0){
+      showToast(`⚠️ ${nbSupprimees} charge(s) retirée(s) · supprime leur transaction dans l'historique si besoin`);
+    }
   }
 
   closeShootModal();
@@ -2053,7 +2102,29 @@ async function saveShoot(){
 }
 
 async function delShoot(id){
-  if(!confirm("Supprimer ?")) return;
+  const s = shoots.find(x => x.id === id);
+
+  // 🆕 Avertissement si la séance a de l'argent lié (reçu et/ou réparti) :
+  // supprimer la séance ne supprime pas les transactions déjà créées dans
+  // l'historique, qui resteraient alors "orphelines" (liées à rien).
+  if(s){
+    const recu = Number(s.montant_recu || 0);
+    const reparti = Number(s.montant_reparti || 0);
+    const charges = (s.shoot_expenses || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    if(recu > 0 || reparti > 0 || charges > 0){
+      const avertissement = `⚠️ Cette séance a de l'argent lié :\n` +
+        (recu > 0 ? `• Reçu : ${fmt(recu)}\n` : '') +
+        (reparti > 0 ? `• Réparti : ${fmt(reparti)}\n` : '') +
+        (charges > 0 ? `• Charges : ${fmt(charges)}\n` : '') +
+        `\nSupprimer la séance NE supprime PAS ces transactions dans ton historique — elles resteront, mais plus liées à aucune séance.\n\nSupprimer quand même ?`;
+      if(!confirm(avertissement)) return;
+    } else {
+      if(!confirm("Supprimer ?")) return;
+    }
+  } else {
+    if(!confirm("Supprimer ?")) return;
+  }
+
   const ok = await dbDelete('shoots', id);
   if(!ok) return;
   shoots = shoots.filter(s => s.id !== id);
@@ -2221,10 +2292,10 @@ async function validerPaiementSeance(shootId){
     showToast(`💰 ${fmt(montant)} reçu · reste ${fmt(reste)}`);
   }
 
-  setTimeout(() => {
-    // 🆕 NOUVEAU : Ouvrir la nouvelle modale de répartition
-    testerOuvrirModaleAvecDonnees(montant, clientName, s.type || 'Séance', shootId);
-  }, 500);
+  // ℹ️ Cette version de validerPaiementSeance est remplacée plus bas dans ce
+  // fichier (section RÉPARTITION) par une version qui ouvre la modale de
+  // répartition automatique. Elle ne s'exécute donc jamais en pratique,
+  // mais on la garde propre pour éviter toute confusion future.
 }
 
 function fermerPaiementSeance(){
@@ -2269,6 +2340,19 @@ async function updateShootStatuses(){
 async function cancelShoot(id){
   const s = shoots.find(x => x.id === id);
   if(!s) return;
+
+  // 🆕 Avertissement si de l'argent a déjà été reçu/réparti sur cette séance :
+  // annuler la séance ne touche pas à cet argent (il reste dans ton historique
+  // et dans tes coffres), donc Henzo doit savoir que ça ne s'annule pas tout seul.
+  const recuAvant = Number(s.montant_recu || 0);
+  const repartiAvant = Number(s.montant_reparti || 0);
+  if(recuAvant > 0){
+    const avertissement = `⚠️ Cette séance a déjà encaissé ${fmt(recuAvant)}` +
+      (repartiAvant > 0 ? ` (dont ${fmt(repartiAvant)} déjà réparti dans tes coffres)` : '') +
+      `.\n\nAnnuler la séance ne va PAS annuler ce paiement : il restera dans ton historique et tes coffres.\nSi besoin, utilise d'abord "↺ Reset des paiements" sur cette séance.\n\nContinuer l'annulation quand même ?`;
+    if(!confirm(avertissement)) return;
+  }
+
   const reason = prompt(`Annuler la séance "${s.type}" ?\n\nRaison (optionnel) :`, '');
   if(reason === null) return;
 
@@ -2959,13 +3043,21 @@ function computeHealthScore(){
     else if(rate >= 0.20) score += 20;
     else if(rate >= 0.10) score += 10;
     else if(rate < 0) score -= 20;
+  } else if(s.totalOut > 0){
+    // 🆕 CORRECTION : un mois à 0 FCFA de revenu mais avec des dépenses
+    // n'était jamais pénalisé (la pénalité n'existait que dans le cas totalIn>0).
+    score -= 20;
   }
 
   if(coffres.length > 0) score += 10;
   if(shoots.some(s => s.payment === 'paye')) score += 10;
   if(clients.length >= 3) score += 10;
 
-  const pendingTotal = shoots.filter(s => s.payment === 'impaye').reduce((a,b) => a + Number(b.price), 0);
+  // 🆕 CORRECTION : on comptait tout le prix des séances impayées (pas juste
+  // le reste à payer) et on comptait aussi les séances annulées.
+  const pendingTotal = shoots
+    .filter(s => s.payment === 'impaye' && s.status !== 'annule')
+    .reduce((a,b) => a + Math.max(0, Number(b.price || 0) - Number(b.montant_recu || 0)), 0);
   if(pendingTotal > 0 && s.totalIn > 0 && pendingTotal > s.totalIn * 0.5) score -= 15;
 
   return Math.max(0, Math.min(100, score));
@@ -3043,7 +3135,7 @@ function renderBars6m(){
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = d.toISOString().slice(0,7);
     const label = d.toLocaleDateString('fr-FR', {month:'short'});
-    const total = txs.filter(t => t.type === 'revenu' && t.date.startsWith(key)).reduce((a,b) => a + Number(b.amount), 0);
+    const total = txs.filter(t => t.type === 'revenu' && t.date.startsWith(key) && !t.cancelled).reduce((a,b) => a + Number(b.amount), 0);
     months.push({ label, total });
   }
 
@@ -3065,7 +3157,11 @@ function renderSuggestions(){
     const missing = (s.totalIn * SAVINGS_TARGET) - (s.totalIn * s.savingsRate);
     suggestions.push({icon:'💰', title:'Augmente ton épargne', body:`Encore ${fmt(missing)}.`});
   }
-  const pending = shoots.filter(s => s.payment === 'impaye').reduce((a,b) => a + Number(b.price), 0);
+  // 🆕 CORRECTION : même logique que computeHealthScore — reste à payer réel,
+  // et on exclut les séances annulées.
+  const pending = shoots
+    .filter(s => s.payment === 'impaye' && s.status !== 'annule')
+    .reduce((a,b) => a + Math.max(0, Number(b.price || 0) - Number(b.montant_recu || 0)), 0);
   if(pending > 0) suggestions.push({icon:'📞', title:'Relance tes clients', body:`${fmt(pending)} à encaisser.`});
   if(clients.length === 0) suggestions.push({icon:'👥', title:'Ajoute tes clients', body:'Commence par tes clients.'});
   if(coffres.length === 0) suggestions.push({icon:'🎯', title:'Crée un objectif', body:'50 000 FCFA pour commencer.'});
@@ -3169,8 +3265,10 @@ function getFilteredTx(){
 }
 function renderHistory(){
   const filtered = getFilteredTx();
-  const totalIn = filtered.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount), 0);
-  const totalOut = filtered.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount), 0);
+  // 🆕 CORRECTION : les transactions annulées restent visibles dans la liste
+  // (barrées), mais ne doivent plus compter dans les totaux affichés en haut.
+  const totalIn = filtered.filter(t => t.type === 'revenu' && !t.cancelled).reduce((s,t) => s + Number(t.amount), 0);
+  const totalOut = filtered.filter(t => t.type === 'depense' && !t.cancelled).reduce((s,t) => s + Number(t.amount), 0);
 
   const cEl = document.getElementById('histCount');
   const iEl = document.getElementById('histIn');
@@ -10295,14 +10393,22 @@ async function resetPaiementSeance(shootId){
   if(!s){ alert('Séance introuvable'); return; }
 
   const recu = Number(s.montant_recu || 0);
+  const repartiAvant = Number(s.montant_reparti || 0);
 
   if(recu <= 0){
     afficherToast('Cette séance n\'a rien à remettre à zéro', 'info');
     return;
   }
 
+  // 🆕 Si une partie de l'argent a déjà été répartie dans tes coffres
+  // (Salaire/Studio/Épargne), le reset ne retire PAS cet argent des coffres —
+  // on le précise clairement pour éviter toute confusion.
+  const texteReparti = repartiAvant > 0
+    ? `\n⚠️ ${fmt(repartiAvant)} avait déjà été réparti dans tes coffres (Salaire/Studio/Épargne) — ce reset ne retire PAS cet argent des coffres, seulement de la séance.`
+    : '';
+
   const ok = await confirmer(
-    `Remettre les paiements de cette séance à 0 ?\n\n📸 ${s.type}\n💰 Montant reçu : ${fmt(recu)}\n\n✅ La séance repassera à "Impayé"\n✅ Les transactions de revenus seront annulées (elles restent visibles dans l\'historique)`,
+    `Remettre les paiements de cette séance à 0 ?\n\n📸 ${s.type}\n💰 Montant reçu : ${fmt(recu)}\n\n✅ La séance repassera à "Impayé"\n✅ Les transactions de revenus seront annulées (elles restent visibles dans l\'historique)${texteReparti}`,
     {
       titre: '↺ Reset des paiements',
       texteAnnuler: 'Annuler',
@@ -10337,8 +10443,11 @@ async function resetPaiementSeance(shootId){
     }
   }
 
+  // 🆕 CORRECTION : on remet aussi montant_reparti à 0, sinon la séance reste
+  // marquée comme "déjà répartie" alors qu'elle n'a plus aucun paiement reçu.
   const upd = await dbUpdate('shoots', shootId, {
     montant_recu: 0,
+    montant_reparti: 0,
     payment: 'impaye'
   });
 
@@ -10348,10 +10457,11 @@ async function resetPaiementSeance(shootId){
   }
 
   s.montant_recu = 0;
+  s.montant_reparti = 0;
   s.payment = 'impaye';
 
   refreshAll();
-  
+
   afficherToast(`↺ Reset effectué · ${annulees} transaction${annulees > 1 ? 's' : ''} annulée${annulees > 1 ? 's' : ''}`, 'success');
 }
 
@@ -11222,12 +11332,17 @@ async function validerRepartitionPaiement(){
     }
 
     // 3. Mettre à jour la séance
+    // 🆕 CORRECTION : on met aussi à jour montant_reparti, sinon l'argent déjà
+    // envoyé dans les 3 coffres (Salaire/Studio/Épargne) reste "disponible" aux
+    // yeux de la répartition manuelle (risque de répartir 2x le même argent).
     if(s){
       const newRecu = Number(s.montant_recu || 0) + total;
+      const newReparti = Number(s.montant_reparti || 0) + total;
       const prix = Number(s.price || 0);
       const statut = newRecu >= prix ? 'paye' : 'impaye';
-      await dbUpdate('shoots', _repShootId, { montant_recu: newRecu, payment: statut });
+      await dbUpdate('shoots', _repShootId, { montant_recu: newRecu, montant_reparti: newReparti, payment: statut });
       s.montant_recu = newRecu;
+      s.montant_reparti = newReparti;
       s.payment = statut;
     }
 
