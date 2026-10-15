@@ -1033,6 +1033,12 @@ body:not(.logged-out) #loginScreen{display:none;}
 .bar-6m .bar-value{
   font-size:10px;color:var(--text);font-weight:600;white-space:nowrap;
 }
+.bars-6m-legend{display:flex;gap:18px;justify-content:center;margin-bottom:6px;font-size:11px;color:var(--muted);}
+.bars-6m-legend .dot{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:middle;}
+.bar-6m-pair{display:flex;gap:3px;align-items:flex-end;justify-content:center;height:100%;width:100%;}
+.bar-6m-col{flex:1;max-width:16px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
+.bar-6m-col .bar-6m-fill{width:100%;border-radius:4px 4px 0 0;min-height:3px;transition:height .7s var(--ease-out);}
+.bar-6m-col .bar-6m-value{font-size:8px;color:var(--text);font-weight:600;white-space:nowrap;margin-bottom:2px;}
 
 .suggestion{
   background:linear-gradient(135deg,rgba(107,142,255,.12),rgba(255,126,179,.05));

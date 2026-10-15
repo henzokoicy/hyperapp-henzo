@@ -903,6 +903,21 @@ function computeStats(){
   const sortedCats = Object.entries(byCat).sort((a,b) => b[1] - a[1]);
   const avgPerDay  = dayOfMonth > 0 ? totalOut / dayOfMonth : 0;
 
+  // 🆕 Détail de "Dépenses" : une partie est de l'argent réellement dépensé
+  // (charges, achats business...), une autre n'est que de l'argent déplacé
+  // vers des objectifs d'épargne (toujours à toi, juste rangé ailleurs).
+  const totalOutEpargne = monthTx.filter(t => t.type==='depense' && t.category==='Épargne').reduce((s,t) => s + Number(t.amount), 0);
+  const totalOutAutre   = totalOut - totalOutEpargne;
+
+  // 🆕 Détail de l'épargne par objectif (extrait du texte de la note des
+  // transactions de répartition, qui se termine toujours par "· Nom de l'objectif")
+  const epargneByGoal = {};
+  monthTx.filter(t => t.type==='depense' && t.category==='Épargne').forEach(t => {
+    const parts = (t.note || '').split(' · ');
+    const label = parts.length >= 2 ? parts[parts.length - 1] : 'Non précisé';
+    epargneByGoal[label] = (epargneByGoal[label] || 0) + Number(t.amount);
+  });
+
   const prevMonth = new Date(now.getFullYear(), now.getMonth()-1, 1).toISOString().slice(0,7);
   const prevTx    = txs.filter(t => t.date.startsWith(prevMonth) && !t.cancelled);
   const prevOut   = prevTx.filter(t => t.type==='depense').reduce((s,t) => s + Number(t.amount), 0);
@@ -911,7 +926,8 @@ function computeStats(){
   return {
     ym, monthTx, totalIn, totalOut, bal, savingsRate,
     projectedOut, projectedBal, sortedCats, avgPerDay,
-    prevOut, prevIn, dayOfMonth, daysInMonth
+    prevOut, prevIn, dayOfMonth, daysInMonth,
+    totalOutEpargne, totalOutAutre, epargneByGoal
   };
 }
 
@@ -1028,6 +1044,21 @@ function renderDashboard(){
   document.getElementById('totalOut').textContent    = fmt(s.totalOut);
   document.getElementById('savingsRate').textContent = (s.savingsRate * 100).toFixed(0) + '%';
 
+  // 🆕 Petite phrase qui explique le solde : où est passé l'argent reçu ce mois
+  const bd = document.getElementById('soldeBreakdown');
+  if(bd){
+    if(s.totalIn === 0){
+      bd.innerHTML = '';
+    } else {
+      const bits = [`${fmt(s.totalIn)} reçus`];
+      if(s.totalOutEpargne > 0) bits.push(`${fmt(s.totalOutEpargne)} mis en épargne`);
+      if(s.totalOutAutre > 0)   bits.push(`${fmt(s.totalOutAutre)} dépensés`);
+      const balColor = s.bal >= 0 ? 'var(--green)' : 'var(--red)';
+      const balLabel = s.bal >= 0 ? 'non affecté' : 'déficit';
+      bd.innerHTML = `${bits.join(' · ')} → <strong style="color:${balColor}">${fmt(Math.abs(s.bal))} ${balLabel}</strong>`;
+    }
+  }
+
   // Blocs enrichis (définis dans modules.js)
   if(typeof renderDashboardAlerts === 'function')      renderDashboardAlerts();
   if(typeof renderDashboardOverview === 'function')    renderDashboardOverview();
@@ -1051,9 +1082,21 @@ function renderDashboard(){
   } else {
     cb.innerHTML = s.sortedCats.map(([cat, amt]) => {
       const pct = s.totalOut > 0 ? (amt / s.totalOut * 100) : 0;
+      // 🆕 Pour "Épargne", on détaille vers quel(s) objectif(s) l'argent est parti
+      let sousDetail = '';
+      if(cat === 'Épargne'){
+        const goalEntries = Object.entries(s.epargneByGoal).sort((a,b) => b[1] - a[1]);
+        sousDetail = goalEntries.map(([goal, gAmt]) => {
+          const gPct = amt > 0 ? (gAmt / amt * 100) : 0;
+          return `<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);padding:3px 0 3px 14px">
+            <span>↳ ${goal}</span><span>${fmt(gAmt)} · ${gPct.toFixed(0)}%</span>
+          </div>`;
+        }).join('');
+      }
       return `<div class="cat-row">
         <div class="top"><span>${cat}</span><span>${fmt(amt)} · ${pct.toFixed(0)}%</span></div>
         <div class="bar"><div style="width:${pct}%"></div></div>
+        ${sousDetail}
       </div>`;
     }).join('');
   }

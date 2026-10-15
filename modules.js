@@ -3165,14 +3165,28 @@ function renderBars6m(){
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = d.toISOString().slice(0,7);
     const label = d.toLocaleDateString('fr-FR', {month:'short'});
-    const total = txs.filter(t => t.type === 'revenu' && t.date.startsWith(key) && !t.cancelled).reduce((a,b) => a + Number(b.amount), 0);
-    months.push({ label, total });
+    const totalIn  = txs.filter(t => t.type === 'revenu'  && t.date.startsWith(key) && !t.cancelled).reduce((a,b) => a + Number(b.amount), 0);
+    const totalOut = txs.filter(t => t.type === 'depense' && t.date.startsWith(key) && !t.cancelled).reduce((a,b) => a + Number(b.amount), 0);
+    months.push({ label, totalIn, totalOut });
   }
 
-  const max = Math.max(...months.map(m => m.total), 1);
+  const max = Math.max(...months.map(m => Math.max(m.totalIn, m.totalOut)), 1);
   el.innerHTML = months.map(m => {
-    const height = (m.total / max) * 100;
-    return `<div class="bar-6m"><div class="bar-value">${m.total > 0 ? Math.round(m.total/1000)+'k' : '0'}</div><div class="bar-fill" style="height:${height}%"></div><div class="bar-label">${m.label}</div></div>`;
+    const hIn  = (m.totalIn  / max) * 100;
+    const hOut = (m.totalOut / max) * 100;
+    return `<div class="bar-6m">
+      <div class="bar-6m-pair">
+        <div class="bar-6m-col" title="Revenus : ${fmt(m.totalIn)}">
+          <div class="bar-6m-value">${m.totalIn > 0 ? Math.round(m.totalIn/1000)+'k' : ''}</div>
+          <div class="bar-6m-fill" style="height:${hIn}%;background:linear-gradient(180deg,var(--green),#1f9d6f)"></div>
+        </div>
+        <div class="bar-6m-col" title="Dépenses : ${fmt(m.totalOut)}">
+          <div class="bar-6m-value">${m.totalOut > 0 ? Math.round(m.totalOut/1000)+'k' : ''}</div>
+          <div class="bar-6m-fill" style="height:${hOut}%;background:linear-gradient(180deg,var(--red),#b23b3b)"></div>
+        </div>
+      </div>
+      <div class="bar-label">${m.label}</div>
+    </div>`;
   }).join('');
 }
 

@@ -265,6 +265,7 @@
         <div class="stat"><div class="v" id="totalOut" style="color:var(--red)">0</div><div class="l">Dépenses</div></div>
         <div class="stat"><div class="v" id="savingsRate" style="color:var(--accent)">0%</div><div class="l">Épargne</div></div>
       </div>
+      <div id="soldeBreakdown" style="font-size:11px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.5;padding-top:10px;border-top:1px solid var(--border)"></div>
     </div>
 
     <div class="card">
@@ -364,7 +365,11 @@
     </div>
 
     <div class="card">
-      <h2>📅 Revenus sur 6 mois</h2>
+      <h2>📅 Revenus vs Dépenses sur 6 mois</h2>
+      <div class="bars-6m-legend">
+        <span><span class="dot" style="background:var(--green)"></span>Revenus</span>
+        <span><span class="dot" style="background:var(--red)"></span>Dépenses</span>
+      </div>
       <div class="bars-6m" id="bars6m"></div>
     </div>
 
