@@ -2575,6 +2575,37 @@ function renderShoots(){
     const netEncaisse = recu - charges;
     const disponible = Math.max(0, netEncaisse - reparti);
 
+    // 🆕 Revenu net prévu de cette séance (prix moins charges), affiché comme
+    // une étiquette en haut de la carte, avec le détail de chaque charge et
+    // un rappel que ça sera déduit à la réception du reste s'il en reste à
+    // encaisser. C'est purement informatif : rien n'est bloqué ni recalculé
+    // automatiquement dans "Déjà réparti".
+    const revenuSeance = prix - charges;
+    let revenuBadge = '';
+    let chargeTags = '';
+    let rappelCharge = '';
+    if(prix > 0 && s.status !== 'annule'){
+      const couleurRevenu = revenuSeance < 0 ? 'var(--red)' : 'var(--accent)';
+      revenuBadge = `<span class="badge" style="background:rgba(107,142,255,.15);color:${couleurRevenu};border:1px solid ${couleurRevenu}">💰 Revenu séance : ${fmt(revenuSeance)}</span>`;
+
+      if(charges > 0){
+        const parType = {};
+        (s.shoot_expenses || []).forEach(e => {
+          const t = e.type || 'Autre';
+          parType[t] = (parType[t] || 0) + Number(e.amount || 0);
+        });
+        const iconeType = (type) => (CHARGES_PRESETS.find(p => p.label === type) || {}).icon || '💸';
+        chargeTags = Object.entries(parType).map(([type, montant]) =>
+          `<span class="badge" style="background:rgba(255,107,107,.12);color:var(--red);border:1px solid var(--red)">${iconeType(type)} ${type} -${fmt(montant)}</span>`
+        ).join('');
+
+        if(resteAPayerClient > 0){
+          const detailCharges = Object.entries(parType).map(([type, montant]) => `${fmt(montant)} (${type})`).join(' + ');
+          rappelCharge = `<div style="font-size:11px;color:var(--yellow);margin-top:6px">💸 ${detailCharges} sera déduit à la réception du reste</div>`;
+        }
+      }
+    }
+
     let financeBlock = '';
     if(prix > 0){
       financeBlock = `
@@ -2687,12 +2718,15 @@ function renderShoots(){
         <div class="shoot-badges">
           <span class="shoot-status ${stat.class}">${stat.label}</span>
           ${paymentBadge}
+          ${revenuBadge}
+          ${chargeTags}
         </div>
       </div>
       <div class="amt">
         <span>📅 ${dStr}${urgence ? ` · <span style="color:var(--accent);font-weight:700">${urgence}</span>` : ''}</span>
         <span style="color:var(--green);font-weight:600">${fmt(s.price)}</span>
       </div>
+      ${rappelCharge}
       ${metaInfo ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">${metaInfo}</div>` : ''}
       ${financeBlock}
       ${isCancelled && s.cancel_reason ? `<div style="font-size:12px;color:var(--red);margin-top:6px;font-style:italic">❌ Raison : ${s.cancel_reason}</div>` : ''}
@@ -3003,9 +3037,22 @@ function renderPhotoStats(){
       return sum + Math.max(0, prix - recu);
     }, 0);
 
+  // 🆕 Revenu net prévu des séances du mois : prix moins charges, même si pas
+  // encore tout payé par le client (c'est ce que la séance rapportera au
+  // final une fois réglée). On exclut les séances annulées, comme ailleurs.
+  const net = monthShoots
+    .filter(s => s.status !== 'annule')
+    .reduce((sum, s) => {
+      const prix = Number(s.price || 0);
+      const charges = (s.shoot_expenses || []).reduce((c, e) => c + Number(e.amount || 0), 0);
+      return sum + (prix - charges);
+    }, 0);
+
   document.getElementById('photoMonthCount').textContent = monthShoots.length;
   document.getElementById('photoMonthRevenue').textContent = fmt(revenue);
   document.getElementById('photoPending').textContent = fmt(pending);
+  const elNet = document.getElementById('photoMonthNet');
+  if (elNet) elNet.textContent = fmt(net);
 }
 
 // ============================================================

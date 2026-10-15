@@ -585,13 +585,16 @@
     <!-- STATS PHOTO -->
     <div class="card">
       <h2>📸 Statistiques photo</h2>
-      <div class="row">
-        <div class="stat"><div class="v" id="photoMonthCount">0</div><div class="l">Séances ce mois</div></div>
-        <div class="stat"><div class="v" id="photoMonthRevenue" style="color:var(--green)">0</div><div class="l">Revenus photo</div></div>
-        <div class="stat"><div class="v" id="photoPending" style="color:var(--yellow)">0</div><div class="l">À encaisser</div></div>
+      <div class="row" style="flex-wrap:wrap">
+        <div class="stat" style="flex:1 1 45%"><div class="v" id="photoMonthCount">0</div><div class="l">Séances ce mois</div></div>
+        <div class="stat" style="flex:1 1 45%"><div class="v" id="photoMonthRevenue" style="color:var(--green)">0</div><div class="l">Revenus photo</div></div>
+        <div class="stat" style="flex:1 1 45%"><div class="v" id="photoPending" style="color:var(--yellow)">0</div><div class="l">À encaisser</div></div>
+        <!-- 🆕 Revenu net prévu des séances du mois, charges déduites (même si pas encore tout payé) -->
+        <div class="stat" style="flex:1 1 45%"><div class="v" id="photoMonthNet" style="color:var(--accent)">0</div><div class="l">Revenu net (après charges)</div></div>
       </div>
       <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px;line-height:1.4">
-        💡 "Revenus photo" = argent reçu pour les séances qui ont eu lieu ce mois (même si payé un autre mois). Le "Revenus" du tableau de bord = argent reçu ce mois, toutes activités confondues. Les deux chiffres peuvent donc être différents, c'est normal.
+        💡 "Revenus photo" = argent reçu pour les séances qui ont eu lieu ce mois (même si payé un autre mois). Le "Revenus" du tableau de bord = argent reçu ce mois, toutes activités confondues. Les deux chiffres peuvent donc être différents, c'est normal.<br>
+        💡 "Revenu net (après charges)" = prix total des séances du mois moins leurs charges (make-up, transport...), même si tout n'est pas encore payé par le client. Ça te dit ce qu'il te restera vraiment une fois tout encaissé.
       </div>
     </div>
 
