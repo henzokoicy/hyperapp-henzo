@@ -16,19 +16,19 @@ let _agLastRevenu = null;      // derniere entree creee (pour lier la repartitio
 let _agSkipSync = false;
 
 const AG_KINDS = {
-  wave:    { label: 'Wave',         icon: '💙', bg: '#0d3550' },
-  especes: { label: 'Espèces',      icon: '💵', bg: '#163b23' },
-  mobile:  { label: 'Mobile Money', icon: '📱', bg: '#45290d' },
-  banque:  { label: 'Banque',       icon: '🏦', bg: '#26214a' },
-  autre:   { label: 'Autre',        icon: '💳', bg: '#1d3a37' }
+  wave:    { label: 'Wave',         icon: '', svg: 'wave' },
+  especes: { label: 'Espèces',      icon: '', svg: 'cash' },
+  mobile:  { label: 'Mobile Money', icon: '', svg: 'phone' },
+  banque:  { label: 'Banque',       icon: '', svg: 'bank' },
+  autre:   { label: 'Autre',        icon: '', svg: 'card' }
 };
 
 const AG_GROUPS = {
-  accueil: { label: 'Accueil', icon: '🏠', tabs: ['dash'] },
-  argent:  { label: 'Argent',  icon: '💳', tabs: ['argent', 'coffres', 'objectifs', 'historique'] },
-  studio:  { label: 'Studio',  icon: '📸', tabs: ['photo', 'galerie'] },
-  idees:   { label: 'Idées',   icon: '💡', tabs: ['notes', 'business', 'inspiration', 'motiv'] },
-  coach:   { label: 'Coach',   icon: '🤖', tabs: ['ia'] }
+  accueil: { label: 'Accueil', icon: 'home',     tabs: ['dash'] },
+  argent:  { label: 'Argent',  icon: 'wallet',   tabs: ['argent', 'coffres', 'objectifs', 'historique'] },
+  studio:  { label: 'Studio',  icon: 'camera',   tabs: ['photo', 'galerie'] },
+  idees:   { label: 'Idées',   icon: 'bulb',     tabs: ['notes', 'business', 'inspiration', 'motiv'] },
+  coach:   { label: 'Coach',   icon: 'sparkles', tabs: ['ia'] }
 };
 const AG_TAB_LABELS = {
   dash: 'Accueil', argent: 'Comptes', coffres: 'Coffres', objectifs: 'Objectifs', historique: 'Historique',
@@ -36,9 +36,9 @@ const AG_TAB_LABELS = {
   inspiration: 'Inspiration', motiv: 'Motivation', ia: 'IA'
 };
 const AG_TITLES = {
-  dash: '🏠 Accueil', argent: '💳 Mon argent', coffres: '🔒 Mes coffres', objectifs: '🎯 Mes objectifs',
-  historique: '📜 Historique', photo: '📸 Studio', galerie: '🖼️ Galerie clients', notes: '📝 Notes & à faire',
-  business: '💡 Idées business', inspiration: '💫 Inspiration', motiv: '🔥 Motivation', ia: '🤖 Coach IA'
+  dash: 'Accueil', argent: 'Mon argent', coffres: 'Mes coffres', objectifs: 'Mes objectifs',
+  historique: 'Historique', photo: 'Studio', galerie: 'Galerie clients', notes: 'Notes & à faire',
+  business: 'Idées business', inspiration: 'Inspiration', motiv: 'Motivation', ia: 'Coach IA'
 };
 
 // ------------------------------------------------------------
@@ -362,7 +362,7 @@ function agOpenAccount(id){
   const bal = agAccountBalance(a);
   const mv = txs.filter(t => t.account_id === id || t.to_account_id === id);
   agSheet('agAccView', `
-    <h3>${k.icon} ${agEsc(a.name)}</h3>
+    <h3>${agEsc(a.name)}</h3>
     <div class="ag-total ${bal < 0 ? 'neg' : ''}" style="margin-top:6px">
       <div class="lbl">Solde actuel</div>
       <div class="amt">${agN(bal)} <small>FCFA</small></div>
@@ -531,7 +531,7 @@ function agCoffreCard(c){
   const pct = hasGoal ? Math.min(100, Math.round((Number(c.current) / Number(c.goal)) * 100)) : 0;
   const lock = estCoffreBloque(c) ? '<span class="ag-lock">🔒 bloqué</span>' : '';
   return `<div class="ag-coffre" onclick="agOpenCoffre(${c.id})">
-    <div class="h"><div class="t"><div class="e">${c.emoji || t.icon}</div><div style="min-width:0"><div class="nm">${agEsc(c.name)}</div><div class="tag">${agEsc(String(t.label || '').replace(/^\S+\s/, ''))}</div></div></div>
+    <div class="h"><div class="t"><div class="e">${agIcon(agCoffreIcon(c))}</div><div style="min-width:0"><div class="nm">${agEsc(c.name)}</div><div class="tag">${agEsc(String(t.label || '').replace(/^\S+\s/, ''))}</div></div></div>
     <div><div class="v">${agF(c.current)}</div>${hasGoal ? `<div class="goal">sur ${agF(c.goal)}</div>` : ''}${lock}</div></div>
     ${hasGoal ? `<div class="ag-bar"><i style="width:${pct}%"></i></div>` : ''}
   </div>`;
@@ -544,16 +544,16 @@ function agOpenCoffre(id){
   const hasGoal = Number(c.goal) < 1e8;
   const mv = txs.filter(x => x.goal_id === id || x.to_goal_id === id);
   agSheet('agCoffreView', `
-    <h3>${c.emoji || t.icon} ${agEsc(c.name)}</h3>
+    <h3>${agEsc(c.name)}</h3>
     <div class="ag-total">
       <div class="lbl">Dans ce coffre</div>
       <div class="amt">${agN(c.current)} <small>FCFA</small></div>
       <div class="split"><div>Type<b>${agEsc(String(t.label || '').replace(/^\S+\s/, ''))}</b></div>${hasGoal ? `<div>Objectif<b>${agF(c.goal)}</b></div>` : ''}<div>État<b>${bloque ? '🔒 Bloqué' : 'Libre'}</b></div></div>
     </div>
     <div class="ag-actions" style="grid-template-columns:repeat(3,1fr);margin-bottom:10px">
-      <button class="ag-act main" onclick="agOpenTransfer({toGoal:${id}})"><span>+</span>Déposer</button>
-      <button class="ag-act" onclick="agOpenTransfer({fromGoal:${id}})"><span>−</span>Retirer</button>
-      <button class="ag-act" onclick="agOpenTransfer({fromGoal:${id},toGoal:null})"><span>⇄</span>Transférer</button>
+      <button class="ag-act main" onclick="agOpenTransfer({toGoal:${id}})"><span>${agIcon('plus')}</span>Déposer</button>
+      <button class="ag-act" onclick="agOpenTransfer({fromGoal:${id}})"><span>${agIcon('minus')}</span>Retirer</button>
+      <button class="ag-act" onclick="agOpenTransfer({fromGoal:${id},toGoal:null})"><span>${agIcon('transfer')}</span>Transférer</button>
     </div>
     <div class="ag-btns">
       <button class="btn-ghost" onclick="agCloseSheet('agCoffreView');ouvrirComprendreCoffre(${id})">ℹ️ Comprendre</button>
@@ -577,17 +577,17 @@ function agEndName(type, id){
 function agTxView(t, ctx){
   ctx = ctx || {};
   const a = Number(t.amount) || 0;
-  let icon = '💸', title = t.category || '', sub = '', cls = 'minus', sign = '−';
+  let icon = 'transfer', title = t.category || '', sub = '', cls = 'minus', sign = '−';
   const acc = agEndName('account', t.account_id);
   if(t.type === 'revenu'){
-    icon = t.category === 'Shooting photo' ? '📸' : '💰'; cls = 'plus'; sign = '+';
+    icon = t.category === 'Shooting photo' ? 'camera' : 'arrowIn'; cls = 'plus'; sign = '+';
     title = t.note || t.category; sub = acc || t.payment_method || '';
   } else if(t.type === 'depense'){
-    icon = '🧾'; title = t.note ? (t.category + ' · ' + t.note) : t.category; sub = acc || t.payment_method || '';
+    icon = 'arrowOut'; title = t.note ? (t.category + ' · ' + t.note) : t.category; sub = acc || t.payment_method || '';
   } else {
     const from = agEndName('account', t.account_id) || agEndName('goal', t.goal_id);
     const to = agEndName('account', t.to_account_id) || agEndName('goal', t.to_goal_id);
-    icon = t.category === 'Ajustement' ? '✏️' : t.to_goal_id ? '🔒' : t.goal_id ? '🔓' : '⇄';
+    icon = t.category === 'Ajustement' ? 'edit' : t.to_goal_id ? 'lock' : t.goal_id ? 'unlock' : 'transfer';
     title = t.category === 'Ajustement' ? 'Ajustement · ' + (from || to) : `${from || '?'} → ${to || '?'}`;
     sub = t.note || t.category;
     cls = 'move'; sign = '';
@@ -608,7 +608,7 @@ function agListHtml(list, ctx){
   return '<div class="ag-list">' + rows.map(t => {
     const v = agTxView(t, ctx);
     return `<div class="ag-tx ${t.cancelled ? 'cancelled' : ''}" onclick="agOpenTx(${t.id})">
-      <div class="ic">${v.icon}</div><div class="d"><b>${agEsc(v.title)}</b><span>${agEsc(v.sub)}${t.cancelled ? ' · annulé' : ''}</span></div>
+      <div class="ic">${agIcon(v.icon)}</div><div class="d"><b>${agEsc(v.title)}</b><span>${agEsc(v.sub)}${t.cancelled ? ' · annulé' : ''}</span></div>
       <div class="m ${v.cls}">${v.amt}</div></div>`;
   }).join('') + '</div>';
 }
@@ -631,7 +631,7 @@ function agOpenTx(id){
   ].filter(Boolean);
   const liees = txs.filter(x => x.details === 'rep:' + id);
   agSheet('agTxView', `
-    <h3>${v.icon} ${agEsc(v.title)}</h3>
+    <h3>${agEsc(v.title)}</h3>
     <div style="text-align:center;font-size:32px;font-weight:800;margin:4px 0 12px" class="ag-tx"><span class="m ${v.cls}" style="font-size:32px;width:100%;text-align:center">${v.amt} F</span></div>
     ${rows.map(r => `<div class="ag-detail-row"><span>${agEsc(r[0])}</span><span>${agEsc(r[1])}</span></div>`).join('')}
     ${liees.length ? `<div class="ag-hint">Cette entrée a été répartie dans tes coffres (${liees.length} mouvement${liees.length > 1 ? 's' : ''}). Si tu l'annules, la répartition est annulée aussi et l'argent sort des coffres.</div>` : ''}
@@ -688,17 +688,17 @@ function agRenderArgent(){
       <div class="split"><div>Sur mes comptes<b>${agF(tot.comptes)}</b></div><div>Dans mes coffres<b>${agF(tot.coffres)}</b></div></div>
     </div>
     <div class="ag-actions">
-      <button class="ag-act main" onclick="agNewTx('revenu')"><span>+</span>Entrée</button>
-      <button class="ag-act" onclick="agNewTx('depense')"><span>−</span>Dépense</button>
-      <button class="ag-act" onclick="agOpenTransfer()"><span>⇄</span>Transfert</button>
-      <button class="ag-act" onclick="agOpenTransfer({toGoal:${cof[0] ? cof[0].id : 'null'}})"><span>🔒</span>Épargner</button>
+      <button class="ag-act main" onclick="agNewTx('revenu')"><span>${agIcon('plus')}</span>Entrée</button>
+      <button class="ag-act" onclick="agNewTx('depense')"><span>${agIcon('minus')}</span>Dépense</button>
+      <button class="ag-act" onclick="agOpenTransfer()"><span>${agIcon('transfer')}</span>Transfert</button>
+      <button class="ag-act" onclick="agOpenTransfer({toGoal:${cof[0] ? cof[0].id : 'null'}})"><span>${agIcon('lock')}</span>Épargner</button>
     </div>
     <div class="ag-sec"><h3>Mes comptes</h3><button onclick="agOpenAccountForm()">+ Ajouter</button></div>
     <div class="ag-row">
       ${accs.map(a => { const b = agAccountBalance(a); const k = agKind(a); return `
-        <div class="ag-acc" onclick="agOpenAccount(${a.id})"><div class="ic" style="background:${k.bg}">${k.icon}</div>
+        <div class="ag-acc" onclick="agOpenAccount(${a.id})"><div class="ic">${agIcon(k.svg)}</div>
         <div class="n">${agEsc(a.name)}</div><div class="v ${b < 0 ? 'neg' : ''}">${agF(b)}</div></div>`; }).join('')}
-      <div class="ag-acc add" onclick="agOpenAccountForm()"><span style="font-size:22px">+</span>Compte</div>
+      <div class="ag-acc add" onclick="agOpenAccountForm()">${agIcon('plus')}Compte</div>
     </div>
     <div class="ag-sec"><h3>Mes coffres</h3><button onclick="agGoTab('coffres')">Tout voir</button></div>
     ${cof.length ? cof.slice(0, 3).map(agCoffreCard).join('') : '<div class="ag-list"><div class="ag-empty">Aucun coffre. <a style="color:var(--light)" onclick="openCoffreModal(null,\'coffre\')">Crée ton premier coffre</a></div></div>'}
@@ -719,9 +719,9 @@ function agRenderCoffresPage(){
       <div class="split"><div>Coffres<b>${cof.length}</b></div><div>Bloqué<b>${agF(bloq)}</b></div><div>Libre<b>${agF(tot - bloq)}</b></div></div>
     </div>
     <div class="ag-actions" style="grid-template-columns:repeat(3,1fr)">
-      <button class="ag-act main" onclick="agOpenTransfer({toGoal:${cof[0] ? cof[0].id : 'null'}})"><span>+</span>Déposer</button>
-      <button class="ag-act" onclick="agOpenTransfer({fromGoal:${cof[0] ? cof[0].id : 'null'}})"><span>−</span>Retirer</button>
-      <button class="ag-act" onclick="openCoffreModal(null,'coffre')"><span>✚</span>Nouveau</button>
+      <button class="ag-act main" onclick="agOpenTransfer({toGoal:${cof[0] ? cof[0].id : 'null'}})"><span>${agIcon('plus')}</span>Déposer</button>
+      <button class="ag-act" onclick="agOpenTransfer({fromGoal:${cof[0] ? cof[0].id : 'null'}})"><span>${agIcon('minus')}</span>Retirer</button>
+      <button class="ag-act" onclick="openCoffreModal(null,'coffre')"><span>${agIcon('plus')}</span>Nouveau</button>
     </div>
     ${cof.length ? cof.map(agCoffreCard).join('') : '<div class="ag-list"><div class="ag-empty">Aucun coffre pour l\'instant.</div></div>'}
     <div class="ag-hint" style="text-align:center;margin-top:10px">Touche un coffre pour déposer, retirer, le bloquer ou voir ses mouvements.</div>
@@ -763,10 +763,10 @@ function agRenderDashMini(){
   const hi = agHello();
   const head = `<div class="ag-hello"><div><span>${hi.greet}</span><b>${agEsc(hi.name)}</b></div></div>`;
   const actions = `<div class="ag-actions">
-      <button class="ag-act main" onclick="agNewTx('revenu')"><span>+</span>Entrée</button>
-      <button class="ag-act" onclick="agNewTx('depense')"><span>−</span>Dépense</button>
-      <button class="ag-act" onclick="agOpenTransfer()"><span>⇄</span>Transfert</button>
-      <button class="ag-act" onclick="typeof openNoteModal==='function'?openNoteModal():agGoTab('notes')"><span>📝</span>Note</button>
+      <button class="ag-act main" onclick="agNewTx('revenu')"><span>${agIcon('plus')}</span>Entrée</button>
+      <button class="ag-act" onclick="agNewTx('depense')"><span>${agIcon('minus')}</span>Dépense</button>
+      <button class="ag-act" onclick="agOpenTransfer()"><span>${agIcon('transfer')}</span>Transfert</button>
+      <button class="ag-act" onclick="typeof openNoteModal==='function'?openNoteModal():agGoTab('notes')"><span>${agIcon('note')}</span>Note</button>
     </div>`;
   if(!agActiveAccounts().length){
     el.innerHTML = head + `<div class="ag-total" onclick="agGoTab('argent')" style="cursor:pointer"><div class="lbl">Mon argent</div>
@@ -783,7 +783,7 @@ function agRenderDashMini(){
     + actions
     + `<div class="ag-sec"><h3>Mes comptes</h3><button onclick="agGoTab('argent')">Tout voir</button></div>
     <div class="ag-row">${accs.map(a => { const b = agAccountBalance(a); const k = agKind(a); return `
-      <div class="ag-acc" onclick="agOpenAccount(${a.id})"><div class="ic" style="background:${k.bg}">${k.icon}</div>
+      <div class="ag-acc" onclick="agOpenAccount(${a.id})"><div class="ic">${agIcon(k.svg)}</div>
       <div class="n">${agEsc(a.name)}</div><div class="v ${b < 0 ? 'neg' : ''}">${agF(b)}</div></div>`; }).join('')}</div>
     <div class="ag-sec"><h3>Derniers mouvements</h3><button onclick="agGoTab('historique')">Historique</button></div>
     ${agListHtml(recent)}`;
@@ -814,7 +814,7 @@ renderHistory = function(){
     const checked = selectedTxIds.has(t.id) ? 'checked' : '';
     return `${head}<div class="ag-list" style="margin-bottom:6px"><div class="ag-tx ${t.cancelled ? 'cancelled' : ''}" onclick="agOpenTx(${t.id})">
       <input type="checkbox" class="chk hist-check" data-id="${t.id}" ${checked} onclick="event.stopPropagation()" onchange="toggleTxSelect(${t.id}, this.checked)">
-      <div class="ic">${v.icon}</div><div class="d"><b>${agEsc(v.title)}</b><span>${agEsc(v.sub)}${t.cancelled ? ' · annulé' : ''}</span></div>
+      <div class="ic">${agIcon(v.icon)}</div><div class="d"><b>${agEsc(v.title)}</b><span>${agEsc(v.sub)}${t.cancelled ? ' · annulé' : ''}</span></div>
       <div class="m ${v.cls}">${v.amt}</div></div></div>`;
   }).join('');
 };
@@ -830,7 +830,7 @@ function agBuildNav(){
   const nav = document.getElementById('mainTabs');
   if(!nav) return;
   nav.innerHTML = Object.entries(AG_GROUPS).map(([g, v]) =>
-    `<button class="tab-btn" data-group="${g}" onclick="agGoGroup('${g}')"><span class="tab-icon">${v.icon}</span><span class="tab-label">${v.label}</span></button>`).join('');
+    `<button class="tab-btn" data-group="${g}" onclick="agGoGroup('${g}')"><span class="tab-icon">${agIcon(v.icon)}</span><span class="tab-label">${v.label}</span></button>`).join('');
 }
 function agGoGroup(g){
   let last = null;
@@ -913,6 +913,207 @@ if(typeof openRevenueModal === 'function'){
   openRevenueModal = function(){ _agOpenRevenueModal.apply(this, arguments); agFillSelects(); };
 }
 
+// ============================================================
+// DESIGN : icones fines, themes au choix, barre laterale (PC)
+// ============================================================
+const AG_ICONS = {
+  home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  wallet: '<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18M16 15h2"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+  bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
+  sparkles: '<path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"/><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>', minus: '<path d="M5 12h14"/>',
+  transfer: '<path d="M7 7h12l-3-3M17 17H5l3 3"/>',
+  note: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  unlock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
+  users: '<circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0M16 4.5a3.5 3.5 0 0 1 0 7M21 20a6 6 0 0 0-4-5.6"/>',
+  flame: '<path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.5 1.5 1.5 2.5 3 2.5-1-3 0-6 0-8z"/>',
+  briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/>',
+  shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
+  heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+  star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  bank: '<path d="M3 10 12 4l9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 20h18"/>',
+  cash: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',
+  phone: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  wave: '<path d="M2 9c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2M2 15c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"/>',
+  card: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+  arrowIn: '<path d="M17 7 7 17M7 8v9h9"/>', arrowOut: '<path d="M7 17 17 7M8 7h9v9"/>',
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
+  palette: '<path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.7 1.5-1.5 0-.5-.3-.9-.3-1.4 0-.8.6-1.4 1.4-1.4H17a4 4 0 0 0 4-4c0-5.2-4-8.7-9-8.7z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7.5" r="1"/><circle cx="14.5" cy="7.5" r="1"/>',
+  chev: '<path d="m9 6 6 6-6 6"/>', check: '<path d="m5 12 5 5 9-10"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'
+};
+function agIcon(n, size){
+  return `<svg class="ag-i" width="${size || 20}" height="${size || 20}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${AG_ICONS[n] || AG_ICONS.card}</svg>`;
+}
+function agCoffreIcon(c){
+  const id = (getTypeCoffre(c) || {}).id;
+  return { reserve: 'shield', objectif: 'target', entreprise: 'briefcase', perso: 'heart' }[id] || 'lock';
+}
+const AG_TAB_ICONS = { dash: 'home', argent: 'wallet', coffres: 'lock', objectifs: 'target', historique: 'history',
+  photo: 'camera', galerie: 'image', notes: 'note', business: 'bulb', inspiration: 'star', motiv: 'flame', ia: 'sparkles' };
+
+// ---------- Themes ----------
+const AG_THEMES = {
+  aurora:   { label: 'Aurora',   desc: 'Vert profond et blanc', sw: ['#030b0a', '#00524D', '#48A89A', '#CBEFEB'] },
+  graphite: { label: 'Graphite', desc: 'Gris anthracite et vert citron', sw: ['#141414', '#262626', '#b6f23a', '#e9e9e9'] },
+  minuit:   { label: 'Minuit',   desc: 'Bleu nuit et bleu clair', sw: ['#070a14', '#1d2a5c', '#6b8eff', '#c9d4ff'] },
+  or:       { label: 'Or noir',  desc: 'Noir chaud et doré', sw: ['#0b0a08', '#3a2c12', '#d4a64a', '#f1dfb4'] },
+  ivoire:   { label: 'Ivoire',   desc: 'Clair, pour la journée', sw: ['#f4f2ee', '#ffffff', '#1f6f63', '#1b1b1b'] }
+};
+function agGetTheme(){ try { return localStorage.getItem('ag_theme') || 'aurora'; } catch(e){ return 'aurora'; } }
+function agApplyTheme(t){
+  if(!AG_THEMES[t]) t = 'aurora';
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('ag_theme', t); } catch(e){}
+  const m = document.querySelector('meta[name="theme-color"]');
+  if(m) m.setAttribute('content', AG_THEMES[t].sw[0]);
+}
+async function agSaveThemeRemote(t){
+  try {
+    const { data: u } = await sb.auth.getUser();
+    if(!u || !u.user) return;
+    const { data } = await sb.from('user_settings').select('id,user_preferences').eq('user_id', u.user.id).maybeSingle();
+    if(!data) return;
+    const prefs = Object.assign({}, data.user_preferences || {}, { theme: t });
+    await sb.from('user_settings').update({ user_preferences: prefs }).eq('id', data.id);
+  } catch(e){}
+}
+async function agLoadThemeRemote(){
+  try {
+    if(localStorage.getItem('ag_theme')) return;
+    const { data: u } = await sb.auth.getUser();
+    if(!u || !u.user) return;
+    const { data } = await sb.from('user_settings').select('user_preferences').eq('user_id', u.user.id).maybeSingle();
+    const t = data && data.user_preferences && data.user_preferences.theme;
+    if(t) agApplyTheme(t);
+  } catch(e){}
+}
+function agOpenThemes(){
+  const cur = agGetTheme();
+  agSheet('agThemes', `
+    <h3>Thème de l'application</h3>
+    <div class="ag-hint" style="margin-top:0">Le thème est gardé sur cet appareil et dans ton compte.</div>
+    <div class="ag-themes">${Object.entries(AG_THEMES).map(([k, v]) => `
+      <button class="ag-theme ${k === cur ? 'on' : ''}" onclick="agPickTheme('${k}')">
+        <span class="sw">${v.sw.map(c => `<i style="background:${c}"></i>`).join('')}</span>
+        <span class="tx"><b>${v.label}</b><small>${v.desc}</small></span>
+        <span class="ok">${k === cur ? agIcon('check', 18) : ''}</span>
+      </button>`).join('')}</div>
+  `);
+}
+function agPickTheme(t){ agApplyTheme(t); agSaveThemeRemote(t); agOpenThemes(); }
+
+// ---------- Retirer les emojis de l'affichage (look epure) ----------
+const AG_EMOJI = /(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|‍|\p{Extended_Pictographic}|\p{Emoji_Modifier})*️?\s?/gu;
+const AG_SKIP = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'OPTION', 'svg', 'SVG']);
+function agStripNode(n){
+  if(n.nodeType === 3){
+    const v = n.nodeValue;
+    if(!v || !AG_EMOJI.test(v)) { AG_EMOJI.lastIndex = 0; return; }
+    AG_EMOJI.lastIndex = 0;
+    const p = n.parentElement;
+    if(!p || AG_SKIP.has(p.tagName) || p.closest('[contenteditable],.ag-keep')) return;
+    const nv = v.replace(AG_EMOJI, '');
+    if(nv !== v){
+      n.nodeValue = nv;
+      if(!nv.trim() && !p.textContent.trim() && !p.querySelector('svg,img')){
+        if(p.tagName === 'BUTTON' || p.tagName === 'A') p.textContent = p.getAttribute('title') || p.getAttribute('aria-label') || '';
+        else p.setAttribute('data-agx', '');
+      }
+    }
+    return;
+  }
+  if(n.nodeType !== 1 || AG_SKIP.has(n.tagName)) return;
+  if(n.tagName === 'OPTION' || n.tagName === 'SELECT'){
+    (n.tagName === 'SELECT' ? n.querySelectorAll('option') : [n]).forEach(o => { const t = o.textContent.replace(AG_EMOJI, ''); if(t !== o.textContent) o.textContent = t; });
+    return;
+  }
+  for(const c of n.childNodes) agStripNode(c);
+}
+function agStartStrip(){
+  agStripNode(document.body);
+  document.title = document.title.replace(AG_EMOJI, '');
+  new MutationObserver(ms => {
+    for(const m of ms){
+      if(m.type === 'characterData') agStripNode(m.target);
+      else m.addedNodes.forEach(agStripNode);
+    }
+  }).observe(document.body, { childList: true, subtree: true, characterData: true });
+}
+
+// ---------- Barre laterale (ordinateur) ----------
+function agBuildSide(){
+  if(document.getElementById('agSide')) return;
+  const side = document.createElement('aside');
+  side.id = 'agSide';
+  const item = t => `<button class="ag-side-it" data-tab="${t}" onclick="agGoTab('${t}')"><span class="si">${agIcon(AG_TAB_ICONS[t], 18)}</span><span class="sl">${AG_TAB_LABELS[t]}</span><span class="sc">${agIcon('chev', 16)}</span></button>`;
+  side.innerHTML = `
+    <div class="ag-side-brand"><span class="lg">H</span><span><b>Henzo Studio</b><small>Super App</small></span></div>
+    <div class="ag-side-sec">Menu principal</div>${item('dash')}
+    <div class="ag-side-sec">Argent</div>${AG_GROUPS.argent.tabs.map(item).join('')}
+    <div class="ag-side-sec">Studio</div>${AG_GROUPS.studio.tabs.map(item).join('')}
+    <div class="ag-side-sec">Idées</div>${AG_GROUPS.idees.tabs.map(item).join('')}
+    <div class="ag-side-sec">Coach</div>${item('ia')}
+    <div class="ag-side-foot">
+      <button class="ag-side-it" onclick="agOpenThemes()"><span class="si">${agIcon('palette', 18)}</span><span class="sl">Thème</span></button>
+      <button class="ag-side-it" onclick="typeof openProfileModal==='function'&&openProfileModal()"><span class="si">${agIcon('user', 18)}</span><span class="sl">Mon profil</span></button>
+    </div>`;
+  document.body.appendChild(side);
+}
+function agSyncSide(tab){
+  document.querySelectorAll('#agSide .ag-side-it[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+}
+
+// ---------- Boutons du haut : icones fines ----------
+function agHeaderIcons(){
+  const set = (sel, ic) => { const b = document.querySelector(sel); if(!b || b.dataset.agi) return; b.dataset.agi = '1';
+    const keep = [...b.children].filter(c => c.classList.contains('coach-badge'));
+    b.innerHTML = agIcon(ic, 19); keep.forEach(k => b.appendChild(k)); };
+  set('button.header-icon-btn[onclick*="ouvrirRechercheGlobale"]', 'search');
+  set('#coachBtn', 'sparkles');
+  set('button.header-icon-btn[onclick*="openQuickAdd"]', 'plus');
+  // Choix du theme dans le menu du compte et le menu lateral (mobile)
+  const um = document.querySelector('.user-menu-items');
+  if(um && !um.querySelector('.ag-theme-btn')){
+    const b = document.createElement('button'); b.className = 'ag-theme-btn';
+    b.innerHTML = `<span class="icon">${agIcon('palette', 16)}</span><span>Thème</span>`;
+    b.onclick = () => { if(typeof closeUserMenu === 'function') closeUserMenu(); agOpenThemes(); };
+    um.insertBefore(b, um.firstChild);
+  }
+  const dr = document.querySelector('.drawer-section .drawer-nav[onclick*="preferences"]');
+  if(dr && !document.querySelector('.drawer-nav.ag-theme-btn')){
+    const b = document.createElement('button'); b.className = 'drawer-nav ag-theme-btn';
+    b.innerHTML = `<span class="nav-icon">${agIcon('palette', 16)}</span><span>Thème</span>`;
+    b.onclick = () => { if(typeof closeDrawer === 'function') closeDrawer(); agOpenThemes(); };
+    dr.parentElement.insertBefore(b, dr);
+  }
+}
+
+// ---------- Branchements ----------
+const _agShowTab2 = showTab;
+showTab = function(name, btn){
+  _agShowTab2(name, btn);
+  let cur = name;
+  try { cur = localStorage.getItem('active_tab') || name; } catch(e){}
+  agSyncSide(document.getElementById('page-' + cur) ? cur : name);
+};
+agApplyTheme(agGetTheme());
+(function agDesignInit(){
+  document.body.classList.add('ag-ui');
+  agBuildSide();
+  agHeaderIcons();
+  agStartStrip();
+  agLoadThemeRemote();
+  const act = document.querySelector('.page.active');
+  if(act) agSyncSide(act.id.replace('page-', ''));
+})();
+
 // ------------------------------------------------------------
 // DEMARRAGE
 // ------------------------------------------------------------
@@ -958,3 +1159,4 @@ if(typeof openRevenueModal === 'function'){
   };
   setTimeout(tick, 600);
 })();
+
