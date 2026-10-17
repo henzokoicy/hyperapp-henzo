@@ -731,23 +731,62 @@ function agNewTx(type){
   if(type === 'revenu' && typeof openRevenueModal === 'function'){ openRevenueModal(); return; }
   openModal(); setType(type);
 }
-function agRenderDashMini(){
+// Accueil : un haut propre (comme la maquette) et les anciens blocs ranges dans "Plus de details"
+function agSetupDash(){
   const host = document.querySelector('#page-dash .container');
-  if(!host) return;
-  let el = document.getElementById('agDashMini');
-  if(!el){
-    el = document.createElement('div');
-    el.id = 'agDashMini';
-    host.insertBefore(el, host.firstChild);
-  }
+  if(!host || host.dataset.agDone) return;
+  host.dataset.agDone = '1';
+  const top = document.createElement('div'); top.id = 'agDashMini';
+  const soon = document.createElement('div'); soon.id = 'agDashSoon';
+  const det = document.createElement('details'); det.className = 'ag-tools'; det.id = 'agDashMore';
+  det.innerHTML = '<summary>📊 Analyses, graphiques et conseils</summary>';
+  const keep = ['alertsCard', 'upcomingShootsCard', 'urgentNotesCard'];
+  [...host.children].forEach(ch => {
+    if(ch.classList.contains('seg-bar')) return;
+    const id = ch.id || '';
+    if(keep.includes(id)) soon.appendChild(ch);
+    else det.appendChild(ch);
+  });
+  host.appendChild(top); host.appendChild(soon); host.appendChild(det);
+}
+function agHello(){
+  let n = '';
+  try { n = (document.getElementById('userDisplayName')?.textContent || document.querySelector('.user-name')?.textContent || '').trim(); } catch(e){}
+  if(!n || n.includes('@')) n = 'Henzo';
+  const h = new Date().getHours();
+  return { greet: h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir', name: (n.split(' ')[0].charAt(0).toUpperCase() + n.split(' ')[0].slice(1)) };
+}
+function agRenderDashMini(){
+  agSetupDash();
+  const el = document.getElementById('agDashMini');
+  if(!el) return;
+  const hi = agHello();
+  const head = `<div class="ag-hello"><div><span>${hi.greet}</span><b>${agEsc(hi.name)}</b></div></div>`;
+  const actions = `<div class="ag-actions">
+      <button class="ag-act main" onclick="agNewTx('revenu')"><span>+</span>Entrée</button>
+      <button class="ag-act" onclick="agNewTx('depense')"><span>−</span>Dépense</button>
+      <button class="ag-act" onclick="agOpenTransfer()"><span>⇄</span>Transfert</button>
+      <button class="ag-act" onclick="typeof openNoteModal==='function'?openNoteModal():agGoTab('notes')"><span>📝</span>Note</button>
+    </div>`;
   if(!agActiveAccounts().length){
-    el.innerHTML = `<div class="ag-total ag-mini" onclick="agGoTab('argent')"><div><div class="lbl">Mon argent</div><div style="color:#fff;font-weight:600;margin-top:6px">Crée tes comptes pour voir ton solde →</div></div></div>`;
+    el.innerHTML = head + `<div class="ag-total" onclick="agGoTab('argent')" style="cursor:pointer"><div class="lbl">Mon argent</div>
+      <div style="color:#fff;font-weight:700;font-size:18px;margin:8px 0 4px">Crée tes comptes pour voir ton solde</div>
+      <div class="split"><div>Wave, Espèces, Mobile Money, Banque<b>Commencer →</b></div></div></div>` + actions;
     return;
   }
   const tot = agTotals();
-  el.innerHTML = `<div class="ag-total ${tot.total < 0 ? 'neg' : ''}" onclick="agGoTab('argent')" style="cursor:pointer">
+  const accs = agActiveAccounts();
+  const recent = txs.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 4);
+  el.innerHTML = head + `<div class="ag-total ${tot.total < 0 ? 'neg' : ''}" onclick="agGoTab('argent')" style="cursor:pointer">
     <div class="lbl">Mon argent total</div><div class="amt">${agN(tot.total)} <small>FCFA</small></div>
-    <div class="split"><div>Comptes<b>${agF(tot.comptes)}</b></div><div>Coffres<b>${agF(tot.coffres)}</b></div></div></div>`;
+    <div class="split"><div>Sur mes comptes<b>${agF(tot.comptes)}</b></div><div>Dans mes coffres<b>${agF(tot.coffres)}</b></div></div></div>`
+    + actions
+    + `<div class="ag-sec"><h3>Mes comptes</h3><button onclick="agGoTab('argent')">Tout voir</button></div>
+    <div class="ag-row">${accs.map(a => { const b = agAccountBalance(a); const k = agKind(a); return `
+      <div class="ag-acc" onclick="agOpenAccount(${a.id})"><div class="ic" style="background:${k.bg}">${k.icon}</div>
+      <div class="n">${agEsc(a.name)}</div><div class="v ${b < 0 ? 'neg' : ''}">${agF(b)}</div></div>`; }).join('')}</div>
+    <div class="ag-sec"><h3>Derniers mouvements</h3><button onclick="agGoTab('historique')">Historique</button></div>
+    ${agListHtml(recent)}`;
 }
 
 // ------------------------------------------------------------

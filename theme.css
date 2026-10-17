@@ -168,3 +168,17 @@ input,select,textarea{border-radius:12px}
 .ag-tools summary::after{content:'▾';float:right;color:var(--muted)}
 .ag-tools[open] summary{margin-bottom:10px}
 .ag-tools[open] summary::after{content:'▴'}
+
+/* ---------- Mise en page : comme la maquette, aussi sur ordinateur ---------- */
+.container{max-width:560px;margin:0 auto}
+.header-content{max-width:560px;margin:0 auto}
+.tabs#mainTabs{max-width:560px;margin:0 auto;border-left:1px solid var(--border-2);border-right:1px solid var(--border-2);border-radius:18px 18px 0 0}
+.fab{display:none !important}
+.ag-hello{display:flex;justify-content:space-between;align-items:center;margin:2px 2px 14px}
+.ag-hello span{display:block;font-size:13px;color:var(--muted)}
+.ag-hello b{display:block;font-size:20px;font-weight:700;color:#fff}
+#agDashSoon .card{margin-bottom:12px}
+#agDashMore{margin-top:10px}
+/* Les blocs anciens : textes plus lisibles */
+.card h2{font-size:12.5px;letter-spacing:.06em}
+.quote-box{border-radius:20px !important}
