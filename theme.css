@@ -293,3 +293,28 @@ input,select,textarea{border-radius:12px}
 .ag-theme .tx{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:none;padding:0}
 .ag-theme .tx b,.ag-theme .tx small{border:none;padding:0;text-align:left}
 @media (min-width:1000px){ body.ag-ui .side-drawer:not(.open){box-shadow:none !important;visibility:hidden} }
+
+/* ---------- Pages Studio / Idees / Objectifs : plus propre ---------- */
+.container button, .container .btn-primary, .container .btn-ghost{box-shadow:none !important}
+.container button[style*="gradient"], .btn-pink, .defi-btn{background:var(--pri-bg) !important;color:var(--pri-fg) !important;border:none !important}
+.photo-subtab, .objectif-subtab{background:var(--card) !important;border:1px solid var(--border) !important;color:var(--muted) !important;box-shadow:none !important}
+.photo-subtab.active{background:var(--card2) !important;color:var(--text) !important;border-color:var(--border-2) !important;box-shadow:inset 0 -2px 0 var(--accent) !important}
+.photo-subtab.active::after, .photo-subtab.active::before{display:none !important}
+.shoot-filter-btn{background:var(--card) !important;border:1px solid var(--border) !important;color:var(--muted) !important;box-shadow:none !important}
+.shoot-filter-btn.active{background:var(--card3) !important;color:var(--text) !important;border-color:var(--accent) !important}
+.item-card{background:var(--card) !important;border:1px solid var(--border) !important;border-radius:18px !important}
+.item-card .actions{gap:8px !important}
+.item-card .actions > button{width:auto !important;flex:1 1 auto;min-height:38px;border-radius:12px !important;font-size:12.5px !important}
+.ag-ibtn{width:42px !important;flex:0 0 42px !important;height:38px;padding:0 !important;display:inline-grid !important;place-items:center;
+  background:var(--card2) !important;border:1px solid var(--border-2) !important;color:var(--text-2) !important;border-radius:12px !important;margin:0 !important}
+.ag-ibtn:hover{color:var(--text) !important;border-color:var(--accent) !important}
+.ag-ibtn[title*="upprimer"]{color:var(--red) !important}
+.stat{background:var(--card2) !important;border:1px solid var(--border) !important;border-radius:14px !important}
+.ag-fold{margin:6px 0 12px}
+.ag-fold summary{font-size:13px;padding:11px 14px;background:var(--card2)}
+.ag-fold > div{margin-top:6px}
+.motivation-card, .defi-card{background:var(--card) !important;border:1px solid var(--border) !important}
+.note-actions button, .insp-actions a, .insp-actions button{box-shadow:none !important;border-radius:12px !important}
+.note-btn-done, .insp-btn-link, .insp-btn-call, .insp-btn-mail{background:var(--pri-bg) !important;color:var(--pri-fg) !important;border:none !important}
+.note-actions > .ag-ibtn, .insp-actions > .ag-ibtn{flex:0 0 42px !important}
+.note-card, .insp-card{background:var(--card) !important;border:1px solid var(--border) !important;box-shadow:none !important}

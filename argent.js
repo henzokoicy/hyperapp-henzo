@@ -946,7 +946,18 @@ const AG_ICONS = {
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
   palette: '<path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.7 1.5-1.5 0-.5-.3-.9-.3-1.4 0-.8.6-1.4 1.4-1.4H17a4 4 0 0 0 4-4c0-5.2-4-8.7-9-8.7z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7.5" r="1"/><circle cx="14.5" cy="7.5" r="1"/>',
   chev: '<path d="m9 6 6 6-6 6"/>', check: '<path d="m5 12 5 5 9-10"/>',
-  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  ban: '<circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/>',
+  chat: '<path d="M4 5h16v11H9l-5 4z"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  phoneCall: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
+  download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>'
 };
 function agIcon(n, size){
   return `<svg class="ag-i" width="${size || 20}" height="${size || 20}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${AG_ICONS[n] || AG_ICONS.card}</svg>`;
@@ -1023,7 +1034,13 @@ function agStripNode(n){
     if(nv !== v){
       n.nodeValue = nv;
       if(!nv.trim() && !p.textContent.trim() && !p.querySelector('svg,img')){
-        if(p.tagName === 'BUTTON' || p.tagName === 'A') p.textContent = p.getAttribute('title') || p.getAttribute('aria-label') || '';
+        if(p.tagName === 'BUTTON' || p.tagName === 'A'){
+          const oc = (p.getAttribute('onclick') || '') + ' ' + p.className;
+          const lbl = p.getAttribute('title') || p.getAttribute('aria-label') || (/del|suppr/i.test(oc) ? 'Supprimer' : /edit|modif/i.test(oc) ? 'Modifier' : /copi|copy/i.test(oc) ? 'Copier' : /fav/i.test(oc) ? 'Favori' : '');
+          const ic = agBtnIcon(lbl);
+          if(ic){ p.innerHTML = agIcon(ic, 17); p.classList.add('ag-ibtn'); p.setAttribute('aria-label', lbl); if(!p.title) p.title = lbl; }
+          else p.textContent = lbl;
+        }
         else p.setAttribute('data-agx', '');
       }
     }
@@ -1045,6 +1062,63 @@ function agStartStrip(){
       else m.addedNodes.forEach(agStripNode);
     }
   }).observe(document.body, { childList: true, subtree: true, characterData: true });
+}
+
+function agBtnIcon(t){
+  t = String(t || '').toLowerCase();
+  const map = [['whatsapp','chat'],['calendrier','calendar'],['modifier','edit'],['supprimer','trash'],['effacer','trash'],['annuler','ban'],
+    ['lien','link'],['réactiver','refresh'],['restaurer','refresh'],['voir','eye'],['appeler','phoneCall'],['mail','mail'],['copier','copy'],
+    ['pdf','download'],['export','download'],['bloquer','lock'],['débloquer','unlock'],['comprendre','sparkles'],['favori','star'],['épargner','plus'],['retirer','minus']];
+  for(const [k, v] of map) if(t.includes(k)) return v;
+  return null;
+}
+
+// Les coffres "sans objectif" (999 999 999) ne sont pas des objectifs : on les cache des analyses d'objectifs
+function agWithRealGoals(fn){
+  const all = coffres;
+  coffres = all.filter(c => !(Number(c.goal) >= 1e8));
+  try { return fn(); } finally { coffres = all; }
+}
+['renderMotivationJour', 'renderAnalysePercutante', 'renderGoalSuggestions', 'renderDefiDuJour', 'renderDashboardGoals', 'renderCoffres'].forEach(n => {
+  const f = window[n];
+  if(typeof f !== 'function') return;
+  const w = function(){
+    const r = agWithRealGoals(() => f.apply(this, arguments));
+    if(n === 'renderCoffres'){
+      const at = document.getElementById('antiTemptation');
+      const real = coffres.filter(c => !(Number(c.goal) >= 1e8) && Number(c.goal) > 1 && Number(c.current) < Number(c.goal));
+      if(at && !real.length) at.innerHTML = '<div class="empty">Aucun objectif chiffré en cours. Crée un objectif avec un montant à atteindre.</div>';
+    }
+    return r;
+  };
+  try { window[n] = w; } catch(e){}
+  try { eval(n + ' = w'); } catch(e){}
+});
+
+// Ranger les filtres et les longues explications dans des blocs repliables
+function agFold(el, title){
+  if(!el || el.closest('details.ag-tools') || el.dataset.agFold) return;
+  el.dataset.agFold = '1';
+  const det = document.createElement('details');
+  det.className = 'ag-tools ag-fold';
+  det.innerHTML = `<summary>${title}</summary>`;
+  el.parentNode.insertBefore(det, el);
+  det.appendChild(el);
+}
+function agFoldAll(){
+  document.querySelectorAll('.page .container div').forEach(d => {
+    if(d.children.length) return;
+    const t = (d.textContent || '').trim().toLowerCase();
+    if(t === 'filtres avancés') agFold(d.parentElement, 'Filtres et recherche');
+  });
+  document.querySelectorAll('.page .card > h2').forEach(h => {
+    const t = (h.textContent || '').trim().toLowerCase();
+    if(t === 'filtrer' || t === 'filtres') agFold(h.parentElement, 'Filtres et recherche');
+  });
+  document.querySelectorAll('.page .container div[style*="font-size:11px"]').forEach(d => {
+    const t = (d.textContent || '').trim();
+    if(t.length > 180 && !d.children.length || (t.length > 180 && d.querySelectorAll('br').length === d.children.length)) agFold(d, 'Comment sont calculés ces chiffres ?');
+  });
 }
 
 // ---------- Barre laterale (ordinateur) ----------
@@ -1104,11 +1178,53 @@ showTab = function(name, btn){
   agSyncSide(document.getElementById('page-' + cur) ? cur : name);
 };
 agApplyTheme(agGetTheme());
+// ---------- Installable sur telephone (comme une vraie app) ----------
+let _agInstallEvt = null;
+function agSetupInstall(){
+  const head = document.head;
+  const add = (tag, attrs) => { const el = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v)); head.appendChild(el); };
+  if(!document.querySelector('link[rel="manifest"]')) add('link', { rel: 'manifest', href: '/manifest.webmanifest' });
+  if(!document.querySelector('link[rel="apple-touch-icon"]')) add('link', { rel: 'apple-touch-icon', href: '/icon-180.png' });
+  if(!document.querySelector('meta[name="theme-color"]')) add('meta', { name: 'theme-color', content: AG_THEMES[agGetTheme()].sw[0] });
+  add('meta', { name: 'apple-mobile-web-app-capable', content: 'yes' });
+  add('meta', { name: 'mobile-web-app-capable', content: 'yes' });
+  add('meta', { name: 'apple-mobile-web-app-title', content: 'Henzo Studio' });
+  add('meta', { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' });
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); _agInstallEvt = e; agShowInstallBtn(); });
+}
+function agIsInstalled(){ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone; }
+function agShowInstallBtn(){
+  if(agIsInstalled() || document.getElementById('agInstallBtn')) return;
+  const foot = document.querySelector('.ag-side-foot');
+  const b = document.createElement('button');
+  b.id = 'agInstallBtn'; b.className = 'ag-side-it';
+  b.innerHTML = `<span class="si">${agIcon('download', 18)}</span><span class="sl">Installer l'app</span>`;
+  b.onclick = agInstall;
+  if(foot) foot.insertBefore(b, foot.firstChild);
+  const um = document.querySelector('.user-menu-items');
+  if(um && !um.querySelector('.ag-install-btn')){
+    const m = document.createElement('button'); m.className = 'ag-install-btn';
+    m.innerHTML = `<span class="icon">${agIcon('download', 16)}</span><span>Installer l'app</span>`;
+    m.onclick = () => { if(typeof closeUserMenu === 'function') closeUserMenu(); agInstall(); };
+    um.insertBefore(m, um.firstChild);
+  }
+}
+async function agInstall(){
+  if(_agInstallEvt){ _agInstallEvt.prompt(); await _agInstallEvt.userChoice; _agInstallEvt = null; document.getElementById('agInstallBtn')?.remove(); document.querySelector('.ag-install-btn')?.remove(); return; }
+  agSheet('agInstallHelp', `<h3>Installer l'app sur ton téléphone</h3>
+    <div class="ag-detail-row"><span>Android (Chrome)</span><span>Menu ⋮ puis "Installer l'application"</span></div>
+    <div class="ag-detail-row"><span>iPhone (Safari)</span><span>Bouton Partager puis "Sur l'écran d'accueil"</span></div>
+    <div class="ag-hint">L'app s'ouvre ensuite en plein écran avec son icône. Les mises à jour arrivent toutes seules.</div>`);
+}
+agSetupInstall();
+
 (function agDesignInit(){
   document.body.classList.add('ag-ui');
   agBuildSide();
   agHeaderIcons();
   agStartStrip();
+  agFoldAll();
+  if(!agIsInstalled() && /android|iphone|ipad/i.test(navigator.userAgent)) agShowInstallBtn();
   agLoadThemeRemote();
   const act = document.querySelector('.page.active');
   if(act) agSyncSide(act.id.replace('page-', ''));
