@@ -323,3 +323,16 @@ input,select,textarea{border-radius:12px}
 .drawer-nav .ag-i, .drawer-quick .ag-i, .user-menu-items .ag-i{color:var(--muted)}
 .drawer-nav.active .ag-i{color:var(--accent)}
 .drawer-quick{background:var(--card) !important;border:1px solid var(--border) !important}
+
+/* ---------- Galerie clients integree ---------- */
+.ag-back{display:inline-flex;align-items:center;gap:6px;width:auto;margin:0 0 12px;padding:6px 2px;background:none;border:none;color:var(--muted);font:600 13px Inter,sans-serif;cursor:pointer}
+.ag-back .ag-i{transform:rotate(180deg)}
+.ag-gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.ag-gal-ph{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--card2);border:1px solid var(--border)}
+.ag-gal-ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ag-gal-ph button{position:absolute;top:6px;right:6px;width:30px;height:30px;padding:0;margin:0;display:grid;place-items:center;border-radius:9px;border:none;background:rgba(0,0,0,.6);color:#fff;cursor:pointer;opacity:0;transition:opacity .15s}
+.ag-gal-ph:hover button{opacity:1}
+@media (hover:none){ .ag-gal-ph button{opacity:1} }
+.ag-gal-tabs{margin-top:4px}
+#galBody .ag-list + .ag-list{margin-top:8px}
+@media (min-width:1000px){ body.ag-ui .ag-gal-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))} }

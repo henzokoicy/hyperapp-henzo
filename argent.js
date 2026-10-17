@@ -1251,6 +1251,9 @@ async function agInstall(){
 }
 agSetupInstall();
 
+// Galerie clients integree (fichier galerie.js)
+(function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=1'; document.body.appendChild(sc); })();
+
 (function agDesignInit(){
   document.body.classList.add('ag-ui');
   agBuildSide();
