@@ -1,0 +1,921 @@
+// ============================================================
+// ARGENT.JS - Comptes, soldes, transferts et nouvelle navigation
+// ------------------------------------------------------------
+// Charge APRES app.js, modules.js et coach.js.
+// Principe : chaque franc a une place.
+//   - un COMPTE (Wave, Especes, Mobile Money, Banque...) a un solde
+//     = solde de depart + entrees - depenses +/- transferts
+//   - un COFFRE garde son montant (colonne goals.current)
+//   - un TRANSFERT deplace de l'argent : compte <-> coffre <-> compte
+//   - annuler / restaurer / supprimer un mouvement remet l'argent en place
+// ============================================================
+
+let accounts = [];
+let _agLastMethod = null;      // dernier moyen de paiement choisi (Wave, Especes...)
+let _agLastRevenu = null;      // derniere entree creee (pour lier la repartition)
+let _agSkipSync = false;
+
+const AG_KINDS = {
+  wave:    { label: 'Wave',         icon: '💙', bg: '#0d3550' },
+  especes: { label: 'Espèces',      icon: '💵', bg: '#163b23' },
+  mobile:  { label: 'Mobile Money', icon: '📱', bg: '#45290d' },
+  banque:  { label: 'Banque',       icon: '🏦', bg: '#26214a' },
+  autre:   { label: 'Autre',        icon: '💳', bg: '#1d3a37' }
+};
+
+const AG_GROUPS = {
+  accueil: { label: 'Accueil', icon: '🏠', tabs: ['dash'] },
+  argent:  { label: 'Argent',  icon: '💳', tabs: ['argent', 'coffres', 'objectifs', 'historique'] },
+  studio:  { label: 'Studio',  icon: '📸', tabs: ['photo', 'galerie'] },
+  idees:   { label: 'Idées',   icon: '💡', tabs: ['notes', 'business', 'inspiration', 'motiv'] },
+  coach:   { label: 'Coach',   icon: '🤖', tabs: ['ia'] }
+};
+const AG_TAB_LABELS = {
+  dash: 'Accueil', argent: 'Comptes', coffres: 'Coffres', objectifs: 'Objectifs', historique: 'Historique',
+  photo: 'Séances & clients', galerie: 'Galerie', notes: 'Notes', business: 'Business',
+  inspiration: 'Inspiration', motiv: 'Motivation', ia: 'IA'
+};
+const AG_TITLES = {
+  dash: '🏠 Accueil', argent: '💳 Mon argent', coffres: '🔒 Mes coffres', objectifs: '🎯 Mes objectifs',
+  historique: '📜 Historique', photo: '📸 Studio', galerie: '🖼️ Galerie clients', notes: '📝 Notes & à faire',
+  business: '💡 Idées business', inspiration: '💫 Inspiration', motiv: '🔥 Motivation', ia: '🤖 Coach IA'
+};
+
+// ------------------------------------------------------------
+// OUTILS
+// ------------------------------------------------------------
+const agEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const agN = n => new Intl.NumberFormat('fr-FR').format(Math.round(Number(n) || 0));
+const agF = n => agN(n) + ' F';
+const agToast = (m, t) => (typeof afficherToast === 'function' ? afficherToast(m, t || 'success') : (typeof showToast === 'function' ? showToast(m) : alert(m)));
+
+function agKind(a){ return AG_KINDS[a && a.kind] || AG_KINDS.autre; }
+function agActiveAccounts(){ return accounts.filter(a => !a.archived).sort((a, b) => (a.position - b.position) || (a.id - b.id)); }
+function agPrincipal(){ return agActiveAccounts()[0] || null; }
+
+// Un "vrai" coffre (de l'argent rangé), pas un objectif sans argent
+function agIsCoffre(c){
+  if(!c) return false;
+  if(c.goal_type === 'objectif_pur') return false;
+  if((c.goal_type || 'money') !== 'money') return false;
+  return Number(c.goal) > 1;
+}
+function agCoffres(){ return coffres.filter(agIsCoffre); }
+
+function agAccountBalance(acc){
+  let s = Number(acc.initial_balance) || 0;
+  for(const t of txs){
+    if(t.cancelled) continue;
+    const a = Number(t.amount) || 0;
+    if(t.type === 'revenu'   && t.account_id === acc.id) s += a;
+    if(t.type === 'depense'  && t.account_id === acc.id) s -= a;
+    if(t.type === 'transfert'){
+      if(t.account_id === acc.id) s -= a;
+      if(t.to_account_id === acc.id) s += a;
+    }
+  }
+  return s;
+}
+function agTotals(){
+  const comptes = agActiveAccounts().reduce((s, a) => s + agAccountBalance(a), 0);
+  const cof = agCoffres().reduce((s, c) => s + (Number(c.current) || 0), 0);
+  return { comptes, coffres: cof, total: comptes + cof };
+}
+
+// Trouve le compte qui correspond a un moyen de paiement
+function agGuessAccount(method){
+  const m = String(method || '').toLowerCase();
+  const list = agActiveAccounts();
+  if(!list.length) return null;
+  const byKind = k => list.find(a => a.kind === k);
+  let found = null;
+  if(m.includes('wave')) found = byKind('wave');
+  else if(m.includes('esp') || m.includes('cash') || m.includes('liquide')) found = byKind('especes');
+  else if(m.includes('orange') || m.includes('mtn') || m.includes('moov') || m.includes('mobile')) found = byKind('mobile');
+  else if(m.includes('banque') || m.includes('virement') || m.includes('carte') || m.includes('chèque') || m.includes('cheque')) found = byKind('banque');
+  else if(m.includes('interne') && _agLastMethod && !String(_agLastMethod).toLowerCase().includes('interne')) return agGuessAccount(_agLastMethod);
+  return (found || agPrincipal()).id;
+}
+
+// Trouve le coffre dont le nom apparait dans la note ("Salaire photographe · Dot")
+function agFindGoalInNote(note){
+  const n = String(note || '').toLowerCase();
+  const sorted = [...coffres].sort((a, b) => String(b.name).length - String(a.name).length);
+  return sorted.find(c => c.name && n.includes(String(c.name).toLowerCase())) || null;
+}
+
+// Compte choisi dans la fenetre ouverte (Entree / Depense)
+function agAccountFromOpenModal(){
+  const m1 = document.getElementById('modalBg');
+  if(m1 && m1.classList.contains('show')){
+    const v = document.getElementById('agTxAccount')?.value;
+    if(v) return Number(v);
+  }
+  const m2 = document.getElementById('revenueModalBg');
+  if(m2 && m2.classList.contains('show')){
+    const v = document.getElementById('agRevAccount')?.value;
+    if(v) return Number(v);
+  }
+  return null;
+}
+
+// Effet d'un mouvement sur les coffres : {goalId: +/- montant}
+function agGoalEffect(t){
+  const e = {};
+  if(!t || t.cancelled || t.type !== 'transfert') return e;
+  const a = Number(t.amount) || 0;
+  if(t.goal_id)    e[t.goal_id]    = (e[t.goal_id] || 0) - a;
+  if(t.to_goal_id) e[t.to_goal_id] = (e[t.to_goal_id] || 0) + a;
+  return e;
+}
+async function agApplyGoalDelta(goalId, delta){
+  if(!delta) return;
+  const c = coffres.find(x => x.id === goalId);
+  if(!c) return;
+  const nv = Math.round((Number(c.current) || 0) + delta);
+  const r = await _agDbUpdate('goals', goalId, { current: nv });
+  if(r) c.current = nv;
+}
+async function agSyncGoals(before, after){
+  const b = agGoalEffect(before), a = agGoalEffect(after);
+  const ids = new Set([...Object.keys(b), ...Object.keys(a)]);
+  for(const id of ids){
+    const d = (a[id] || 0) - (b[id] || 0);
+    if(d) await agApplyGoalDelta(Number(id), d);
+  }
+}
+
+// ------------------------------------------------------------
+// BRANCHEMENT SUR LA BASE (toutes les ecritures passent par ici)
+// ------------------------------------------------------------
+const _agDbInsert = dbInsert;
+const _agDbUpdate = dbUpdate;
+const _agDbDelete = dbDelete;
+
+dbInsert = async function(table, data){
+  let d = data;
+  if(table === 'transactions' && d){
+    d = { ...d };
+    if(d._agRaw){ delete d._agRaw; }
+    else {
+      // Une "repartition / epargne" n'est pas une depense : c'est un transfert vers un coffre
+      if(d.type === 'depense' && d.category === 'Épargne'){
+        const g = agFindGoalInNote(d.note);
+        d.type = 'transfert';
+        d.category = 'Vers coffre';
+        d.account_id = d.account_id || agGuessAccount(d.payment_method);
+        d.to_goal_id = g ? g.id : null;
+        if(_agLastRevenu && Date.now() - _agLastRevenu.ts < 5 * 60 * 1000) d.details = 'rep:' + _agLastRevenu.id;
+      } else if((d.type === 'revenu' || d.type === 'depense') && !d.account_id){
+        d.account_id = agAccountFromOpenModal() || agGuessAccount(d.payment_method);
+      }
+    }
+  }
+  const res = await _agDbInsert(table, d);
+  if(res && table === 'transactions' && res.type === 'revenu') _agLastRevenu = { id: res.id, ts: Date.now() };
+  return res;
+};
+
+dbUpdate = async function(table, id, data){
+  let before = null;
+  if(table === 'transactions'){
+    const t = txs.find(x => x.id === id);
+    before = t ? { ...t } : null;
+  }
+  const res = await _agDbUpdate(table, id, data);
+  if(res && table === 'transactions' && before && !_agSkipSync){
+    await agSyncGoals(before, res);
+    // Annuler / restaurer une entree annule / restaure aussi sa repartition dans les coffres
+    if(!!before.cancelled !== !!res.cancelled){
+      const liees = txs.filter(x => x.details === 'rep:' + id && !!x.cancelled !== !!res.cancelled);
+      for(const x of liees){
+        const r = await dbUpdate('transactions', x.id, { cancelled: !!res.cancelled, cancelled_at: res.cancelled ? new Date().toISOString() : null });
+        if(r){ const i = txs.findIndex(y => y.id === x.id); if(i >= 0) txs[i] = r; }
+      }
+    }
+  }
+  return res;
+};
+
+dbDelete = async function(table, id){
+  let before = null;
+  if(table === 'transactions'){
+    const t = txs.find(x => x.id === id);
+    before = t ? { ...t } : null;
+  }
+  if(table === 'goals'){
+    const c = coffres.find(x => x.id === id);
+    if(c && Number(c.current) > 0){
+      alert(`Ce coffre contient encore ${agF(c.current)}.\n\nTransfère d'abord cet argent vers un compte ou un autre coffre, puis supprime-le.`);
+      return false;
+    }
+  }
+  const ok = await _agDbDelete(table, id);
+  if(ok && table === 'transactions' && before){
+    await agSyncGoals(before, null);
+    const liees = txs.filter(x => x.details === 'rep:' + id && !x.cancelled);
+    for(const x of liees){
+      const r = await dbUpdate('transactions', x.id, { cancelled: true, cancelled_at: new Date().toISOString() });
+      if(r){ const i = txs.findIndex(y => y.id === x.id); if(i >= 0) txs[i] = r; }
+    }
+  }
+  return ok;
+};
+
+// L'ancienne annulation de repartition retirait l'argent du coffre elle-meme :
+// maintenant la suppression du mouvement s'en charge (sinon on retirait 2 fois).
+annulerRepartition = async function(shootId, txId, montant){
+  if(!confirm('Annuler cette répartition ?')) return;
+  const ok = await dbDelete('transactions', txId);
+  if(!ok) return;
+  txs = txs.filter(t => t.id !== txId);
+  const s = shoots.find(x => x.id === shootId);
+  if(s){
+    const nr = Math.max(0, Number(s.montant_reparti || 0) - montant);
+    const upd = await dbUpdate('shoots', shootId, { montant_reparti: nr, repartition_effectuee: nr > 0 });
+    if(upd){ s.montant_reparti = nr; s.repartition_effectuee = nr > 0; }
+  }
+  refreshAll();
+  agToast('Répartition annulée · argent remis en place');
+};
+
+// Memoriser le moyen de paiement choisi quand une seance est payee
+const _agValiderPaiementSeance = validerPaiementSeance;
+validerPaiementSeance = async function(shootId){
+  _agLastMethod = document.getElementById('paiementMethod')?.value || _agLastMethod;
+  return _agValiderPaiementSeance(shootId);
+};
+
+// ------------------------------------------------------------
+// CHARGEMENT
+// ------------------------------------------------------------
+async function agLoadAccounts(){
+  const { data, error } = await sb.from('accounts').select('*').order('position', { ascending: true });
+  if(error){ console.warn('Comptes :', error.message); accounts = []; return; }
+  accounts = data || [];
+}
+const _agLoadAllData = loadAllData;
+loadAllData = async function(){
+  await _agLoadAllData();
+  await agLoadAccounts();
+};
+
+// ------------------------------------------------------------
+// FEUILLE (fenetre du bas) generique
+// ------------------------------------------------------------
+function agSheet(id, html){
+  agCloseSheet(id);
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg show ag-sheet';
+  bg.id = id;
+  bg.onclick = e => { if(e.target === bg) agCloseSheet(id); };
+  bg.innerHTML = `<div class="modal"><div class="modal-wrap">${html}<button class="close" onclick="agCloseSheet('${id}')">×</button></div></div>`;
+  document.body.appendChild(bg);
+  return bg;
+}
+function agCloseSheet(id){ const el = document.getElementById(id); if(el) el.remove(); }
+
+// ------------------------------------------------------------
+// COMPTES : creer / modifier / ajuster
+// ------------------------------------------------------------
+async function agCreateDefaultAccounts(){
+  const rows = [];
+  let pos = 0;
+  document.querySelectorAll('#agOnb .line').forEach(l => {
+    const on = l.querySelector('input[type=checkbox]').checked;
+    if(!on) return;
+    const kind = l.dataset.kind;
+    let name = AG_KINDS[kind].label;
+    if(kind === 'mobile'){ name = document.getElementById('agOnbMobileName')?.value || name; }
+    const init = parseFloat(l.querySelector('input[type=number]').value) || 0;
+    rows.push({ name, kind, emoji: AG_KINDS[kind].icon, initial_balance: init, position: pos++ });
+  });
+  if(!rows.length){ alert('Coche au moins un compte.'); return; }
+  for(const r of rows){
+    const res = await _agDbInsert('accounts', r);
+    if(res) accounts.push(res);
+  }
+  agRenderAll();
+  agToast('Tes comptes sont prêts');
+}
+
+function agOpenAccountForm(id){
+  const a = id ? accounts.find(x => x.id === id) : null;
+  const kind = a ? a.kind : 'wave';
+  agSheet('agAccForm', `
+    <h3>${a ? 'Modifier le compte' : 'Nouveau compte'}</h3>
+    <label>Type</label>
+    <div class="ag-pills" id="agAccKind">${Object.entries(AG_KINDS).map(([k, v]) =>
+      `<button type="button" data-k="${k}" class="${k === kind ? 'on' : ''}" onclick="agPick(this)">${v.icon} ${v.label}</button>`).join('')}</div>
+    <label>Nom du compte</label>
+    <input id="agAccName" value="${agEsc(a ? a.name : 'Wave')}" placeholder="Ex : Wave, Orange Money, Caisse studio">
+    <label>Solde de départ (FCFA)</label>
+    <input id="agAccInit" type="number" inputmode="decimal" value="${a ? Number(a.initial_balance) : ''}" placeholder="0">
+    <div class="ag-hint">Le solde de départ, c'est ce que tu avais sur ce compte au moment de commencer. Ensuite, l'app calcule tout seule.</div>
+    <button class="btn-primary" onclick="agSaveAccount(${a ? a.id : 'null'})">${a ? 'Enregistrer' : 'Créer le compte'}</button>
+    ${a ? `<button class="btn-danger" style="margin-top:8px;width:100%;padding:12px" onclick="agArchiveAccount(${a.id})">Masquer ce compte</button>` : ''}
+  `);
+  document.querySelectorAll('#agAccKind button').forEach(b => b.addEventListener('click', () => {
+    const n = document.getElementById('agAccName');
+    if(!a && n) n.value = AG_KINDS[b.dataset.k].label;
+  }));
+}
+function agPick(btn){
+  btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+}
+async function agSaveAccount(id){
+  const kind = document.querySelector('#agAccKind button.on')?.dataset.k || 'autre';
+  const name = document.getElementById('agAccName').value.trim();
+  const init = parseFloat(document.getElementById('agAccInit').value) || 0;
+  if(!name){ alert('Donne un nom au compte'); return; }
+  const data = { name, kind, emoji: AG_KINDS[kind].icon, initial_balance: init };
+  if(id){
+    const r = await _agDbUpdate('accounts', id, data);
+    if(!r) return;
+    const i = accounts.findIndex(x => x.id === id); accounts[i] = r;
+  } else {
+    data.position = accounts.length;
+    const r = await _agDbInsert('accounts', data);
+    if(!r) return;
+    accounts.push(r);
+  }
+  agCloseSheet('agAccForm');
+  agRenderAll();
+  agToast(id ? 'Compte modifié' : 'Compte créé');
+}
+async function agArchiveAccount(id){
+  const a = accounts.find(x => x.id === id);
+  const bal = agAccountBalance(a);
+  if(Math.round(bal) !== 0 && !confirm(`Ce compte a encore ${agF(bal)}.\nIl ne sera plus compté dans ton total. Continuer ?`)) return;
+  const r = await _agDbUpdate('accounts', id, { archived: true });
+  if(!r) return;
+  a.archived = true;
+  agCloseSheet('agAccForm'); agCloseSheet('agAccView');
+  agRenderAll();
+}
+
+function agOpenAccount(id){
+  const a = accounts.find(x => x.id === id);
+  if(!a) return;
+  const k = agKind(a);
+  const bal = agAccountBalance(a);
+  const mv = txs.filter(t => t.account_id === id || t.to_account_id === id);
+  agSheet('agAccView', `
+    <h3>${k.icon} ${agEsc(a.name)}</h3>
+    <div class="ag-total ${bal < 0 ? 'neg' : ''}" style="margin-top:6px">
+      <div class="lbl">Solde actuel</div>
+      <div class="amt">${agN(bal)} <small>FCFA</small></div>
+      <div class="split"><div>Solde de départ<b>${agF(a.initial_balance)}</b></div><div>Mouvements<b>${mv.filter(t => !t.cancelled).length}</b></div></div>
+    </div>
+    <div class="ag-btns">
+      <button class="btn-ghost" onclick="agCloseSheet('agAccView');agOpenTransfer({fromAccount:${id}})">⇄ Transférer</button>
+      <button class="btn-ghost" onclick="agOpenAdjust(${id})">✏️ Ajuster le solde</button>
+    </div>
+    <button class="btn-ghost" style="width:100%" onclick="agCloseSheet('agAccView');agOpenAccountForm(${id})">⚙️ Modifier le compte</button>
+    <div class="ag-sec" style="margin-top:18px"><h3>Mouvements</h3></div>
+    ${agListHtml(mv, { max: 40, forAccount: id })}
+  `);
+}
+
+function agOpenAdjust(id){
+  const a = accounts.find(x => x.id === id);
+  const bal = agAccountBalance(a);
+  agSheet('agAdjust', `
+    <h3>Ajuster le solde</h3>
+    <div class="ag-hint" style="margin-top:0">L'app pense que tu as <b style="color:#fff">${agF(bal)}</b> sur ${agEsc(a.name)}. Si ce n'est pas le cas, tape le montant réel : l'écart sera noté dans l'historique.</div>
+    <label>Montant réel sur ${agEsc(a.name)}</label>
+    <input id="agAdjVal" type="number" inputmode="decimal" class="big" placeholder="${Math.round(bal)}">
+    <button class="btn-primary" onclick="agDoAdjust(${id})">Valider</button>
+  `);
+}
+async function agDoAdjust(id){
+  const a = accounts.find(x => x.id === id);
+  const real = parseFloat(document.getElementById('agAdjVal').value);
+  if(isNaN(real)){ alert('Tape un montant'); return; }
+  const diff = Math.round(real - agAccountBalance(a));
+  if(!diff){ agCloseSheet('agAdjust'); return; }
+  const r = await _agDbInsert('transactions', {
+    type: 'transfert', category: 'Ajustement', amount: Math.abs(diff),
+    note: 'Ajustement du solde ' + a.name, date: todayStr(), payment_method: 'Interne',
+    account_id: diff < 0 ? id : null, to_account_id: diff > 0 ? id : null
+  });
+  if(!r) return;
+  txs.unshift(r);
+  agCloseSheet('agAdjust'); agCloseSheet('agAccView');
+  refreshAll();
+  agToast('Solde ajusté');
+}
+
+// ------------------------------------------------------------
+// TRANSFERTS (compte <-> coffre <-> compte)
+// ------------------------------------------------------------
+function agEndpointPills(side, sel){
+  const accs = agActiveAccounts().map(a => {
+    const v = 'a' + a.id;
+    return `<button type="button" data-v="${v}" class="${sel === v ? 'on' : ''}" onclick="agPick(this);agTrUpdate()">${agKind(a).icon} ${agEsc(a.name)}<small>${agF(agAccountBalance(a))}</small></button>`;
+  }).join('');
+  const cofs = agCoffres().map(c => {
+    const v = 'g' + c.id;
+    const lock = estCoffreBloque(c) ? ' 🔒' : '';
+    return `<button type="button" data-v="${v}" class="${sel === v ? 'on' : ''}" onclick="agPick(this);agTrUpdate()">${c.emoji || '🔒'} ${agEsc(c.name)}${lock}<small>${agF(c.current)}</small></button>`;
+  }).join('');
+  return `<div class="ag-pills" id="agTr${side}">${accs}${cofs}</div>`;
+}
+function agOpenTransfer(opts){
+  opts = opts || {};
+  if(!agActiveAccounts().length){ agGoTab('argent'); agToast('Crée d\'abord tes comptes', 'info'); return; }
+  const from = opts.fromAccount ? 'a' + opts.fromAccount : opts.fromGoal ? 'g' + opts.fromGoal : (opts.toGoal ? 'a' + agPrincipal().id : '');
+  const to   = opts.toAccount ? 'a' + opts.toAccount : opts.toGoal ? 'g' + opts.toGoal : (opts.fromGoal ? 'a' + agPrincipal().id : '');
+  const title = opts.toGoal && !opts.fromGoal ? '🔒 Mettre dans un coffre' : opts.fromGoal ? '💸 Sortir d\'un coffre' : '⇄ Transférer';
+  agSheet('agTransfer', `
+    <h3>${title}</h3>
+    <input id="agTrAmount" type="number" inputmode="decimal" class="big" placeholder="0" value="${opts.amount || ''}" oninput="agTrUpdate()">
+    <label>D'où part l'argent ?</label>
+    ${agEndpointPills('From', from)}
+    <div class="ag-arrow">↓</div>
+    <label>Où va l'argent ?</label>
+    ${agEndpointPills('To', to)}
+    <label>Pourquoi ? (note)</label>
+    <input id="agTrNote" placeholder="Ex : loyer, mise de côté, retrait pour le studio">
+    <label>Date</label>
+    <input id="agTrDate" type="date" value="${todayStr()}">
+    <div class="ag-hint" id="agTrHint"></div>
+    <button class="btn-primary" id="agTrBtn" onclick="agDoTransfer()">Valider le transfert</button>
+  `);
+  agTrUpdate();
+  setTimeout(() => document.getElementById('agTrAmount')?.focus(), 250);
+}
+function agParseEnd(v){
+  if(!v) return null;
+  const id = Number(v.slice(1));
+  return v[0] === 'a' ? { type: 'account', id, obj: accounts.find(a => a.id === id) } : { type: 'goal', id, obj: coffres.find(c => c.id === id) };
+}
+function agEndBalance(e){ return e.type === 'account' ? agAccountBalance(e.obj) : Number(e.obj.current) || 0; }
+function agTrUpdate(){
+  const hint = document.getElementById('agTrHint');
+  if(!hint) return;
+  const amt = parseFloat(document.getElementById('agTrAmount').value) || 0;
+  const from = agParseEnd(document.querySelector('#agTrFrom button.on')?.dataset.v);
+  const to = agParseEnd(document.querySelector('#agTrTo button.on')?.dataset.v);
+  let msg = '', warn = false;
+  if(from && to && from.type === to.type && from.id === to.id){ msg = 'Choisis deux endroits différents.'; warn = true; }
+  else if(from && amt > 0){
+    const after = agEndBalance(from) - amt;
+    msg = `Après le transfert : ${agEsc(from.obj.name)} = ${agF(after)}`;
+    if(to) msg += ` · ${agEsc(to.obj.name)} = ${agF(agEndBalance(to) + amt)}`;
+    if(after < 0){ warn = true; msg += from.type === 'goal' ? '<br>Ce coffre n\'a pas assez d\'argent.' : '<br>Attention : ce compte passera en négatif.'; }
+    if(from.type === 'goal' && estCoffreBloque(from.obj)) { warn = true; msg += '<br>🔒 Ce coffre est bloqué.'; }
+  }
+  hint.innerHTML = msg;
+  hint.className = 'ag-hint' + (warn ? ' warn' : '');
+}
+async function agDoTransfer(){
+  const btn = document.getElementById('agTrBtn');
+  const amount = parseFloat(document.getElementById('agTrAmount').value);
+  const from = agParseEnd(document.querySelector('#agTrFrom button.on')?.dataset.v);
+  const to = agParseEnd(document.querySelector('#agTrTo button.on')?.dataset.v);
+  const note = document.getElementById('agTrNote').value.trim();
+  const date = document.getElementById('agTrDate').value || todayStr();
+  if(!amount || amount <= 0){ alert('Tape un montant'); return; }
+  if(!from || !to){ alert('Choisis d\'où part l\'argent et où il va'); return; }
+  if(from.type === to.type && from.id === to.id){ alert('Choisis deux endroits différents'); return; }
+
+  if(from.type === 'goal'){
+    const c = from.obj;
+    if(amount > Number(c.current)){ alert(`Ce coffre n'a que ${agF(c.current)}.`); return; }
+    if(estCoffreBloque(c)){
+      const lvl = Number(c.lock_level) || getTypeCoffre(c).lockLevel || 1;
+      if(lvl >= 2){
+        alert(`🔒 "${c.name}" est bloqué.\n\nDébloque-le d'abord (bouton "Débloquer" dans le coffre), puis refais le transfert.`);
+        return;
+      }
+      if(!confirm(`"${c.name}" est protégé. Sortir ${agF(amount)} quand même ?`)) return;
+    }
+    if(getTypeCoffre(c).id !== 'perso' && !note){ alert('Pour sortir de l\'argent de ce coffre, écris pourquoi dans la note.'); return; }
+  } else if(agAccountBalance(from.obj) - amount < 0){
+    if(!confirm(`${from.obj.name} va passer en négatif (${agF(agAccountBalance(from.obj) - amount)}). Continuer ?`)) return;
+  }
+
+  if(btn){ btn.disabled = true; btn.textContent = 'Transfert en cours...'; }
+  let category = 'Transfert';
+  if(from.type === 'account' && to.type === 'goal') category = 'Vers coffre';
+  if(from.type === 'goal' && to.type === 'account') category = 'Sortie de coffre';
+  if(from.type === 'goal' && to.type === 'goal') category = 'Entre coffres';
+  const r = await _agDbInsert('transactions', {
+    type: 'transfert', category, amount, note: note || null, date, payment_method: 'Interne',
+    account_id: from.type === 'account' ? from.id : null, goal_id: from.type === 'goal' ? from.id : null,
+    to_account_id: to.type === 'account' ? to.id : null, to_goal_id: to.type === 'goal' ? to.id : null
+  });
+  if(!r){ if(btn){ btn.disabled = false; btn.textContent = 'Valider le transfert'; } return; }
+  txs.unshift(r);
+  await agSyncGoals(null, r);
+  agCloseSheet('agTransfer'); agCloseSheet('agCoffreView'); agCloseSheet('agAccView');
+  refreshAll();
+  agToast(`${agF(amount)} : ${from.obj.name} → ${to.obj.name}`);
+  const g = to.type === 'goal' ? to.obj : null;
+  if(g && Number(g.goal) < 1e8 && Number(g.current) >= Number(g.goal)) setTimeout(() => alert(`🎉 Bravo ! Le coffre "${g.name}" a atteint son objectif.`), 400);
+}
+
+// Les anciens boutons des coffres passent maintenant par les transferts
+ouvrirEpargnePerso = window.ouvrirEpargnePerso = function(id){ agOpenTransfer({ toGoal: id }); };
+openDepositModal = window.openDepositModal = function(id){ agOpenTransfer({ toGoal: id }); };
+retirerCoffre = window.retirerCoffre = function(id){ agOpenTransfer({ fromGoal: id }); };
+
+// ------------------------------------------------------------
+// COFFRE : fiche detaillee
+// ------------------------------------------------------------
+function agCoffreCard(c){
+  const t = getTypeCoffre(c);
+  const hasGoal = Number(c.goal) < 1e8;
+  const pct = hasGoal ? Math.min(100, Math.round((Number(c.current) / Number(c.goal)) * 100)) : 0;
+  const lock = estCoffreBloque(c) ? '<span class="ag-lock">🔒 bloqué</span>' : '';
+  return `<div class="ag-coffre" onclick="agOpenCoffre(${c.id})">
+    <div class="h"><div class="t"><div class="e">${c.emoji || t.icon}</div><div style="min-width:0"><div class="nm">${agEsc(c.name)}</div><div class="tag">${agEsc(String(t.label || '').replace(/^\S+\s/, ''))}</div></div></div>
+    <div><div class="v">${agF(c.current)}</div>${hasGoal ? `<div class="goal">sur ${agF(c.goal)}</div>` : ''}${lock}</div></div>
+    ${hasGoal ? `<div class="ag-bar"><i style="width:${pct}%"></i></div>` : ''}
+  </div>`;
+}
+function agOpenCoffre(id){
+  const c = coffres.find(x => x.id === id);
+  if(!c) return;
+  const t = getTypeCoffre(c);
+  const bloque = estCoffreBloque(c);
+  const hasGoal = Number(c.goal) < 1e8;
+  const mv = txs.filter(x => x.goal_id === id || x.to_goal_id === id);
+  agSheet('agCoffreView', `
+    <h3>${c.emoji || t.icon} ${agEsc(c.name)}</h3>
+    <div class="ag-total">
+      <div class="lbl">Dans ce coffre</div>
+      <div class="amt">${agN(c.current)} <small>FCFA</small></div>
+      <div class="split"><div>Type<b>${agEsc(String(t.label || '').replace(/^\S+\s/, ''))}</b></div>${hasGoal ? `<div>Objectif<b>${agF(c.goal)}</b></div>` : ''}<div>État<b>${bloque ? '🔒 Bloqué' : 'Libre'}</b></div></div>
+    </div>
+    <div class="ag-actions" style="grid-template-columns:repeat(3,1fr);margin-bottom:10px">
+      <button class="ag-act main" onclick="agOpenTransfer({toGoal:${id}})"><span>+</span>Déposer</button>
+      <button class="ag-act" onclick="agOpenTransfer({fromGoal:${id}})"><span>−</span>Retirer</button>
+      <button class="ag-act" onclick="agOpenTransfer({fromGoal:${id},toGoal:null})"><span>⇄</span>Transférer</button>
+    </div>
+    <div class="ag-btns">
+      <button class="btn-ghost" onclick="agCloseSheet('agCoffreView');ouvrirComprendreCoffre(${id})">ℹ️ Comprendre</button>
+      <button class="btn-ghost" onclick="agCloseSheet('agCoffreView');${bloque ? 'debloquerCoffre' : 'bloquerCoffre'}(${id})">${bloque ? '🔓 Débloquer' : '🔒 Bloquer'}</button>
+      <button class="btn-ghost" onclick="agCloseSheet('agCoffreView');openCoffreModal(${id})">⚙️ Modifier</button>
+      <button class="btn-danger" onclick="agCloseSheet('agCoffreView');delCoffre(${id})">Supprimer</button>
+    </div>
+    <div class="ag-sec" style="margin-top:18px"><h3>Mouvements</h3></div>
+    ${agListHtml(mv, { max: 40, forGoal: id })}
+  `);
+}
+
+// ------------------------------------------------------------
+// LISTE DES MOUVEMENTS
+// ------------------------------------------------------------
+function agEndName(type, id){
+  if(!id) return null;
+  if(type === 'account'){ const a = accounts.find(x => x.id === id); return a ? a.name : 'Compte'; }
+  const c = coffres.find(x => x.id === id); return c ? c.name : 'Coffre';
+}
+function agTxView(t, ctx){
+  ctx = ctx || {};
+  const a = Number(t.amount) || 0;
+  let icon = '💸', title = t.category || '', sub = '', cls = 'minus', sign = '−';
+  const acc = agEndName('account', t.account_id);
+  if(t.type === 'revenu'){
+    icon = t.category === 'Shooting photo' ? '📸' : '💰'; cls = 'plus'; sign = '+';
+    title = t.note || t.category; sub = acc || t.payment_method || '';
+  } else if(t.type === 'depense'){
+    icon = '🧾'; title = t.note ? (t.category + ' · ' + t.note) : t.category; sub = acc || t.payment_method || '';
+  } else {
+    const from = agEndName('account', t.account_id) || agEndName('goal', t.goal_id);
+    const to = agEndName('account', t.to_account_id) || agEndName('goal', t.to_goal_id);
+    icon = t.category === 'Ajustement' ? '✏️' : t.to_goal_id ? '🔒' : t.goal_id ? '🔓' : '⇄';
+    title = t.category === 'Ajustement' ? 'Ajustement · ' + (from || to) : `${from || '?'} → ${to || '?'}`;
+    sub = t.note || t.category;
+    cls = 'move'; sign = '';
+    // Vu depuis un compte / coffre : on montre si l'argent entre ou sort
+    const out = (ctx.forAccount && t.account_id === ctx.forAccount) || (ctx.forGoal && t.goal_id === ctx.forGoal);
+    const inn = (ctx.forAccount && t.to_account_id === ctx.forAccount) || (ctx.forGoal && t.to_goal_id === ctx.forGoal);
+    if(t.category === 'Ajustement' && !ctx.forAccount){ if(t.to_account_id){ sign = '+'; cls = 'plus'; } else { sign = '−'; cls = 'minus'; } }
+    if(out){ sign = '−'; cls = 'minus'; } else if(inn){ sign = '+'; cls = 'plus'; }
+  }
+  const d = new Date((t.date || '') + 'T12:00:00');
+  const ds = isNaN(d) ? '' : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  return { icon, title, sub: [sub, ds].filter(Boolean).join(' · '), cls, amt: sign + agN(a) };
+}
+function agListHtml(list, ctx){
+  ctx = ctx || {};
+  const rows = [...list].sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.created_at).localeCompare(String(a.created_at))).slice(0, ctx.max || 1e9);
+  if(!rows.length) return '<div class="ag-list"><div class="ag-empty">Aucun mouvement pour l\'instant.</div></div>';
+  return '<div class="ag-list">' + rows.map(t => {
+    const v = agTxView(t, ctx);
+    return `<div class="ag-tx ${t.cancelled ? 'cancelled' : ''}" onclick="agOpenTx(${t.id})">
+      <div class="ic">${v.icon}</div><div class="d"><b>${agEsc(v.title)}</b><span>${agEsc(v.sub)}${t.cancelled ? ' · annulé' : ''}</span></div>
+      <div class="m ${v.cls}">${v.amt}</div></div>`;
+  }).join('') + '</div>';
+}
+
+function agOpenTx(id){
+  const t = txs.find(x => x.id === id);
+  if(!t) return;
+  const v = agTxView(t);
+  const typeLbl = { revenu: "Entrée d'argent", depense: 'Dépense', transfert: 'Transfert' }[t.type] || t.type;
+  const rows = [
+    ['Type', typeLbl], ['Catégorie', t.category],
+    t.type !== 'transfert' ? ['Compte', agEndName('account', t.account_id) || '-'] : null,
+    t.type === 'transfert' ? ['De', agEndName('account', t.account_id) || agEndName('goal', t.goal_id) || '-'] : null,
+    t.type === 'transfert' ? ['Vers', agEndName('account', t.to_account_id) || agEndName('goal', t.to_goal_id) || '-'] : null,
+    t.client_name ? ['Client', t.client_name] : null,
+    t.note ? ['Note', t.note] : null,
+    ['Date', new Date((t.date || '') + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })],
+    ['Enregistré le', new Date(t.created_at).toLocaleString('fr-FR')],
+    t.cancelled ? ['État', 'Annulé'] : null
+  ].filter(Boolean);
+  const liees = txs.filter(x => x.details === 'rep:' + id);
+  agSheet('agTxView', `
+    <h3>${v.icon} ${agEsc(v.title)}</h3>
+    <div style="text-align:center;font-size:32px;font-weight:800;margin:4px 0 12px" class="ag-tx"><span class="m ${v.cls}" style="font-size:32px;width:100%;text-align:center">${v.amt} F</span></div>
+    ${rows.map(r => `<div class="ag-detail-row"><span>${agEsc(r[0])}</span><span>${agEsc(r[1])}</span></div>`).join('')}
+    ${liees.length ? `<div class="ag-hint">Cette entrée a été répartie dans tes coffres (${liees.length} mouvement${liees.length > 1 ? 's' : ''}). Si tu l'annules, la répartition est annulée aussi et l'argent sort des coffres.</div>` : ''}
+    <div class="ag-btns">
+      ${t.cancelled
+        ? `<button class="btn-primary" onclick="agCloseSheet('agTxView');restaurerTx(${id})">↺ Restaurer</button>`
+        : `<button class="btn-ghost" onclick="agCloseSheet('agTxView');annulerTx(${id})">🚫 Annuler</button>`}
+      <button class="btn-danger" onclick="agDeleteTx(${id})">Supprimer</button>
+    </div>
+    <div class="ag-hint">Annuler : la ligne reste visible (barrée) et l'argent revient à sa place. Supprimer : la ligne disparaît et l'argent revient aussi à sa place.</div>
+  `);
+}
+async function agDeleteTx(id){
+  if(!confirm('Supprimer définitivement ce mouvement ?\nL\'argent reviendra à sa place.')) return;
+  const ok = await dbDelete('transactions', id);
+  if(!ok) return;
+  txs = txs.filter(t => t.id !== id);
+  agCloseSheet('agTxView');
+  refreshAll();
+  agToast('Mouvement supprimé');
+}
+
+// ------------------------------------------------------------
+// PAGES : Comptes et Coffres
+// ------------------------------------------------------------
+function agRenderArgent(){
+  const el = document.getElementById('agArgentBody');
+  if(!el) return;
+  const accs = agActiveAccounts();
+  if(!accs.length){
+    el.innerHTML = `
+      <div class="ag-onb" id="agOnb">
+        <h3>👋 Crée tes comptes</h3>
+        <p>Coche les comptes que tu as et tape combien il y a dessus <b style="color:#fff">aujourd'hui</b>. Ensuite, chaque entrée, dépense ou transfert sera rangé au bon endroit.</p>
+        ${['wave', 'especes', 'mobile', 'banque'].map(k => `
+          <div class="line" data-kind="${k}">
+            <label><input type="checkbox" checked> ${AG_KINDS[k].icon} ${k === 'mobile'
+              ? `<select id="agOnbMobileName" style="width:auto;padding:6px 8px;margin:0"><option>Orange Money</option><option>MTN Money</option><option>Moov Money</option></select>`
+              : AG_KINDS[k].label}</label>
+            <input type="number" inputmode="decimal" placeholder="0 F">
+          </div>`).join('')}
+        <button class="btn-primary" style="width:100%" onclick="agCreateDefaultAccounts()">Créer mes comptes</button>
+        <div class="ag-hint">Tu pourras en ajouter, les renommer ou corriger le solde plus tard.</div>
+      </div>`;
+    return;
+  }
+  const tot = agTotals();
+  const cof = agCoffres();
+  const recent = txs.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 6);
+  el.innerHTML = `
+    <div class="ag-total ${tot.total < 0 ? 'neg' : ''}">
+      <div class="lbl">Mon argent total</div>
+      <div class="amt">${agN(tot.total)} <small>FCFA</small></div>
+      <div class="split"><div>Sur mes comptes<b>${agF(tot.comptes)}</b></div><div>Dans mes coffres<b>${agF(tot.coffres)}</b></div></div>
+    </div>
+    <div class="ag-actions">
+      <button class="ag-act main" onclick="agNewTx('revenu')"><span>+</span>Entrée</button>
+      <button class="ag-act" onclick="agNewTx('depense')"><span>−</span>Dépense</button>
+      <button class="ag-act" onclick="agOpenTransfer()"><span>⇄</span>Transfert</button>
+      <button class="ag-act" onclick="agOpenTransfer({toGoal:${cof[0] ? cof[0].id : 'null'}})"><span>🔒</span>Épargner</button>
+    </div>
+    <div class="ag-sec"><h3>Mes comptes</h3><button onclick="agOpenAccountForm()">+ Ajouter</button></div>
+    <div class="ag-row">
+      ${accs.map(a => { const b = agAccountBalance(a); const k = agKind(a); return `
+        <div class="ag-acc" onclick="agOpenAccount(${a.id})"><div class="ic" style="background:${k.bg}">${k.icon}</div>
+        <div class="n">${agEsc(a.name)}</div><div class="v ${b < 0 ? 'neg' : ''}">${agF(b)}</div></div>`; }).join('')}
+      <div class="ag-acc add" onclick="agOpenAccountForm()"><span style="font-size:22px">+</span>Compte</div>
+    </div>
+    <div class="ag-sec"><h3>Mes coffres</h3><button onclick="agGoTab('coffres')">Tout voir</button></div>
+    ${cof.length ? cof.slice(0, 3).map(agCoffreCard).join('') : '<div class="ag-list"><div class="ag-empty">Aucun coffre. <a style="color:var(--light)" onclick="openCoffreModal(null,\'coffre\')">Crée ton premier coffre</a></div></div>'}
+    <div class="ag-sec" style="margin-top:14px"><h3>Derniers mouvements</h3><button onclick="agGoTab('historique')">Historique</button></div>
+    ${agListHtml(recent)}
+  `;
+}
+function agRenderCoffresPage(){
+  const el = document.getElementById('agCoffresBody');
+  if(!el) return;
+  const cof = agCoffres();
+  const tot = cof.reduce((s, c) => s + (Number(c.current) || 0), 0);
+  const bloq = cof.filter(estCoffreBloque).reduce((s, c) => s + (Number(c.current) || 0), 0);
+  el.innerHTML = `
+    <div class="ag-total">
+      <div class="lbl">Dans mes coffres</div>
+      <div class="amt">${agN(tot)} <small>FCFA</small></div>
+      <div class="split"><div>Coffres<b>${cof.length}</b></div><div>Bloqué<b>${agF(bloq)}</b></div><div>Libre<b>${agF(tot - bloq)}</b></div></div>
+    </div>
+    <div class="ag-actions" style="grid-template-columns:repeat(3,1fr)">
+      <button class="ag-act main" onclick="agOpenTransfer({toGoal:${cof[0] ? cof[0].id : 'null'}})"><span>+</span>Déposer</button>
+      <button class="ag-act" onclick="agOpenTransfer({fromGoal:${cof[0] ? cof[0].id : 'null'}})"><span>−</span>Retirer</button>
+      <button class="ag-act" onclick="openCoffreModal(null,'coffre')"><span>✚</span>Nouveau</button>
+    </div>
+    ${cof.length ? cof.map(agCoffreCard).join('') : '<div class="ag-list"><div class="ag-empty">Aucun coffre pour l\'instant.</div></div>'}
+    <div class="ag-hint" style="text-align:center;margin-top:10px">Touche un coffre pour déposer, retirer, le bloquer ou voir ses mouvements.</div>
+  `;
+}
+function agNewTx(type){
+  if(type === 'revenu' && typeof openRevenueModal === 'function'){ openRevenueModal(); return; }
+  openModal(); setType(type);
+}
+function agRenderDashMini(){
+  const host = document.querySelector('#page-dash .container');
+  if(!host) return;
+  let el = document.getElementById('agDashMini');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'agDashMini';
+    host.insertBefore(el, host.firstChild);
+  }
+  if(!agActiveAccounts().length){
+    el.innerHTML = `<div class="ag-total ag-mini" onclick="agGoTab('argent')"><div><div class="lbl">Mon argent</div><div style="color:#fff;font-weight:600;margin-top:6px">Crée tes comptes pour voir ton solde →</div></div></div>`;
+    return;
+  }
+  const tot = agTotals();
+  el.innerHTML = `<div class="ag-total ${tot.total < 0 ? 'neg' : ''}" onclick="agGoTab('argent')" style="cursor:pointer">
+    <div class="lbl">Mon argent total</div><div class="amt">${agN(tot.total)} <small>FCFA</small></div>
+    <div class="split"><div>Comptes<b>${agF(tot.comptes)}</b></div><div>Coffres<b>${agF(tot.coffres)}</b></div></div></div>`;
+}
+
+// ------------------------------------------------------------
+// HISTORIQUE : nouveau look (memes fonctions de tri, selection, export)
+// ------------------------------------------------------------
+renderHistory = function(){
+  const filtered = getFilteredTx();
+  const totalIn = filtered.filter(t => t.type === 'revenu' && !t.cancelled).reduce((s, t) => s + Number(t.amount), 0);
+  const totalOut = filtered.filter(t => t.type === 'depense' && !t.cancelled).reduce((s, t) => s + Number(t.amount), 0);
+  const set = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+  set('histCount', filtered.length); set('histIn', fmt(totalIn)); set('histOut', fmt(totalOut));
+  const el = document.getElementById('histList');
+  if(!el) return;
+  if(!filtered.length){ el.innerHTML = '<div class="ag-empty">Aucun mouvement</div>'; return; }
+  let lastDay = '';
+  el.innerHTML = filtered.map(t => {
+    const v = agTxView(t);
+    const day = t.date || '';
+    let head = '';
+    if(day !== lastDay){
+      lastDay = day;
+      const d = new Date(day + 'T12:00:00');
+      head = `<div class="ag-day">${isNaN(d) ? '' : d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</div>`;
+    }
+    const checked = selectedTxIds.has(t.id) ? 'checked' : '';
+    return `${head}<div class="ag-list" style="margin-bottom:6px"><div class="ag-tx ${t.cancelled ? 'cancelled' : ''}" onclick="agOpenTx(${t.id})">
+      <input type="checkbox" class="chk hist-check" data-id="${t.id}" ${checked} onclick="event.stopPropagation()" onchange="toggleTxSelect(${t.id}, this.checked)">
+      <div class="ic">${v.icon}</div><div class="d"><b>${agEsc(v.title)}</b><span>${agEsc(v.sub)}${t.cancelled ? ' · annulé' : ''}</span></div>
+      <div class="m ${v.cls}">${v.amt}</div></div></div>`;
+  }).join('');
+};
+
+// ------------------------------------------------------------
+// NAVIGATION : 5 onglets + segments
+// ------------------------------------------------------------
+function agGroupOf(tab){
+  for(const [g, v] of Object.entries(AG_GROUPS)) if(v.tabs.includes(tab)) return g;
+  return 'accueil';
+}
+function agBuildNav(){
+  const nav = document.getElementById('mainTabs');
+  if(!nav) return;
+  nav.innerHTML = Object.entries(AG_GROUPS).map(([g, v]) =>
+    `<button class="tab-btn" data-group="${g}" onclick="agGoGroup('${g}')"><span class="tab-icon">${v.icon}</span><span class="tab-label">${v.label}</span></button>`).join('');
+}
+function agGoGroup(g){
+  let last = null;
+  try { last = localStorage.getItem('ag_last_' + g); } catch(e){}
+  const tabs = AG_GROUPS[g].tabs;
+  agGoTab(tabs.includes(last) ? last : tabs[0]);
+}
+function agGoTab(tab){ showTab(tab); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function agSegBar(tab){
+  const g = agGroupOf(tab);
+  const tabs = AG_GROUPS[g].tabs;
+  const page = document.getElementById('page-' + tab);
+  if(!page) return;
+  const host = page.querySelector('.container') || page;
+  let bar = host.querySelector(':scope > .seg-bar');
+  if(tabs.length < 2){ if(bar) bar.remove(); return; }
+  if(!bar){ bar = document.createElement('div'); bar.className = 'seg-bar'; host.insertBefore(bar, host.firstChild); }
+  bar.innerHTML = tabs.map(t => `<button class="${t === tab ? 'on' : ''}" onclick="agGoTab('${t}')">${AG_TAB_LABELS[t] || t}</button>`).join('');
+}
+
+const _agShowTab = showTab;
+showTab = function(name, btn){
+  if(!document.getElementById('page-' + name)) name = 'dash';
+  _agShowTab(name, btn);
+  const g = agGroupOf(name);
+  try { localStorage.setItem('ag_last_' + g, name); } catch(e){}
+  document.querySelectorAll('#mainTabs .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.group === g));
+  const h = document.getElementById('headerTitle');
+  if(h) h.textContent = AG_TITLES[name] || h.textContent;
+  agSegBar(name);
+  if(name === 'argent') agRenderArgent();
+  if(name === 'coffres') agRenderCoffresPage();
+  if(name === 'dash') agRenderDashMini();
+};
+restoreLastTab = function(){
+  let saved = null;
+  try { saved = localStorage.getItem('active_tab'); } catch(e){}
+  if(saved && saved !== 'dash' && document.getElementById('page-' + saved)) showTab(saved);
+  else showTab('dash');
+};
+drawerNavigate = function(tab){ showTab(tab); if(typeof closeDrawer === 'function') closeDrawer(); };
+
+function agRenderAll(){
+  agRenderArgent();
+  agRenderCoffresPage();
+  agRenderDashMini();
+}
+const _agRefreshAll = refreshAll;
+refreshAll = window.refreshAll = function(){
+  _agRefreshAll();
+  agRenderAll();
+};
+
+// ------------------------------------------------------------
+// CHOIX DU COMPTE dans les fenetres Entree / Depense
+// ------------------------------------------------------------
+function agAccountOptions(selId){
+  return agActiveAccounts().map(a => `<option value="${a.id}" ${a.id === selId ? 'selected' : ''}>${agKind(a).icon} ${agEsc(a.name)} · ${agF(agAccountBalance(a))}</option>`).join('');
+}
+function agInjectSelect(afterId, selId, labelTxt){
+  const anchor = document.getElementById(afterId);
+  if(!anchor || document.getElementById(selId)) return;
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<label for="${selId}">${labelTxt}</label><select id="${selId}"></select>`;
+  anchor.insertAdjacentElement('afterend', wrap);
+}
+function agFillSelects(){
+  const p = agPrincipal();
+  const a = document.getElementById('agTxAccount'); if(a) a.innerHTML = agAccountOptions(p && p.id);
+  const b = document.getElementById('agRevAccount');
+  if(b){
+    const m = document.getElementById('revPaymentMethod')?.value;
+    b.innerHTML = agAccountOptions(agGuessAccount(m) || (p && p.id));
+  }
+}
+const _agOpenModal = openModal;
+openModal = function(){ _agOpenModal(); agFillSelects(); };
+if(typeof openRevenueModal === 'function'){
+  const _agOpenRevenueModal = openRevenueModal;
+  openRevenueModal = function(){ _agOpenRevenueModal.apply(this, arguments); agFillSelects(); };
+}
+
+// ------------------------------------------------------------
+// DEMARRAGE
+// ------------------------------------------------------------
+(function agInit(){
+  agBuildNav();
+  agInjectSelect('amount', 'agTxAccount', 'Compte');
+  agInjectSelect('revAmount', 'agRevAccount', 'Arrive sur quel compte ?');
+  const rm = document.getElementById('revPaymentMethod');
+  if(rm) rm.addEventListener('change', () => {
+    const b = document.getElementById('agRevAccount');
+    const id = agGuessAccount(rm.value);
+    if(b && id) b.value = id;
+  });
+  // Historique : le resume puis la liste en premier, filtres / export / actions repliables
+  (function(){
+    const host = document.querySelector('#page-historique .container');
+    if(!host || host.dataset.agDone) return;
+    host.dataset.agDone = '1';
+    const cards = [...host.querySelectorAll(':scope > .card')];
+    const listCard = cards.find(c => c.querySelector('#histList'));
+    const sumCard = cards.find(c => c.querySelector('#histCount'));
+    const tools = cards.filter(c => c !== listCard && c !== sumCard);
+    const det = document.createElement('details');
+    det.className = 'ag-tools';
+    det.innerHTML = '<summary>🔎 Filtres, recherche, export et actions</summary>';
+    tools.forEach(c => det.appendChild(c));
+    if(sumCard) host.appendChild(sumCard);
+    host.appendChild(det);
+    if(listCard) host.appendChild(listCard);
+  })();
+  const ht = document.getElementById('histType');
+  if(ht && !ht.querySelector('option[value="transfert"]')) ht.insertAdjacentHTML('beforeend', '<option value="transfert">Transferts</option>');
+  // Quand les donnees sont deja chargees (startApp a tourne avant), on charge les comptes
+  const tick = async () => {
+    if(typeof sb === 'undefined') return;
+    const { data } = await sb.auth.getSession();
+    if(!data || !data.session) return;
+    await agLoadAccounts();
+    refreshAll();
+    let saved = null;
+    try { saved = localStorage.getItem('active_tab'); } catch(e){}
+    showTab(saved && document.getElementById('page-' + saved) ? saved : 'dash');
+  };
+  setTimeout(tick, 600);
+})();
