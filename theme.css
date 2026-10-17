@@ -318,3 +318,8 @@ input,select,textarea{border-radius:12px}
 .note-btn-done, .insp-btn-link, .insp-btn-call, .insp-btn-mail{background:var(--pri-bg) !important;color:var(--pri-fg) !important;border:none !important}
 .note-actions > .ag-ibtn, .insp-actions > .ag-ibtn{flex:0 0 42px !important}
 .note-card, .insp-card{background:var(--card) !important;border:1px solid var(--border) !important;box-shadow:none !important}
+.side-drawer{background:var(--bg-2) !important}
+.drawer-nav.active{background:var(--card2) !important;color:var(--accent) !important}
+.drawer-nav .ag-i, .drawer-quick .ag-i, .user-menu-items .ag-i{color:var(--muted)}
+.drawer-nav.active .ag-i{color:var(--accent)}
+.drawer-quick{background:var(--card) !important;border:1px solid var(--border) !important}
