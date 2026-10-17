@@ -217,6 +217,14 @@ async function galOpen(code){
       <button class="ag-act" onclick="galCopy('${agEsc(code)}')"><span>${agIcon('copy')}</span>Message</button>
       <button class="ag-act" onclick="window.open(galClientLink('${agEsc(code)}'),'_blank')"><span>${agIcon('eye')}</span>Voir</button>
     </div>
+    <div class="ag-list ag-share">
+      <div class="ag-share-row"><div><span>Code d'accès</span><b>${agEsc(g.code)}</b></div>
+        <button class="ag-ibtn" title="Copier le code" onclick="galCopyText('${agEsc(g.code)}','Code copié')">${agIcon('copy', 17)}</button></div>
+      <div class="ag-share-row"><div style="min-width:0"><span>Lien de la galerie</span><b class="ag-link">${agEsc(galClientLink(g.code))}</b></div>
+        <button class="ag-ibtn" title="Copier le lien" onclick="galCopyText(galClientLink('${agEsc(g.code)}'),'Lien copié')">${agIcon('link', 17)}</button></div>
+      <div class="ag-share-row"><div style="min-width:0"><span>Infos client</span><b>${agEsc([g.telephone, g.email].filter(Boolean).join(' · ') || 'Aucune')}${g.protege ? ' · protégée par mot de passe' : ''}</b></div>
+        <button class="ag-ibtn" title="Modifier la galerie" onclick="galOpenEdit('${agEsc(g.code)}')">${agIcon('edit', 17)}</button></div>
+    </div>
     <input type="file" id="galFiles" accept="image/*" multiple style="display:none" onchange="galUpload('${agEsc(code)}', this.files)">
     <div id="galUp"></div>
     <div class="seg-bar ag-gal-tabs" style="display:flex">
@@ -230,6 +238,107 @@ async function galOpen(code){
   galShowTab('photos');
 }
 function galTab(btn){ agPick(btn); galShowTab(btn.dataset.t); }
+
+// ---------- Ordre des photos ----------
+let galOrder = [], galDossier = '', galOrderDirty = false, galReorder = false, galDragIdx = null;
+function galRenderPhotos(){
+  const g = galList.find(x => x.code === galCurrent);
+  const box = document.getElementById('galTabBody');
+  if(!g || !box) return;
+  if(!galOrder.length){ box.innerHTML = '<div class="ag-list"><div class="ag-empty">Pas encore de photos. Ajoute-les avec le bouton Photos.</div></div>'; return; }
+  const bar = galReorder
+    ? `<div class="ag-gal-bar"><span>Glisse les photos, ou utilise les flèches. La 1re photo est la couverture.</span>
+        <div><button class="btn-ghost" onclick="galReorder=false;galShowTab('photos')">Annuler</button>
+        <button class="btn-primary" ${galOrderDirty ? '' : 'disabled'} onclick="galSaveOrder()">Enregistrer l'ordre</button></div></div>`
+    : `<div class="ag-gal-bar"><span>${galOrder.length} photo${galOrder.length > 1 ? 's' : ''}</span>
+        <div><button class="btn-ghost" onclick="galReorder=true;galRenderPhotos()">${agIcon('transfer', 15)} Changer l'ordre</button></div></div>`;
+  box.innerHTML = bar + `<div class="ag-gal-grid ${galReorder ? 'reorder' : ''}">${galOrder.map((p, i) => `
+    <div class="ag-gal-ph" ${galReorder ? `draggable="true" ondragstart="galDragIdx=${i}" ondragover="event.preventDefault()" ondrop="galDropOn(${i})"` : ''}>
+      <img loading="lazy" src="${galPhotoUrl(galDossier, p, 'thumb')}" alt="">
+      ${galReorder
+        ? `<span class="ag-gal-n">${i + 1}</span><div class="ag-gal-mv">
+            <button title="Avant" onclick="galMove(${i},-1)" ${i === 0 ? 'disabled' : ''}>${agIcon('chev', 15)}</button>
+            <button title="Mettre en premier" onclick="galMove(${i},-999)" ${i === 0 ? 'disabled' : ''}>1</button>
+            <button title="Après" onclick="galMove(${i},1)" ${i === galOrder.length - 1 ? 'disabled' : ''}>${agIcon('chev', 15)}</button></div>`
+        : `${i === 0 ? '<span class="ag-gal-cover">Couverture</span>' : ''}<button class="ag-gal-del" title="Supprimer" onclick="galDelPhoto('${agEsc(g.code)}','${agEsc(p)}')">${agIcon('trash', 15)}</button>`}
+    </div>`).join('')}</div>`;
+}
+function galMove(i, d){
+  const p = galOrder.splice(i, 1)[0];
+  const j = d === -999 ? 0 : Math.max(0, Math.min(galOrder.length, i + d));
+  galOrder.splice(j, 0, p); galOrderDirty = true; galRenderPhotos();
+}
+function galDropOn(i){
+  if(galDragIdx === null || galDragIdx === i) return;
+  const p = galOrder.splice(galDragIdx, 1)[0];
+  galOrder.splice(i, 0, p); galDragIdx = null; galOrderDirty = true; galRenderPhotos();
+}
+async function galSaveOrder(){
+  try {
+    await galApi(`/api/admin/galeries/${encodeURIComponent(galCurrent)}/photos/ordre`, { method: 'PUT', json: { ordre: galOrder } });
+    galReorder = false; galOrderDirty = false; agToast('Ordre enregistré'); galRenderPhotos();
+  } catch(e){ alert(e.message); }
+}
+
+// ---------- Modifier une galerie apres creation ----------
+function galOpenEdit(code){
+  const g = galList.find(x => x.code === code); if(!g) return;
+  const cats = (g.categories || []).filter(c => c && c !== 'Tout').join(', ');
+  const d = galDaysLeft(g);
+  agSheet('galEdit', `
+    <h3>Modifier la galerie</h3>
+    <label>Nom affiché au client</label><input id="geNom" value="${agEsc(g.nomClient || '')}">
+    <label>Téléphone (WhatsApp)</label><input id="geTel" value="${agEsc(g.telephone || '')}" placeholder="+225 ...">
+    <label>Email</label><input id="geMail" value="${agEsc(g.email || '')}" placeholder="client@email.com">
+    <label>Type de séance</label><input id="geCat" value="${agEsc(cats)}" placeholder="Ex : Shooting Studio">
+    <label>Petit mot pour le client</label><input id="geMsg" value="${agEsc(g.message || '')}">
+    <label>Disponibilité ${d !== null ? `(actuellement ${d > 0 ? d + ' jours restants' : 'expirée'})` : ''}</label>
+    <div class="ag-pills" id="geDur"><button type="button" data-v="" class="on" onclick="agPick(this)">Ne pas changer</button>${[15, 30, 60, 90].map(n => `<button type="button" data-v="${n}" onclick="agPick(this)">${n} jours à partir d'aujourd'hui</button>`).join('')}</div>
+    <label>Mot de passe pour le client</label>
+    <div class="ag-pills" id="geProt">
+      <button type="button" data-v="keep" class="on" onclick="agPick(this);galEditProt()">${g.protege ? 'Garder le mot de passe' : 'Pas de mot de passe'}</button>
+      <button type="button" data-v="new" onclick="agPick(this);galEditProt()">${g.protege ? 'Changer le mot de passe' : 'Ajouter un mot de passe'}</button>
+      ${g.protege ? '<button type="button" data-v="off" onclick="agPick(this);galEditProt()">Retirer le mot de passe</button>' : ''}
+    </div>
+    <input id="geMdp" placeholder="Nouveau mot de passe" style="display:none">
+    <button class="btn-primary" id="geBtn" style="width:100%" onclick="galSaveEdit('${agEsc(code)}')">Enregistrer</button>
+  `);
+}
+function galEditProt(){
+  const v = document.querySelector('#geProt button.on')?.dataset.v;
+  document.getElementById('geMdp').style.display = v === 'new' ? 'block' : 'none';
+}
+async function galSaveEdit(code){
+  const g = galList.find(x => x.code === code); if(!g) return;
+  const nom = document.getElementById('geNom').value.trim();
+  if(!nom){ alert('Mets le nom du client.'); return; }
+  const cat = document.getElementById('geCat').value.trim();
+  const body = {
+    nomClient: nom,
+    telephone: document.getElementById('geTel').value.trim(),
+    email: document.getElementById('geMail').value.trim(),
+    message: document.getElementById('geMsg').value.trim(),
+    categories: cat ? ['Tout', ...cat.split(',').map(x => x.trim()).filter(Boolean)] : ['Tout']
+  };
+  const dur = document.querySelector('#geDur button.on')?.dataset.v; if(dur) body.dureeJours = Number(dur);
+  const prot = document.querySelector('#geProt button.on')?.dataset.v;
+  if(prot === 'off') body.protege = false;
+  if(prot === 'new'){
+    const m = document.getElementById('geMdp').value.trim();
+    if(!m){ alert('Tape le nouveau mot de passe.'); return; }
+    body.protege = true; body.motDePasse = m;
+  }
+  const btn = document.getElementById('geBtn'); btn.disabled = true; btn.textContent = 'Enregistrement...';
+  try {
+    const r = await galApi('/api/admin/galeries/' + encodeURIComponent(code), { method: 'PUT', json: body });
+    Object.assign(g, r && r.code ? r : body, { nbPhotos: g.nbPhotos });
+    agCloseSheet('galEdit'); agToast('Galerie modifiée'); galOpen(code);
+  } catch(e){ alert(e.message); btn.disabled = false; btn.textContent = 'Enregistrer'; }
+}
+async function galCopyText(t, ok){
+  try { await navigator.clipboard.writeText(t); agToast(ok || 'Copié'); }
+  catch(e){ prompt('Copie ceci :', t); }
+}
 async function galShowTab(t){
   const g = galList.find(x => x.code === galCurrent);
   const box = document.getElementById('galTabBody');
@@ -240,10 +349,8 @@ async function galShowTab(t){
       const r = await galApi('/api/admin/galeries/' + encodeURIComponent(g.code) + '/photos');
       const photos = r.photos || [];
       g.nbPhotos = photos.length; const nb = document.getElementById('galNb'); if(nb) nb.textContent = photos.length;
-      box.innerHTML = photos.length ? `<div class="ag-gal-grid">${photos.map(p => `
-        <div class="ag-gal-ph"><img loading="lazy" src="${galPhotoUrl(r.dossier, p, 'thumb')}" alt="">
-        <button title="Supprimer" onclick="galDelPhoto('${agEsc(g.code)}','${agEsc(p)}')">${agIcon('trash', 15)}</button></div>`).join('')}</div>`
-        : '<div class="ag-list"><div class="ag-empty">Pas encore de photos. Ajoute-les avec le bouton Photos.</div></div>';
+      galOrder = photos.slice(); galDossier = r.dossier; galOrderDirty = false;
+      galRenderPhotos();
     } else if(t === 'choix'){
       const list = await galApi('/api/admin/selections/' + encodeURIComponent(g.dossier));
       box.innerHTML = list.length ? list.map(s => `<div class="ag-list" style="padding:12px 14px">
