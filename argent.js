@@ -957,7 +957,10 @@ const AG_ICONS = {
   phoneCall: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
-  download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>'
+  download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/>',
+  settings: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+  logout: '<path d="M10 4H5v16h5M15 8l4 4-4 4M19 12H9"/>'
 };
 function agIcon(n, size){
   return `<svg class="ag-i" width="${size || 20}" height="${size || 20}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${AG_ICONS[n] || AG_ICONS.card}</svg>`;
@@ -1193,6 +1196,36 @@ function agSetupInstall(){
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); _agInstallEvt = e; agShowInstallBtn(); });
 }
 function agIsInstalled(){ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone; }
+// Menu lateral du telephone : meme organisation que la barre du bas + bouton Installer
+function agFixDrawer(){
+  const navBtn = document.querySelector('.side-drawer .drawer-nav[data-tab="dash"]');
+  const sec = navBtn && navBtn.closest('.drawer-section');
+  if(sec && !sec.dataset.agDone){
+    sec.dataset.agDone = '1';
+    const groups = [['Accueil', ['dash']], ['Argent', AG_GROUPS.argent.tabs], ['Studio', AG_GROUPS.studio.tabs], ['Idées', AG_GROUPS.idees.tabs], ['Coach', ['ia']]];
+    sec.innerHTML = groups.map(([g, tabs]) => `<div class="drawer-section-title">${g}</div>` + tabs.map(t =>
+      `<button class="drawer-nav" data-tab="${t}" onclick="drawerNavigate('${t}')"><span class="nav-icon">${agIcon(AG_TAB_ICONS[t], 16)}</span><span>${AG_TAB_LABELS[t]}</span></button>`).join('')).join('');
+  }
+  const qmap = { addRevenue: 'arrowIn', addTx: 'arrowOut', addClient: 'users', addShoot: 'camera', addGoal: 'target', addNote: 'note', analyze: 'sparkles',
+    profile: 'user', preferences: 'settings', about: 'info', logout: 'logout' };
+  document.querySelectorAll('.side-drawer .drawer-nav, .side-drawer .drawer-quick, .user-menu-items > button').forEach(b => {
+    if(b.querySelector('svg')) return;
+    const m = (b.getAttribute('onclick') || '').match(/drawerAction\('(\w+)'\)|open(Profile|Preferences|About)Modal|handleLogout/);
+    if(!m) return;
+    const key = m[1] || (m[2] ? m[2].toLowerCase() : 'logout');
+    const ic = qmap[key]; if(!ic) return;
+    const holder = b.querySelector('.nav-icon, .icon, span');
+    const span = document.createElement('span'); span.className = 'nav-icon ag-ic'; span.innerHTML = agIcon(ic, 16);
+    if(holder && holder.hasAttribute('data-agx')){ holder.replaceWith(span); } else b.insertBefore(span, b.firstChild);
+  });
+  const acc = document.querySelector('.side-drawer .drawer-nav[onclick*="profile"]');
+  if(acc && !agIsInstalled() && !document.querySelector('.drawer-nav.ag-install-dr')){
+    const b = document.createElement('button'); b.className = 'drawer-nav ag-install-dr';
+    b.innerHTML = `<span class="nav-icon">${agIcon('download', 16)}</span><span>Installer l'app</span>`;
+    b.onclick = () => { if(typeof closeDrawer === 'function') closeDrawer(); agInstall(); };
+    acc.parentElement.insertBefore(b, acc);
+  }
+}
 function agShowInstallBtn(){
   if(agIsInstalled() || document.getElementById('agInstallBtn')) return;
   const foot = document.querySelector('.ag-side-foot');
@@ -1224,6 +1257,7 @@ agSetupInstall();
   agHeaderIcons();
   agStartStrip();
   agFoldAll();
+  agFixDrawer();
   if(!agIsInstalled() && /android|iphone|ipad/i.test(navigator.userAgent)) agShowInstallBtn();
   agLoadThemeRemote();
   const act = document.querySelector('.page.active');
