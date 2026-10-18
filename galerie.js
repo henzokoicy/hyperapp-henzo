@@ -11,10 +11,12 @@ let galList = [];
 let galLoaded = false;
 let galCurrent = null;   // code de la galerie ouverte
 let galSearch = '';
+let galAvis = [], galAvisNonLus = 0;
 
 function galApiBase(){ return (typeof GALERIE_ORIGIN !== 'undefined' ? GALERIE_ORIGIN : 'https://galerie-clients.onrender.com'); }
 function galPhotoUrl(dossier, fichier, v){ return `${galApiBase()}/photo/${encodeURIComponent(dossier)}/${encodeURIComponent(fichier)}${v ? '?v=' + v : ''}`; }
-function galClientLink(code){ return `${galApiBase()}/?code=${encodeURIComponent(code)}&auto=1`; }
+function galClientLink(code){ return `${galApiBase()}/`; }
+function galPreviewLink(code){ return `${galApiBase()}/?code=${encodeURIComponent(code)}&auto=1`; }
 
 async function galApi(path, opts){
   opts = opts || {};
@@ -82,6 +84,7 @@ async function galLoad(){
   try {
     galList = await galApi('/api/admin/galeries');
     galLoaded = true;
+    galApi('/api/admin/avis').then(a => { galAvis = Array.isArray(a) ? a : []; galAvisNonLus = galAvis.filter(x => !x.lu).length; if(!galCurrent && document.getElementById('galListBox')) galRenderList(); }).catch(() => {});
     galRenderList();
   } catch(e){
     if(e.code === 401){ galPwd = ''; galRenderLogin('Mot de passe refusé par la galerie. Vérifie-le.'); return; }
@@ -108,8 +111,9 @@ function galRenderList(){
       <div class="amt">${galList.length} <small>galerie${galList.length > 1 ? 's' : ''}</small></div>
       <div class="split"><div>Actives<b>${actives}</b></div><div>Photos livrées<b>${totPhotos}</b></div></div>
     </div>
-    <div class="ag-actions" style="grid-template-columns:repeat(3,1fr)">
+    <div class="ag-actions">
       <button class="ag-act main" onclick="galOpenCreate()"><span>${agIcon('plus')}</span>Nouvelle</button>
+      <button class="ag-act" onclick="galOpenAvis()" style="position:relative"><span>${agIcon('star')}</span>Avis${galAvisNonLus ? `<i class="ag-dot">${galAvisNonLus}</i>` : ''}</button>
       <button class="ag-act" onclick="galLoad()"><span>${agIcon('refresh')}</span>Actualiser</button>
       <button class="ag-act" onclick="window.open('${galApiBase()}/admin.html','_blank')"><span>${agIcon('link')}</span>Ancien admin</button>
     </div>
@@ -215,7 +219,7 @@ async function galOpen(code){
       <button class="ag-act main" onclick="document.getElementById('galFiles').click()"><span>${agIcon('plus')}</span>Photos</button>
       <button class="ag-act" onclick="galWhatsApp('${agEsc(code)}')"><span>${agIcon('chat')}</span>WhatsApp</button>
       <button class="ag-act" onclick="galCopy('${agEsc(code)}')"><span>${agIcon('copy')}</span>Message</button>
-      <button class="ag-act" onclick="window.open(galClientLink('${agEsc(code)}'),'_blank')"><span>${agIcon('eye')}</span>Voir</button>
+      <button class="ag-act" onclick="window.open(galPreviewLink('${agEsc(code)}'),'_blank')"><span>${agIcon('eye')}</span>Voir</button>
     </div>
     <div class="ag-list ag-share">
       <div class="ag-share-row"><div><span>Code d'accès</span><b>${agEsc(g.code)}</b></div>
@@ -420,7 +424,7 @@ function galMessage(code){
   const d = galDaysLeft(g);
   const exp = g.dateExpiration ? new Date(g.dateExpiration).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
   return `Bonjour ${(g.nomClient || '').trim() || 'vous'},\n\nTes photos sont prêtes !${cats.length ? '\nSéance : ' + cats.join(', ') : ''}\n\n` +
-    `Pour les voir et les télécharger :\n1. Clique sur ce lien : ${galClientLink(code)}\n2. Entre ton code d'accès : ${code}` +
+    `Pour les voir et les télécharger :\n1. Ouvre ce lien : ${galClientLink(code)}\n2. Touche "Voir mes photos" et entre ton code d'accès : ${code}` +
     `${g.protege ? '\nN\'oublie pas le mot de passe que je t\'ai communiqué.' : ''}` +
     `\n3. Télécharge tes photos${d > 0 ? `\nDisponible encore ${d} jour${d > 1 ? 's' : ''} (jusqu'au ${exp}).` : ''}` +
     `${g.message ? '\n\n' + g.message : ''}\n\nN'hésite pas à laisser tes réactions et tes photos préférées directement dans la galerie !\n\nÀ bientôt,\nStudio Henzo`;
@@ -463,3 +467,44 @@ function galFromShoot(shootId){
 
 // Charger la liste en arriere-plan (pour le bouton Galerie des seances)
 setTimeout(async () => { try { galPwd = await getGaleriePwd(); if(galPwd && !galLoaded){ galList = await galApi('/api/admin/galeries'); galLoaded = true; } } catch(e){} }, 3000);
+
+// ---------- Avis clients (laisses sur la page merci) ----------
+function galStars(n, size){
+  size = size || 15; let h = '';
+  for(let i = 1; i <= 5; i++) h += `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="vertical-align:-2px"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z" fill="${i <= n ? '#ffd166' : 'none'}" stroke="${i <= n ? '#ffd166' : 'currentColor'}" stroke-width="1.5" stroke-linejoin="round" opacity="${i <= n ? 1 : .35}"/></svg>`;
+  return h;
+}
+async function galOpenAvis(){
+  galCurrent = '__avis__';
+  galBody().innerHTML = `<button class="ag-back" onclick="galCurrent=null;galRenderList()">${agIcon('chev', 16)} Toutes les galeries</button><div class="ag-empty">Chargement des avis...</div>`;
+  try { galAvis = await galApi('/api/admin/avis'); } catch(e){ galBody().innerHTML += `<div class="ag-empty">${agEsc(e.message)}</div>`; return; }
+  galRenderAvis();
+  const nonLus = galAvis.filter(a => !a.lu);
+  galAvisNonLus = 0;
+  nonLus.forEach(a => galApi('/api/admin/avis/' + a.id, { method: 'PUT', body: JSON.stringify({ lu: true }) }).catch(() => {}));
+}
+function galRenderAvis(){
+  const n = galAvis.length;
+  const moy = n ? galAvis.reduce((s, a) => s + (a.note || 0), 0) / n : 0;
+  const cinq = galAvis.filter(a => a.note === 5).length;
+  galBody().innerHTML = `
+    <button class="ag-back" onclick="galCurrent=null;galRenderList()">${agIcon('chev', 16)} Toutes les galeries</button>
+    <div class="ag-total">
+      <div class="lbl">Avis clients</div>
+      <div class="amt">${n ? moy.toFixed(1).replace('.', ',') : '-'} <small>/ 5</small></div>
+      <div style="margin:-6px 0 12px;color:#fff">${galStars(Math.round(moy), 18)}</div>
+      <div class="split"><div>Avis reçus<b>${n}</b></div><div>5 étoiles<b>${cinq}</b></div><div>Partageables<b>${galAvis.filter(a => a.publiable).length}</b></div></div>
+    </div>
+    <p class="ag-hint" style="margin:12px 2px">Les clients donnent leur avis sur la page de remerciement, juste après avoir téléchargé leurs photos.</p>
+    <div class="ag-list">${n ? galAvis.map(a => `
+      <div class="ag-avis">
+        <div class="ag-avis-h"><div><b>${agEsc(a.nom_client || 'Client')}</b>${a.lu ? '' : ' <i class="ag-new">Nouveau</i>'}<div class="ag-avis-d">${galStars(a.note)} · ${new Date(a.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}${a.code ? ' · ' + agEsc(a.code) : ''}</div></div>
+          ${a.publiable && a.texte ? `<button class="ag-ibtn" title="Copier pour publier" onclick="galCopyAvis(${a.id})">${agIcon('copy', 16)}</button>` : ''}</div>
+        ${a.texte ? `<p class="ag-avis-t">${agEsc(a.texte)}</p>` : '<p class="ag-avis-t" style="opacity:.5">Pas de commentaire</p>'}
+        ${a.publiable ? '' : '<div class="ag-avis-d">Le client ne souhaite pas que son avis soit partagé</div>'}
+      </div>`).join('') : '<div class="ag-empty">Aucun avis pour le moment.</div>'}</div>`;
+}
+function galCopyAvis(id){
+  const a = galAvis.find(x => x.id === id); if(!a) return;
+  galCopyText(`"${a.texte || ''}"\n- ${a.nom_client || 'Client'} ${'★'.repeat(a.note)}`, 'Avis copié');
+}

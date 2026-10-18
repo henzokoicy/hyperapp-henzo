@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tarifs - Henzo Studio</title>
+<meta name="description" content="Tarifs du studio photo Henzo Studio à Bouaké">
+<meta name="theme-color" content="#030b0a">
+<link rel="icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#030b0a;--card:#0a1c1a;--card2:#0f2a27;--line:#173b37;--txt:#fff;--muted:#9cbdb8;--accent:#48A89A;--light:#CBEFEB;--deep:#00524D;--forest:#053931}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,sans-serif;color:var(--txt);background:radial-gradient(1000px 500px at 85% -10%,rgba(72,168,154,.25),transparent 60%),var(--bg);min-height:100vh;padding-bottom:110px}
+.wrap{max-width:640px;margin:0 auto;padding:28px 16px}
+.brand{font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--light);opacity:.8}
+h1{font-size:30px;font-weight:800;line-height:1.15;margin:8px 0 10px}
+.intro{color:var(--muted);font-size:15px;line-height:1.55}
+.hint{margin-top:18px;font-size:13px;color:var(--light);background:rgba(72,168,154,.12);border:1px solid var(--line);padding:10px 14px;border-radius:14px}
+h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--light);margin:30px 0 12px;opacity:.85}
+.f{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:var(--card);border:1.5px solid var(--line);border-radius:20px;padding:18px;margin-bottom:10px;cursor:pointer;transition:border-color .15s,background .15s}
+.f.on{border-color:var(--accent);background:linear-gradient(160deg,rgba(0,82,77,.55),var(--card))}
+.f-h{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.f-h b{font-size:17px;font-weight:700}
+.f-p{font-size:20px;font-weight:800;white-space:nowrap}
+.f-d{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.f-d i{font-style:normal;font-size:12px;color:var(--light);background:var(--card2);padding:4px 10px;border-radius:10px}
+.f-inc{font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5}
+.chk{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);display:inline-grid;place-items:center;flex-shrink:0;margin-top:2px}
+.f.on .chk{background:var(--accent);border-color:var(--accent)}
+.o{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:8px}
+.o .d{flex:1;min-width:0}.o .d b{display:block;font-size:15px;font-weight:600}.o .d span{font-size:13px;color:var(--muted)}
+.o .p{font-weight:700;white-space:nowrap}
+.st{display:flex;align-items:center;gap:4px;background:var(--card2);border-radius:12px;padding:3px}
+.st button{width:32px;height:32px;border:0;border-radius:9px;background:var(--line);color:#fff;font:600 18px Inter,sans-serif;cursor:pointer}
+.st b{min-width:20px;text-align:center}
+.notes{margin-top:26px;padding:16px;border-radius:16px;border:1px dashed var(--line);color:var(--muted);font-size:14px;line-height:1.55;white-space:pre-wrap}
+.foot{text-align:center;color:#5f8580;font-size:12px;margin-top:30px;line-height:1.6}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:rgba(3,11,10,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+.bar-in{max-width:640px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.bar .t{flex:1;min-width:0}.bar .t span{display:block;font-size:12px;color:var(--muted)}.bar .t b{font-size:22px}
+.btn{border:0;border-radius:14px;padding:14px 18px;font:700 15px Inter,sans-serif;cursor:pointer;background:#fff;color:var(--deep);white-space:nowrap}
+.btn:disabled{opacity:.5}
+.pdf{display:inline-block;margin-top:14px;font-size:13px;color:var(--light);background:none;border:1px solid var(--line);border-radius:12px;padding:8px 14px;cursor:pointer;font-family:inherit}
+.empty{text-align:center;color:var(--muted);padding:60px 10px}
+@media print{
+  body{background:#fff;color:#111;padding:0}
+  .wrap{padding:0;max-width:none}
+  .brand,h2{color:#00524D;opacity:1}.intro,.f-inc,.o .d span,.notes,.foot{color:#444}
+  .f,.o{background:#fff !important;border:1px solid #cfd8d6 !important;break-inside:avoid}
+  .f-d i{background:#eef4f3;color:#00524D}
+  .bar,.pdf,.hint,.chk,.st{display:none !important}
+  @page{margin:14mm}
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="empty">Chargement des tarifs...</div></div>
+<div class="bar" id="bar" style="display:none"><div class="bar-in"><div class="t"><span id="barL">Total estimé</span><b id="barT">0 F</b></div><button class="btn" id="barB" onclick="reserver()">Réserver sur WhatsApp</button></div></div>
+<script>
+var SUPABASE_URL = 'https://lzxvktkryxizclkdetaa.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_L4Udla2VCbZsNjdm9IRuJw_ExshPrPc';
+var UNITS = { personne: 'par personne', tirage: 'par tirage', photo: 'par photo', heure: 'par heure', tenue: 'par tenue' };
+var S = { page: null, f: [], o: [], sel: null, qty: {} };
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function F(n){ return new Intl.NumberFormat('fr-FR').format(Math.round(Number(n) || 0)) + ' F'; }
+var tick = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+async function init(){
+  var q = new URLSearchParams(location.search), slug = (q.get('s') || '').toLowerCase();
+  var app = document.getElementById('app');
+  try {
+    var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    var p = await sb.from('tarif_page').select('*').eq('slug', slug || 'henzo').maybeSingle();
+    if(!p.data){ app.innerHTML = '<div class="empty">Cette page de tarifs n\'existe pas.</div>'; return; }
+    S.page = p.data;
+    var t = await sb.from('tarifs').select('*').eq('user_id', p.data.user_id).order('position', { ascending: true });
+    var rows = t.data || [];
+    S.f = rows.filter(function(x){ return (x.kind || 'formule') === 'formule'; });
+    S.o = rows.filter(function(x){ return x.kind === 'option'; });
+  } catch(e){ app.innerHTML = '<div class="empty">Impossible de charger les tarifs. Vérifiez votre connexion.</div>'; return; }
+  document.title = S.page.title || 'Tarifs';
+  render();
+  if(q.get('pdf') === '1') setTimeout(function(){ window.print(); }, 600);
+}
+function render(){
+  var P = S.page, cats = [];
+  S.f.forEach(function(x){ var c = x.category || 'Formules'; if(cats.indexOf(c) < 0) cats.push(c); });
+  var h = '<div class="brand">Henzo Studio</div><h1>' + esc(P.title || 'Nos tarifs') + '</h1>' +
+    (P.intro ? '<p class="intro">' + esc(P.intro) + '</p>' : '') +
+    '<button class="pdf" onclick="window.print()">Télécharger en PDF</button>' +
+    (S.f.length ? '<div class="hint">Touchez une formule et ajoutez vos options : le total s\'affiche en bas, puis réservez en un clic.</div>' : '');
+  cats.forEach(function(c){
+    h += '<h2>' + esc(c) + '</h2>';
+    S.f.filter(function(x){ return (x.category || 'Formules') === c; }).forEach(function(x){
+      var d = [x.duration_min ? x.duration_min + ' min' : '', x.photo_count ? x.photo_count + ' photos' : ''].filter(Boolean);
+      h += '<button class="f' + (S.sel === x.id ? ' on' : '') + '" onclick="pick(' + x.id + ')"><div class="f-h"><div style="display:flex;gap:12px"><span class="chk">' + (S.sel === x.id ? tick : '') + '</span><b>' + esc(x.name) + '</b></div><span class="f-p">' + F(x.price) + '</span></div>' +
+        (d.length ? '<div class="f-d">' + d.map(function(i){ return '<i>' + esc(i) + '</i>'; }).join('') + '</div>' : '') +
+        (x.includes ? '<div class="f-inc">' + esc(x.includes) + '</div>' : '') + '</button>';
+    });
+  });
+  if(S.o.length){
+    h += '<h2>Options et suppléments</h2>';
+    S.o.forEach(function(x){
+      var n = S.qty[x.id] || 0;
+      h += '<div class="o"><div class="d"><b>' + esc(x.name) + '</b><span>+' + F(x.price) + (UNITS[x.unit] ? ' ' + UNITS[x.unit] : '') + (x.includes ? ' · ' + esc(x.includes) : '') + '</span></div>' +
+        '<div class="st"><button onclick="qty(' + x.id + ',-1)">-</button><b>' + n + '</b><button onclick="qty(' + x.id + ',1)">+</button></div></div>';
+    });
+  }
+  if(!S.f.length && !S.o.length) h += '<div class="empty">Les tarifs arrivent bientôt.</div>';
+  if(P.notes) h += '<div class="notes">' + esc(P.notes) + '</div>';
+  h += '<div class="foot">Henzo Studio · Ahougnansou, en face du Restaurant Le Rosier · Bouaké' + (P.phone ? '<br>WhatsApp : +' + esc(P.phone) : '') + '</div>';
+  document.getElementById('app').innerHTML = h;
+  total();
+}
+function pick(id){ S.sel = S.sel === id ? null : id; render(); }
+function qty(id, d){ S.qty[id] = Math.max(0, (S.qty[id] || 0) + d); render(); }
+function lines(){
+  var l = [];
+  var f = S.f.filter(function(x){ return x.id === S.sel; })[0];
+  if(f) l.push({ n: f.name, p: Number(f.price), q: 1 });
+  S.o.forEach(function(x){ var n = S.qty[x.id] || 0; if(n) l.push({ n: x.name, p: Number(x.price), q: n }); });
+  return l;
+}
+function total(){
+  var l = lines(), t = l.reduce(function(a, x){ return a + x.p * x.q; }, 0);
+  var bar = document.getElementById('bar');
+  bar.style.display = S.page && S.page.phone ? '' : 'none';
+  document.getElementById('barT').textContent = F(t);
+  document.getElementById('barL').textContent = l.length ? 'Total estimé' : 'Choisissez une formule';
+}
+function reserver(){
+  var l = lines(), t = l.reduce(function(a, x){ return a + x.p * x.q; }, 0);
+  var msg = 'Bonjour Henzo Studio, j\'ai vu vos tarifs.' + (l.length ? '\nJe souhaite réserver :\n' + l.map(function(x){ return '- ' + x.n + (x.q > 1 ? ' x' + x.q : '') + ' : ' + F(x.p * x.q); }).join('\n') + '\nTotal estimé : ' + F(t) : '\nJ\'aimerais avoir plus d\'informations.') + '\n\nMon nom :\nDate souhaitée :';
+  window.open('https://wa.me/' + S.page.phone + '?text=' + encodeURIComponent(msg), '_blank');
+}
+init();
+</script>
+</body>
+</html>

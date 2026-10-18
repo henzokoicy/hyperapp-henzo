@@ -26,18 +26,30 @@ const AG_KINDS = {
 const AG_GROUPS = {
   accueil: { label: 'Accueil', icon: 'home',     tabs: ['dash'] },
   argent:  { label: 'Argent',  icon: 'wallet',   tabs: ['argent', 'coffres', 'objectifs', 'historique'] },
-  studio:  { label: 'Studio',  icon: 'camera',   tabs: ['photo', 'galerie'] },
+  studio:  { label: 'Studio',  icon: 'camera',   tabs: ['photo', 'clients', 'galerie', 'tarifs'] },
   idees:   { label: 'Idées',   icon: 'bulb',     tabs: ['notes', 'business', 'inspiration', 'motiv'] },
   coach:   { label: 'Coach',   icon: 'sparkles', tabs: ['ia'] }
 };
 const AG_TAB_LABELS = {
   dash: 'Accueil', argent: 'Comptes', coffres: 'Coffres', objectifs: 'Objectifs', historique: 'Historique',
-  photo: 'Séances & clients', galerie: 'Galerie', notes: 'Notes', business: 'Business',
+  photo: 'Séances', clients: 'Clients', galerie: 'Galerie', tarifs: 'Tarifs', notes: 'Notes', business: 'Business',
   inspiration: 'Inspiration', motiv: 'Motivation', ia: 'IA'
 };
+// Pages Clients et Tarifs (remplies par crm.js)
+(function agMakeCrmPages(){
+  const ref = document.getElementById('page-coffres');
+  if(!ref) return;
+  [['clients', 'crmClientsBody'], ['tarifs', 'crmTarifsBody']].forEach(([n, b]) => {
+    if(document.getElementById('page-' + n)) return;
+    const d = document.createElement('div');
+    d.className = 'page'; d.id = 'page-' + n;
+    d.innerHTML = `<div class="container"><div id="${b}"></div></div>`;
+    ref.parentNode.insertBefore(d, ref.nextSibling);
+  });
+})();
 const AG_TITLES = {
   dash: 'Accueil', argent: 'Mon argent', coffres: 'Mes coffres', objectifs: 'Mes objectifs',
-  historique: 'Historique', photo: 'Studio', galerie: 'Galerie clients', notes: 'Notes & à faire',
+  historique: 'Historique', photo: 'Studio', clients: 'Mes clients', tarifs: 'Grille tarifaire', galerie: 'Galerie clients', notes: 'Notes & à faire',
   business: 'Idées business', inspiration: 'Inspiration', motiv: 'Motivation', ia: 'Coach IA'
 };
 
@@ -970,7 +982,7 @@ function agCoffreIcon(c){
   return { reserve: 'shield', objectif: 'target', entreprise: 'briefcase', perso: 'heart' }[id] || 'lock';
 }
 const AG_TAB_ICONS = { dash: 'home', argent: 'wallet', coffres: 'lock', objectifs: 'target', historique: 'history',
-  photo: 'camera', galerie: 'image', notes: 'note', business: 'bulb', inspiration: 'star', motiv: 'flame', ia: 'sparkles' };
+  photo: 'camera', clients: 'users', tarifs: 'briefcase', galerie: 'image', notes: 'note', business: 'bulb', inspiration: 'star', motiv: 'flame', ia: 'sparkles' };
 
 // ---------- Themes ----------
 const AG_THEMES = {
@@ -1252,7 +1264,9 @@ async function agInstall(){
 agSetupInstall();
 
 // Galerie clients integree (fichier galerie.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=1'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=3'; document.body.appendChild(sc); })();
+// Clients, relances, promos et tarifs (fichier crm.js)
+(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=1'; document.body.appendChild(sc); })();
 
 (function agDesignInit(){
   document.body.classList.add('ag-ui');
