@@ -23,7 +23,7 @@ const AG_KINDS = {
   autre:   { label: 'Autre',        icon: '', svg: 'card' }
 };
 
-const AG_GROUPS = {
+const AG_GROUPS = {ZZ
   accueil: { label: 'Accueil', icon: 'home',     tabs: ['dash'] },
   argent:  { label: 'Argent',  icon: 'wallet',   tabs: ['argent', 'coffres', 'objectifs', 'historique'] },
   studio:  { label: 'Studio',  icon: 'camera',   tabs: ['photo', 'clients', 'galerie', 'tarifs'] },
