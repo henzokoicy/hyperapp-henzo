@@ -784,5 +784,23 @@ if(typeof refreshAll === 'function'){
   if(active && active.id === 'page-tarifs' && typeof crmRenderTarifs === 'function') crmRenderTarifs();
   if(active && active.id === 'page-dash' && typeof agRenderDashMini === 'function') agRenderDashMini();
 })();
+// Empeche le navigateur de remplir les champs tout seul (nom, numero...)
+if(typeof agSheet === 'function'){
+  const _crmSheet = agSheet;
+  agSheet = function(id, html){
+    const bg = _crmSheet(id, html);
+    try {
+      bg.querySelectorAll('input, textarea').forEach(i => {
+        if(['checkbox', 'radio', 'file', 'date'].includes(i.type)) return;
+        i.setAttribute('autocomplete', 'off');
+        i.setAttribute('autocorrect', 'off');
+        i.setAttribute('data-lpignore', 'true');
+        i.setAttribute('data-form-type', 'other');
+        i.setAttribute('name', 'h' + Math.random().toString(36).slice(2, 9));
+      });
+    } catch(e){}
+    return bg;
+  };
+}
 // Tarifs, devis, conseiller IA et page publique (fichier prix.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'prix.js?v=1'; document.body.appendChild(sc); })();

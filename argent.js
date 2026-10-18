@@ -1266,7 +1266,7 @@ agSetupInstall();
 // Galerie clients integree (fichier galerie.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=3'; document.body.appendChild(sc); })();
 // Clients, relances, promos et tarifs (fichier crm.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=1'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=2'; document.body.appendChild(sc); })();
 
 (function agDesignInit(){
   document.body.classList.add('ag-ui');
