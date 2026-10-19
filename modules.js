@@ -2051,6 +2051,14 @@ async function saveShoot(){
   const clientObj = clientId && clientId !== '__new__' ? clients.find(c => c.id === parseInt(clientId)) : null;
   const clientName = clientObj ? clientObj.name : '';
 
+  // Une charge "Autre" doit avoir un nom
+  const autreSansNom = (currentShootExpenses || []).findIndex(e => e && e.type === 'Autre' && Number(e.amount) > 0 && !String(e.customLabel || '').trim());
+  if(autreSansNom >= 0){
+    alert('Tu as choisi "Autre" pour une charge : écris son nom (ex : Tenue, Décor, Impression).');
+    document.getElementById('chargeLabel' + autreSansNom)?.focus();
+    return;
+  }
+
   // On garde tout ce qui est attaché à chaque charge (couvert, tx_ids, déjà payée, compte)
   const shoot_expenses = currentShootExpenses
     .filter(e => e && e.amount && Number(e.amount) > 0)
@@ -2064,7 +2072,8 @@ async function saveShoot(){
         tx_ids: Array.isArray(e.tx_ids) ? e.tx_ids.slice() : [],
         account_id: e.account_id ? Number(e.account_id) : null
       };
-      if(e.customLabel) o.customLabel = e.customLabel;
+      if(e.type === 'Autre' && String(e.customLabel || '').trim()) o.customLabel = String(e.customLabel).trim();
+      else if(e.type !== 'Autre' && e.customLabel) o.customLabel = e.customLabel;
       return o;
     });
   if(shoot_expenses.some(e => e.deja_paye && !e.account_id)){
@@ -2882,11 +2891,13 @@ function renderShoots(){
 
       if(charges > 0){
         const parType = {};
+        const iconeDe = {};
         (s.shoot_expenses || []).forEach(e => {
-          const t = e.type || 'Autre';
+          const t = chargeLabel(e);
           parType[t] = (parType[t] || 0) + Number(e.amount || 0);
+          iconeDe[t] = (CHARGES_PRESETS.find(p => p.label === e.type) || {}).icon || '💸';
         });
-        const iconeType = (type) => (CHARGES_PRESETS.find(p => p.label === type) || {}).icon || '💸';
+        const iconeType = (type) => iconeDe[type] || '💸';
         chargeTags = Object.entries(parType).map(([type, montant]) =>
           `<span class="badge" style="background:rgba(255,107,107,.12);color:var(--red);border:1px solid var(--red)">${iconeType(type)} ${type} -${fmt(montant)}</span>`
         ).join('');
@@ -3327,6 +3338,11 @@ function renderShootExpenses(){
         <button type="button" onclick="supprimerChargeShoot(${idx})"
           style="width:auto;padding:6px 10px;margin:0;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;font-size:14px;cursor:pointer">×</button>
       </div>
+      ${exp.type === 'Autre' ? `
+        <input type="text" id="chargeLabel${idx}" value="${String(exp.customLabel || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}"
+          placeholder="Nom de la charge (ex : Tenue, Décor, Impression...)" maxlength="40" autocomplete="off"
+          oninput="updateChargeLabel(${idx}, this.value)"
+          style="margin:8px 0 0;font-size:13px;padding:8px;${String(exp.customLabel || '').trim() ? '' : 'border-color:var(--yellow)'}">` : ''}
       <label style="display:flex;align-items:center;gap:8px;margin:8px 0 0;font-size:12px;font-weight:600;cursor:pointer">
         <input type="checkbox" ${exp.deja_paye ? 'checked' : ''} onchange="updateChargeDejaPaye(${idx}, this.checked)" style="width:auto;margin:0">
         Déjà payée (de ma poche)
@@ -3367,10 +3383,21 @@ function ajouterChargeShoot(){
 }
 
 function updateChargeType(idx, type){
-  if(currentShootExpenses[idx]){
-    currentShootExpenses[idx].type = type;
-    calculerNetShoot();
-  }
+  const e = currentShootExpenses[idx];
+  if(!e) return;
+  e.type = type;
+  if(type !== 'Autre') delete e.customLabel;
+  renderShootExpenses();
+  // "Autre" : on demande tout de suite le nom de la charge
+  if(type === 'Autre') setTimeout(() => document.getElementById('chargeLabel' + idx)?.focus(), 50);
+}
+
+function updateChargeLabel(idx, val){
+  const e = currentShootExpenses[idx];
+  if(!e) return;
+  e.customLabel = String(val || '').slice(0, 40);
+  const inp = document.getElementById('chargeLabel' + idx);
+  if(inp) inp.style.borderColor = e.customLabel.trim() ? '' : 'var(--yellow)';
 }
 
 function updateChargeAmount(idx, val){
