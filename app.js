@@ -571,9 +571,6 @@ async function openPreferencesModal(){
 
   document.getElementById('prefCurrency').value      = prefs.currency || CURRENCY || 'FCFA';
   document.getElementById('prefSavingsTarget').value = prefs.savingsTarget !== undefined ? prefs.savingsTarget : 20;
-  document.getElementById('prefMorningTime').value   = prefs.morningTime || '08:00';
-  document.getElementById('prefMiddayTime').value    = prefs.middayTime  || '13:00';
-  document.getElementById('prefEveningTime').value   = prefs.eveningTime || '20:00';
 
   document.getElementById('preferencesModalBg').classList.add('show');
 }
@@ -583,30 +580,39 @@ function closePreferencesModal(){
 }
 
 async function savePreferences(){
-  const prefs = {
+  // On ne change que ces 2 reglages : les autres (notifications, theme, tarifs...) sont gardes
+  const patch = {
     currency:      document.getElementById('prefCurrency').value,
-    savingsTarget: parseFloat(document.getElementById('prefSavingsTarget').value) || 20,
-    morningTime:   document.getElementById('prefMorningTime').value,
-    middayTime:    document.getElementById('prefMiddayTime').value,
-    eveningTime:   document.getElementById('prefEveningTime').value
+    savingsTarget: parseFloat(document.getElementById('prefSavingsTarget').value) || 20
   };
 
-  localStorage.setItem('user_preferences', JSON.stringify(prefs));
+  let local = {};
+  try { local = JSON.parse(localStorage.getItem('user_preferences') || '{}') || {}; } catch(e){ local = {}; }
+  delete local.morningTime; delete local.middayTime; delete local.eveningTime;
+  localStorage.setItem('user_preferences', JSON.stringify(Object.assign(local, patch)));
 
+  let ok = true;
   try {
     const user = await getCurrentUser();
     if(user){
-      await sb.from('user_settings').upsert(
-        { user_id: user.id, user_preferences: prefs },
-        { onConflict: 'user_id' }
-      );
+      const { data, error: e1 } = await sb.from('user_settings')
+        .select('id,user_preferences').eq('user_id', user.id).maybeSingle();
+      if(e1) throw e1;
+      const prefs = Object.assign({}, (data && data.user_preferences) || {}, patch);
+      delete prefs.morningTime; delete prefs.middayTime; delete prefs.eveningTime;
+      const { error } = data
+        ? await sb.from('user_settings').update({ user_preferences: prefs }).eq('id', data.id)
+        : await sb.from('user_settings').upsert({ user_id: user.id, user_preferences: prefs }, { onConflict: 'user_id' });
+      if(error) throw error;
     }
   } catch(e){
     console.warn('savePreferences sync:', e);
+    ok = false;
   }
 
   closePreferencesModal();
-  alert('Préférences enregistrées et synchronisées !');
+  const msg = ok ? 'Préférences enregistrées et synchronisées !' : "Préférences gardées sur cet appareil, mais l'envoi en ligne a échoué. Vérifie ta connexion et réessaie.";
+  if(typeof agAlert === 'function') await agAlert(msg); else alert(msg);
 }
 
 // ============================================================
@@ -831,7 +837,9 @@ function closeModal(){
   document.getElementById('modalBg').classList.remove('show');
 }
 
+let _saveTxBusy = false;
 async function saveTx(){
+  if(_saveTxBusy) return;
   const amount = parseFloat(document.getElementById('amount').value);
   if(!amount || amount <= 0){
     alert("Montant invalide");
@@ -850,13 +858,33 @@ async function saveTx(){
     }
   }
 
-  const result = await dbInsert('transactions', {
-    type: currentType,
-    amount,
-    category,
-    note: document.getElementById('note').value.trim(),
-    date: document.getElementById('date').value || todayStr()
-  });
+  const btn = document.querySelector('#modalBg .btn-primary[onclick*="saveTx"]');
+  _saveTxBusy = true;
+  if(btn){ btn.disabled = true; btn.style.opacity = '0.5'; }
+  let result = null;
+  try {
+    // Entrée "Shooting photo" : est-ce le paiement d'une séance ?
+    if(currentType === 'revenu' && category === 'Shooting photo' && typeof choisirSeancePourEntree === 'function'){
+      const choix = await choisirSeancePourEntree('');
+      if(choix === null) return; // fenêtre fermée : rien ne se passe
+      if(choix !== 'none'){
+        const accountId = Number(document.getElementById('agTxAccount')?.value) || null;
+        closeModal();
+        openPaiementSeance(choix, { montant: amount, accountId });
+        return;
+      }
+    }
+    result = await dbInsert('transactions', {
+      type: currentType,
+      amount,
+      category,
+      note: document.getElementById('note').value.trim(),
+      date: document.getElementById('date').value || todayStr()
+    });
+  } finally {
+    _saveTxBusy = false;
+    if(btn){ btn.disabled = false; btn.style.opacity = '1'; }
+  }
 
   if(!result) return;
 
@@ -908,6 +936,8 @@ function computeStats(){
   // vers des objectifs d'épargne (toujours à toi, juste rangé ailleurs).
   const totalOutEpargne = monthTx.filter(t => t.type==='depense' && t.category==='Épargne').reduce((s,t) => s + Number(t.amount), 0);
   const totalOutAutre   = totalOut - totalOutEpargne;
+  // Transferts vers un coffre ce mois (l'argent reste à toi, il est juste rangé)
+  const totalVersCoffres = monthTx.filter(t => t.type==='transfert' && t.category==='Vers coffre').reduce((s,t) => s + Number(t.amount), 0);
 
   // 🆕 Détail de l'épargne par objectif (extrait du texte de la note des
   // transactions de répartition, qui se termine toujours par "· Nom de l'objectif")
@@ -927,7 +957,7 @@ function computeStats(){
     ym, monthTx, totalIn, totalOut, bal, savingsRate,
     projectedOut, projectedBal, sortedCats, avgPerDay,
     prevOut, prevIn, dayOfMonth, daysInMonth,
-    totalOutEpargne, totalOutAutre, epargneByGoal
+    totalOutEpargne, totalOutAutre, epargneByGoal, totalVersCoffres
   };
 }
 
@@ -1051,11 +1081,13 @@ function renderDashboard(){
       bd.innerHTML = '';
     } else {
       const bits = [`${fmt(s.totalIn)} reçus`];
-      if(s.totalOutEpargne > 0) bits.push(`${fmt(s.totalOutEpargne)} mis en épargne`);
-      if(s.totalOutAutre > 0)   bits.push(`${fmt(s.totalOutAutre)} dépensés`);
-      const balColor = s.bal >= 0 ? 'var(--green)' : 'var(--red)';
-      const balLabel = s.bal >= 0 ? 'non affecté' : 'déficit';
-      bd.innerHTML = `${bits.join(' · ')} → <strong style="color:${balColor}">${fmt(Math.abs(s.bal))} ${balLabel}</strong>`;
+      const epargne = s.totalOutEpargne + s.totalVersCoffres;
+      if(epargne > 0)         bits.push(`${fmt(epargne)} mis en épargne`);
+      if(s.totalOutAutre > 0) bits.push(`${fmt(s.totalOutAutre)} dépensés`);
+      const libre = s.bal - s.totalVersCoffres;
+      const balColor = libre >= 0 ? 'var(--green)' : 'var(--red)';
+      const balLabel = libre >= 0 ? 'non affecté' : 'déficit';
+      bd.innerHTML = `${bits.join(' · ')} → <strong style="color:${balColor}">${fmt(Math.abs(libre))} ${balLabel}</strong>`;
     }
   }
 
@@ -1102,12 +1134,25 @@ function renderDashboard(){
   }
 
   const tl     = document.getElementById('txList');
-  const sorted = [...s.monthTx].sort((a,b) => b.date.localeCompare(a.date));
+  const sorted = [...s.monthTx].filter(t => t.type !== 'transfert').sort((a,b) => b.date.localeCompare(a.date));
+  const moves  = [...s.monthTx].filter(t => t.type === 'transfert').sort((a,b) => b.date.localeCompare(a.date));
+  // Transferts : affichés à part, neutres (l'argent est déplacé, pas dépensé)
+  const movesHtml = moves.length ? `<div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 6px">Argent déplacé (transferts)</div>` + moves.map(t => {
+      const d = new Date(t.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
+      const vers = t.to_goal_id ? (coffres.find(c => c.id === t.to_goal_id) || {}).name : '';
+      return `<div class="tx">
+        <div class="left">
+          <div class="cat">${t.category || 'Transfert'}${vers ? ' · ' + vers : ''}</div>
+          <div class="note">${d}${t.note ? ' · ' + t.note : ''}</div>
+        </div>
+        <div class="amt" style="color:var(--muted)">${fmt(t.amount)}</div>
+      </div>`;
+    }).join('') : '';
 
-  if(sorted.length === 0){
+  if(sorted.length === 0 && !moves.length){
     tl.innerHTML = '<div class="empty">Aucune transaction ce mois</div>';
   } else {
-    tl.innerHTML = sorted.map(t => {
+    tl.innerHTML = (sorted.length ? '' : '<div class="empty">Aucune entrée ni dépense ce mois</div>') + sorted.map(t => {
       const d    = new Date(t.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
       const sign = t.type === 'revenu' ? '+' : '-';
       const cls  = t.type === 'revenu' ? 'pos' : 'neg';
@@ -1121,6 +1166,6 @@ function renderDashboard(){
           <button class="del" onclick="delTx(${t.id})">×</button>
         </div>
       </div>`;
-    }).join('');
+    }).join('') + movesHtml;
   }
 }

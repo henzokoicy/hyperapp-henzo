@@ -431,7 +431,8 @@ function galMessage(code){
 }
 function galWhatsApp(code){
   const g = galList.find(x => x.code === code);
-  const n = String((g && g.telephone) || '').replace(/[^0-9]/g, '');
+  // crmPhone ajoute l'indicatif 225 aux numeros a 10 chiffres
+  const n = typeof crmPhone === 'function' ? crmPhone(g && g.telephone) : String((g && g.telephone) || '').replace(/[^0-9]/g, '');
   window.open(`https://wa.me/${n}?text=${encodeURIComponent(galMessage(code))}`, '_blank');
 }
 async function galCopy(code){
@@ -481,7 +482,8 @@ async function galOpenAvis(){
   galRenderAvis();
   const nonLus = galAvis.filter(a => !a.lu);
   galAvisNonLus = 0;
-  nonLus.forEach(a => galApi('/api/admin/avis/' + a.id, { method: 'PUT', body: JSON.stringify({ lu: true }) }).catch(() => {}));
+  // Format attendu par le serveur : JSON avec Content-Type (sinon "lu" n'est pas lu)
+  nonLus.forEach(a => galApi('/api/admin/avis/' + a.id, { method: 'PUT', json: { lu: true } }).then(() => { a.lu = true; }).catch(e => console.warn('avis lu', e)));
 }
 function galRenderAvis(){
   const n = galAvis.length;

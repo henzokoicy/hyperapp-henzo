@@ -148,6 +148,49 @@ async function agApplyGoalDelta(goalId, delta){
   const r = await _agDbUpdate('goals', goalId, { current: nv });
   if(r) c.current = nv;
 }
+// Vérifie qu'une série de changements ne rend aucun coffre négatif.
+// pairs : [[avant, apres], ...] ; renvoie un message d'erreur ou null.
+function agGoalCheck(pairs){
+  const delta = {};
+  for(const [b, a] of pairs){
+    const eb = agGoalEffect(b), ea = agGoalEffect(a);
+    for(const id of new Set([...Object.keys(eb), ...Object.keys(ea)])){
+      const d = (ea[id] || 0) - (eb[id] || 0);
+      if(d) delta[id] = (delta[id] || 0) + d;
+    }
+  }
+  for(const id of Object.keys(delta)){
+    const c = coffres.find(x => x.id === Number(id));
+    if(!c) return "Impossible : le coffre de ce mouvement n'existe plus.\nL'argent ne peut pas être remis à sa place.";
+    const nv = Math.round((Number(c.current) || 0) + delta[id]);
+    if(nv < 0) return `Impossible : le coffre "${c.name}" passerait à ${agF(nv)}.\nIl n'a plus que ${agF(c.current)}. Remets d'abord de l'argent dans ce coffre.`;
+  }
+  return null;
+}
+// Les mouvements liés à une entrée (sa répartition) qui changeront d'état avec elle
+function agLinkedChanges(id, cancelled){
+  return txs.filter(x => x.details === 'rep:' + id && !!x.cancelled !== !!cancelled).map(x => [x, { ...x, cancelled: !!cancelled }]);
+}
+
+// Un paiement de séance (revenu avec shoot_id) annulé, restauré ou supprimé à la main :
+// la séance suit (reçu, réparti, charges couvertes, payé / impayé).
+// sign = -1 (annulé / supprimé) ou +1 (restauré). "liees" = ses mouvements rep: qui ont changé avec lui.
+async function agSyncShootFromRevenu(rev, sign, liees){
+  if(window.__agNoShootSync || !rev || rev.type !== 'revenu' || !rev.shoot_id) return;
+  const s = (typeof shoots !== 'undefined' ? shoots : []).find(x => x.id === rev.shoot_id);
+  if(!s) return;
+  const transferts = liees.filter(x => x.type === 'transfert').reduce((a, x) => a + (Number(x.amount) || 0), 0);
+  const recu = Math.max(0, (Number(s.montant_recu) || 0) + sign * (Number(rev.amount) || 0));
+  const reparti = Math.max(0, (Number(s.montant_reparti) || 0) + sign * transferts);
+  // Couvert des charges : allocation_json du revenu (même les charges "déjà payée"),
+  // sinon l'ancienne méthode (dépenses de charges liées à ce paiement)
+  const exps = retirerCouvertPaiement(Array.isArray(s.shoot_expenses) ? s.shoot_expenses : [], rev, sign, liees);
+  const maj = { montant_recu: recu, montant_reparti: reparti, repartition_effectuee: reparti > 0,
+    payment: recu > 0 && recu >= (Number(s.price) || 0) ? 'paye' : 'impaye', shoot_expenses: exps };
+  const r = await _agDbUpdate('shoots', s.id, maj);
+  Object.assign(s, r || maj);
+}
+
 async function agSyncGoals(before, after){
   const b = agGoalEffect(before), a = agGoalEffect(after);
   const ids = new Set([...Object.keys(b), ...Object.keys(a)]);
@@ -194,16 +237,26 @@ dbUpdate = async function(table, id, data){
     const t = txs.find(x => x.id === id);
     before = t ? { ...t } : null;
   }
+  // Un coffre ne doit jamais devenir négatif (annuler, restaurer, changer le montant...)
+  if(before && !_agSkipSync){
+    const after = { ...before, ...data };
+    const pairs = [[before, after]];
+    if(!!before.cancelled !== !!after.cancelled) pairs.push(...agLinkedChanges(id, after.cancelled));
+    const err = agGoalCheck(pairs);
+    if(err){ agAlert(err); return null; }
+  }
   const res = await _agDbUpdate(table, id, data);
   if(res && table === 'transactions' && before && !_agSkipSync){
     await agSyncGoals(before, res);
     // Annuler / restaurer une entree annule / restaure aussi sa repartition dans les coffres
     if(!!before.cancelled !== !!res.cancelled){
       const liees = txs.filter(x => x.details === 'rep:' + id && !!x.cancelled !== !!res.cancelled);
+      const changees = [];
       for(const x of liees){
         const r = await dbUpdate('transactions', x.id, { cancelled: !!res.cancelled, cancelled_at: res.cancelled ? new Date().toISOString() : null });
-        if(r){ const i = txs.findIndex(y => y.id === x.id); if(i >= 0) txs[i] = r; }
+        if(r){ const i = txs.findIndex(y => y.id === x.id); if(i >= 0) txs[i] = r; changees.push(x); }
       }
+      await agSyncShootFromRevenu(before, res.cancelled ? -1 : 1, changees);
     }
   }
   return res;
@@ -217,19 +270,25 @@ dbDelete = async function(table, id){
   }
   if(table === 'goals'){
     const c = coffres.find(x => x.id === id);
-    if(c && Number(c.current) > 0){
-      alert(`Ce coffre contient encore ${agF(c.current)}.\n\nTransfère d'abord cet argent vers un compte ou un autre coffre, puis supprime-le.`);
+    if(c && Math.round(Number(c.current) || 0) !== 0){
+      agAlert(`Ce coffre contient encore ${agF(c.current)}.\n\nRamène-le d'abord à 0 (transfert vers un compte ou un autre coffre), puis supprime-le.`);
       return false;
     }
+  }
+  if(before){
+    const err = agGoalCheck([[before, null], ...(before.cancelled ? [] : agLinkedChanges(id, true))]);
+    if(err){ agAlert(err); return false; }
   }
   const ok = await _agDbDelete(table, id);
   if(ok && table === 'transactions' && before){
     await agSyncGoals(before, null);
     const liees = txs.filter(x => x.details === 'rep:' + id && !x.cancelled);
+    const changees = [];
     for(const x of liees){
       const r = await dbUpdate('transactions', x.id, { cancelled: true, cancelled_at: new Date().toISOString() });
-      if(r){ const i = txs.findIndex(y => y.id === x.id); if(i >= 0) txs[i] = r; }
+      if(r){ const i = txs.findIndex(y => y.id === x.id); if(i >= 0) txs[i] = r; changees.push(x); }
     }
+    if(!before.cancelled) await agSyncShootFromRevenu(before, -1, changees);
   }
   return ok;
 };
@@ -1264,9 +1323,9 @@ async function agInstall(){
 agSetupInstall();
 
 // Galerie clients integree (fichier galerie.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=3'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=4'; document.body.appendChild(sc); })();
 // Clients, relances, promos et tarifs (fichier crm.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=4'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=5'; document.body.appendChild(sc); })();
 // Moodboard : idees de seance (fichier mood.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'mood.js?v=1'; document.body.appendChild(sc); })();
 

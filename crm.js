@@ -45,7 +45,11 @@ function crmFirst(c){
 function crmPromoCode(){ const k = CRM.comp; const p = k && k.promoId ? CRM.promos.find(x => x.id === k.promoId) : null; return p ? p.code : ''; }
 function crmFill(text, c){
   let t = String(text || '').replace(/\{prenom\}/gi, crmFirst(c) || '');
-  if(/\{lien\}/i.test(t)) t = t.replace(/\{lien\}/gi, typeof otResaLink === 'function' ? otResaLink(crmPromoCode()) : '');
+  if(/\{lien\}/i.test(t)){
+    const lien = typeof otResaLink === 'function' ? otResaLink(crmPromoCode()) : '';
+    // Pas encore de page de tarifs : on enleve la ligne du lien au lieu d'envoyer un lien casse
+    t = lien ? t.replace(/\{lien\}/gi, lien) : t.split('\n').filter(l => !/\{lien\}/i.test(l)).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
   return t;
 }
 function crmMd(t){
@@ -128,12 +132,21 @@ async function crmLoad(){
 async function crmSavePrefs(patch){
   try {
     const { data: u } = await sb.auth.getUser();
-    if(!u || !u.user) return;
-    const { data } = await sb.from('user_settings').select('id,user_preferences').eq('user_id', u.user.id).maybeSingle();
-    if(!data) return;
-    const prefs = Object.assign({}, data.user_preferences || {}, patch);
-    await sb.from('user_settings').update({ user_preferences: prefs }).eq('id', data.id);
-  } catch(e){ console.warn(e); }
+    if(!u || !u.user) throw new Error('pas connecte');
+    const { data, error: e1 } = await sb.from('user_settings').select('id,user_preferences').eq('user_id', u.user.id).maybeSingle();
+    if(e1) throw e1;
+    const prefs = Object.assign({}, (data && data.user_preferences) || {}, patch);
+    const { error } = data
+      ? await sb.from('user_settings').update({ user_preferences: prefs }).eq('id', data.id)
+      : await sb.from('user_settings').upsert({ user_id: u.user.id, user_preferences: prefs }, { onConflict: 'user_id' });
+    if(error) throw error;
+    return true;
+  } catch(e){
+    console.warn('crmSavePrefs', e);
+    const msg = "Le réglage n'a pas pu être enregistré. Vérifie ta connexion et réessaie.";
+    if(typeof agAlert === 'function') agAlert(msg); else alert(msg);
+    return false;
+  }
 }
 
 function crmStats(c){
@@ -142,6 +155,9 @@ function crmStats(c){
   const done = ss.filter(s => s.date && new Date(s.date) <= now);
   const upcoming = ss.filter(s => s.date && new Date(s.date) > now);
   const total = done.reduce((a, s) => a + (Number(s.price) || 0), 0);
+  // Argent vraiment recu (toutes les seances du client) et montant facture (seances non annulees)
+  const encaisse = (shoots || []).filter(s => s.client_id === c.id).reduce((a, s) => a + (Number(s.montant_recu) || 0), 0);
+  const facture = ss.reduce((a, s) => a + (Number(s.price) || 0), 0);
   const last = done.map(s => s.date).sort().pop() || null;
   const days = last ? Math.floor((now - new Date(last)) / crmDay) : null;
   const msgs = CRM.msgs.filter(m => m.client_id === c.id);
@@ -154,7 +170,7 @@ function crmStats(c){
     if(n < t) n = new Date(t.getFullYear() + 1, b.getMonth(), b.getDate());
     bday = Math.round((n - t) / crmDay);
   }
-  return { ss, done, upcoming, total, last, days, count: done.length, msgs, lastMsgDays, types, bday };
+  return { ss, done, upcoming, total, encaisse, facture, last, days, count: done.length, msgs, lastMsgDays, types, bday };
 }
 function crmAllStats(){ return (clients || []).map(c => ({ c, s: crmStats(c) })); }
 function crmVipMin(all){
@@ -216,7 +232,8 @@ async function crmRender(){
   const all = crmAllStats(), vip = crmVipMin(all);
   const sug = crmSuggestions();
   const fid = all.filter(x => x.s.count >= 2).length;
-  const ca = all.reduce((a, x) => a + x.s.total, 0);
+  const ca = all.reduce((a, x) => a + x.s.encaisse, 0);
+  const caFact = all.reduce((a, x) => a + x.s.facture, 0);
   const fetes = crmFetes().filter(f => f.j <= 30).slice(0, 2);
   const seg = CRM_SEGS[CRM.seg] || CRM_SEGS.tous;
   const q = CRM.q.toLowerCase();
@@ -227,7 +244,7 @@ async function crmRender(){
     <div class="ag-total">
       <div class="lbl">Mes clients</div>
       <div class="amt">${all.length} <small>client${all.length > 1 ? 's' : ''}</small></div>
-      <div class="split"><div>Fidèles<b>${fid}</b></div><div>À relancer<b>${sug.length}</b></div><div>Chiffre total<b>${agF(ca)}</b></div></div>
+      <div class="split"><div>Fidèles<b>${fid}</b></div><div>À relancer<b>${sug.length}</b></div><div>Chiffre total<b>Encaissé ${agF(ca)} / Facturé ${agF(caFact)}</b></div></div>
     </div>
     <div class="ag-actions">
       <button class="ag-act main" onclick="crmCompose([])"><span>${agIcon('sparkles')}</span>Message IA</button>
@@ -291,7 +308,7 @@ function crmOpenClient(id){
     ${tags.length ? `<div class="crm-tags">${tags.map(t => `<i>${agEsc(t)}</i>`).join('')}</div>` : ''}
     <div class="crm-kpis">
       <div><b>${s.count}</b><span>séance${s.count > 1 ? 's' : ''}</span></div>
-      <div><b>${agF(s.total)}</b><span>dépensé</span></div>
+      <div><b>${agF(s.encaisse)} / ${agF(s.facture)}</b><span>Encaissé / Facturé</span></div>
       <div><b>${s.days == null ? '-' : crmAgo(s.days).replace('il y a ', '')}</b><span>dernière</span></div>
     </div>
     <div class="ag-actions" style="margin:14px 0">
@@ -372,12 +389,20 @@ async function crmLog(clientId, kind, text){
     if(data) CRM.msgs.unshift(data);
   } catch(e){ console.warn(e); }
 }
-function crmWa(clientId, text, kind){
+async function crmWa(clientId, text, kind){
   const c = (clients || []).find(x => x.id === clientId);
   const n = crmPhone(c && c.phone);
   const msg = crmFill(text, c);
+  if(!n){
+    // Pas de numero : on n'ouvre pas WhatsApp sans destinataire, et rien n'est note comme envoye
+    const nom = (c && c.name) || 'Ce client';
+    if(!msg){ await agAlert(`${nom} n'a pas de numéro de téléphone.\nAjoute-le dans sa fiche pour lui écrire sur WhatsApp.`); return false; }
+    if(await agConfirm(`${nom} n'a pas de numéro\nWhatsApp ne peut pas s'ouvrir sans destinataire. Tu peux copier le message et l'envoyer toi-même.`, { ok: 'Copier le message' })) crmCopy(msg);
+    return false;
+  }
   window.open(`https://wa.me/${n}${msg ? '?text=' + encodeURIComponent(msg) : ''}`, '_blank');
   if(msg) crmLog(clientId, kind || 'libre', msg);
+  return true;
 }
 function crmHistory(){
   const rows = CRM.msgs.slice(0, 80);
@@ -490,7 +515,7 @@ function crmContext(){
   return `Tu écris des messages WhatsApp pour Henzo Studio, studio photo et vidéo à Bouaké (Côte d'Ivoire), quartier Ahougnansou, en face du Restaurant Le Rosier. Le photographe s'appelle Henzo. Spécialités : portrait studio, anniversaires d'enfants, mariage, grossesse, événements.
 Objectif du message : ${CRM_GOALS[k.goal].n} (${CRM_GOALS[k.goal].d})${k.goal === 'fete' && k.fete ? ' - fête : ' + k.fete : ''}.
 ${who}
-${promo ? `Bon de réduction à inclure : "${promo.title || ''}" ${crmPromoValue(promo)}, code ${promo.code}${promo.valid_until ? ", valable jusqu'au " + crmDate(promo.valid_until, { day: 'numeric', month: 'long' }) : ''}. Termine le message par une ligne qui invite à réserver avec ce lien, écrit exactement {lien} (il sera remplacé par le vrai lien, où le code est déjà rempli).` : ''}
+${promo ? `Bon de réduction à inclure : "${promo.title || ''}" ${crmPromoValue(promo)}, code ${promo.code}${promo.valid_until ? ", valable jusqu'au " + crmDate(promo.valid_until, { day: 'numeric', month: 'long' }) : ''}. ${typeof otHasPage === 'function' && otHasPage() ? ' Termine le message par une ligne qui invite à réserver avec ce lien, écrit exactement {lien} (il sera remplacé par le vrai lien, où le code est déjà rempli).' : ' Invite à répondre à ce message pour réserver en donnant le code (pas de lien).'}` : ''}
 ${tarifs ? 'Mes tarifs (à citer seulement si utile) : ' + tarifs : ''}
 Ce que Henzo veut dire : ${k.idea || '(rien de précis, propose)'}
 ${k.questions.length ? 'Précisions de Henzo :\n' + k.questions.map((q, i) => `- ${q} -> ${k.answers[i] || '(pas de réponse)'}`).join('\n') : ''}
@@ -552,7 +577,11 @@ function crmUse(i){
   const k = CRM.comp;
   if(!k.ids.length){ crmPickClients(); agToast('Choisis d\'abord les clients'); return; }
   k.text = k.props[i].texte;
-  if(k.promoId && !/\{lien\}/i.test(k.text)) k.text += '\nRéservez avec votre code ici : {lien}';
+  if(k.promoId && !/\{lien\}/i.test(k.text)){
+    const p = CRM.promos.find(x => x.id === k.promoId);
+    if(typeof otHasPage === 'function' && otHasPage()) k.text += '\nRéservez avec votre code ici : {lien}';
+    else if(p && p.code && k.text.indexOf(p.code) < 0) k.text += '\nVotre code de réduction : ' + p.code;
+  }
   k.step = 'send'; crmCompRender();
 }
 function crmSendRender(el){
@@ -563,6 +592,7 @@ function crmSendRender(el){
   el.innerHTML = `
     <button class="ag-back" onclick="CRM.comp.step='brief';crmCompRender()">${agIcon('chev', 16)} Retour aux propositions</button>
     <h3>Envoyer (${nb}/${cs.length})</h3>
+    ${(k.promoId || /\{lien\}/i.test(k.text || '')) && typeof otHasPage === 'function' && !otHasPage() ? otNoPageHtml() : ''}
     <label>Message (modifiable)</label>
     <textarea rows="6" oninput="CRM.comp.text=this.value;const p=document.getElementById('crmPrev');if(p)p.textContent=crmFill(this.value,(clients||[]).find(x=>x.id===${prev ? prev.id : 0}))">${agEsc(k.text)}</textarea>
     ${prev ? `<div class="crm-prev"><span>Aperçu pour ${agEsc(prev.name)}</span><p id="crmPrev">${agEsc(crmFill(k.text, prev))}</p></div>` : ''}
@@ -582,9 +612,9 @@ function crmCopyBroadcast(){
   crmCopy(t);
   agToast('Copié : colle-le dans ta liste de diffusion WhatsApp');
 }
-function crmSendOne(id){
+async function crmSendOne(id){
   const k = CRM.comp;
-  crmWa(id, k.text, k.goal);
+  if(!await crmWa(id, k.text, k.goal)) return;
   k.sent[id] = true;
   crmSendRender(document.getElementById('crmCompBody'));
 }
@@ -728,9 +758,10 @@ function crmPromoOpen(id){
       <button class="ag-act" onclick="agCloseSheet('crmPromoView');crmPromoForm(${p.id})"><span>${agIcon('edit')}</span>Modifier</button>
       <button class="ag-act" onclick="crmPromoStop(${p.id})"><span>${agIcon('ban')}</span>${p.status === 'arrete' ? 'Réactiver' : 'Arrêter'}</button>
     </div>
-    <div class="ag-list ag-share"><div class="ag-share-row"><div style="min-width:0"><span>Lien de réservation avec ce code</span><b class="ag-link">${agEsc(typeof otResaLink === 'function' ? otResaLink(p.code) : '')}</b></div>
+    ${typeof otResaLink === 'function' && otResaLink(p.code) ? `<div class="ag-list ag-share"><div class="ag-share-row"><div style="min-width:0"><span>Lien de réservation avec ce code</span><b class="ag-link">${agEsc(otResaLink(p.code))}</b></div>
       <button class="ag-ibtn" title="Copier le lien" onclick="crmCopy(otResaLink('${agEsc(p.code)}'))">${agIcon('link', 17)}</button></div></div>
-    <div class="ag-hint">Le client ouvre ce lien, choisit sa formule et sa date : la réduction est déjà appliquée. Sa demande arrive dans Clients > Demandes de réservation.</div>
+    <div class="ag-hint">Le client ouvre ce lien, choisit sa formule et sa date : la réduction est déjà appliquée. Sa demande arrive dans Clients > Demandes de réservation.</div>`
+      : (typeof otNoPageHtml === 'function' ? otNoPageHtml('Sans elle, pas de lien de réservation avec ce code. Le client peut quand même donner son code par WhatsApp.') : '')}
     ${uses.length ? `<h4 class="crm-h4">Utilisations</h4><div class="ag-list">${uses.map(u => `<div class="crm-line"><div><b>${agEsc((((clients || []).find(c => c.id === u.client_id)) || {}).name || u.name || 'Client')}</b><span>${crmDate(u.date)}</span></div></div>`).join('')}</div>` : ''}
     <button class="btn-danger" style="width:100%;padding:12px;margin-top:14px" onclick="crmPromoDelete(${p.id})">Supprimer</button>`);
 }
@@ -827,4 +858,4 @@ if(typeof agSheet === 'function'){
 // Tarifs, devis, conseiller IA et page publique (fichier prix.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'prix.js?v=2'; document.body.appendChild(sc); })();
 // Selection multiple, mise a jour auto, sauvegardes, reservations (fichier outils.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'outils.js?v=1'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'outils.js?v=2'; document.body.appendChild(sc); })();

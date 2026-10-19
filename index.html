@@ -846,10 +846,8 @@
     <div class="card">
       <h2>🔔 Notifications automatiques</h2>
       <div style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6">
-        Active les notifications pour recevoir automatiquement :
-        <br>🌅 <strong>Matin (8h)</strong> : motivation
-        <br>☀️ <strong>Midi (13h)</strong> : conseil
-        <br>🌙 <strong>Soir (20h)</strong> : rappel d'épargner
+        Active les notifications pour recevoir automatiquement des messages de motivation, des conseils et des rappels d'épargner,
+        <span id="motivHeures">aux heures choisies dans Notifications</span>.
       </div>
       <button class="btn-primary" id="notifBtn" onclick="toggleNotifications()">🔔 Activer les notifications</button>
       <div id="notifStatus" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:center"></div>
@@ -986,12 +984,6 @@
     </select>
     <label for="prefSavingsTarget">Objectif d'épargne (%)</label>
     <input type="number" id="prefSavingsTarget" min="0" max="100" step="5" placeholder="20">
-    <label for="prefMorningTime">Heure notification matin</label>
-    <input type="time" id="prefMorningTime" value="08:00">
-    <label for="prefMiddayTime">Heure notification midi</label>
-    <input type="time" id="prefMiddayTime" value="13:00">
-    <label for="prefEveningTime">Heure notification soir</label>
-    <input type="time" id="prefEveningTime" value="20:00">
     <button class="btn-primary" onclick="savePreferences()">💾 Enregistrer</button>
     <div style="font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5">
       ⚠️ Synchronisé partout via ton compte.
@@ -1156,7 +1148,7 @@
     <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.06));border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px" id="repPaiementClient">Séance photo</div>
       <div style="font-size:32px;font-weight:800;color:var(--green);letter-spacing:-1.5px" id="repPaiementMontant">0 FCFA</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px">reçus</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px" id="repPaiementDetail">à répartir</div>
     </div>
 
     <!-- COMPTEUR VISUEL -->
@@ -1646,10 +1638,10 @@
 </div>
 
 <script src="config.js"></script>
-<script src="app.js"></script>
-<script src="modules.js"></script>
+<script src="app.js?v=2"></script>
+<script src="modules.js?v=3"></script>
 <script src="coach.js"></script>
-<script src="argent.js"></script>
+<script src="argent.js?v=3"></script>
 
 </body>
 </html>

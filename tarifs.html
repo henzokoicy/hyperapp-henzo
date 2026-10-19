@@ -75,7 +75,8 @@ async function init(){
     var p = await sb.from('tarif_page').select('*').eq('slug', slug || 'henzo').maybeSingle();
     if(!p.data){ app.innerHTML = '<div class="empty">Cette page de tarifs n\'existe pas.</div>'; return; }
     S.page = p.data;
-    var t = await sb.from('tarifs').select('*').eq('user_id', p.data.user_id).order('position', { ascending: true });
+    // Seulement les tarifs proposes en ce moment et visibles sur la page (vide = oui, comme dans l'app)
+    var t = await sb.from('tarifs').select('*').eq('user_id', p.data.user_id).not('public', 'is', false).not('active', 'is', false).order('position', { ascending: true });
     var rows = t.data || [];
     S.f = rows.filter(function(x){ return (x.kind || 'formule') === 'formule'; });
     S.o = rows.filter(function(x){ return x.kind === 'option'; });

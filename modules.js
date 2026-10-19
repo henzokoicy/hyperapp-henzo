@@ -655,7 +655,7 @@ function updateNotifButton(){
   if(isNotifEnabled()){
     btn.classList.add('active');
     btn.textContent = '✅ Notifications activées';
-    if(status) status.textContent = 'Tu recevras tes rappels sur tous tes appareils';
+    if(status) status.textContent = 'Touche le bouton pour régler tes notifications';
   } else {
     btn.classList.remove('active');
     btn.textContent = '🔔 Activer les notifications';
@@ -1109,6 +1109,22 @@ function openCoffreModal(id, mode){
     analysis.innerHTML = '';
   }
 
+  // Un coffre qui contient de l'argent : on ne change plus son montant actuel ni son type
+  const verrou = !!(c && Math.round(Number(c.current) || 0) !== 0);
+  const curEl = document.getElementById('coffreCurrent');
+  if(curEl) curEl.disabled = verrou;
+  if(hasMoneyCheckbox) hasMoneyCheckbox.disabled = verrou;
+  ['btnGoalMoney', 'btnGoalQuantity'].forEach(i => { const b = document.getElementById(i); if(b) b.disabled = verrou; });
+  let note = document.getElementById('coffreCurrentLock');
+  if(!note && curEl){
+    note = document.createElement('div');
+    note.id = 'coffreCurrentLock';
+    note.style.cssText = 'font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4';
+    note.textContent = 'Pour changer le montant, utilise Ajuster ou un transfert';
+    curEl.insertAdjacentElement('afterend', note);
+  }
+  if(note) note.style.display = verrou ? 'block' : 'none';
+
   document.getElementById('coffreModalBg').classList.add('show');
 }
 function closeCoffreModal(){
@@ -1121,7 +1137,10 @@ async function saveCoffre(){
   if(!name){ alert('Le nom est requis'); return; }
 
   const hasMoneyCheckbox = document.getElementById('coffreHasMoney');
-  const hasMoney = hasMoneyCheckbox ? hasMoneyCheckbox.checked : true;
+  // Coffre qui contient de l'argent : montant actuel et type ne changent pas ici
+  const avant = editingCoffreId ? coffres.find(c => c.id === editingCoffreId) : null;
+  const verrou = !!(avant && Math.round(Number(avant.current) || 0) !== 0);
+  const hasMoney = verrou ? true : (hasMoneyCheckbox ? hasMoneyCheckbox.checked : true);
 
   let goal = 0;
   let current = 0;
@@ -1137,6 +1156,11 @@ async function saveCoffre(){
 
     const btnQty = document.getElementById('btnGoalQuantity');
     goal_type = (btnQty && btnQty.classList.contains('active')) ? 'quantity' : 'money';
+    if(verrou){
+      current = Number(avant.current) || 0;
+      goal_type = avant.goal_type || 'money';
+      if(goal_type === 'money' && goal <= 1){ alert('Ce coffre contient de l\'argent : son montant à atteindre doit être plus grand que 1.'); return; }
+    }
   } else {
     // Objectif sans argent : on met un placeholder
     goal = 1;
@@ -1637,12 +1661,10 @@ function ouvrirRepartitionSeance(shootId){
   const s = shoots.find(x => x.id === shootId);
   if(!s){ alert('Séance introuvable'); return; }
 
-  const prix = Number(s.price || 0);
   const recu = Number(s.montant_recu || 0);
-  const charges = (s.shoot_expenses || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
   const reparti = Number(s.montant_reparti || 0);
-  const netEncaisse = recu - charges;
-  const disponible = Math.max(0, netEncaisse - reparti);
+  const disponible = disponibleSeance(s);
+  const netEncaisse = disponible + reparti;
 
   if(disponible <= 0){
     alert('Rien à répartir sur cette séance.');
@@ -1652,7 +1674,12 @@ function ouvrirRepartitionSeance(shootId){
   const existing = document.getElementById('repartitionModal');
   if(existing) existing.remove();
 
-  const activeGoals = coffres.filter(c => Number(c.current) < Number(c.goal));
+  // Seulement les vrais coffres d'argent (pas les objectifs sans argent ou en quantité)
+  const activeGoals = coffres.filter(agIsCoffre);
+  // Compte d'où part l'argent : celui du dernier paiement de la séance
+  const comptes = (typeof agActiveAccounts === 'function') ? agActiveAccounts() : [];
+  const dernierPaiement = txs.find(t => t.type === 'revenu' && t.shoot_id === s.id && !t.cancelled && t.account_id);
+  const compteInit = dernierPaiement ? dernierPaiement.account_id : (comptes[0] && comptes[0].id);
   const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
   const clientName = client ? client.name : '';
 
@@ -1670,7 +1697,7 @@ function ouvrirRepartitionSeance(shootId){
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Séance</div>
         <div style="font-weight:700;font-size:15px;margin-bottom:10px">📸 ${s.type}${clientName ? ' · ' + clientName : ''}</div>
         <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">
-          <span style="color:var(--muted)">Net encaissé</span>
+          <span style="color:var(--muted)">Reçu moins charges</span>
           <span style="font-weight:700">${fmt(netEncaisse)}</span>
         </div>
         ${reparti > 0 ? `
@@ -1715,10 +1742,10 @@ function ouvrirRepartitionSeance(shootId){
         <label>Choisis l'objectif</label>
         <select id="repGoalId">
           ${activeGoals.length === 0
-            ? '<option value="">Aucun objectif actif</option>'
+            ? '<option value="">Aucun coffre</option>'
             : activeGoals.map(c => {
-                const pct = (Number(c.current) / Number(c.goal) * 100).toFixed(0);
-                return `<option value="${c.id}">${c.emoji || '🎯'} ${c.name} (${pct}%)</option>`;
+                const info = Number(c.goal) >= 1e8 ? fmt(c.current) : (Number(c.current) / Number(c.goal) * 100).toFixed(0) + '%';
+                return `<option value="${c.id}">${c.emoji || '🎯'} ${c.name} (${info})</option>`;
               }).join('')
           }
         </select>
@@ -1733,9 +1760,14 @@ function ouvrirRepartitionSeance(shootId){
 
       <div id="repDest3Box" style="display:none">
         <div style="background:rgba(107,142,255,.08);border-radius:10px;padding:10px;font-size:12px;color:var(--muted);line-height:1.4">
-          💼 L'argent ira dans une réserve générale. Tu pourras la consulter dans la section Épargne.
+          💼 L'argent ira dans le coffre "Épargne libre" (créé tout seul s'il n'existe pas).
         </div>
       </div>
+
+      <label style="margin-top:14px">Depuis quel compte ?</label>
+      ${comptes.length
+        ? `<select id="repCompte">${comptes.map(a => `<option value="${a.id}" ${a.id === compteInit ? 'selected' : ''}>${a.name}</option>`).join('')}</select>`
+        : `<div style="font-size:12px;color:var(--yellow)">Crée d'abord tes comptes (onglet Argent).</div>`}
 
       <label style="margin-top:14px">Montant à répartir (FCFA)</label>
       <input type="number" id="repAmount" inputmode="decimal" value="${disponible}" placeholder="0" style="font-size:20px;font-weight:700;text-align:center;color:var(--green)">
@@ -1747,7 +1779,7 @@ function ouvrirRepartitionSeance(shootId){
         <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:rgba(52,211,153,.10);color:var(--green);border-color:var(--green)" onclick="document.getElementById('repAmount').value=${disponible}">Tout</button>
       </div>
 
-      <button class="btn-primary" style="margin-top:18px;width:100%;background:linear-gradient(135deg,var(--green),#10b981);color:#000;font-weight:800;padding:16px" onclick="validerRepartition(${shootId}, ${disponible})">
+      <button class="btn-primary" id="repSeanceBtn" style="margin-top:18px;width:100%;background:linear-gradient(135deg,var(--green),#10b981);color:#000;font-weight:800;padding:16px" onclick="validerRepartition(${shootId}, ${disponible})">
         ✅ Valider la répartition
       </button>
       <button class="btn-ghost" style="margin-top:8px;width:100%" onclick="fermerRepartition()">Annuler</button>
@@ -1786,77 +1818,64 @@ function setRepartDest(dest){
 }
 
 async function validerRepartition(shootId, maxDisponible){
-  const montant = parseFloat(document.getElementById('repAmount').value) || 0;
+  const btn = document.getElementById('repSeanceBtn');
+  if(btn && btn.disabled) return;
+  const montant = Math.round(parseFloat(document.getElementById('repAmount').value) || 0);
   if(montant <= 0){ alert('Montant invalide'); return; }
-  if(montant > maxDisponible){ alert('Montant supérieur au disponible'); return; }
-
-  const dest = window.__repartitionDest;
   const s = shoots.find(x => x.id === shootId);
   if(!s) return;
+  const dispo = disponibleSeance(s);
+  if(montant > Math.min(maxDisponible, dispo)){ alert('Montant supérieur au disponible (' + fmt(dispo) + ')'); return; }
+  const accountId = Number(document.getElementById('repCompte')?.value) || null;
+  if(!accountId){ alert("Choisis le compte d'où part l'argent."); return; }
 
-  let goalId = null;
-  let goalName = '';
-
+  const dest = window.__repartitionDest;
+  let goal = null;
   if(dest === 1){
-    goalId = parseInt(document.getElementById('repGoalId').value);
-    if(!goalId){ alert('Choisis un objectif'); return; }
-    const goal = coffres.find(c => c.id === goalId);
-    if(goal){
-      const newCurrent = Number(goal.current || 0) + montant;
-      const upd = await dbUpdate('goals', goalId, {current: newCurrent});
-      if(upd){ goal.current = newCurrent; }
-      goalName = goal.name;
-    }
+    const goalId = parseInt(document.getElementById('repGoalId').value);
+    goal = coffres.find(c => c.id === goalId && agIsCoffre(c));
+    if(!goal){ alert('Choisis un coffre'); return; }
   } else if(dest === 2){
     const name = document.getElementById('repNewGoalName').value.trim();
     const target = parseFloat(document.getElementById('repNewGoalTarget').value) || 0;
     if(!name){ alert('Donne un nom au nouvel objectif'); return; }
-    if(target <= 0){ alert('Indique un montant cible'); return; }
-    const newGoal = await dbInsert('goals', {
-      name: name,
-      goal: target,
-      current: montant,
-      goal_type: 'money',
-      unit: 'FCFA',
-      emoji: getCoffreEmoji(name),
-      why: 'Créé lors d\'une répartition',
-      description: null,
-      target_date: null
-    });
-    if(newGoal){
-      coffres.unshift(newGoal);
-      goalId = newGoal.id;
-      goalName = name;
+    if(target <= 1){ alert('Indique un montant cible'); return; }
+  }
+
+  if(btn){ btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = '⏳ En cours...'; }
+  try {
+    if(dest === 2){
+      const name = document.getElementById('repNewGoalName').value.trim();
+      const target = parseFloat(document.getElementById('repNewGoalTarget').value) || 0;
+      goal = await dbInsert('goals', {
+        name, goal: target, current: 0, goal_type: 'money', unit: 'FCFA',
+        emoji: getCoffreEmoji(name), why: 'Créé lors d\'une répartition',
+        description: null, target_date: null
+      });
+      if(!goal) return;
+      coffres.unshift(goal);
+    } else if(dest !== 1){
+      goal = await assurerCoffreEpargneLibre();
+      if(!goal) return;
     }
-  } else {
-    goalName = 'Épargne libre';
+
+    const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+    const tr = await verserDansCoffre({
+      goalId: goal.id, amount: montant, accountId, shootId: s.id,
+      note: 'Répartition séance ' + s.type + (client ? ' · ' + client.name : '') + ' · ' + goal.name
+    });
+    if(!tr) return;
+
+    const newReparti = Number(s.montant_reparti || 0) + montant;
+    const upd = await dbUpdate('shoots', shootId, { montant_reparti: newReparti, repartition_effectuee: true });
+    if(upd){ s.montant_reparti = newReparti; s.repartition_effectuee = true; }
+
+    fermerRepartition();
+    refreshAll();
+    showToast(`✅ ${fmt(montant)} réparti vers ${goal.name}`);
+  } finally {
+    if(btn && btn.isConnected){ btn.disabled = false; btn.style.opacity = '1'; btn.textContent = '✅ Valider la répartition'; }
   }
-
-  // Créer une transaction "Épargne" (dépense interne)
-  const txResult = await dbInsert('transactions', {
-    type: 'depense',
-    amount: montant,
-    category: 'Épargne',
-    note: 'Répartition séance ' + s.type + (goalName ? ' · ' + goalName : ''),
-    date: todayStr(),
-    payment_method: 'Interne'
-  });
-  if(txResult){ txs.unshift(txResult); }
-
-  // Mettre à jour la séance
-  const newReparti = Number(s.montant_reparti || 0) + montant;
-  const upd = await dbUpdate('shoots', shootId, {
-    montant_reparti: newReparti,
-    repartition_effectuee: true
-  });
-  if(upd){
-    s.montant_reparti = newReparti;
-    s.repartition_effectuee = true;
-  }
-
-  fermerRepartition();
-  refreshAll();
-  showToast(`✅ ${fmt(montant)} réparti vers ${goalName}`);
 }
 
 // ============================================================
@@ -1970,8 +1989,20 @@ function closeShootModal(){
   currentShootExpenses = [];
 }
 
+// Statut d'une seance selon sa date : avant le jour = planifie, le jour meme = encours, apres = shoote
+function statutSeanceSelonDate(date){
+  const d = new Date(date);
+  if(isNaN(d)) return 'planifie';
+  const today = new Date(); today.setHours(0,0,0,0);
+  d.setHours(0,0,0,0);
+  const dayAfter = new Date(d); dayAfter.setDate(dayAfter.getDate() + 1);
+  if(today >= dayAfter) return 'shoote';
+  if(today.getTime() === d.getTime()) return 'encours';
+  return 'planifie';
+}
+
 async function saveShoot(){
-  const clientId = document.getElementById('shootClient').value;
+  let clientId = document.getElementById('shootClient').value;
   let type = document.getElementById('shootType').value;
   const location = document.getElementById('shootLocation').value.trim();
   const photo_count = parseInt(document.getElementById('shootPhotoCount').value) || 0;
@@ -2007,12 +2038,39 @@ async function saveShoot(){
     if(custom) type = custom;
   }
 
+  // "Créer un nouveau client" choisi et un nom tapé, mais le client pas encore créé : on le crée maintenant
+  if(clientId === '__new__'){
+    const nomTape = (document.getElementById('shootNewClientName')?.value || '').trim();
+    if(nomTape){
+      await sauverNouveauClientShoot();
+      clientId = document.getElementById('shootClient').value;
+      if(!clientId || clientId === '__new__') return;   // la création a échoué : on ne perd pas la séance
+    }
+  }
+
   const clientObj = clientId && clientId !== '__new__' ? clients.find(c => c.id === parseInt(clientId)) : null;
   const clientName = clientObj ? clientObj.name : '';
 
+  // On garde tout ce qui est attaché à chaque charge (couvert, tx_ids, déjà payée, compte)
   const shoot_expenses = currentShootExpenses
     .filter(e => e && e.amount && Number(e.amount) > 0)
-    .map(e => ({ type: e.type, amount: Number(e.amount) }));
+    .map(e => {
+      const o = {
+        type: e.type,
+        amount: Number(e.amount),
+        deja_paye: !!e.deja_paye,
+        couvert: chargeCouvert(e),
+        couvert_hors_app: Math.min(chargeCouvert(e), Number(e.couvert_hors_app) || 0),
+        tx_ids: Array.isArray(e.tx_ids) ? e.tx_ids.slice() : [],
+        account_id: e.account_id ? Number(e.account_id) : null
+      };
+      if(e.customLabel) o.customLabel = e.customLabel;
+      return o;
+    });
+  if(shoot_expenses.some(e => e.deja_paye && !e.account_id)){
+    alert("Choisis avec quel compte tu as payé la charge (onglet Argent pour créer tes comptes).");
+    return;
+  }
 
   // 🆕 CORRECTION : le statut "payé/impayé" venait uniquement du menu déroulant,
   // qui pouvait rester sur une vieille valeur si le prix était modifié après coup
@@ -2029,14 +2087,17 @@ async function saveShoot(){
     shoot_expenses
   };
 
-  if(!editingShootId){
-    data.status = 'planifie';
-    data.status_updated_at = new Date().toISOString();
+  // Statut recalculé selon la (nouvelle) date, sauf pour une séance annulée
+  const ancienne = editingShootId ? shoots.find(s => s.id === editingShootId) : null;
+  if(!ancienne || ancienne.status !== 'annule'){
+    const nouveauStatut = statutSeanceSelonDate(date);
+    if(!ancienne || ancienne.status !== nouveauStatut){
+      data.status = nouveauStatut;
+      data.status_updated_at = new Date().toISOString();
+    }
   }
 
-  // 🆕 CORRECTION : avant d'écraser la séance, on garde les anciennes charges
-  // pour ne PAS recréer une transaction pour une charge déjà enregistrée
-  // (sinon chaque modification de la séance dupliquait toutes ses charges).
+  // Anciennes charges : pour savoir quelles transactions ont été retirées du formulaire
   const oldExpenses = editingShootId
     ? JSON.parse(JSON.stringify((shoots.find(s => s.id === editingShootId)?.shoot_expenses) || []))
     : [];
@@ -2055,50 +2116,91 @@ async function saveShoot(){
     savedShoot = result;
   }
 
-  if(shoot_expenses.length > 0 && savedShoot){
+  if(savedShoot){
     const shootLabel = type + (clientName ? ' · ' + clientName : '');
-
-    // Multiset des anciennes charges (type|montant) pour repérer ce qui existait déjà
-    const resteAncien = {};
-    oldExpenses.forEach(e => {
-      const key = (e.type || '') + '|' + Number(e.amount || 0);
-      resteAncien[key] = (resteAncien[key] || 0) + 1;
-    });
-
-    let nbNouvelles = 0;
-    for(const exp of shoot_expenses){
-      const key = (exp.type || '') + '|' + Number(exp.amount || 0);
-      if(resteAncien[key] > 0){
-        // Cette charge existait déjà avant la modif → elle a déjà sa transaction, on ne la recrée pas
-        resteAncien[key]--;
-        continue;
-      }
-      // Charge réellement nouvelle → on crée sa transaction
-      nbNouvelles++;
-      const txCharge = await dbInsert('transactions', {
-        type: 'depense',
-        amount: exp.amount,
-        category: 'Business',
-        note: exp.type + ' · ' + shootLabel,
-        date: date.slice(0, 10),
-        payment_method: 'Interne'
-      });
-      if(txCharge){
-        txs.unshift(txCharge);
-      }
-    }
-
-    // Si des charges ont été retirées du formulaire, on prévient Henzo : leur
-    // transaction reste dans l'historique (par sécurité, on ne la supprime jamais
-    // automatiquement) et doit être supprimée à la main si besoin.
-    const nbSupprimees = Object.values(resteAncien).reduce((a,b) => a + Math.max(0,b), 0);
-    if(nbSupprimees > 0){
-      showToast(`⚠️ ${nbSupprimees} charge(s) retirée(s) · supprime leur transaction dans l'historique si besoin`);
+    const changed = await synchroniserChargesSeance(savedShoot, oldExpenses, shoot_expenses, shootLabel);
+    if(changed){
+      const upd = await dbUpdate('shoots', savedShoot.id, { shoot_expenses });
+      if(upd){ const i = shoots.findIndex(x => x.id === savedShoot.id); if(i >= 0) shoots[i] = upd; }
     }
   }
 
   closeShootModal();
   refreshAll();
+  return savedShoot;
+}
+
+// Annule (sans supprimer) une liste de transactions. Renvoie le nombre annulé.
+async function annulerTransactionsIds(ids){
+  let n = 0;
+  for(const id of ids){
+    const t = txs.find(x => x.id === id);
+    if(!t || t.cancelled) continue;
+    const r = await dbUpdate('transactions', id, { cancelled: true, cancelled_at: new Date().toISOString() });
+    if(r){ const i = txs.findIndex(x => x.id === id); if(i >= 0) txs[i] = r; n++; }
+  }
+  return n;
+}
+
+// Met les transactions des charges en accord avec le formulaire.
+// "expenses" est modifié sur place (tx_ids, couvert). Renvoie true si quelque chose a changé.
+async function synchroniserChargesSeance(shoot, oldExpenses, expenses, shootLabel){
+  let changed = false;
+  let nbAnnulees = 0;
+
+  // 1. Charges retirées du formulaire : on annule leurs transactions
+  const gardes = new Set(expenses.flatMap(e => e.tx_ids || []));
+  const retires = (oldExpenses || []).flatMap(e => Array.isArray(e.tx_ids) ? e.tx_ids : []).filter(id => !gardes.has(id));
+  if(retires.length) nbAnnulees += await annulerTransactionsIds(retires);
+
+  for(const e of expenses){
+    const liees = chargeTxs(e);
+    const dePaiement = liees.filter(estTxDePaiement);           // créées par un paiement client
+    const deMaPoche = liees.filter(t => !estTxDePaiement(t));   // "déjà payée de ma poche"
+    const payeParClient = dePaiement.filter(t => !t.cancelled).reduce((a, t) => a + Number(t.amount || 0), 0);
+
+    if(e.deja_paye){
+      const besoin = Math.max(0, chargeMontant(e) - payeParClient);
+      const actives = deMaPoche.filter(t => !t.cancelled);
+      // ids de "ma poche" (un id introuvable compte aussi : on ne recrée jamais une dépense déjà notée)
+      const idsPoche = (e.tx_ids || []).filter(id => { const t = txs.find(x => x.id === id); return !t || !estTxDePaiement(t); });
+      if(idsPoche.length === 0){
+        // 2. Charge (devenue) déjà payée sans transaction : on crée la dépense
+        if(besoin > 0){
+          const tx = await dbInsert('transactions', {
+            _agRaw: true,
+            type: 'depense', category: 'Business', amount: besoin,
+            note: chargeLabel(e) + ' · ' + shootLabel,
+            date: todayStr(), payment_method: 'Interne',
+            account_id: e.account_id, shoot_id: shoot.id
+          });
+          if(tx){ txs.unshift(tx); e.tx_ids = [...(e.tx_ids || []), tx.id]; changed = true; }
+        }
+      } else if(actives.length){
+        // Montant ou compte modifié : on corrige la dépense existante
+        const t = actives[0];
+        if(besoin <= 0){
+          nbAnnulees += await annulerTransactionsIds(actives.map(x => x.id));
+        } else if(Number(t.amount) !== besoin || (e.account_id && t.account_id !== e.account_id)){
+          const r = await dbUpdate('transactions', t.id, { amount: besoin, account_id: e.account_id || t.account_id });
+          if(r){ const i = txs.findIndex(x => x.id === t.id); if(i >= 0) txs[i] = r; }
+        }
+      }
+    } else if(deMaPoche.length){
+      // 3. "Déjà payée" désactivé : on annule la dépense de ma poche et on l'enlève de la charge
+      nbAnnulees += await annulerTransactionsIds(deMaPoche.map(t => t.id));
+      const ids = new Set(deMaPoche.map(t => t.id));
+      e.tx_ids = (e.tx_ids || []).filter(id => !ids.has(id));
+      // Ce qui reste "couvert" = ce que les paiements du client ont vraiment payé
+      e.couvert = Math.min(chargeMontant(e), payeParClient + (Number(e.couvert_hors_app) || 0));
+      changed = true;
+    }
+  }
+
+  if(nbAnnulees > 0){
+    showToast(`${nbAnnulees} dépense${nbAnnulees > 1 ? 's' : ''} de charge annulée${nbAnnulees > 1 ? 's' : ''} (visible${nbAnnulees > 1 ? 's' : ''} barrée${nbAnnulees > 1 ? 's' : ''} dans l'historique)`);
+  }
+  return changed;
 }
 
 async function delShoot(id){
@@ -2134,7 +2236,8 @@ async function delShoot(id){
 // ============================================================
 // PAIEMENT REÇU D'UNE SÉANCE
 // ============================================================
-function openPaiementSeance(shootId){
+function openPaiementSeance(shootId, opts){
+  opts = opts || {};
   const s = shoots.find(x => x.id === shootId);
   if(!s){ alert('Séance introuvable'); return; }
 
@@ -2146,21 +2249,35 @@ function openPaiementSeance(shootId){
   const resteAPayer = Math.max(0, prix - recu);
 
   if(prix <= 0){
-    alert('❌ Cette séance n\'a pas de prix défini.');
+    alert('Cette séance n\'a pas de prix défini.');
     return;
   }
 
   if(resteAPayer <= 0){
-    alert(`✅ Cette séance est déjà entièrement payée.\n\nPrix : ${fmt(prix)}\nReçu : ${fmt(recu)}`);
+    alert(`Cette séance est déjà entièrement payée.\n\nPrix : ${fmt(prix)}\nReçu : ${fmt(recu)}`);
     return;
   }
 
   const existing = document.getElementById('paiementSeanceModal');
   if(existing) existing.remove();
 
+  const X = chargesResteTotal(s);
+  const detailX = chargesListe(s).filter(e => chargeReste(e) > 0)
+    .map(e => `${chargeLabel(e)} ${fmt(chargeReste(e))}${e.deja_paye ? ' (déjà payée)' : ''}`).join(' · ');
+  const montantInit = opts.montant ? Math.min(Number(opts.montant), resteAPayer) : resteAPayer;
+  const methodInit = opts.method || 'Wave';
+  const comptes = (typeof agActiveAccounts === 'function') ? agActiveAccounts() : [];
+  const compteInit = opts.accountId || (typeof agGuessAccount === 'function' && comptes.length ? agGuessAccount(methodInit) : null);
+  const methodes = [['Wave', '💙 Wave'], ['Espèces', '💵 Espèces'], ['Orange Money', '🟠 Orange Money'], ['MTN Money', '🟡 MTN Money'], ['Moov Money', '🔵 Moov Money'], ['Virement bancaire', '🏦 Virement'], ['Chèque', '📝 Chèque']];
+  if(!methodes.some(m => m[0] === methodInit)) methodes.push([methodInit, methodInit]);
+  const ligne = (lbl, val, style) => `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px"><span style="color:var(--muted)">${lbl}</span><span style="font-weight:700;${style || ''}">${val}</span></div>`;
+
+  window.__paiementSeance = { shootId, X, resteAPayer, chargesManuel: false, linkId: opts.linkId || null };
+
   const modal = document.createElement('div');
   modal.className = 'modal-bg show';
   modal.id = 'paiementSeanceModal';
+  modal.onclick = e => { if(e.target === modal) fermerPaiementSeance(); };
   modal.innerHTML = `
     <div class="modal">
       <div class="modal-wrap">
@@ -2171,137 +2288,313 @@ function openPaiementSeance(shootId){
       <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.06));border-radius:14px;padding:14px;margin-bottom:16px">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Séance</div>
         <div style="font-weight:700;font-size:15px;margin-bottom:10px">📸 ${s.type}${clientName ? ' · ' + clientName : ''}</div>
-
-        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px">
-          <span style="color:var(--muted)">Prix total client</span>
-          <span style="font-weight:700">${fmt(prix)}</span>
-        </div>
-        ${recu > 0 ? `
-          <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px">
-            <span style="color:var(--muted)">Déjà reçu</span>
-            <span style="color:var(--green);font-weight:700">${fmt(recu)}</span>
-          </div>
-        ` : ''}
+        ${ligne('Prix client', fmt(prix))}
+        ${ligne('Déjà reçu', fmt(recu), 'color:var(--green)')}
         <div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--border);margin-top:6px">
-          <span style="font-weight:700;font-size:14px">⏳ Reste à payer</span>
+          <span style="font-weight:700;font-size:14px">Reste à payer</span>
           <span style="font-weight:800;font-size:18px;color:var(--yellow)">${fmt(resteAPayer)}</span>
         </div>
+        ${X > 0 ? `<div style="font-size:12px;color:var(--yellow);margin-top:10px;line-height:1.5">Charges encore à couvrir : <b>${fmt(X)}</b><br><span style="color:var(--muted)">${detailX}</span></div>` : ''}
       </div>
 
       <label>Combien as-tu reçu ? (FCFA)</label>
-      <input type="number" id="paiementMontant" inputmode="decimal" value="${resteAPayer}" placeholder="0" style="font-size:20px;font-weight:700;text-align:center;color:var(--green)">
+      <input type="number" id="paiementMontant" inputmode="decimal" value="${montantInit}" placeholder="0" oninput="paiementSeanceMaj()" style="font-size:20px;font-weight:700;text-align:center;color:var(--green)">
 
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px">
-        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('paiementMontant').value=${Math.round(prix*0.3)}">30%</button>
-        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('paiementMontant').value=${Math.round(prix*0.5)}">50%</button>
-        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('paiementMontant').value=${Math.round(prix*0.7)}">70%</button>
-        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:rgba(52,211,153,.10);color:var(--green);border-color:var(--green)" onclick="document.getElementById('paiementMontant').value=${resteAPayer}">Solde</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="paiementSeanceMontant(${Math.min(resteAPayer, Math.round(prix*0.3))})">30%</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="paiementSeanceMontant(${Math.min(resteAPayer, Math.round(prix*0.5))})">50%</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="paiementSeanceMontant(${Math.min(resteAPayer, Math.round(prix*0.7))})">70%</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:rgba(52,211,153,.10);color:var(--green);border-color:var(--green)" onclick="paiementSeanceMontant(${resteAPayer})">Solde</button>
+      </div>
+
+      ${X > 0 ? `
+        <label style="margin-top:16px">Pour les charges (FCFA)</label>
+        <input type="number" id="paiementCharges" inputmode="decimal" min="0" placeholder="0" oninput="window.__paiementSeance.chargesManuel=true;paiementSeanceMaj()" style="font-weight:700;text-align:center">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">La part de ce paiement qui sert à payer les charges (entre 0 et <span id="paiementChargesMax">0</span>).</div>
+      ` : ''}
+
+      <div style="display:flex;justify-content:space-between;align-items:center;background:var(--card2);border-radius:12px;padding:12px 14px;margin-top:14px">
+        <span style="font-weight:700;font-size:13px">À répartir dans les coffres</span>
+        <span id="paiementARepartir" style="font-weight:800;font-size:16px;color:var(--green)">0</span>
       </div>
 
       <label style="margin-top:16px">Mode de paiement</label>
-      <select id="paiementMethod">
-        <option value="Wave">💙 Wave</option>
-        <option value="Espèces">💵 Espèces</option>
-        <option value="Orange Money">🟠 Orange Money</option>
-        <option value="MTN Money">🟡 MTN Money</option>
-        <option value="Moov Money">🔵 Moov Money</option>
-        <option value="Virement bancaire">🏦 Virement</option>
-        <option value="Chèque">📝 Chèque</option>
+      <select id="paiementMethod" onchange="paiementSeanceMethode()">
+        ${methodes.map(([v, l]) => `<option value="${v}" ${v === methodInit ? 'selected' : ''}>${l}</option>`).join('')}
       </select>
 
-      <div style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.05));border:1px solid rgba(245,197,66,.25);border-radius:12px;padding:12px;margin-top:16px;font-size:12px;color:var(--gold-soft);line-height:1.5">
-        💡 Une transaction "Revenu" sera créée dans ton historique, puis l'assistant de répartition te proposera d'épargner.
-      </div>
+      <label>Arrive sur quel compte ?</label>
+      ${comptes.length
+        ? `<select id="paiementCompte">${comptes.map(a => `<option value="${a.id}" ${a.id === compteInit ? 'selected' : ''}>${a.name}</option>`).join('')}</select>`
+        : `<div style="font-size:12px;color:var(--yellow)">Crée d'abord tes comptes (onglet Argent).</div>`}
 
-      <button class="btn-primary" style="margin:0;margin-top:16px;width:100%;background:linear-gradient(135deg,var(--green),#10b981);color:#000;font-weight:800;padding:16px" onclick="validerPaiementSeance(${shootId})">
-        ✅ Valider le paiement
+      <button class="btn-primary" id="paiementValiderBtn" style="margin:0;margin-top:16px;width:100%;background:linear-gradient(135deg,var(--green),#10b981);color:#000;font-weight:800;padding:16px" onclick="validerPaiementSeance(${shootId})">
+        Continuer
       </button>
       <button class="btn-ghost" style="margin-top:8px;width:100%" onclick="fermerPaiementSeance()">
         Annuler
       </button>
+      <div style="text-align:center;margin-top:12px">
+        <a href="#" onclick="event.preventDefault();ouvrirRecuHorsApp(${shootId})" style="font-size:11px;color:var(--muted);text-decoration:underline">Déjà reçu avant, sans répartition</a>
+      </div>
     </div>
   `;
   document.body.appendChild(modal);
+  paiementSeanceMaj();
+}
+const ouvrirPaiementSeance = openPaiementSeance;
+
+function paiementSeanceMontant(v){
+  const el = document.getElementById('paiementMontant');
+  if(el){ el.value = v; paiementSeanceMaj(); }
+}
+function paiementSeanceMethode(){
+  const m = document.getElementById('paiementMethod')?.value;
+  const sel = document.getElementById('paiementCompte');
+  if(sel && typeof agGuessAccount === 'function'){ const id = agGuessAccount(m); if(id) sel.value = id; }
+}
+// Recalcule "pour les charges" et "à répartir" quand le montant change
+function paiementSeanceMaj(){
+  const st = window.__paiementSeance; if(!st) return;
+  const montant = Math.max(0, parseFloat(document.getElementById('paiementMontant')?.value) || 0);
+  const max = Math.min(montant, st.X);
+  const chEl = document.getElementById('paiementCharges');
+  let pourCharges = 0;
+  if(chEl){
+    if(!st.chargesManuel) chEl.value = max;
+    pourCharges = Math.max(0, parseFloat(chEl.value) || 0);
+    chEl.max = max;
+    const mx = document.getElementById('paiementChargesMax'); if(mx) mx.textContent = fmt(max);
+  }
+  const aRep = Math.max(0, montant - Math.min(pourCharges, max));
+  const el = document.getElementById('paiementARepartir');
+  if(el) el.textContent = fmt(aRep);
+  const btn = document.getElementById('paiementValiderBtn');
+  if(btn && !btn.dataset.busy) btn.textContent = aRep > 0 ? 'Continuer vers la répartition' : 'Valider le paiement';
 }
 
 async function validerPaiementSeance(shootId){
+  const btn = document.getElementById('paiementValiderBtn');
+  if(btn && btn.dataset.busy) return;
   const s = shoots.find(x => x.id === shootId);
   if(!s){ alert('Séance introuvable'); return; }
+  const st = window.__paiementSeance || {};
 
-  const montant = parseFloat(document.getElementById('paiementMontant')?.value) || 0;
+  const montant = Math.round(parseFloat(document.getElementById('paiementMontant')?.value) || 0);
   const method = document.getElementById('paiementMethod')?.value || 'Wave';
+  const accountId = Number(document.getElementById('paiementCompte')?.value) || null;
+  const X = chargesResteTotal(s);
+  const chEl = document.getElementById('paiementCharges');
+  const pourCharges = chEl ? Math.round(parseFloat(chEl.value) || 0) : 0;
 
-    if(!montant || montant <= 0){ alert('Indique un montant valide'); return; }
-
-  // 🆕 Empêcher d'encaisser plus que le reste à payer
-  const prixTotal = Number(s.price || 0);
-  const dejaRecu = Number(s.montant_recu || 0);
-  const resteAPayer = Math.max(0, prixTotal - dejaRecu);
-
+  if(!montant || montant <= 0){ alert('Indique un montant valide'); return; }
+  const resteAPayer = Math.max(0, Number(s.price || 0) - Number(s.montant_recu || 0));
   if(montant > resteAPayer){
-    alert(`❌ Montant trop élevé.\n\nPrix total : ${fmt(prixTotal)}\nDéjà reçu : ${fmt(dejaRecu)}\nReste à payer : ${fmt(resteAPayer)}\n\nTu ne peux pas encaisser plus de ${fmt(resteAPayer)}.`);
+    alert(`Montant trop élevé.\n\nReste à payer : ${fmt(resteAPayer)}\nTu ne peux pas encaisser plus.`);
+    return;
+  }
+  const maxCharges = Math.min(montant, X);
+  if(pourCharges < 0 || pourCharges > maxCharges){
+    alert(`"Pour les charges" doit être entre 0 et ${fmt(maxCharges)}.`);
+    return;
+  }
+  if(!accountId){ alert("Choisis sur quel compte l'argent arrive (crée tes comptes dans l'onglet Argent)."); return; }
+
+  const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+  const ctx = {
+    kind: 'seance', shootId, montant, pourCharges, aRepartir: montant - pourCharges,
+    method, accountId, linkId: st.linkId || null,
+    label: (s.type || 'Séance') + (client ? ' · ' + client.name : '')
+  };
+
+  if(ctx.aRepartir <= 0){
+    // Rien pour les coffres : on enregistre tout de suite
+    if(btn){ btn.dataset.busy = '1'; btn.disabled = true; btn.textContent = 'Enregistrement...'; }
+    try {
+      const ok = await enregistrerPaiement(ctx, []);
+      if(ok){ fermerPaiementSeance(); refreshAll(); paiementToast(ctx); }
+    } finally {
+      if(btn){ delete btn.dataset.busy; btn.disabled = false; paiementSeanceMaj(); }
+    }
     return;
   }
 
-  const prix = Number(s.price || 0);
-  const recuAvant = Number(s.montant_recu || 0);
-  const nouveauRecu = recuAvant + montant;
-
-  const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
-  const clientName = client ? client.name : '';
-
-  let montantType = 'acompte';
-  if(nouveauRecu >= prix) montantType = 'complet';
-
-  const noteLabel = (s.type || 'Séance') + (clientName ? ' · ' + clientName : '') + (montantType === 'acompte' ? ' (acompte)' : '');
-  const txResult = await dbInsert('transactions', {
-    type: 'revenu',
-    amount: montant,
-    category: 'Shooting photo',
-    note: noteLabel,
-    date: todayStr(),
-    client_id: s.client_id || null,
-    client_name: clientName || null,
-    prestation_type: s.type || 'Séance',
-    location: s.location || null,
-    payment_method: method,
-    amount_type: montantType,
-    photo_count: s.photo_count || null
-  });
-
-  if(txResult){ txs.unshift(txResult); }
-
-  const newPaymentStatus = nouveauRecu >= prix ? 'paye' : 'impaye';
-  const upd = await dbUpdate('shoots', shootId, {
-    montant_recu: nouveauRecu,
-    payment: newPaymentStatus
-  });
-
-  if(upd){
-    s.montant_recu = nouveauRecu;
-    s.payment = newPaymentStatus;
-  }
-
+  // Sinon : répartition 50/30/20 sur la part "à répartir". Rien n'est enregistré avant sa validation.
   fermerPaiementSeance();
-  refreshAll();
+  await ouvrirRepartitionPaiement(ctx);
+}
 
-  const reste = Math.max(0, prix - nouveauRecu);
-  if(newPaymentStatus === 'paye'){
-    showToast(`✅ Séance payée intégralement · ${fmt(nouveauRecu)}`);
-  } else {
-    showToast(`💰 ${fmt(montant)} reçu · reste ${fmt(reste)}`);
+function paiementToast(ctx){
+  if(ctx.kind !== 'seance') return;
+  const s = shoots.find(x => x.id === ctx.shootId);
+  if(!s) return;
+  const reste = Math.max(0, Number(s.price || 0) - Number(s.montant_recu || 0));
+  showToast(reste <= 0 ? `✅ Séance payée intégralement · ${fmt(s.montant_recu)}` : `💰 ${fmt(ctx.montant)} reçu · reste ${fmt(reste)}`);
+}
+
+// ============================================================
+// REÇU HORS APP (argent reçu avant l'app ou déjà dépensé)
+// Aucune transaction : la séance est juste marquée comme payée.
+// ============================================================
+function statsHorsApp(){
+  const ym = new Date().toISOString().slice(0, 7);
+  const liste = shoots.filter(s => Number(s.recu_hors_app || 0) > 0);
+  const mois = liste.filter(s => String(s.recu_hors_app_at || '').slice(0, 7) === ym);
+  const somme = l => l.reduce((a, s) => a + Number(s.recu_hors_app || 0), 0);
+  return { liste, total: { n: liste.length, m: somme(liste) }, mois: { n: mois.length, m: somme(mois) } };
+}
+
+function ouvrirRecuHorsApp(shootId){
+  const s = shoots.find(x => x.id === shootId);
+  if(!s) return;
+  const reste = Math.max(0, Number(s.price || 0) - Number(s.montant_recu || 0));
+  if(reste <= 0){ alert('Cette séance est déjà entièrement payée.'); return; }
+  const X = chargesResteTotal(s);
+  const st = statsHorsApp();
+  const ferme = st.mois.n >= 3;
+  fermerPaiementSeance();
+  document.getElementById('recuHorsAppModal')?.remove();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'recuHorsAppModal';
+  modal.onclick = e => { if(e.target === modal) fermerRecuHorsApp(); };
+  const li = t => `<li style="margin:4px 0">${t}</li>`;
+  modal.innerHTML = `
+    <div class="modal" style="border:1px solid #f59e0b">
+      <div class="modal-wrap">
+        <h3 style="color:#f59e0b">⚠️ Reçu sans répartition</h3>
+        <button class="close" onclick="fermerRecuHorsApp()">×</button>
+      </div>
+
+      <div style="background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.35);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.5;margin-bottom:12px">
+        <b>Ce que ça fait</b><br>
+        Le montant indiqué est ajouté au reçu de la séance (elle passe en "payée" si tout est reçu).
+        <b>AUCUNE entrée</b> n'est créée dans tes comptes, et <b>rien</b> ne va dans tes coffres.
+        ${X > 0 ? `<br>Les charges encore à couvrir (${fmt(X)}) sont marquées payées jusqu'à ce montant, <b>sans créer de dépense</b> (l'argent est déjà parti).` : ''}
+      </div>
+
+      <div style="background:rgba(255,107,107,.10);border:1px solid rgba(255,107,107,.35);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.5;margin-bottom:12px">
+        <b style="color:var(--red)">Les risques</b>
+        <ul style="margin:6px 0 0 18px;padding:0">
+          ${li('tes chiffres (revenus, épargne, salaire) seront plus bas que la réalité ;')}
+          ${li('tu ne sais plus où est passé cet argent ;')}
+          ${li("si tu le fais souvent, l'app ne reflète plus ta vraie situation et tes objectifs perdent leur sens.")}
+        </ul>
+      </div>
+
+      <div style="font-size:13px;line-height:1.5;margin-bottom:12px">
+        À utiliser <b>seulement</b> pour un argent reçu <b>AVANT</b> d'utiliser l'app, ou déjà dépensé.<br>
+        Si l'argent est encore sur ton compte, utilise plutôt <b>"Paiement reçu"</b> normal.
+      </div>
+
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px" id="recuHorsAppCompteur">
+        Déjà marquées ainsi : ${st.total.n} séance${st.total.n > 1 ? 's' : ''} au total (${fmt(st.total.m)}), dont ${st.mois.n} ce mois-ci (${fmt(st.mois.m)}).
+      </div>
+      ${ferme ? `<div style="background:rgba(255,107,107,.15);border:1px solid var(--red);border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700;color:var(--red);margin-bottom:12px">Tu l'as déjà fait ${st.mois.n} fois ce mois-ci. Ce n'est pas normal : enregistre plutôt tes paiements avec "Paiement reçu", sinon l'app ne sert plus à suivre ton argent.</div>` : ''}
+
+      <label>Montant (FCFA)</label>
+      <input type="number" id="recuHorsAppMontant" inputmode="decimal" value="${reste}" min="1" max="${reste}" style="font-weight:700;text-align:center">
+
+      <label>Pourquoi ? (obligatoire)</label>
+      <input type="text" id="recuHorsAppRaison" placeholder="Ex : payé en espèces avant l'app, déjà dépensé" oninput="recuHorsAppMaj()">
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="recuHorsAppOk" onchange="recuHorsAppMaj()" style="width:auto;margin:0">
+        J'ai compris que cet argent ne sera pas compté
+      </label>
+
+      <button class="btn-primary" style="margin-top:16px;width:100%" onclick="fermerRecuHorsApp()">Annuler</button>
+      <button class="btn-ghost" id="recuHorsAppBtn" disabled style="margin-top:8px;width:100%;color:var(--red);border-color:var(--red);opacity:.4" onclick="confirmerRecuHorsApp(${shootId})">Confirmer sans répartition</button>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function fermerRecuHorsApp(){ document.getElementById('recuHorsAppModal')?.remove(); }
+
+function recuHorsAppMaj(){
+  const okRaison = (document.getElementById('recuHorsAppRaison')?.value || '').trim().length >= 5;
+  const okCase = !!document.getElementById('recuHorsAppOk')?.checked;
+  const btn = document.getElementById('recuHorsAppBtn');
+  if(btn && !btn.dataset.busy){ btn.disabled = !(okRaison && okCase); btn.style.opacity = btn.disabled ? '.4' : '1'; }
+}
+
+async function confirmerRecuHorsApp(shootId){
+  const btn = document.getElementById('recuHorsAppBtn');
+  if(!btn || btn.disabled || btn.dataset.busy) return;
+  const s = shoots.find(x => x.id === shootId);
+  if(!s) return;
+  const reste = Math.max(0, Number(s.price || 0) - Number(s.montant_recu || 0));
+  const montant = Math.round(parseFloat(document.getElementById('recuHorsAppMontant').value) || 0);
+  const raison = document.getElementById('recuHorsAppRaison').value.trim();
+  if(raison.length < 5){ alert('Écris pourquoi (au moins 5 caractères).'); return; }
+  if(!document.getElementById('recuHorsAppOk').checked){ alert('Coche la case pour confirmer que tu as compris.'); return; }
+  if(montant <= 0 || montant > reste){ alert(`Le montant doit être entre 1 et ${fmt(reste)}.`); return; }
+
+  // Anciennes séances : l'argent déjà reçu dans l'app couvre d'abord les charges (comme l'ancien calcul)
+  const exps = JSON.parse(JSON.stringify(chargesListe(s)));
+  if(chargesCouvertTotal(s) === 0 && chargesTotal(s) > 0){
+    let budget = Math.max(0, Number(s.montant_recu || 0) - Number(s.recu_hors_app || 0));
+    for(const e of exps){ const p = Math.min(budget, chargeReste(e)); if(p > 0){ e.couvert = chargeCouvert(e) + p; budget -= p; } }
+  }
+  // Puis l'argent hors app couvre ce qui reste, sans créer de dépense
+  let reliquat = montant;
+  for(const e of exps){
+    const p = Math.min(reliquat, chargeReste(e));
+    if(p <= 0) continue;
+    e.couvert = chargeCouvert(e) + p;
+    e.couvert_hors_app = (Number(e.couvert_hors_app) || 0) + p;
+    reliquat -= p;
   }
 
-  // ℹ️ Cette version de validerPaiementSeance est remplacée plus bas dans ce
-  // fichier (section RÉPARTITION) par une version qui ouvre la modale de
-  // répartition automatique. Elle ne s'exécute donc jamais en pratique,
-  // mais on la garde propre pour éviter toute confusion future.
+  const now = new Date();
+  const nouveauRecu = Number(s.montant_recu || 0) + montant;
+  const ligne = `[Reçu hors app le ${now.toLocaleDateString('fr-FR')} : ${new Intl.NumberFormat('fr-FR').format(montant)} F - ${raison}]`;
+  const maj = {
+    montant_recu: nouveauRecu,
+    recu_hors_app: Number(s.recu_hors_app || 0) + montant,
+    recu_hors_app_at: now.toISOString(),
+    payment: nouveauRecu >= Number(s.price || 0) ? 'paye' : 'impaye',
+    notes: (s.notes ? s.notes + '\n' : '') + ligne,
+    shoot_expenses: exps
+  };
+  btn.dataset.busy = '1'; btn.disabled = true; btn.textContent = 'Enregistrement...';
+  try {
+    const upd = await dbUpdate('shoots', shootId, maj);
+    if(!upd) return;
+    Object.assign(s, upd);
+    fermerRecuHorsApp();
+    refreshAll();
+    showToast(`Séance notée comme reçue (${fmt(montant)}), sans entrée ni répartition`);
+  } finally {
+    if(btn.isConnected){ delete btn.dataset.busy; btn.textContent = 'Confirmer sans répartition'; recuHorsAppMaj(); }
+  }
+}
+
+function voirSeancesHorsApp(){
+  const st = statsHorsApp();
+  const nom = s => { const c = s.client_id ? clients.find(x => x.id === s.client_id) : null; return c ? c.name : ''; };
+  document.getElementById('horsAppListeModal')?.remove();
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show';
+  modal.id = 'horsAppListeModal';
+  modal.onclick = e => { if(e.target === modal) modal.remove(); };
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-wrap"><h3>Séances payées hors app</h3><button class="close" onclick="document.getElementById('horsAppListeModal').remove()">×</button></div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${st.total.n} séance${st.total.n > 1 ? 's' : ''} · ${fmt(st.total.m)} pas comptés dans tes comptes ni tes coffres.</div>
+      ${st.liste.map(s => `<div style="display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <span>📸 ${s.type || 'Séance'}${nom(s) ? ' · ' + nom(s) : ''}<br><span style="font-size:11px;color:var(--muted)">${s.recu_hors_app_at ? new Date(s.recu_hors_app_at).toLocaleDateString('fr-FR') : ''}</span></span>
+        <b style="color:#f59e0b">${fmt(s.recu_hors_app)}</b></div>`).join('')}
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 function fermerPaiementSeance(){
   const m = document.getElementById('paiementSeanceModal');
   if(m) m.remove();
 }
+
 
 function filterShoots(filter, btn){
   currentShootFilter = filter;
@@ -2316,20 +2609,13 @@ async function updateShootStatuses(){
   let hasChanges = false;
 
   for(const s of shoots){
-    if(s.status === 'annule') continue;
-    const shootDate = new Date(s.date);
-    shootDate.setHours(0,0,0,0);
-    const dayAfter = new Date(shootDate);
-    dayAfter.setDate(dayAfter.getDate() + 1);
-
-    if(today >= dayAfter && s.status !== 'shoote'){
-      s.status = 'shoote';
+    if(s.status === 'annule' || !s.date) continue;
+    // Le statut suit la date (une séance déplacée plus tard redevient "planifiée")
+    const st = statutSeanceSelonDate(s.date);
+    if(st !== s.status){
+      s.status = st;
       s.status_updated_at = new Date().toISOString();
-      await dbUpdate('shoots', s.id, {status: 'shoote', status_updated_at: s.status_updated_at});
-      hasChanges = true;
-    } else if(today.getTime() === shootDate.getTime() && s.status !== 'encours'){
-      s.status = 'encours';
-      await dbUpdate('shoots', s.id, {status: 'encours'});
+      await dbUpdate('shoots', s.id, {status: st, status_updated_at: s.status_updated_at});
       hasChanges = true;
     }
   }
@@ -2416,6 +2702,13 @@ function renderShoots(){
       <div class="shoot-stat-mini"><div class="num" style="color:var(--red)">${annules}</div><div class="lbl">❌ Annulées</div></div>
       <div class="shoot-stat-mini"><div class="num" style="color:var(--yellow)">${clientsAnnules}</div><div class="lbl">👤 Clients concernés</div></div>
     `;
+    // Petite ligne : séances payées hors app
+    let ha = document.getElementById('shootHorsAppLine');
+    const st = statsHorsApp();
+    if(st.total.n > 0){
+      if(!ha){ ha = document.createElement('div'); ha.id = 'shootHorsAppLine'; statsEl.insertAdjacentElement('afterend', ha); }
+      ha.innerHTML = `<button type="button" onclick="voirSeancesHorsApp()" style="background:none;border:none;padding:6px 0;margin:4px 0 0;width:auto;color:#f59e0b;font-size:12px;cursor:pointer;text-decoration:underline">${st.total.n} séance${st.total.n > 1 ? 's' : ''} payée${st.total.n > 1 ? 's' : ''} hors app (${fmt(st.total.m)})</button>`;
+    } else if(ha) ha.remove();
   }
 
   // ---- Filtrer ----
@@ -2569,11 +2862,10 @@ function renderShoots(){
 
     const prix = Number(s.price || 0);
     const recu = Number(s.montant_recu || 0);
-    const charges = (s.shoot_expenses || []).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const charges = chargesTotal(s);
     const reparti = Number(s.montant_reparti || 0);
     const resteAPayerClient = Math.max(0, prix - recu);
-    const netEncaisse = recu - charges;
-    const disponible = Math.max(0, netEncaisse - reparti);
+    const disponible = disponibleSeance(s);
 
     // 🆕 Revenu net prévu de cette séance (prix moins charges), affiché comme
     // une étiquette en haut de la carte, avec le détail de chaque charge et
@@ -2599,10 +2891,10 @@ function renderShoots(){
           `<span class="badge" style="background:rgba(255,107,107,.12);color:var(--red);border:1px solid var(--red)">${iconeType(type)} ${type} -${fmt(montant)}</span>`
         ).join('');
 
-        if(resteAPayerClient > 0){
-          const detailCharges = Object.entries(parType).map(([type, montant]) => `${fmt(montant)} (${type})`).join(' + ');
-          rappelCharge = `<div style="font-size:11px;color:var(--yellow);margin-top:6px">💸 ${detailCharges} sera déduit à la réception du reste</div>`;
-        }
+        const couvertTot = chargesCouvertTotal(s);
+        const resteCharges = chargesResteTotal(s);
+        const dejaPayees = chargesListe(s).filter(e => e.deja_paye).map(e => chargeLabel(e) + ' déjà payée');
+        rappelCharge = `<div style="font-size:11px;color:${resteCharges > 0 ? 'var(--yellow)' : 'var(--muted)'};margin-top:6px">💸 Charges : ${fmt(charges)} (couvert ${fmt(couvertTot)} · reste ${fmt(resteCharges)})${dejaPayees.length ? ' · ' + dejaPayees.join(' · ') : ''}</div>`;
       }
     }
 
@@ -2719,6 +3011,7 @@ function renderShoots(){
           <span class="shoot-status ${stat.class}">${stat.label}</span>
           ${paymentBadge}
           ${revenuBadge}
+          ${Number(s.recu_hors_app || 0) > 0 ? `<span class="badge" style="background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid #f59e0b" title="Argent reçu avant l'app ou déjà dépensé : pas compté dans tes comptes ni tes coffres">Reçu hors app : ${fmt(s.recu_hors_app)}</span>` : ''}
           ${chargeTags}
         </div>
       </div>
@@ -2942,6 +3235,71 @@ const CHARGES_PRESETS = [
   { icon: '✏️', label: 'Autre' }
 ];
 
+// ---------- Outils de calcul des charges d'une séance ----------
+// Une charge : {type, amount, customLabel?, deja_paye, couvert, tx_ids, account_id}
+// deja_paye absent = false, couvert absent = 0.
+function chargesListe(s){ return (s && Array.isArray(s.shoot_expenses)) ? s.shoot_expenses : []; }
+function chargeLabel(e){ return (e && (e.customLabel || e.type)) || 'Charge'; }
+function chargeMontant(e){ return Math.max(0, Number(e && e.amount) || 0); }
+function chargeCouvert(e){ return Math.max(0, Math.min(chargeMontant(e), Number(e && e.couvert) || 0)); }
+function chargeReste(e){ return Math.max(0, chargeMontant(e) - chargeCouvert(e)); }
+function chargesTotal(s){ return chargesListe(s).reduce((a, e) => a + chargeMontant(e), 0); }
+function chargesCouvertTotal(s){ return chargesListe(s).reduce((a, e) => a + chargeCouvert(e), 0); }
+function chargesResteTotal(s){ return chargesListe(s).reduce((a, e) => a + chargeReste(e), 0); }
+// Argent de la séance encore libre pour les coffres
+function disponibleSeance(s){
+  // L'argent "reçu hors app" est déjà parti : il n'est jamais disponible pour les coffres
+  const recu = Number(s.montant_recu || 0) - Number(s.recu_hors_app || 0);
+  const reparti = Number(s.montant_reparti || 0);
+  const charges = chargesTotal(s);
+  const couvert = chargesCouvertTotal(s);
+  // Anciennes séances : rien n'est marqué "couvert", on garde l'ancien calcul (reçu - charges)
+  if(couvert === 0 && charges > 0) return Math.max(0, recu - charges - reparti);
+  // La part des charges couverte par l'argent hors app est déjà retirée avec lui
+  const couvertHorsApp = chargesListe(s).reduce((a, e) => a + Math.min(chargeCouvert(e), Number(e.couvert_hors_app) || 0), 0);
+  return Math.max(0, recu - (couvert - couvertHorsApp) - reparti);
+}
+// Transactions liées à une charge
+function chargeTxs(e){
+  const ids = Array.isArray(e && e.tx_ids) ? e.tx_ids : [];
+  return ids.map(id => txs.find(t => t.id === id)).filter(Boolean);
+}
+// Dépense créée par un paiement client (details rep:<id revenu>) ou dépense "déjà payée de ma poche"
+function estTxDePaiement(t){ return !!(t && String(t.details || '').startsWith('rep:')); }
+// Lit la part prise sur chaque charge par un paiement (allocation_json). null si l'info n'existe pas.
+function allocationPaiement(rev){
+  if(!rev || !rev.allocation_json) return null;
+  try { const a = typeof rev.allocation_json === 'string' ? JSON.parse(rev.allocation_json) : rev.allocation_json; return Array.isArray(a) ? a : null; }
+  catch(e){ return null; }
+}
+// Retire (sign -1) ou remet (sign +1) sur les charges ce qu'un paiement avait couvert.
+// Avec allocation_json : part par charge. Sinon (anciens paiements) : les dépenses de charges liées ("depenses").
+// Renvoie une nouvelle liste de charges.
+function retirerCouvertPaiement(expenses, rev, sign, depenses){
+  const exps = (expenses || []).map(e => ({ ...e }));
+  const ajuste = (e, part) => {
+    const amount = Number(e.amount) || 0;
+    e.couvert = Math.max(0, Math.min(amount, (Number(e.couvert) || 0) + sign * part));
+  };
+  const alloc = allocationPaiement(rev);
+  if(alloc){
+    for(const a of alloc){
+      let e = exps[a.i];
+      // Si les charges ont bougé depuis, on retrouve la charge par son nom
+      if(a.type && (!e || chargeLabel(e) !== a.type)) e = exps.find(x => chargeLabel(x) === a.type);
+      if(e) ajuste(e, Number(a.part) || 0);
+    }
+    return exps;
+  }
+  const parId = {};
+  (depenses || []).filter(x => x.type === 'depense').forEach(x => { parId[x.id] = Number(x.amount) || 0; });
+  for(const e of exps){
+    const part = (Array.isArray(e.tx_ids) ? e.tx_ids : []).reduce((a, id) => a + (parId[id] || 0), 0);
+    if(part) ajuste(e, part);
+  }
+  return exps;
+}
+
 function renderShootExpenses(){
   const el = document.getElementById('shootExpensesList');
   if(!el) return;
@@ -2952,25 +3310,59 @@ function renderShootExpenses(){
     return;
   }
 
-  el.innerHTML = currentShootExpenses.map((exp, idx) => `
-    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;background:var(--card2);padding:8px;border-radius:10px">
-      <select onchange="updateChargeType(${idx}, this.value)" style="flex:0 0 100px;font-size:12px;padding:6px">
-        ${CHARGES_PRESETS.map(p => `<option value="${p.label}" ${exp.type === p.label ? 'selected' : ''}>${p.icon} ${p.label}</option>`).join('')}
-      </select>
-      <input type="number" value="${exp.amount || ''}" placeholder="0" inputmode="decimal"
-        oninput="updateChargeAmount(${idx}, this.value)"
-        style="flex:1;font-size:13px;padding:6px;text-align:right;font-weight:600">
-      <span style="font-size:11px;color:var(--muted);flex-shrink:0">FCFA</span>
-      <button type="button" onclick="supprimerChargeShoot(${idx})"
-        style="width:auto;padding:6px 10px;margin:0;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;font-size:14px;cursor:pointer">×</button>
-    </div>
-  `).join('');
+  const comptes = (typeof agActiveAccounts === 'function') ? agActiveAccounts() : [];
+  el.innerHTML = currentShootExpenses.map((exp, idx) => {
+    const couvert = chargeCouvert(exp);
+    const compteSel = exp.account_id || (comptes[0] && comptes[0].id);
+    return `
+    <div style="margin-bottom:8px;background:var(--card2);padding:8px;border-radius:10px">
+      <div style="display:flex;gap:6px;align-items:center">
+        <select onchange="updateChargeType(${idx}, this.value)" style="flex:0 0 100px;font-size:12px;padding:6px;margin:0">
+          ${CHARGES_PRESETS.map(p => `<option value="${p.label}" ${exp.type === p.label ? 'selected' : ''}>${p.icon} ${p.label}</option>`).join('')}
+        </select>
+        <input type="number" value="${exp.amount || ''}" placeholder="0" inputmode="decimal"
+          oninput="updateChargeAmount(${idx}, this.value)"
+          style="flex:1;font-size:13px;padding:6px;text-align:right;font-weight:600;margin:0">
+        <span style="font-size:11px;color:var(--muted);flex-shrink:0">FCFA</span>
+        <button type="button" onclick="supprimerChargeShoot(${idx})"
+          style="width:auto;padding:6px 10px;margin:0;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;font-size:14px;cursor:pointer">×</button>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin:8px 0 0;font-size:12px;font-weight:600;cursor:pointer">
+        <input type="checkbox" ${exp.deja_paye ? 'checked' : ''} onchange="updateChargeDejaPaye(${idx}, this.checked)" style="width:auto;margin:0">
+        Déjà payée (de ma poche)
+      </label>
+      ${exp.deja_paye ? (comptes.length ? `
+        <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+          <span style="font-size:11px;color:var(--muted);flex-shrink:0">Payée avec</span>
+          <select onchange="updateChargeCompte(${idx}, this.value)" style="flex:1;font-size:12px;padding:6px;margin:0">
+            ${comptes.map(a => `<option value="${a.id}" ${a.id === compteSel ? 'selected' : ''}>${a.name}</option>`).join('')}
+          </select>
+        </div>` : `<div style="font-size:11px;color:var(--yellow);margin-top:6px">Crée d'abord tes comptes (onglet Argent) pour noter d'où part l'argent.</div>`) : ''}
+      ${couvert > 0 ? `<div style="font-size:11px;color:var(--muted);margin-top:6px">Déjà couvert par les paiements du client : ${fmt(couvert)}</div>` : ''}
+    </div>`;
+  }).join('');
 
   calculerNetShoot();
 }
 
+function updateChargeDejaPaye(idx, on){
+  const e = currentShootExpenses[idx];
+  if(!e) return;
+  e.deja_paye = !!on;
+  if(on && !e.account_id){
+    const comptes = (typeof agActiveAccounts === 'function') ? agActiveAccounts() : [];
+    if(comptes[0]) e.account_id = comptes[0].id;
+  }
+  renderShootExpenses();
+}
+
+function updateChargeCompte(idx, val){
+  const e = currentShootExpenses[idx];
+  if(e) e.account_id = val ? Number(val) : null;
+}
+
 function ajouterChargeShoot(){
-  currentShootExpenses.push({ type: 'Makeup', amount: 0 });
+  currentShootExpenses.push({ type: 'Makeup', amount: 0, deja_paye: false, couvert: 0, tx_ids: [] });
   renderShootExpenses();
 }
 
@@ -3537,13 +3929,19 @@ async function resetTx(txId){
   const t = txs.find(x => x.id === txId);
   if(!t){ alert('Transaction introuvable'); return; }
 
+  // Une entrée déjà répartie dans les coffres ne peut pas être mise à 0 (l'argent resterait dans les coffres)
+  if(txs.some(x => x.details === 'rep:' + txId && !x.cancelled)){
+    alert("Cette entrée a été répartie dans tes coffres.\n\nAnnule plutôt l'entrée : la répartition sera annulée aussi et l'argent sortira des coffres.");
+    return;
+  }
+
   if(!await agConfirm(`Remettre "${t.category}" à 0 ?\n\nLe montant sera mis à zéro mais la ligne restera visible dans l'historique.`)) return;
 
   const result = await dbUpdate('transactions', txId, {
     amount: 0,
     note: (t.note || '') + ' [remis à 0]'
   });
-  if(!result){ alert('Erreur'); return; }
+  if(!result) return;
 
   const idx = txs.findIndex(x => x.id === txId);
   if(idx >= 0) txs[idx] = result;
@@ -3572,7 +3970,7 @@ async function annulerTx(txId){
     cancelled: true,
     cancelled_at: new Date().toISOString()
   });
-  if(!result){ alert('Erreur'); return; }
+  if(!result) return;
 
   const idx = txs.findIndex(x => x.id === txId);
   if(idx >= 0) txs[idx] = result;
@@ -3596,7 +3994,7 @@ async function restaurerTx(txId){
     cancelled: false,
     cancelled_at: null
   });
-  if(!result){ alert('Erreur'); return; }
+  if(!result) return;
 
   const idx = txs.findIndex(x => x.id === txId);
   if(idx >= 0) txs[idx] = result;
@@ -3985,7 +4383,11 @@ function getNotificationMessage(type){
 }
 
 async function toggleNotifications(){
-  if(isNotifEnabled()){ localStorage.removeItem('notif_enabled'); updateNotifButton(); return; }
+  // Déjà activées : on ouvre les réglages des notifications (heures, catégories) au lieu de tout couper
+  if(isNotifEnabled()){
+    if(typeof otNotifs === 'function'){ otNotifs('motivation'); return; }
+    localStorage.removeItem('notif_enabled'); updateNotifButton(); return;
+  }
 
   if(!('Notification' in window)){ 
     const st = document.getElementById('notifStatus');
@@ -4026,6 +4428,8 @@ async function testerNotification(){
 }
 
 async function checkAutomaticNotifications(){
+  // Désactivé : les messages de motivation sont envoyés par le serveur, aux heures choisies dans Notifications
+  return;
   if(!isNotifEnabled()) return;
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
 
@@ -4086,6 +4490,8 @@ async function checkDailyReminders(){
 }
 
 async function checkShootReminders(){
+  // Désactivé : les rappels de séance viennent du serveur (réglages Notifications et cloche de chaque séance)
+  return;
   if(!isNotifEnabled()) return;
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
   if(!shoots || shoots.length === 0) return;
@@ -4552,7 +4958,7 @@ function renderMoneyDetails(){
   if(!el) return;
 
   const ym = monthKey();
-  const monthTx = txs.filter(t => t.date && t.date.startsWith(ym));
+  const monthTx = txs.filter(t => t.date && t.date.startsWith(ym) && !t.cancelled);
 
   // SECTION 1 : D'OÙ VIENT L'ARGENT
   const revenus = monthTx.filter(t => t.type === 'revenu');
@@ -4767,8 +5173,8 @@ function renderMoneyDetails(){
 // VUE GLOBALE DU DASHBOARD
 // ============================================================
 function renderGlobalOverview(){
-  const totalIn = txs.filter(t => t.type === 'revenu').reduce((a,b) => a + Number(b.amount), 0);
-  const totalOut = txs.filter(t => t.type === 'depense').reduce((a,b) => a + Number(b.amount), 0);
+  const totalIn = txs.filter(t => t.type === 'revenu' && !t.cancelled).reduce((a,b) => a + Number(b.amount), 0);
+  const totalOut = txs.filter(t => t.type === 'depense' && !t.cancelled).reduce((a,b) => a + Number(b.amount), 0);
   const totalSaved = coffres.reduce((sum, c) => sum + Number(c.current || 0), 0);
   const goalsDone = coffres.filter(c => Number(c.current) >= Number(c.goal)).length;
 
@@ -6856,9 +7262,32 @@ async function envoyerRecuWhatsApp(linkId) {
   }
 }
 
+// Retrouve la séance d'un lien de paiement (même client, même type, même jour si connu)
+function seanceDuLien(link){
+  if(link.shoot_id) return shoots.find(s => s.id === link.shoot_id) || null;
+  if(!link.shoot_type) return null;
+  const nom = String(link.client_name || '').trim().toLowerCase();
+  const jour = link.shoot_date ? new Date(link.shoot_date).toDateString() : null;
+  const liste = seancesAPayer().filter(s => {
+    const c = s.client_id ? clients.find(x => x.id === s.client_id) : null;
+    if(!c || String(c.name).trim().toLowerCase() !== nom) return false;
+    if(s.type !== link.shoot_type) return false;
+    if(jour && s.date && new Date(s.date).toDateString() !== jour) return false;
+    return true;
+  });
+  return liste.length === 1 ? liste[0] : null;
+}
+
 async function marquerLienPaye(id) {
   const link = paymentLinks.find(l => l.id === id);
   if(!link) { alert('Lien introuvable'); return; }
+
+  // Lien d'une séance : on passe par la fenêtre "Paiement reçu" (le lien est marqué payé à la fin)
+  const seance = seanceDuLien(link);
+  if(seance){
+    openPaiementSeance(seance.id, { montant: Number(link.amount), method: link.payment_method || 'Wave', linkId: link.id });
+    return;
+  }
 
   if(!await agConfirm(`Confirmer que tu as reçu ${fmt(link.amount)} pour "${link.description}" ?`)) return;
 
@@ -7225,7 +7654,61 @@ function toggleRevenueDetails(){
   if(arrow) arrow.classList.toggle('open', !isOpen);
 }
 
+// Séances qui attendent encore un paiement (non annulées, pas entièrement payées)
+function seancesAPayer(){
+  return shoots.filter(s => s.status !== 'annule' && Number(s.price || 0) > 0 && Number(s.montant_recu || 0) < Number(s.price || 0));
+}
+
+// Fenêtre "Pour quelle séance ?" : renvoie l'id de la séance, 'none' (aucune) ou null (fermée)
+function choisirSeancePourEntree(clientName){
+  const liste = seancesAPayer();
+  if(!liste.length) return Promise.resolve('none');
+  const cn = String(clientName || '').toLowerCase();
+  const nomClient = s => { const c = s.client_id ? clients.find(x => x.id === s.client_id) : null; return c ? c.name : ''; };
+  liste.sort((a, b) => {
+    const ma = cn && nomClient(a).toLowerCase() === cn ? 0 : 1;
+    const mb = cn && nomClient(b).toLowerCase() === cn ? 0 : 1;
+    return (ma - mb) || String(b.date || '').localeCompare(String(a.date || ''));
+  });
+  return new Promise(resolve => {
+    document.getElementById('choixSeanceModal')?.remove();
+    const modal = document.createElement('div');
+    modal.className = 'modal-bg show';
+    modal.id = 'choixSeanceModal';
+    modal.style.zIndex = '999998';
+    const fin = v => { modal.remove(); resolve(v); };
+    modal.onclick = e => { if(e.target === modal) fin(null); };
+    modal.innerHTML = `
+      <div class="modal">
+        <div class="modal-wrap">
+          <h3>Pour quelle séance ?</h3>
+          <button class="close" data-v="__close">×</button>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Si cet argent paie une séance, choisis-la : l'app note le paiement sur la séance et couvre ses charges.</div>
+        <div style="max-height:55vh;overflow-y:auto">
+          ${liste.map(s => {
+            const d = s.date ? new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '';
+            const reste = Number(s.price || 0) - Number(s.montant_recu || 0);
+            const nc = nomClient(s);
+            return `<button type="button" class="btn-ghost" data-v="${s.id}" style="margin:0 0 6px;width:100%;padding:12px;text-align:left;border-radius:10px">
+              <div style="font-weight:700;font-size:14px">📸 ${s.type || 'Séance'}${nc ? ' · ' + nc : ''}</div>
+              <div style="font-size:11px;color:var(--muted)">${d}${d ? ' · ' : ''}reste à payer ${fmt(reste)}</div>
+            </button>`;
+          }).join('')}
+        </div>
+        <button type="button" class="btn-ghost" data-v="none" style="margin-top:8px;width:100%">Aucune séance</button>
+      </div>`;
+    modal.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => {
+      const v = b.dataset.v;
+      fin(v === '__close' ? null : v === 'none' ? 'none' : Number(v));
+    }));
+    document.body.appendChild(modal);
+  });
+}
+
+let _saveRevenueBusy = false;
 async function saveRevenue(){
+  if(_saveRevenueBusy) return;
   const amount = parseFloat(document.getElementById('revAmount').value);
   if(!amount || amount <= 0){ alert('Indique un montant valide'); return; }
 
@@ -7237,6 +7720,18 @@ async function saveRevenue(){
   const duration = parseFloat(document.getElementById('revDuration').value) || null;
   const photoCount = parseInt(document.getElementById('revPhotoCount').value) || null;
   const details = document.getElementById('revDetails').value.trim();
+  const accountId = Number(document.getElementById('agRevAccount')?.value) || (typeof agGuessAccount === 'function' && typeof agActiveAccounts === 'function' && agActiveAccounts().length ? agGuessAccount(paymentMethod) : null);
+
+  // Catégorie "Shooting photo" : est-ce le paiement d'une séance ?
+  _saveRevenueBusy = true;
+  let choix;
+  try { choix = await choisirSeancePourEntree(clientName); } finally { _saveRevenueBusy = false; }
+  if(choix === null) return; // fenêtre fermée : rien ne se passe
+  if(choix !== 'none'){
+    closeRevenueModal();
+    openPaiementSeance(choix, { montant: amount, method: paymentMethod, accountId });
+    return;
+  }
 
   let clientId = null;
   if(clientName){
@@ -7267,24 +7762,36 @@ async function saveRevenue(){
     photo_count: photoCount,
     details: details || null
   };
+  if(accountId) data.account_id = accountId;
 
-  const result = await dbInsert('transactions', data);
-  if(!result){ alert('Erreur lors de la sauvegarde'); return; }
+  const btn = document.querySelector('#revenueModalBg .btn-primary[onclick*="saveRevenue"]');
+  _saveRevenueBusy = true;
+  if(btn){ btn.disabled = true; btn.style.opacity = '0.5'; }
+  let result = null;
+  try {
+    result = await dbInsert('transactions', data);
+  } finally {
+    _saveRevenueBusy = false;
+    if(btn){ btn.disabled = false; btn.style.opacity = '1'; }
+  }
+  if(!result) return;
 
   txs.unshift(result);
   closeRevenueModal();
   refreshAll();
   showToast('💰 ' + fmt(amount) + ' enregistré');
 
-  setTimeout(() => {
-    demarrerAssistant({
-      amount: amount,
-      prestationType: prestationType,
-      clientName: clientName,
-      location: location,
-      source: paymentMethod
-    });
-  }, 400);
+  // Une seule fenêtre ensuite : la répartition 50/30/20 sur le montant de l'entrée,
+  // depuis le même compte que l'entrée. La fermer = rien n'est rangé.
+  if(result.account_id){
+    setTimeout(() => {
+      ouvrirRepartitionPaiement({
+        kind: 'entree', revenuId: result.id, montant: amount, aRepartir: amount,
+        accountId: result.account_id,
+        label: prestationType + (clientName ? ' · ' + clientName : '')
+      });
+    }, 400);
+  }
 }
 
 function formatTxDetail(t){
@@ -8321,7 +8828,7 @@ function renderProjections(){
   const dayOfMonth = now.getDate();
   const daysLeft = daysInMonth - dayOfMonth;
 
-  const monthTx = txs.filter(t => t.date && t.date.startsWith(ym));
+  const monthTx = txs.filter(t => t.date && t.date.startsWith(ym) && !t.cancelled);
   const totalIn = monthTx.filter(t => t.type === 'revenu').reduce((s,t) => s + Number(t.amount || 0), 0);
   const totalOut = monthTx.filter(t => t.type === 'depense').reduce((s,t) => s + Number(t.amount || 0), 0);
 
@@ -9438,7 +9945,7 @@ async function proposerRepartitionAuto(montant, source){
     return; // Pas de coffres → pas de répartition
   }
 
-  const activeGoals = coffres.filter(c => Number(c.current) < Number(c.goal));
+  const activeGoals = coffres.filter(c => agIsCoffre(c) && Number(c.current) < Number(c.goal));
   if(activeGoals.length === 0) return;
 
   // Détecter le type de revenu
@@ -9456,10 +9963,10 @@ async function proposerRepartitionAuto(montant, source){
   const persoAmt = montant - reserveAmt - objectifAmt - entrepriseAmt;
 
   // Trouver les coffres par type
-  const coffreReserve = coffres.find(c => c.type_coffre === 'reserve' && Number(c.current) < Number(c.goal));
-  const coffreObjectif = coffres.find(c => c.type_coffre === 'objectif' && Number(c.current) < Number(c.goal));
-  const coffreEntreprise = coffres.find(c => c.type_coffre === 'entreprise');
-  const coffrePerso = coffres.find(c => c.type_coffre === 'perso');
+  const coffreReserve = activeGoals.find(c => c.type_coffre === 'reserve');
+  const coffreObjectif = activeGoals.find(c => c.type_coffre === 'objectif');
+  const coffreEntreprise = coffres.find(c => agIsCoffre(c) && c.type_coffre === 'entreprise');
+  const coffrePerso = coffres.find(c => agIsCoffre(c) && c.type_coffre === 'perso');
 
   // Construire la proposition
   const proposition = [];
@@ -9611,31 +10118,8 @@ async function validerRepartitionAuto(montantTotal){
   showToast(`✅ ${fmt(totalAlloue)} réparti dans ${allocations.length} coffre${allocations.length > 1 ? 's' : ''}`);
 }
 
-// ---- Override de saveRevenue pour proposer la répartition ----
-const _oldSaveRevenue = window.saveRevenue;
-window.saveRevenue = async function(){
-  if(typeof _oldSaveRevenue !== 'function') return;
-
-  // Récupérer le montant et la source AVANT la sauvegarde
-  const amountEl = document.getElementById('revAmount');
-  const prestationEl = document.getElementById('revPrestationType');
-  const montant = amountEl ? parseFloat(amountEl.value) : 0;
-  const prestation = prestationEl ? prestationEl.value : '';
-
-  // Appeler la fonction originale
-  await _oldSaveRevenue();
-
-  // Si la sauvegarde a réussi (le modal est fermé) → proposer la répartition
-  setTimeout(() => {
-    const modalEncore = document.getElementById('revenueModalBg');
-    if(!modalEncore || !modalEncore.classList.contains('show')){
-      // Le modal est fermé → sauvegarde OK
-      if(montant > 0){
-        proposerRepartitionAuto(montant, prestation);
-      }
-    }
-  }, 600);
-};
+// ---- Ancien override de saveRevenue (proposition auto après une entrée) : désactivé.
+// Après une entrée, seule la répartition 50/30/20 s'ouvre (voir saveRevenue).
 
 // ---- RAPPORT HEBDO DU COACH ----
 async function genererRapportHebdo(){
@@ -10298,11 +10782,17 @@ window.showToast = function(message){
 // ============================================================
 const PHOTO_TABS = [
   { id: 'seances', icon: '📸', label: 'Séances' },
-  { id: 'clients', icon: '👥', label: 'Clients' },
   { id: 'liens',   icon: '🔗', label: 'Liens' }
 ];
 
 function switchPhotoTab(tab){
+  // L'ancien sous-onglet "Clients" mène maintenant à l'onglet Clients (fiches, messages, promos)
+  if(tab === 'clients' && document.getElementById('page-clients') && typeof showTab === 'function'){
+    try { localStorage.setItem('photo_active_subtab', 'seances'); } catch(e){}
+    showTab('clients');
+    window.scrollTo({ top: 0 });
+    return;
+  }
   // 🆕 Déplacer le bleu sur le bon onglet
   document.querySelectorAll('.photo-subtab').forEach(b => {
     b.classList.remove('active');
@@ -10419,7 +10909,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 // Restaurer le dernier onglet Photo ouvert
 function restorePhotoSubtab(){
-  const saved = localStorage.getItem('photo_active_subtab') || 'seances';
+  let saved = localStorage.getItem('photo_active_subtab') || 'seances';
+  if(saved === 'clients') saved = 'seances';
   // Vérifier que le DOM est prêt
   setTimeout(() => {
     if(document.getElementById('photo-subpage-' + saved)){
@@ -10444,15 +10935,50 @@ async function resetPaiementSeance(shootId){
     return;
   }
 
-  // 🆕 Si une partie de l'argent a déjà été répartie dans tes coffres
-  // (Salaire/Studio/Épargne), le reset ne retire PAS cet argent des coffres —
-  // on le précise clairement pour éviter toute confusion.
-  const texteReparti = repartiAvant > 0
-    ? `\n⚠️ ${fmt(repartiAvant)} avait déjà été réparti dans tes coffres (Salaire/Studio/Épargne) — ce reset ne retire PAS cet argent des coffres, seulement de la séance.`
-    : '';
+  // Les paiements de CETTE séance : par shoot_id ; pour les anciens sans shoot_id,
+  // seulement si le client ET le type correspondent et que la date est après la création de la séance.
+  const clientName = s.client_id ? (clients.find(c => c.id === s.client_id)?.name || '') : '';
+  const debut = String(s.created_at || '').slice(0, 10);
+  const memeClient = t => (s.client_id && t.client_id === s.client_id) || (!t.client_id && clientName && String(t.client_name || '').toLowerCase() === clientName.toLowerCase());
+  const memeType = t => t.prestation_type ? t.prestation_type === s.type : String(t.note || '').includes(s.type);
+  const revenus = txs.filter(t => t.type === 'revenu' && !t.cancelled && (
+    t.shoot_id === s.id ||
+    (!t.shoot_id && t.category === 'Shooting photo' && memeClient(t) && memeType(t) && (!debut || String(t.date || '') >= debut))
+  ));
+  const idsRevenus = new Set(revenus.map(t => t.id));
+  // Ce qui part avec : les répartitions (rep:<revenu>), les dépenses de charges créées par les paiements,
+  // et les répartitions manuelles de la séance (transferts avec shoot_id). Pas les charges "déjà payée".
+  const liees = txs.filter(t => !t.cancelled && !idsRevenus.has(t.id) && (
+    (String(t.details || '').startsWith('rep:') && idsRevenus.has(Number(String(t.details).slice(4)))) ||
+    (t.shoot_id === s.id && t.type === 'transfert') ||
+    (t.shoot_id === s.id && t.type === 'depense' && estTxDePaiement(t))
+  ));
+
+  // Vérifier d'abord que les coffres ont encore cet argent (un coffre ne devient jamais négatif)
+  const retrait = {};
+  for(const t of liees){
+    if(t.type !== 'transfert') continue;
+    if(t.to_goal_id) retrait[t.to_goal_id] = (retrait[t.to_goal_id] || 0) + Number(t.amount || 0);
+    if(t.goal_id) retrait[t.goal_id] = (retrait[t.goal_id] || 0) - Number(t.amount || 0);
+  }
+  for(const [gid, m] of Object.entries(retrait)){
+    if(m <= 0) continue;
+    const c = coffres.find(x => x.id === Number(gid));
+    if(!c){ alert("Impossible : un coffre de cette séance n'existe plus.\nL'argent ne peut pas y être repris."); return; }
+    if(Number(c.current || 0) - m < 0){
+      alert(`Impossible : il faut reprendre ${fmt(m)} dans le coffre "${c.name}", mais il n'a plus que ${fmt(c.current)}.\n\nRemets d'abord de l'argent dans ce coffre.`);
+      return;
+    }
+  }
+  const totalCoffres = Object.values(retrait).reduce((a, m) => a + Math.max(0, m), 0);
 
   const ok = await confirmer(
-    `Remettre les paiements de cette séance à 0 ?\n\n📸 ${s.type}\n💰 Montant reçu : ${fmt(recu)}\n\n✅ La séance repassera à "Impayé"\n✅ Les transactions de revenus seront annulées (elles restent visibles dans l\'historique)${texteReparti}`,
+    `Remettre les paiements de cette séance à 0 ?\n\n📸 ${s.type}${clientName ? ' · ' + clientName : ''}\n💰 Montant reçu : ${fmt(recu)}\n\n` +
+    `✅ La séance repassera à "Impayé"\n` +
+    `✅ Les paiements reçus seront annulés (ils restent visibles, barrés, dans l'historique)\n` +
+    (totalCoffres > 0 ? `✅ L'argent rangé dans les coffres (${fmt(totalCoffres)}) est aussi retiré des coffres\n` : '') +
+    `✅ Les dépenses de charges payées avec ces paiements sont annulées` +
+    (Number(s.recu_hors_app || 0) > 0 ? `\n✅ Le "reçu hors app" (${fmt(s.recu_hors_app)}) est remis à 0` : ''),
     {
       titre: '↺ Reset des paiements',
       texteAnnuler: 'Annuler',
@@ -10460,39 +10986,40 @@ async function resetPaiementSeance(shootId){
       type: 'warning'
     }
   );
-
   if(!ok) return;
 
-  const clientName = s.client_id ? (clients.find(c => c.id === s.client_id)?.name || '') : '';
-  const txLiees = txs.filter(t => 
-    t.type === 'revenu' && 
-    !t.cancelled &&
-    t.category === 'Shooting photo' &&
-    (
-      (t.client_id && t.client_id === s.client_id && t.prestation_type === s.type) ||
-      (t.note && t.note.includes(s.type) && (!clientName || t.note.includes(clientName)))
-    )
-  );
-
+  // Annuler un revenu annule aussi ses répartitions (details rep:) dans argent.js
+  // Le Reset remet lui-même la séance à 0 : on coupe la mise à jour automatique de la séance (argent.js)
+  window.__agNoShootSync = true;
   let annulees = 0;
-  for(const t of txLiees){
-    const result = await dbUpdate('transactions', t.id, {
-      cancelled: true,
-      cancelled_at: new Date().toISOString()
-    });
-    if(result){
-      const idx = txs.findIndex(x => x.id === t.id);
-      if(idx >= 0) txs[idx] = result;
-      annulees++;
-    }
+  try {
+    annulees = await annulerTransactionsIds(revenus.map(t => t.id));
+    annulees += await annulerTransactionsIds(liees.map(t => t.id));
+  } finally {
+    window.__agNoShootSync = false;
   }
 
-  // 🆕 CORRECTION : on remet aussi montant_reparti à 0, sinon la séance reste
-  // marquée comme "déjà répartie" alors qu'elle n'a plus aucun paiement reçu.
+  // Charges : on retire ce que ces paiements avaient couvert (allocation_json du revenu,
+  // sinon l'ancienne méthode : les dépenses de charges liées), et on enlève ces dépenses
+  let exps = JSON.parse(JSON.stringify(chargesListe(s)));
+  for(const rv of revenus) exps = retirerCouvertPaiement(exps, rv, -1, liees.filter(t => t.details === 'rep:' + rv.id));
+  exps = exps.map(e => {
+    const ids = Array.isArray(e.tx_ids) ? e.tx_ids : [];
+    e.tx_ids = ids.filter(id => { const t = txs.find(x => x.id === id); return !(t && estTxDePaiement(t)); });
+    // Plus aucun paiement (ni hors app) : plus rien n'est couvert
+    e.couvert = 0;
+    e.couvert_hors_app = 0;
+    return e;
+  });
+
   const upd = await dbUpdate('shoots', shootId, {
     montant_recu: 0,
     montant_reparti: 0,
-    payment: 'impaye'
+    recu_hors_app: 0,
+    recu_hors_app_at: null,
+    repartition_effectuee: false,
+    payment: 'impaye',
+    shoot_expenses: exps
   });
 
   if(!upd){
@@ -10500,9 +11027,13 @@ async function resetPaiementSeance(shootId){
     return;
   }
 
+  Object.assign(s, upd);
   s.montant_recu = 0;
   s.montant_reparti = 0;
+  s.recu_hors_app = 0;
+  s.recu_hors_app_at = null;
   s.payment = 'impaye';
+  s.shoot_expenses = exps;
 
   refreshAll();
 
@@ -11017,27 +11548,37 @@ let _repIsProcessing = false;
 let _repCoffreIds = { salaire: null, studio: null, epargne: null };
 let _repShootId = null;
 
+// _repCtx garde en mémoire ce qui sera enregistré à la validation :
+//   séance : {kind:'seance', shootId, montant, pourCharges, aRepartir, method, accountId, label, linkId}
+//   entrée simple : {kind:'entree', revenuId, montant, aRepartir, accountId, label}
+// Fermer la fenêtre = _repCtx oublié, rien n'est enregistré.
+let _repCtx = null;
+
 // ──────────────────────────────────────────────────────────────
 // 1. OUVRIR LA MODALE DE RÉPARTITION
 // ──────────────────────────────────────────────────────────────
-async function ouvrirRepartitionPaiement(montant, clientName, shootType, shootId){
-  console.log('🚀 Ouverture modale répartition');
-  console.log('   Montant :', montant, '| Client :', clientName, '| Type :', shootType);
-
-  // Reset
+async function ouvrirRepartitionPaiement(ctx){
+  if(!ctx || !(Number(ctx.aRepartir) > 0)) return;
   _repIsProcessing = false;
   _repCoffreIds = { salaire: null, studio: null, epargne: null };
-  _repShootId = shootId;
+  _repCtx = ctx;
+  _repShootId = ctx.kind === 'seance' ? ctx.shootId : null;
 
   // Assurer que les 3 coffres existent
   await assurerCoffresStudio();
-  console.log('   Coffres :', _repCoffreIds);
 
-  // Remplir l'en-tête
+  // En-tête
+  const n = v => new Intl.NumberFormat('fr-FR').format(Math.round(Number(v) || 0));
   const clientEl = document.getElementById('repPaiementClient');
   const montantEl = document.getElementById('repPaiementMontant');
-  if(clientEl) clientEl.textContent = shootType + (clientName ? ' · ' + clientName : '');
-  if(montantEl) montantEl.textContent = fmt(montant);
+  const detailEl = document.getElementById('repPaiementDetail');
+  if(clientEl) clientEl.textContent = ctx.label || 'Entrée';
+  if(montantEl) montantEl.textContent = fmt(ctx.aRepartir);
+  if(detailEl){
+    detailEl.textContent = (ctx.kind === 'seance' && ctx.pourCharges > 0)
+      ? `Reçu ${n(ctx.montant)} · Charges -${n(ctx.pourCharges)} · À répartir ${n(ctx.aRepartir)}`
+      : `Reçu ${n(ctx.montant)} · À répartir ${n(ctx.aRepartir)}`;
+  }
 
   // Reset des %
   const salairePct = document.getElementById('repSalairePct');
@@ -11047,22 +11588,16 @@ async function ouvrirRepartitionPaiement(montant, clientName, shootType, shootId
   if(studioPct) studioPct.value = 30;
   if(epargnePct) epargnePct.value = 20;
 
-  // Afficher les noms des coffres
   mettreAJourNomsCoffres();
-
-  // Calculer
   recalculerRepartition();
 
-  // Réactiver le bouton
   const btn = document.getElementById('repValiderBtn');
   if(btn){
-    btn.disabled = false;
-    btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
-    btn.textContent = '✅ Valider et créer';
+    btn.textContent = '✅ Valider et enregistrer';
   }
+  recalculerRepartition();
 
-  // Ouvrir
   const modal = document.getElementById('repartitionPaiementBg');
   if(modal) modal.classList.add('show');
 }
@@ -11076,58 +11611,38 @@ async function assurerCoffresStudio(){
     studio: 'Revenu Studio',
     epargne: 'Épargne Studio'
   };
+  const modeles = {
+    salaire: { emoji: '💰', type_coffre: 'perso', description: 'Ton salaire de photographe', why: 'Avoir un vrai salaire', purpose: 'Séparer mon salaire du studio', urgency: 'moyen' },
+    studio: { emoji: '💼', type_coffre: 'entreprise', description: 'Le revenu du studio', why: 'Financer les charges du studio', purpose: 'Payer le fonctionnement du studio', urgency: 'urgent' },
+    epargne: { emoji: '🛡️', type_coffre: 'reserve', description: 'L\'épargne du studio', why: 'Faire grandir le studio', purpose: 'Investir dans le futur', urgency: 'moyen' }
+  };
+  // Les ids déjà connus (si Henzo a renommé un coffre, on le retrouve quand même)
+  let connus = {};
+  try { connus = JSON.parse(localStorage.getItem('rep_coffre_ids') || '{}') || {}; } catch(e){ connus = {}; }
 
-  // 1. Salaire
-  let salaire = coffres.find(c => c.name === noms.salaire);
-  if(!salaire){
-    salaire = await dbInsert('goals', {
-      name: noms.salaire, goal: 999999999, current: 0,
-      goal_type: 'money', unit: 'FCFA', emoji: '💰',
-      type_coffre: 'perso',
-      description: 'Ton salaire de photographe',
-      why: 'Avoir un vrai salaire',
-      purpose: 'Séparer mon salaire du studio',
-      urgency: 'moyen'
-    });
-    if(salaire) coffres.unshift(salaire);
+  for(const k of ['salaire', 'studio', 'epargne']){
+    let c = coffres.find(x => x.id === Number(connus[k]) && agIsCoffre(x))
+         || coffres.find(x => x.name === noms[k] && agIsCoffre(x));
+    if(!c){
+      c = await dbInsert('goals', { name: noms[k], goal: 999999999, current: 0, goal_type: 'money', unit: 'FCFA', ...modeles[k] });
+      if(c) coffres.unshift(c);
+    }
+    _repCoffreIds[k] = c ? c.id : null;
   }
-  _repCoffreIds.salaire = salaire?.id || null;
+  try { localStorage.setItem('rep_coffre_ids', JSON.stringify(_repCoffreIds)); } catch(e){}
+}
 
-  // 2. Studio
-  let studio = coffres.find(c => c.name === noms.studio);
-  if(!studio){
-    studio = await dbInsert('goals', {
-      name: noms.studio, goal: 999999999, current: 0,
-      goal_type: 'money', unit: 'FCFA', emoji: '💼',
-      type_coffre: 'entreprise',
-      description: 'Le revenu du studio',
-      why: 'Financer les charges du studio',
-      purpose: 'Payer le fonctionnement du studio',
-      urgency: 'urgent'
-    });
-    if(studio) coffres.unshift(studio);
-  }
-  _repCoffreIds.studio = studio?.id || null;
-
-  // 3. Épargne
-  let epargne = coffres.find(c => c.name === noms.epargne);
-  if(!epargne){
-    epargne = await dbInsert('goals', {
-      name: noms.epargne, goal: 999999999, current: 0,
-      goal_type: 'money', unit: 'FCFA', emoji: '🛡️',
-      type_coffre: 'reserve',
-      description: 'L\'épargne du studio',
-      why: 'Faire grandir le studio',
-      purpose: 'Investir dans le futur',
-      urgency: 'moyen'
-    });
-    if(epargne) coffres.unshift(epargne);
-  }
-  _repCoffreIds.epargne = epargne?.id || null;
-
-  if(_repCoffreIds.salaire && _repCoffreIds.studio && _repCoffreIds.epargne){
-    refreshAll();
-  }
+// "Épargne libre" : un vrai coffre, créé s'il n'existe pas
+async function assurerCoffreEpargneLibre(){
+  let c = coffres.find(x => x.name === 'Épargne libre' && agIsCoffre(x));
+  if(c) return c;
+  c = await dbInsert('goals', {
+    name: 'Épargne libre', goal: 999999999, current: 0, goal_type: 'money', unit: 'FCFA',
+    emoji: '💼', type_coffre: 'perso', description: 'Argent mis de côté sans objectif précis',
+    why: 'Mettre de côté', purpose: 'Garder une réserve libre', urgency: 'moyen'
+  });
+  if(c) coffres.unshift(c);
+  return c;
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -11149,28 +11664,40 @@ function mettreAJourNomsCoffres(){
 
 // ──────────────────────────────────────────────────────────────
 // 4. RECALCULER LA RÉPARTITION
+// Si Henzo tape un montant, on garde les montants et on recalcule les %.
+// Sinon on part des % ; la dernière part = total moins les deux autres
+// (pour ne jamais rester bloqué à 1 F près).
 // ──────────────────────────────────────────────────────────────
 function recalculerRepartition(){
-  const montantEl = document.getElementById('repPaiementMontant');
-  if(!montantEl) return;
-
-  const total = parseInt(montantEl.textContent.replace(/[^\d]/g, '')) || 0;
+  const total = _repCtx ? Math.round(Number(_repCtx.aRepartir) || 0) : 0;
   if(total <= 0) return;
+  const g = id => document.getElementById(id);
+  const ids = { salaire: ['repSalairePct', 'repSalaireMontant'], studio: ['repStudioPct', 'repStudioMontant'], epargne: ['repEpargnePct', 'repEpargneMontant'] };
+  const actif = document.activeElement && document.activeElement.id;
+  const tapeMontant = ['repSalaireMontant', 'repStudioMontant', 'repEpargneMontant'].includes(actif);
 
-  const salairePct = parseFloat(document.getElementById('repSalairePct')?.value) || 0;
-  const studioPct = parseFloat(document.getElementById('repStudioPct')?.value) || 0;
-  const epargnePct = parseFloat(document.getElementById('repEpargnePct')?.value) || 0;
-
-  const salaire = Math.round(total * salairePct / 100);
-  const studio = Math.round(total * studioPct / 100);
-  const epargne = Math.round(total * epargnePct / 100);
-
-  const sEl = document.getElementById('repSalaireMontant');
-  const stEl = document.getElementById('repStudioMontant');
-  const eEl = document.getElementById('repEpargneMontant');
-  if(sEl) sEl.value = salaire;
-  if(stEl) stEl.value = studio;
-  if(eEl) eEl.value = epargne;
+  let salaire, studio, epargne;
+  if(tapeMontant){
+    salaire = Math.round(parseFloat(g('repSalaireMontant')?.value) || 0);
+    studio = Math.round(parseFloat(g('repStudioMontant')?.value) || 0);
+    epargne = Math.round(parseFloat(g('repEpargneMontant')?.value) || 0);
+    for(const [k, v] of [['salaire', salaire], ['studio', studio], ['epargne', epargne]]){
+      if(ids[k][1] === actif) continue;
+      const p = g(ids[k][0]); if(p) p.value = Math.round(v / total * 100);
+    }
+    const p = Object.values(ids).find(x => x[1] === actif);
+    if(p && g(p[0])){ const v = Math.round(parseFloat(g(actif).value) || 0); g(p[0]).value = Math.round(v / total * 100); }
+  } else {
+    const p1 = parseFloat(g('repSalairePct')?.value) || 0;
+    const p2 = parseFloat(g('repStudioPct')?.value) || 0;
+    const p3 = parseFloat(g('repEpargnePct')?.value) || 0;
+    salaire = Math.round(total * p1 / 100);
+    studio = Math.round(total * p2 / 100);
+    epargne = (p1 + p2 + p3 === 100) ? total - salaire - studio : Math.round(total * p3 / 100);
+    if(g('repSalaireMontant')) g('repSalaireMontant').value = salaire;
+    if(g('repStudioMontant')) g('repStudioMontant').value = studio;
+    if(g('repEpargneMontant')) g('repEpargneMontant').value = epargne;
+  }
 
   mettreAJourCompteur(total, salaire, studio, epargne);
 }
@@ -11181,6 +11708,7 @@ function recalculerRepartition(){
 function mettreAJourCompteur(total, salaire, studio, epargne){
   const totalReparti = salaire + studio + epargne;
   const reste = total - totalReparti;
+  const negatif = salaire < 0 || studio < 0 || epargne < 0;
 
   const box = document.getElementById('repCompteurBox');
   const bar = document.getElementById('repCompteurBar');
@@ -11190,7 +11718,12 @@ function mettreAJourCompteur(total, salaire, studio, epargne){
 
   let couleur, bg, emoji, message, canValidate;
 
-  if(reste === 0){
+  if(negatif){
+    couleur = 'var(--red)';
+    bg = 'linear-gradient(90deg, var(--red), #ff8c8c)';
+    emoji = '🚩'; message = 'Un montant ne peut pas être négatif';
+    canValidate = false;
+  } else if(reste === 0){
     couleur = 'var(--green)';
     bg = 'linear-gradient(90deg, var(--green), #10b981)';
     emoji = '✅'; message = 'Prêt à valider';
@@ -11203,7 +11736,7 @@ function mettreAJourCompteur(total, salaire, studio, epargne){
   } else {
     couleur = 'var(--red)';
     bg = 'linear-gradient(90deg, var(--red), #ff8c8c)';
-    emoji = '🚩'; message = 'Dépassement de ' + fmt(Math.abs(reste)) + ' — corrige';
+    emoji = '🚩'; message = 'Dépassement de ' + fmt(Math.abs(reste)) + ' - corrige';
     canValidate = false;
   }
 
@@ -11222,11 +11755,9 @@ function mettreAJourCompteur(total, salaire, studio, epargne){
 }
 
 // ──────────────────────────────────────────────────────────────
-// 6. OUVRIR LE SÉLECTEUR DE COFFRES
+// 6. OUVRIR LE SÉLECTEUR DE COFFRES (seulement les coffres d'argent)
 // ──────────────────────────────────────────────────────────────
 function ouvrirSelecteurCoffre(type){
-  console.log('📂 Sélecteur pour :', type);
-
   let titre = '💰 Choisir un coffre';
   if(type === 'salaire') titre = '💰 Coffre pour Salaire';
   if(type === 'studio') titre = '💼 Coffre pour Studio';
@@ -11234,20 +11765,18 @@ function ouvrirSelecteurCoffre(type){
 
   document.getElementById('selecteurCoffreModal')?.remove();
 
+  const liste = coffres.filter(agIsCoffre);
   let listeHTML = '';
-  if(coffres.length === 0){
+  if(liste.length === 0){
     listeHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Aucun coffre disponible</div>';
   } else {
-    listeHTML = coffres.map(c => {
+    listeHTML = liste.map(c => {
       const emoji = c.emoji || '🎯';
       const cur = Number(c.current || 0);
       const goal = Number(c.goal || 0);
-      const isMoney = (c.goal_type || 'money') === 'money';
-      const unit = c.unit || 'FCFA';
-      const fv = (n) => isMoney ? fmt(n) : Math.round(n) + ' ' + unit;
       return `<button type="button" class="btn-ghost" style="margin:0;width:100%;padding:14px;text-align:left;font-size:13px;border-radius:10px;margin-bottom:6px" onclick="choisirCoffrePourLigne('${type}', ${c.id})">
         <div style="font-weight:700;font-size:14px;margin-bottom:4px">${emoji} ${c.name}</div>
-        <div style="font-size:11px;color:var(--muted)">${fv(cur)} / ${fv(goal)}</div>
+        <div style="font-size:11px;color:var(--muted)">${fmt(cur)}${goal < 1e8 ? ' / ' + fmt(goal) : ''}</div>
       </button>`;
     }).join('');
   }
@@ -11271,7 +11800,7 @@ function ouvrirSelecteurCoffre(type){
 
 function choisirCoffrePourLigne(type, coffreId){
   const c = coffres.find(x => x.id === coffreId);
-  if(!c) return;
+  if(!c || !agIsCoffre(c)) return;
   const emoji = c.emoji || '🎯';
   if(type === 'salaire'){
     _repCoffreIds.salaire = coffreId;
@@ -11292,24 +11821,42 @@ function choisirCoffrePourLigne(type, coffreId){
 }
 
 // ──────────────────────────────────────────────────────────────
-// 7. FERMER LA MODALE
+// 7. FERMER LA MODALE (rien n'est enregistré)
 // ──────────────────────────────────────────────────────────────
 function fermerRepartitionPaiement(){
+  if(_repIsProcessing) return;
   document.getElementById('repartitionPaiementBg').classList.remove('show');
   _repShootId = null;
+  _repCtx = null;
 }
 
 // ──────────────────────────────────────────────────────────────
 // 8. VALIDER LA RÉPARTITION (avec anti-doublon)
 // ──────────────────────────────────────────────────────────────
 async function validerRepartitionPaiement(){
-  // 🔒 ANTI-DOUBLON
-  if(_repIsProcessing){
-    console.log('⚠️ Déjà en cours, clic ignoré');
+  if(_repIsProcessing) return;
+  const ctx = _repCtx;
+  if(!ctx){ afficherToast('Rien à enregistrer', 'error'); return; }
+
+  const total = Math.round(Number(ctx.aRepartir) || 0);
+  const salaireM = Math.round(parseFloat(document.getElementById('repSalaireMontant')?.value) || 0);
+  const studioM = Math.round(parseFloat(document.getElementById('repStudioMontant')?.value) || 0);
+  const epargneM = Math.round(parseFloat(document.getElementById('repEpargneMontant')?.value) || 0);
+
+  if(salaireM < 0 || studioM < 0 || epargneM < 0){ afficherToast('Un montant ne peut pas être négatif', 'error'); return; }
+  if(salaireM + studioM + epargneM !== total){ afficherToast('Le total doit être équilibré', 'error'); return; }
+
+  const versements = [
+    { id: _repCoffreIds.salaire, montant: salaireM },
+    { id: _repCoffreIds.studio, montant: studioM },
+    { id: _repCoffreIds.epargne, montant: epargneM }
+  ].filter(v => v.montant > 0);
+  if(versements.some(v => !v.id || !agIsCoffre(coffres.find(c => c.id === v.id)))){
+    afficherToast('Choisis un coffre pour chaque montant', 'error');
     return;
   }
-  _repIsProcessing = true;
 
+  _repIsProcessing = true;
   const btn = document.getElementById('repValiderBtn');
   if(btn){
     btn.disabled = true;
@@ -11318,84 +11865,9 @@ async function validerRepartitionPaiement(){
     btn.textContent = '⏳ En cours...';
   }
 
+  let ok = false;
   try {
-    console.log('🚀 Validation répartition');
-
-    // Récupérer le total
-    const montantEl = document.getElementById('repPaiementMontant');
-    const total = parseInt(montantEl.textContent.replace(/[^\d]/g, '')) || 0;
-
-    const salaireM = parseFloat(document.getElementById('repSalaireMontant')?.value) || 0;
-    const studioM = parseFloat(document.getElementById('repStudioMontant')?.value) || 0;
-    const epargneM = parseFloat(document.getElementById('repEpargneMontant')?.value) || 0;
-    const totalReparti = salaireM + studioM + epargneM;
-
-    if(totalReparti !== total){
-      afficherToast('Le total doit être équilibré', 'error');
-      return;
-    }
-
-    if(!_repCoffreIds.salaire || !_repCoffreIds.studio || !_repCoffreIds.epargne){
-      afficherToast('Assigne les 3 coffres', 'error');
-      return;
-    }
-
-    const s = shoots.find(x => x.id === _repShootId);
-    const clientName = s?.client_id ? (clients.find(c => c.id === s.client_id)?.name || '') : '';
-    const shootType = s?.type || 'Séance';
-
-    // 1. Transaction Revenu
-    const tx = await dbInsert('transactions', {
-      type: 'revenu', amount: total, category: 'Shooting photo',
-      note: shootType + (clientName ? ' · ' + clientName : ''),
-      date: todayStr(), client_id: s?.client_id || null,
-      client_name: clientName || null, prestation_type: shootType,
-      payment_method: 'Interne'
-    });
-    if(tx) txs.unshift(tx);
-
-    // 2. Les 3 versements
-    const versements = [
-      { id: _repCoffreIds.salaire, montant: salaireM, label: 'Salaire photographe' },
-      { id: _repCoffreIds.studio, montant: studioM, label: 'Revenu Studio' },
-      { id: _repCoffreIds.epargne, montant: epargneM, label: 'Épargne Studio' }
-    ];
-
-    for(const v of versements){
-      if(v.montant <= 0) continue;
-      const c = coffres.find(x => x.id === v.id);
-      if(!c) continue;
-      const newCur = Number(c.current || 0) + v.montant;
-      await dbUpdate('goals', v.id, { current: newCur });
-      c.current = newCur;
-      await dbInsert('transactions', {
-        type: 'depense', amount: v.montant, category: 'Épargne',
-        note: v.label + ' · ' + shootType,
-        date: todayStr(), payment_method: 'Interne'
-      });
-    }
-
-    // 3. Mettre à jour la séance
-    // 🆕 CORRECTION : on met aussi à jour montant_reparti, sinon l'argent déjà
-    // envoyé dans les 3 coffres (Salaire/Studio/Épargne) reste "disponible" aux
-    // yeux de la répartition manuelle (risque de répartir 2x le même argent).
-    if(s){
-      const newRecu = Number(s.montant_recu || 0) + total;
-      const newReparti = Number(s.montant_reparti || 0) + total;
-      const prix = Number(s.price || 0);
-      const statut = newRecu >= prix ? 'paye' : 'impaye';
-      await dbUpdate('shoots', _repShootId, { montant_recu: newRecu, montant_reparti: newReparti, payment: statut });
-      s.montant_recu = newRecu;
-      s.montant_reparti = newReparti;
-      s.payment = statut;
-    }
-
-    // 4. Fermer + refresh
-    document.getElementById('repartitionPaiementBg').classList.remove('show');
-    _repShootId = null;
-    refreshAll();
-    afficherToast(`✅ ${fmt(total)} répartis · 💰 ${fmt(salaireM)} · 💼 ${fmt(studioM)} · 🛡️ ${fmt(epargneM)}`, 'success');
-
+    ok = await enregistrerPaiement(ctx, versements);
   } catch(e){
     console.error('Erreur validation:', e);
     afficherToast('Erreur : ' + e.message, 'error');
@@ -11405,41 +11877,138 @@ async function validerRepartitionPaiement(){
       btn.disabled = false;
       btn.style.opacity = '1';
       btn.style.cursor = 'pointer';
-      btn.textContent = '✅ Valider et créer';
+      btn.textContent = '✅ Valider et enregistrer';
     }
   }
+  if(!ok) return;
+
+  document.getElementById('repartitionPaiementBg').classList.remove('show');
+  _repShootId = null;
+  _repCtx = null;
+  refreshAll();
+  if(ctx.kind === 'seance') paiementToast(ctx);
+  afficherToast(`✅ ${fmt(total)} rangés dans tes coffres · 💰 ${fmt(salaireM)} · 💼 ${fmt(studioM)} · 🛡️ ${fmt(epargneM)}`, 'success');
 }
 
 // ──────────────────────────────────────────────────────────────
-// 9. BRANCHER SUR "VALIDER LE PAIEMENT"
+// 9. ENREGISTREMENT COMMUN (paiement de séance ou entrée simple)
 // ──────────────────────────────────────────────────────────────
-const _oldValiderPaiementSeance = validerPaiementSeance;
-validerPaiementSeance = async function(shootId){
-  const s = shoots.find(x => x.id === shootId);
-  if(!s){ alert('Séance introuvable'); return; }
+// Met de l'argent d'un compte dans un coffre (transfert + montant du coffre)
+async function verserDansCoffre({ goalId, amount, accountId, details, shootId, note, date }){
+  const c = coffres.find(x => x.id === goalId);
+  if(!c || !(amount > 0)) return null;
+  const tr = await dbInsert('transactions', {
+    _agRaw: true,
+    type: 'transfert', category: 'Vers coffre', amount,
+    account_id: accountId || null, to_goal_id: c.id,
+    details: details || null, shoot_id: shootId || null,
+    note: note || null, date: date || todayStr(), payment_method: 'Interne'
+  });
+  if(!tr) return null;
+  txs.unshift(tr);
+  const nv = Math.round(Number(c.current || 0) + amount);
+  const upd = await dbUpdate('goals', c.id, { current: nv });
+  if(upd) c.current = nv;
+  return tr;
+}
 
-  const montant = parseFloat(document.getElementById('paiementMontant')?.value) || 0;
-  const method = document.getElementById('paiementMethod')?.value || 'Wave';
+async function enregistrerPaiement(ctx, versements){
+  versements = (versements || []).filter(v => v.montant > 0);
+  const date = todayStr();
 
-  if(!montant || montant <= 0){ alert('Indique un montant valide'); return; }
-
-  const prixTotal = Number(s.price || 0);
-  const dejaRecu = Number(s.montant_recu || 0);
-  const resteAPayer = Math.max(0, prixTotal - dejaRecu);
-
-  if(montant > resteAPayer){
-    alert(`❌ Montant trop élevé.\nReste à payer : ${fmt(resteAPayer)}`);
-    return;
+  // Entrée simple (déjà enregistrée) : seulement les transferts vers les coffres
+  if(ctx.kind === 'entree'){
+    for(const v of versements){
+      const c = coffres.find(x => x.id === v.id);
+      await verserDansCoffre({ goalId: v.id, amount: v.montant, accountId: ctx.accountId, details: 'rep:' + ctx.revenuId, note: (c ? c.name : 'Coffre') + ' · ' + (ctx.label || 'Entrée'), date });
+    }
+    return true;
   }
 
-  // Fermer la modale "Paiement reçu"
-  const modalPaiement = document.getElementById('paiementSeanceModal');
-  if(modalPaiement) modalPaiement.remove();
+  const s = shoots.find(x => x.id === ctx.shootId);
+  if(!s){ alert('Séance introuvable'); return false; }
+  const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
+  const clientName = client ? client.name : '';
+  const prix = Number(s.price || 0);
+  const nouveauRecu = Number(s.montant_recu || 0) + ctx.montant;
+  const amountType = nouveauRecu >= prix ? 'complet' : 'acompte';
+  const label = (s.type || 'Séance') + (clientName ? ' · ' + clientName : '');
 
-  // Ouvrir la modale de répartition
-  const clientName = s.client_id ? (clients.find(c => c.id === s.client_id)?.name || '') : '';
-  await ouvrirRepartitionPaiement(montant, clientName, s.type || 'Séance', shootId);
-};
+  // Part du paiement prise sur chaque charge (dans l'ordre), gardée dans le revenu (allocation_json)
+  // pour pouvoir la retirer ou la remettre si le paiement est annulé ou restauré.
+  const exps = JSON.parse(JSON.stringify(chargesListe(s)));
+  const allocation = [];
+  let resteCharges = Math.round(ctx.pourCharges || 0);
+  exps.forEach((e, i) => {
+    if(resteCharges <= 0) return;
+    const part = Math.min(resteCharges, chargeReste(e));
+    if(part <= 0) return;
+    allocation.push({ i, part, type: chargeLabel(e) });
+    resteCharges -= part;
+  });
+
+  // 1. Le revenu, avec le vrai moyen de paiement et le compte choisi
+  const rev = await dbInsert('transactions', {
+    _agRaw: true,
+    type: 'revenu', amount: ctx.montant, category: 'Shooting photo',
+    note: label + (amountType === 'acompte' ? ' (acompte)' : ''),
+    date, client_id: s.client_id || null, client_name: clientName || null,
+    prestation_type: s.type || 'Séance', location: s.location || null,
+    payment_method: ctx.method, amount_type: amountType, photo_count: s.photo_count || null,
+    account_id: ctx.accountId, shoot_id: s.id,
+    allocation_json: allocation.length ? JSON.stringify(allocation) : null
+  });
+  if(!rev) return false;
+  txs.unshift(rev);
+
+  // 2. La part "pour les charges" couvre les charges
+  for(const a of allocation){
+    const e = exps[a.i];
+    e.couvert = chargeCouvert(e) + a.part;
+    if(!e.deja_paye){
+      // L'argent sort tout de suite du compte pour payer la charge
+      const dep = await dbInsert('transactions', {
+        _agRaw: true,
+        type: 'depense', category: 'Business', amount: a.part,
+        note: chargeLabel(e) + ' · ' + label,
+        date, payment_method: ctx.method,
+        account_id: ctx.accountId, shoot_id: s.id, details: 'rep:' + rev.id
+      });
+      if(dep){ txs.unshift(dep); e.tx_ids = [...(Array.isArray(e.tx_ids) ? e.tx_ids : []), dep.id]; }
+    }
+  }
+
+  // 3. Les coffres
+  let verse = 0;
+  for(const v of versements){
+    const c = coffres.find(x => x.id === v.id);
+    const tr = await verserDansCoffre({ goalId: v.id, amount: v.montant, accountId: ctx.accountId, details: 'rep:' + rev.id, shootId: s.id, note: (c ? c.name : 'Coffre') + ' · ' + label, date });
+    if(tr) verse += v.montant;
+  }
+
+  // 4. La séance
+  const nouveauReparti = Number(s.montant_reparti || 0) + verse;
+  const maj = {
+    montant_recu: nouveauRecu,
+    montant_reparti: nouveauReparti,
+    payment: nouveauRecu >= prix ? 'paye' : 'impaye',
+    shoot_expenses: exps
+  };
+  if(verse > 0) maj.repartition_effectuee = true;
+  const upd = await dbUpdate('shoots', s.id, maj);
+  if(upd) Object.assign(s, upd); else Object.assign(s, maj);
+
+  // Lien de paiement marqué payé seulement maintenant
+  if(ctx.linkId){
+    const r = await dbUpdate('payment_links', ctx.linkId, { status: 'paid', paid_at: new Date().toISOString() });
+    if(r && typeof paymentLinks !== 'undefined'){
+      const i = paymentLinks.findIndex(l => l.id === ctx.linkId);
+      if(i >= 0) paymentLinks[i] = r;
+      if(typeof renderPaymentLinks === 'function') renderPaymentLinks();
+    }
+  }
+  return true;
+}
 
 // ══════════════════════════════════════════════════════════════
 // FIN DU SYSTÈME DE RÉPARTITION

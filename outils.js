@@ -60,7 +60,7 @@ function otEditTx(id){
     <div class="ag-hint" style="margin-top:0">${agEsc(typeLbl)}${t.cancelled ? ' · annulée' : ''}</div>
     <label>Montant (FCFA)</label><input id="otAmt" type="number" inputmode="decimal" value="${Number(t.amount) || 0}">
     ${t.type !== 'transfert' ? `<label>Catégorie</label><input id="otCat" list="otCats" value="${agEsc(t.category || '')}"><datalist id="otCats">${cats.map(c => `<option value="${agEsc(c)}">`).join('')}</datalist>` : ''}
-    ${t.type !== 'transfert' && accs.length ? `<label>Compte</label><select id="otAcc"><option value="">Aucun</option>${accs.map(a => `<option value="${a.id}" ${a.id === t.account_id ? 'selected' : ''}>${agEsc(a.name)}</option>`).join('')}</select>` : ''}
+    ${t.type !== 'transfert' && accs.length ? `<label>Compte</label><select id="otAcc">${accs.map(a => `<option value="${a.id}" ${a.id === t.account_id ? 'selected' : ''}>${agEsc(a.name)}</option>`).join('')}</select>` : ''}
     <label>Note</label><input id="otNote" value="${agEsc(t.note || '')}">
     <label>Date</label><input id="otDate" type="date" value="${agEsc(String(t.date || '').slice(0, 10))}">
     <div class="ag-hint">Si tu changes le montant d'un mouvement lié à un coffre, le coffre est corrigé automatiquement.</div>
@@ -69,10 +69,12 @@ function otEditTx(id){
 }
 async function otSaveTx(id){
   const g = k => document.getElementById(k);
-  const data = { amount: parseFloat(g('otAmt').value) || 0, note: g('otNote').value.trim() || null };
+  const amt = parseFloat(g('otAmt').value);
+  if(g('otAmt').value.trim() === '' || isNaN(amt) || amt < 0){ agAlert('Tape un montant valide (0 ou plus).'); return; }
+  const data = { amount: amt, note: g('otNote').value.trim() || null };
   if(g('otDate').value) data.date = g('otDate').value;
   if(g('otCat')) data.category = g('otCat').value.trim() || null;
-  if(g('otAcc')) data.account_id = g('otAcc').value ? Number(g('otAcc').value) : null;
+  if(g('otAcc') && g('otAcc').value) data.account_id = Number(g('otAcc').value);
   const r = await dbUpdate('transactions', id, data);
   if(!r) return;
   const i = txs.findIndex(x => x.id === id); if(i >= 0) txs[i] = r;
@@ -199,8 +201,11 @@ async function otRefresh(force){
     if(typeof crmLoad === 'function') { try { await crmLoad(); } catch(e){} }
     if(typeof pxLoad === 'function' && typeof PX !== 'undefined' && PX.loaded) { try { await pxLoad(); } catch(e){} }
     await otLoadResas();
+    // Moodboards : on recharge aussi (sinon des tableaux effaces restent affiches)
+    if(typeof mbLoad === 'function' && typeof MB !== 'undefined' && MB.loaded) { try { await mbLoad(); } catch(e){} }
     refreshAll();
     const p = otActivePage();
+    if(p === 'mood' && typeof mbRender === 'function') { try { await mbRender(); } catch(e){} }
     if(p === 'clients' && typeof crmRender === 'function') crmRender();
     if(p === 'tarifs' && typeof crmRenderTarifs === 'function') crmRenderTarifs();
     if(p === 'historique' && typeof renderHistory === 'function') renderHistory();
@@ -210,7 +215,7 @@ async function otRefresh(force){
   OT.busy = false;
 }
 // Nouvelle version du site publiee ? On recharge tout seul.
-const OT_FILES = ['index.html', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'theme.css'];
+const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'theme.css'];
 async function otCheckVersion(){
   let changed = false;
   for(const f of OT_FILES){
@@ -257,12 +262,22 @@ const OT_GROUPS = [
 ];
 const OT_ORDER = ['accounts', 'goals', 'goal_reminders', 'clients', 'shoots', 'transactions', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'client_messages', 'promos', 'tarifs', 'devis', 'tarif_page', 'reservations', 'mood_boards', 'mood_images', 'mood_feedback', 'user_settings'];
 
+// La cle IA et le mot de passe galerie ne partent jamais dans une sauvegarde
+const OT_SECRETS = ['ai_config', 'galerie_admin_pwd'];
+function otNoSecrets(r){
+  const o = { ...r };
+  OT_SECRETS.forEach(k => { delete o[k]; });
+  if(o.user_preferences && typeof o.user_preferences === 'object'){
+    const p = { ...o.user_preferences }; delete p.aiConfig; delete p.ai_config; delete p.galerie_admin_pwd; o.user_preferences = p;
+  }
+  return o;
+}
 async function otSnapshot(){
   const uid = await otUid(); if(!uid) throw new Error('Non connecté');
   const tables = {};
   for(const t of OT_ORDER){
     const { data, error } = await sb.from(t).select('*').eq('user_id', uid);
-    if(!error) tables[t] = data || [];
+    if(!error) tables[t] = t === 'user_settings' ? (data || []).map(otNoSecrets) : (data || []);
   }
   return { app: 'henzo-super-app', version: 1, date: new Date().toISOString(), tables };
 }
@@ -276,6 +291,7 @@ async function otCloudSave(label){
   return snap;
 }
 function otDownload(snap){
+  if(snap && snap.tables && snap.tables.user_settings) snap = { ...snap, tables: { ...snap.tables, user_settings: snap.tables.user_settings.map(otNoSecrets) } };
   const blob = new Blob([JSON.stringify(snap, null, 1)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -342,7 +358,7 @@ function otImportChoose(snap, label){
     <div class="ag-list">${rows.map(x => `<label class="crm-pick"><input type="checkbox" value="${x.g.k}" checked><div><b>${agEsc(x.g.n)}</b><span>${x.n} élément${x.n > 1 ? 's' : ''}</span></div></label>`).join('') || '<div class="ag-empty">Sauvegarde vide</div>'}</div>
     <label>Comment ?</label>
     <div class="ag-pills" id="otImpMode"><button class="on" data-m="replace" onclick="agPick(this)">Remplacer</button><button data-m="merge" onclick="agPick(this)">Ajouter / mettre à jour</button></div>
-    <div class="ag-hint">Remplacer : ce qui est coché est d'abord vidé, puis remis comme dans la sauvegarde. Ajouter : rien n'est effacé, les éléments manquants sont ajoutés.</div>
+    <div class="ag-hint">Remplacer : ce qui est coché est d'abord vidé, puis remis comme dans la sauvegarde (les clients ne sont jamais vidés, seulement ajoutés ou mis à jour). Ajouter : rien n'est effacé, les éléments manquants sont ajoutés.</div>
     <button class="btn-primary" onclick="otImportRun()">Restaurer maintenant</button>`);
 }
 async function otImportRun(){
@@ -356,9 +372,11 @@ async function otImportRun(){
     agToast('Sauvegarde de sécurité...');
     await otCloudSave('Automatique avant restauration');
     const uid = await otUid();
-    if(mode === 'replace') await otWipe(tables, uid);
+    // Les clients ne sont jamais vides avant : seulement ajoutes ou mis a jour (sinon les seances perdent leur client)
+    if(mode === 'replace') await otWipe(tables.filter(t => t !== 'clients'), uid);
     for(const t of OT_ORDER.filter(x => tables.includes(x))){
-      const rows = (snap.tables[t] || []).map(r => ({ ...r, user_id: uid }));
+      // Une vieille sauvegarde peut contenir la cle IA ou le mot de passe galerie : on garde ceux de l'appareil
+      const rows = (snap.tables[t] || []).map(r => ({ ...(t === 'user_settings' ? otNoSecrets(r) : r), user_id: uid }));
       for(let i = 0; i < rows.length; i += 200){
         const part = rows.slice(i, i + 200);
         const { error } = t === 'tarif_page'
@@ -385,7 +403,7 @@ function otResetMoney(){
     <h3>Remettre l'argent à zéro</h3>
     <div class="ag-list">
       <label class="crm-pick"><input type="checkbox" id="otRzTx" checked><div><b>Effacer toutes les transactions</b><span>${txs.length} mouvement(s)</span></div></label>
-      <label class="crm-pick"><input type="checkbox" id="otRzCof" checked><div><b>Mettre tous les coffres à 0 F</b><span>Les coffres restent, vides</span></div></label>
+      <label class="crm-pick"><input type="checkbox" id="otRzCof" checked><div><b>Mettre tous les coffres à 0 F</b><span>Les coffres d'argent restent, vides (les objectifs et les séances ne changent pas)</span></div></label>
       <label class="crm-pick"><input type="checkbox" id="otRzAcc" checked><div><b>Mettre le solde de départ des comptes à 0 F</b><span>Les comptes restent</span></div></label>
     </div>
     <div class="ag-hint">Tes clients, séances, notes et le reste ne sont pas touchés. Une sauvegarde est faite juste avant.</div>
@@ -400,7 +418,13 @@ async function otResetMoneyRun(){
     await otCloudSave("Automatique avant remise à zéro de l'argent");
     const uid = await otUid();
     if(doTx){ const { error } = await sb.from('transactions').delete().eq('user_id', uid); if(error) throw error; }
-    if(doCof){ const { error } = await sb.from('goals').update({ current: 0 }).eq('user_id', uid); if(error) throw error; }
+    if(doCof){
+      // Seulement les vrais coffres d'argent : les objectifs (quantite, sans argent) gardent leur progression
+      for(const c of coffres.filter(agIsCoffre)){
+        const { error } = await sb.from('goals').update({ current: 0 }).eq('id', c.id);
+        if(error) throw error;
+      }
+    }
     if(doAcc){ const { error } = await sb.from('accounts').update({ initial_balance: 0 }).eq('user_id', uid); if(error) throw error; }
     agCloseSheet('otRZ'); agCloseSheet('otData');
     await otRefresh(true);
@@ -512,9 +536,23 @@ function otTopButtons(){
 async function otLoadResas(){
   try { const { data } = await sb.from('reservations').select('*').order('created_at', { ascending: false }).limit(100); OT.resas = data || []; } catch(e){ OT.resas = []; }
 }
+// La page de tarifs publique existe-t-elle ? (sinon, pas de lien a envoyer)
+function otHasPage(){ return !!(typeof PX !== 'undefined' && PX.page && PX.page.slug); }
 function otResaLink(code){
-  const slug = (typeof PX !== 'undefined' && PX.page && PX.page.slug) ? PX.page.slug : 'henzo';
-  return `${location.origin}/reserver.html?s=${encodeURIComponent(slug)}${code ? '&code=' + encodeURIComponent(code) : ''}`;
+  if(!otHasPage()) return '';
+  return `${location.origin}/reserver.html?s=${encodeURIComponent(PX.page.slug)}${code ? '&code=' + encodeURIComponent(code) : ''}`;
+}
+// Ouvre Tarifs > Partager pour creer la page
+function otOpenPartage(){
+  document.querySelectorAll('.ag-sheet-bg, .ag-sheet').forEach(el => { if(el.id) agCloseSheet(el.id); });
+  if(typeof PX !== 'undefined') PX.view = 'partage';
+  if(typeof showTab === 'function') showTab('tarifs');
+  if(typeof crmRenderTarifs === 'function') crmRenderTarifs();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function otNoPageHtml(txt){
+  return `<div class="crm-fete ot-nopage" style="cursor:default"><div class="ic">${agIcon('link')}</div><div class="d"><b>Ta page de tarifs n'est pas encore créée</b><span>${agEsc(txt || "Sans elle, il n'y a pas de lien de réservation à envoyer. Les messages partent sans lien.")}</span></div></div>
+    <button class="btn-secondary" style="margin-top:6px" onclick="otOpenPartage()">Créer ma page</button>`;
 }
 function otResaHtml(){
   const nouv = OT.resas.filter(r => r.status === 'nouvelle');
@@ -584,6 +622,8 @@ async function otResaDelete(id){
 async function otPromoUse(code, clientId, shootId){
   if(typeof CRM === 'undefined') return;
   const p = CRM.promos.find(x => String(x.code).toUpperCase() === String(code).toUpperCase()); if(!p) return;
+  // Une seule utilisation comptée par séance (le lien séance <-> code est gardé dans promos.uses)
+  if(shootId && (p.uses || []).some(u => u.shoot_id === shootId)) return;
   const uses = (p.uses || []).concat([{ client_id: clientId, shoot_id: shootId, date: new Date().toISOString() }]);
   const { error } = await sb.from('promos').update({ uses }).eq('id', p.id);
   if(!error) p.uses = uses;
@@ -610,8 +650,25 @@ function otApplyShootPromo(){
   const remise = Math.min(base, p.kind === 'amount' ? Number(p.value) : Math.round(base * Number(p.value) / 100));
   price.value = base - remise;
   if(typeof calculerNetShoot === 'function') try { calculerNetShoot(); } catch(e){}
-  OT.shootPromo = { code: p.code, base, remise };
+  OT.shootPromo = { id: p.id, code: p.code, base, remise };
   res.innerHTML = `<b>${agEsc(p.code)}</b> appliqué : ${agF(base)} - ${agF(remise)} = <b>${agF(base - remise)}</b>`;
+}
+// Bon personnel (clients ciblés) : une seule fois, et seulement pour ce client. Henzo peut forcer.
+function otPromoIsPersonal(p){ return !!(p && p.target && Array.isArray(p.target.ids) && p.target.ids.length); }
+async function otShootPromoCheck(promo, editId){
+  const p = (typeof CRM !== 'undefined' ? CRM.promos : []).find(x => x.id === promo.id || String(x.code).toUpperCase() === String(promo.code).toUpperCase());
+  if(!p || !otPromoIsPersonal(p)) return true;
+  const sel = document.getElementById('shootClient');
+  const cid = sel && sel.value && sel.value !== '__new__' ? Number(sel.value) : null;
+  const ids = p.target.ids.map(Number);
+  const nomDe = id => (((clients || []).find(c => c.id === Number(id))) || {}).name || 'un autre client';
+  const autres = (p.uses || []).filter(u => !editId || u.shoot_id !== editId);
+  const pb = [];
+  if(!cid || !ids.includes(cid)) pb.push(`Ce bon est réservé à ${ids.length === 1 ? nomDe(ids[0]) : ids.length + ' clients choisis'}${cid ? ', pas à ' + nomDe(cid) : ''}.`);
+  const deja = autres.filter(u => ids.length === 1 || Number(u.client_id) === cid);
+  if(deja.length) pb.push(`Il a déjà servi${deja[0].client_id ? ' pour ' + nomDe(deja[0].client_id) : ''}${deja[0].date ? ' le ' + new Date(deja[0].date).toLocaleDateString('fr-FR') : ''}. Un bon personnel ne sert qu'une fois.`);
+  if(!pb.length) return true;
+  return await agConfirm(`Code ${p.code} : attention\n${pb.join('\n')}\n\nL'utiliser quand même pour cette séance ?`, { ok: 'Utiliser quand même', no: 'Non, revenir' });
 }
 if(typeof openShootModal === 'function'){
   const _o = openShootModal;
@@ -627,15 +684,15 @@ if(typeof saveShoot === 'function'){
   const _o = saveShoot;
   saveShoot = async function(){
     const promo = OT.shootPromo, editId = typeof editingShootId !== 'undefined' ? editingShootId : null;
-    const before = shoots.length;
+    if(promo && !await otShootPromoCheck(promo, editId)) return;
     if(promo){
       const n = document.getElementById('shootNotes');
       if(n && !n.value.includes(promo.code)) n.value = (n.value ? n.value + '\n' : '') + `Code ${promo.code} : -${agN(promo.remise)} F (prix normal ${agN(promo.base)} F)`;
     }
     const r = await _o.apply(this, arguments);
-    if(promo){
-      const s = editId ? shoots.find(x => x.id === editId) : (shoots.length > before ? shoots[0] : null);
-      if(s) await otPromoUse(promo.code, s.client_id, s.id);
+    // On compte l'utilisation seulement si la séance a vraiment été enregistrée
+    if(promo && r && r.id){
+      await otPromoUse(promo.code, r.client_id, r.id);
       OT.shootPromo = null;
     }
     return r;
@@ -719,7 +776,7 @@ async function otLoadRappels(){
     if(!n.seances && p.rappels && p.rappels.on === false) OT.nt.seances.on = false;
   } catch(e){}
 }
-async function otSaveNotifs(){ if(typeof crmSavePrefs === 'function') await crmSavePrefs({ notifs: OT.nt }); }
+async function otSaveNotifs(){ return typeof crmSavePrefs === 'function' ? await crmSavePrefs({ notifs: OT.nt }) : false; }
 function otRegleTxt(r){
   const [hh, mm] = String(r.h || '09:00').split(':'); const h = Number(hh) + ' h' + (mm && mm !== '00' ? ' ' + mm : '');
   if(r.t === 'jour') return r.j === 0 ? `Le jour même à ${h}` : r.j === 1 ? `La veille à ${h}` : `${r.j} jours avant à ${h}`;
@@ -730,6 +787,15 @@ function otRapResume(){
   const s = OT.nt.seances;
   if(s.on === false) return 'désactivés';
   return (s.regles || []).length ? s.regles.length + ' rappel' + (s.regles.length > 1 ? 's' : '') + ' par séance' : 'aucun rappel choisi';
+}
+// Page Motivation : affiche les vraies heures reglees dans Notifications
+function otMotivHeures(){
+  const el = document.getElementById('motivHeures'); if(!el) return;
+  const m = OT.nt.motivation || {};
+  const hs = [...new Set((m.heures || []).filter(Boolean))].sort();
+  if(m.on === false) el.textContent = '(la motivation du jour est coupée dans Notifications)';
+  else if(!hs.length) el.textContent = 'aux heures choisies dans Notifications';
+  else el.textContent = 'à ' + hs.map(h => { const [a, b] = h.split(':'); return Number(a) + ' h' + (b && b !== '00' ? ' ' + b : ''); }).join(', ').replace(/, ([^,]*)$/, ' et $1') + ' (réglable dans Notifications)';
 }
 function otRappelsCard(){
   const host = document.getElementById('photo-subpage-seances');
@@ -801,8 +867,15 @@ function otNotifsRender(){
     </div>
 
     <button class="btn-primary" style="margin-top:14px" onclick="otNotifsSave()">Enregistrer</button>
-    <button class="btn-secondary" style="margin-top:8px" onclick="OT.nt=otClone(OT_NT_DEF);otNotifsRender()">Remettre les réglages de base</button>`;
+    <button class="btn-secondary" style="margin-top:8px" onclick="otNotifsReset()">Remettre les réglages de base</button>`;
   otRuleUi();
+}
+// Remet les valeurs de base. On vide la fenetre avant de redessiner, sinon les anciens interrupteurs sont relus.
+function otNotifsReset(){
+  OT.nt = otClone(OT_NT_DEF);
+  const box = document.getElementById('otNtBody'); if(box) box.innerHTML = '';
+  otNotifsRender();
+  agToast('Réglages de base remis. Touche Enregistrer pour les garder.');
 }
 function otRuleUi(){
   const t = (document.getElementById('otRt') || {}).value, el = document.getElementById('otRuleUi'); if(!el) return;
@@ -821,8 +894,8 @@ function otRuleAdd(){
 async function otNotifsSave(){
   otNotifsRead();
   ['galerie', 'motivation'].forEach(k => { OT.nt[k].heures = [...new Set((OT.nt[k].heures || []).filter(Boolean))].sort(); });
-  await otSaveNotifs();
-  agCloseSheet('otNt'); otRappelsCard(); otShootBells(true); agToast('Notifications enregistrées');
+  if(!await otSaveNotifs()) return;   // le message d'erreur est deja affiche
+  agCloseSheet('otNt'); otRappelsCard(); otShootBells(true); otMotivHeures(); agToast('Notifications enregistrées');
 }
 async function otRappelsSave(){ return otNotifsSave(); }
 function otShootBells(force){
@@ -843,7 +916,14 @@ function otShootBells(force){
 }
 async function otToggleShootRappel(id){
   const s = (shoots || []).find(x => x.id === id); if(!s) return;
-  if(!OT.rap.on){ if(await agConfirm('Les rappels sont coupés pour toutes les séances. Les réactiver ?', { ok: 'Réactiver' })){ OT.nt.seances.on = true; await otSaveNotifs(); otRappelsCard(); } else return; }
+  if(!OT.rap.on){
+    // Rappels coupés partout : on propose de les rallumer, sans toucher à cette séance
+    if(await agConfirm('Les rappels sont coupés pour toutes les séances. Les réactiver ?', { ok: 'Réactiver' })){
+      OT.nt.seances.on = true; await otSaveNotifs(); otRappelsCard(); otShootBells(true);
+      agToast('Rappels de séances réactivés');
+    }
+    return;
+  }
   const r = await dbUpdate('shoots', id, { rappels_off: !s.rappels_off });
   if(r){ Object.assign(s, r); otShootBells(true); agToast(r.rappels_off ? 'Rappels coupés pour cette séance' : 'Rappels réactivés pour cette séance'); }
 }
@@ -872,7 +952,7 @@ showTab = function(name, btn){
 })();
 (async function otInit(){
   await otLoadResas();
-  await otLoadRappels(); otRappelsCard(); otShootBells(true);
+  await otLoadRappels(); otRappelsCard(); otShootBells(true); otMotivHeures();
   let n = 0; const iv = setInterval(() => { otAddMenus(); otTopButtons(); if(++n > 20) clearInterval(iv); }, 500);
   if(otActivePage() === 'clients' && typeof crmRender === 'function') crmRender();
 })();
