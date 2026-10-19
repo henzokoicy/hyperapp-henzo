@@ -258,7 +258,8 @@ const OT_GROUPS = [
   { k: 'idees', n: 'Idées et inspirations', t: ['saved_ideas', 'inspirations'] },
   { k: 'promos', n: 'Promos et bons', t: ['promos'] },
   { k: 'tarifs', n: 'Tarifs, devis, page de tarifs', t: ['devis', 'tarifs', 'tarif_page'] },
-  { k: 'mood', n: 'Moodboards', t: ['mood_feedback', 'mood_images', 'mood_boards'], d: 'Tableaux, images et choix des clients' }
+  { k: 'mood', n: 'Moodboards', t: ['mood_feedback', 'mood_images', 'mood_boards'], d: 'Tableaux, images et choix des clients' },
+  { k: 'reglages', n: 'Réglages', t: ['user_settings'], d: 'Notifications, préférences, thème, messages' }
 ];
 const OT_ORDER = ['accounts', 'goals', 'goal_reminders', 'clients', 'shoots', 'transactions', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'client_messages', 'promos', 'tarifs', 'devis', 'tarif_page', 'reservations', 'mood_boards', 'mood_images', 'mood_feedback', 'user_settings'];
 
@@ -276,10 +277,24 @@ async function otSnapshot(){
   const uid = await otUid(); if(!uid) throw new Error('Non connecté');
   const tables = {};
   for(const t of OT_ORDER){
-    const { data, error } = await sb.from(t).select('*').eq('user_id', uid);
-    if(!error) tables[t] = t === 'user_settings' ? (data || []).map(otNoSecrets) : (data || []);
+    // Par paquets de 1000 (la base n'en renvoie jamais plus d'un coup)
+    let data = [], error = null;
+    for(let from = 0; ; from += 1000){
+      const r = await sb.from(t).select('*').eq('user_id', uid).range(from, from + 999);
+      if(r.error){ error = r.error; break; }
+      data = data.concat(r.data || []);
+      if(!r.data || r.data.length < 1000) break;
+    }
+    if(error){ console.warn('Sauvegarde : ' + t + ' ignorée (' + error.message + ')'); continue; }
+    tables[t] = t === 'user_settings' ? data.map(otNoSecrets) : data;
   }
   return { app: 'henzo-super-app', version: 1, date: new Date().toISOString(), tables };
+}
+function otResume(tables){
+  const n = t => (tables && tables[t] ? (Array.isArray(tables[t]) ? tables[t].length : Number(tables[t]) || 0) : 0);
+  const parts = [[n('shoots'), 'séance'], [n('transactions'), 'mouvement'], [n('clients'), 'client'], [n('goals'), 'coffre']]
+    .filter(x => x[0]).map(([v, l]) => v + ' ' + l + (v > 1 ? 's' : ''));
+  return parts.join(' · ') || 'vide';
 }
 function otCount(snap){ return Object.values(snap.tables || {}).reduce((s, r) => s + r.length, 0); }
 async function otCloudSave(label){
@@ -302,19 +317,23 @@ function otDownload(snap){
 
 async function otOpenData(){
   agSheet('otData', `<h3>Mes données</h3><div class="ag-empty">Chargement...</div>`);
-  const { data } = await sb.from('app_backups').select('id,label,size,created_at').order('created_at', { ascending: false }).limit(30);
+  // On lit juste le nombre d'elements de chaque sauvegarde (pas tout le contenu)
+  let { data, error } = await sb.from('app_backups').select('id,label,size,created_at,shoots:data->tables->shoots,transactions:data->tables->transactions,clients:data->tables->clients,goals:data->tables->goals').order('created_at', { ascending: false }).limit(30);
+  if(error){ ({ data } = await sb.from('app_backups').select('id,label,size,created_at').order('created_at', { ascending: false }).limit(30)); }
   const list = data || [];
+  OT.lastBackupAt = list[0] ? list[0].created_at : null;
   agSheet('otData', `
     <h3>Mes données</h3>
-    <div class="ag-hint" style="margin-top:0">Avant chaque remise à zéro ou import, l'app fait toujours une sauvegarde automatique dans le cloud.</div>
-    <h4 class="crm-h4">Sauvegarder</h4>
-    <div class="crm-2"><button class="btn-primary" onclick="otBackupNow(true)">Télécharger</button><button class="btn-secondary" onclick="otBackupNow(false)">Dans le cloud</button></div>
-    <h4 class="crm-h4">Importer</h4>
-    <button class="btn-secondary" onclick="document.getElementById('otImpFile').click()">Choisir un fichier de sauvegarde</button>
+    <div class="ag-hint" style="margin-top:0">Une sauvegarde contient TOUT ton panel : argent, comptes, coffres, séances, clients, notes, promos, tarifs, moodboards et réglages (sauf ta clé IA et ton mot de passe galerie).</div>
+    <h4 class="crm-h4">Sauvegarder maintenant</h4>
+    <div class="crm-2"><button class="btn-primary" onclick="otBackupNow(false)">Garder en ligne</button><button class="btn-secondary" onclick="otBackupNow(true)">+ fichier sur mon téléphone</button></div>
+    <div class="ag-hint"><b>En ligne</b> = rangée dans ton compte de l'app (sur internet), pas sur ton téléphone. Tu la retrouves dans la liste juste en dessous, même si tu changes de téléphone.<br><b>Fichier</b> = en plus, un fichier .json va dans les Téléchargements de ton téléphone ou de ton ordinateur.<br>L'app fait aussi une sauvegarde en ligne automatique chaque jour, et avant chaque remise à zéro ou restauration.</div>
+    <h4 class="crm-h4">Restaurer depuis un fichier</h4>
+    <button class="btn-secondary" onclick="document.getElementById('otImpFile').click()">Choisir un fichier de sauvegarde (.json)</button>
     <input type="file" id="otImpFile" accept=".json,application/json" style="display:none" onchange="otImportFile(this.files[0])">
-    <h4 class="crm-h4">Sauvegardes dans le cloud</h4>
-    <div class="ag-list">${list.length ? list.map(b => `<div class="crm-line"><div><b>${agEsc(b.label || 'Sauvegarde')}</b><span>${new Date(b.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${Math.max(1, Math.round((b.size || 0) / 1024))} Ko</span></div>
-      <div style="display:flex;gap:6px"><button class="ag-ibtn" title="Télécharger" onclick="otCloudDownload(${b.id})">${agIcon('download', 15)}</button><button class="btn-secondary" style="width:auto;padding:8px 12px" onclick="otCloudRestore(${b.id})">Restaurer</button></div></div>`).join('') : '<div class="ag-empty">Aucune sauvegarde dans le cloud.</div>'}</div>
+    <h4 class="crm-h4">Mes sauvegardes en ligne (la plus récente en haut)</h4>
+    <div class="ag-list">${list.length ? list.map((b, i) => `<div class="crm-line"><div><b>${i === 0 ? '🟢 ' : ''}${agEsc(b.label || 'Sauvegarde')}</b><span>${new Date(b.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · ${otResume(b)}</span></div>
+      <div style="display:flex;gap:6px"><button class="ag-ibtn" title="Télécharger" onclick="otCloudDownload(${b.id})">${agIcon('download', 15)}</button><button class="btn-secondary" style="width:auto;padding:8px 12px" onclick="otCloudRestore(${b.id})">Restaurer</button></div></div>`).join('') : '<div class="ag-empty">Aucune sauvegarde en ligne pour le moment.</div>'}</div>
     <h4 class="crm-h4">Remise à zéro</h4>
     <button class="btn-secondary" onclick="otResetMoney()">Remettre l'argent à zéro</button>
     <button class="btn-danger" style="width:100%;padding:12px;margin-top:8px" onclick="otResetApp()">Réinitialiser l'app (au choix)</button>
@@ -323,9 +342,9 @@ async function otOpenData(){
 async function otBackupNow(download){
   try {
     agToast('Sauvegarde en cours...');
-    const snap = await otCloudSave(download ? 'Sauvegarde téléchargée' : 'Sauvegarde manuelle');
+    const snap = await otCloudSave(download ? 'Sauvegarde (+ fichier)' : 'Sauvegarde manuelle');
     if(download) otDownload(snap);
-    agToast(`Sauvegardé (${otCount(snap)} éléments)`);
+    agToast(`Sauvegardé en ligne${download ? ' + fichier téléchargé' : ''} : ${otResume(snap.tables)}`);
     otOpenData();
   } catch(e){ alert(e.message); }
 }
@@ -352,45 +371,93 @@ function otImportFile(file){
 function otImportChoose(snap, label){
   OT.importSnap = snap;
   const rows = OT_GROUPS.map(g => ({ g, n: g.t.reduce((s, t) => s + ((snap.tables[t] || []).length), 0) })).filter(x => x.n);
+  const plusRecente = OT.lastBackupAt && snap.date && (new Date(OT.lastBackupAt) - new Date(snap.date) > 60000);
   agSheet('otImp', `
     <h3>Restaurer</h3>
-    <div class="ag-hint" style="margin-top:0">${agEsc(label)}${snap.date ? ' · faite le ' + new Date(snap.date).toLocaleString('fr-FR') : ''}</div>
+    <div class="ag-hint" style="margin-top:0">${agEsc(label)}${snap.date ? ' · faite le <b>' + new Date(snap.date).toLocaleString('fr-FR') + '</b>' : ''}<br>Contenu : ${otResume(snap.tables)}</div>
+    ${plusRecente ? `<div class="ag-hint" style="color:var(--yellow);border:1px solid var(--yellow);border-radius:10px;padding:10px">⚠️ Cette sauvegarde est plus ANCIENNE que ta dernière sauvegarde en ligne (${new Date(OT.lastBackupAt).toLocaleString('fr-FR')}). Tout ce que tu as fait après le ${new Date(snap.date).toLocaleString('fr-FR')} ne sera pas dedans. Vérifie que c'est bien celle que tu veux.</div>` : ''}
     <div class="ag-list">${rows.map(x => `<label class="crm-pick"><input type="checkbox" value="${x.g.k}" checked><div><b>${agEsc(x.g.n)}</b><span>${x.n} élément${x.n > 1 ? 's' : ''}</span></div></label>`).join('') || '<div class="ag-empty">Sauvegarde vide</div>'}</div>
     <label>Comment ?</label>
     <div class="ag-pills" id="otImpMode"><button class="on" data-m="replace" onclick="agPick(this)">Remplacer</button><button data-m="merge" onclick="agPick(this)">Ajouter / mettre à jour</button></div>
-    <div class="ag-hint">Remplacer : ce qui est coché est d'abord vidé, puis remis comme dans la sauvegarde (les clients ne sont jamais vidés, seulement ajoutés ou mis à jour). Ajouter : rien n'est effacé, les éléments manquants sont ajoutés.</div>
-    <button class="btn-primary" onclick="otImportRun()">Restaurer maintenant</button>`);
+    <div class="ag-hint">Remplacer : ce qui est coché redevient exactement comme dans la sauvegarde (les clients ne sont jamais effacés, seulement ajoutés ou mis à jour). Ajouter : rien n'est effacé, les éléments de la sauvegarde sont ajoutés ou remis.</div>
+    <button class="btn-primary" id="otImpBtn" onclick="otImportRun()">Restaurer maintenant</button>`);
 }
 async function otImportRun(){
   const snap = OT.importSnap; if(!snap) return;
+  if(OT.importBusy || !document.getElementById('otImp')) return;
   const keys = [...document.querySelectorAll('#otImp input:checked')].map(i => i.value);
   const mode = document.querySelector('#otImpMode button.on').dataset.m;
   if(!keys.length){ alert('Coche au moins une partie'); return; }
   if(!await agConfirm(mode === 'replace' ? 'Remplacer ces données par celles de la sauvegarde ?\nUne sauvegarde de ton état actuel sera faite avant.' : 'Ajouter les données de la sauvegarde ?')) return;
+  if(OT.importBusy) return;
+  OT.importBusy = true;
+  const btn = document.getElementById('otImpBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Restauration en cours, patiente...'; }
   const tables = OT_GROUPS.filter(g => keys.includes(g.k)).flatMap(g => g.t);
   try {
     agToast('Sauvegarde de sécurité...');
     await otCloudSave('Automatique avant restauration');
     const uid = await otUid();
-    // Les clients ne sont jamais vides avant : seulement ajoutes ou mis a jour (sinon les seances perdent leur client)
-    if(mode === 'replace') await otWipe(tables.filter(t => t !== 'clients'), uid);
+    // 1. On remet d'abord tout ce qui est dans la sauvegarde (rien n'est vidé avant :
+    //    si quelque chose plante en route, aucune donnée n'est perdue)
     for(const t of OT_ORDER.filter(x => tables.includes(x))){
-      // Une vieille sauvegarde peut contenir la cle IA ou le mot de passe galerie : on garde ceux de l'appareil
-      const rows = (snap.tables[t] || []).map(r => ({ ...(t === 'user_settings' ? otNoSecrets(r) : r), user_id: uid }));
+      let rows = (snap.tables[t] || []).map(r => ({ ...(t === 'user_settings' ? otNoSecrets(r) : r), user_id: uid }));
+      if(t === 'user_settings'){
+        // On garde la cle IA et le mot de passe galerie de maintenant
+        const { data: cur } = await sb.from('user_settings').select('*').eq('user_id', uid).maybeSingle();
+        rows = rows.slice(0, 1).map(r => {
+          const o = { ...r }; delete o.id;
+          if(cur && cur.user_preferences && typeof cur.user_preferences === 'object' && o.user_preferences && typeof o.user_preferences === 'object'){
+            const keep = {}; ['aiConfig', 'ai_config', 'galerie_admin_pwd'].forEach(k => { if(k in cur.user_preferences) keep[k] = cur.user_preferences[k]; });
+            o.user_preferences = { ...o.user_preferences, ...keep };
+          }
+          return o;
+        });
+      }
       for(let i = 0; i < rows.length; i += 200){
         const part = rows.slice(i, i + 200);
-        const { error } = t === 'tarif_page'
-          ? await sb.from(t).upsert(part, { onConflict: 'user_id' })
-          : await sb.from(t).upsert(part, { onConflict: 'id' });
+        const conflict = (t === 'tarif_page' || t === 'user_settings') ? 'user_id' : 'id';
+        const { error } = await sb.from(t).upsert(part, { onConflict: conflict });
+        if(error) throw new Error(t + ' : ' + error.message);
+      }
+    }
+    // 2. Mode Remplacer : on enleve seulement ce qui n'existait pas dans la sauvegarde
+    //    (les plus "dependants" d'abord). Les clients ne sont jamais effaces.
+    if(mode === 'replace'){
+      const order = ['transactions', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'mood_feedback', 'mood_images', 'mood_boards', 'goals', 'accounts'];
+      for(const t of order.filter(x => tables.includes(x))){
+        const ids = (snap.tables[t] || []).map(r => r.id).filter(v => v != null);
+        let q = sb.from(t).delete().eq('user_id', uid);
+        if(ids.length) q = q.not('id', 'in', '(' + ids.join(',') + ')');
+        const { error } = await q;
         if(error) throw new Error(t + ' : ' + error.message);
       }
     }
     try { await sb.rpc('app_fix_sequences'); } catch(e){}
     agCloseSheet('otImp'); agCloseSheet('otData');
     await otRefresh(true);
-    agToast('Restauration terminée');
-  } catch(e){ alert('Erreur pendant la restauration : ' + e.message + "\nTon état d'avant est dans les sauvegardes cloud."); }
+    agToast('Restauration terminée : ' + otResume(snap.tables));
+  } catch(e){
+    alert('Erreur pendant la restauration : ' + e.message + "\nTon état d'avant est dans tes sauvegardes en ligne (\"Automatique avant restauration\").");
+  } finally {
+    OT.importBusy = false;
+    const b = document.getElementById('otImpBtn');
+    if(b){ b.disabled = false; b.textContent = 'Restaurer maintenant'; }
+  }
 }
+
+// Sauvegarde en ligne automatique, une fois par jour (a l'ouverture de l'app)
+async function otAutoBackup(){
+  try {
+    const uid = await otUid(); if(!uid) return;
+    const { data } = await sb.from('app_backups').select('created_at').eq('user_id', uid).order('created_at', { ascending: false }).limit(1);
+    const last = data && data[0] ? new Date(data[0].created_at) : null;
+    if(last && Date.now() - last.getTime() < 24 * 3600 * 1000) return;
+    await otCloudSave('Automatique du jour');
+  } catch(e){ console.warn('Sauvegarde auto :', e.message || e); }
+}
+setTimeout(otAutoBackup, 20000);
+
 async function otWipe(tables, uid){
   const order = ['transactions', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_page', 'mood_feedback', 'mood_images', 'mood_boards', 'clients', 'goals', 'accounts'];
   for(const t of order.filter(x => tables.includes(x))){
@@ -453,7 +520,7 @@ async function otResetAppRun(){
     agCloseSheet('otRA'); agCloseSheet('otData');
     await otRefresh(true);
     agToast('Réinitialisation terminée');
-  } catch(e){ alert('Erreur : ' + (e.message || e) + "\nTes données d'avant sont dans les sauvegardes cloud."); }
+  } catch(e){ alert('Erreur : ' + (e.message || e) + "\nTes données d'avant sont dans tes sauvegardes en ligne."); }
 }
 // Bouton "Mes donnees" dans les menus
 function otAddMenus(){
