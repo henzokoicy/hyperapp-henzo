@@ -561,3 +561,13 @@ body:has(.ag-sheet) .ot-selbar,body:has(.modal-bg.show) .ot-selbar,body:has(.ag-
 .mb-ref{display:flex !important;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-top:6px}
 .mb-ref img{width:34px !important;height:34px;aspect-ratio:auto !important;object-fit:cover;border-radius:7px;cursor:pointer}
 .mb-fb-imgs .mb-ref{flex-wrap:wrap}
+/* Glisser-deposer */
+.ot-dropzone{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px;margin:0 0 12px;border:2px dashed var(--border);border-radius:18px;color:var(--muted);cursor:pointer;text-align:left}
+.ot-dropzone b{display:block;color:var(--text);font-size:14px}.ot-dropzone span{font-size:12px}
+.ot-dropzone:hover{border-color:var(--accent);color:var(--accent)}
+@media (hover:none){.ot-dropzone b:after{content:""}}
+.ot-drop{position:fixed;inset:0;z-index:5000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);pointer-events:none}
+.ot-drop.show{display:flex}
+.ot-drop-in{display:flex;flex-direction:column;align-items:center;gap:10px;padding:40px 50px;border:3px dashed var(--accent);border-radius:28px;background:var(--card);color:var(--text);text-align:center}
+.ot-drop-in b{font-size:20px}.ot-drop-in span{font-size:14px;color:var(--muted)}
+.ot-drop-in svg{color:var(--accent)}

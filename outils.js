@@ -624,6 +624,51 @@ if(typeof saveShoot === 'function'){
 }
 
 // ============================================================
+// 7. GLISSER-DEPOSER DES PHOTOS (galerie et moodboard)
+// ============================================================
+function otDropTarget(){
+  const p = otActivePage();
+  if(p === 'galerie' && typeof galCurrent !== 'undefined' && galCurrent && galCurrent !== '__avis__' && typeof galUpload === 'function'){
+    const g = (typeof galList !== 'undefined' ? galList : []).find(x => x.code === galCurrent);
+    return { label: 'Galerie de ' + (g ? g.nomClient : galCurrent), run: files => galUpload(galCurrent, files) };
+  }
+  if(p === 'mood' && typeof MB !== 'undefined' && MB.cur && typeof mbUpload === 'function'){
+    const b = mbBoard(MB.cur);
+    return { label: 'Moodboard ' + (b ? b.title : ''), run: files => mbUpload(MB.cur, files) };
+  }
+  return null;
+}
+(function otDragDrop(){
+  let depth = 0;
+  const hasFiles = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  const overlay = () => {
+    let o = document.getElementById('otDrop');
+    if(!o){ o = document.createElement('div'); o.id = 'otDrop'; o.className = 'ot-drop'; document.body.appendChild(o); }
+    return o;
+  };
+  const hide = () => { depth = 0; const o = document.getElementById('otDrop'); if(o) o.classList.remove('show'); };
+  document.addEventListener('dragenter', e => {
+    if(!hasFiles(e)) return;
+    const t = otDropTarget(); if(!t) return;
+    e.preventDefault(); depth++;
+    const o = overlay();
+    o.innerHTML = `<div class="ot-drop-in">${agIcon('download', 34)}<b>Dépose tes photos</b><span>${agEsc(t.label)}</span></div>`;
+    o.classList.add('show');
+  });
+  document.addEventListener('dragover', e => { if(hasFiles(e) && otDropTarget()){ e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+  document.addEventListener('dragleave', e => { if(!hasFiles(e)) return; depth = Math.max(0, depth - 1); if(!depth) hide(); });
+  document.addEventListener('drop', e => {
+    if(!hasFiles(e)) return;
+    const t = otDropTarget(); hide();
+    if(!t) return;
+    e.preventDefault();
+    const files = [...e.dataTransfer.files].filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name));
+    if(!files.length){ agToast('Dépose des photos (JPG, PNG...)'); return; }
+    t.run(files);
+  });
+})();
+
+// ============================================================
 // DEMARRAGE
 // ============================================================
 const _otShowTab = showTab;

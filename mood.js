@@ -165,6 +165,7 @@ function mbRenderBoard(){
     <button class="btn-secondary mb-sharebtn" onclick="mbShare(${b.id})">${agIcon('chat', 16)} ${b.share_on ? 'Lien client actif : renvoyer ou gérer' : 'Envoyer au client pour qu\'il choisisse'}</button>
     ${mbFbHtml(b.id)}
     <input type="file" id="mbFiles" accept="image/*" multiple style="display:none" onchange="mbUpload(${b.id}, this.files)">
+    <div class="ot-dropzone" onclick="document.getElementById('mbFiles').click()">${agIcon('download', 20)}<div><b>Glisse tes images ici</b><span>ou touche pour les choisir</span></div></div>
     <div id="mbUp"></div>
     ${MB.selMode ? `<div class="mb-selbar"><span>${MB.sel.size} choisie${MB.sel.size > 1 ? 's' : ''}</span>
       <button onclick="mbSelAll()">Tout</button>

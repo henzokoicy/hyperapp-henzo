@@ -230,6 +230,7 @@ async function galOpen(code){
         <button class="ag-ibtn" title="Modifier la galerie" onclick="galOpenEdit('${agEsc(g.code)}')">${agIcon('edit', 17)}</button></div>
     </div>
     <input type="file" id="galFiles" accept="image/*" multiple style="display:none" onchange="galUpload('${agEsc(code)}', this.files)">
+    <div class="ot-dropzone" onclick="document.getElementById('galFiles').click()">${agIcon('download', 20)}<div><b>Glisse tes photos ici</b><span>ou touche pour les choisir</span></div></div>
     <div id="galUp"></div>
     <div class="seg-bar ag-gal-tabs" style="display:flex">
       <button class="on" data-t="photos" onclick="galTab(this)">Photos</button>

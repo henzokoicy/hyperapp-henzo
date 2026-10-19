@@ -39,6 +39,7 @@ h2{font-size:19px;font-weight:700;margin:6px 0 4px}
 .ref img{width:28px;height:28px;object-fit:cover;border-radius:6px}
 .drop{display:flex;flex-direction:column;align-items:center;gap:8px;padding:26px 16px;border:2px dashed var(--line);border-radius:20px;background:var(--card);text-align:center;cursor:pointer;margin-bottom:14px}
 .drop b{font-size:16px}.drop span{font-size:13px;color:var(--muted)}
+.drop.over{border-color:var(--violet);background:rgba(124,108,255,.12)}
 .drop .ic{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:rgba(124,108,255,.18);color:#c9c2ff}
 .prog{font-size:13px;color:var(--light);margin:-6px 0 12px;min-height:18px}
 label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
@@ -119,7 +120,7 @@ function step1(){
 function step2(){
   var h = '<h2>Vos idées et vos photos</h2><p class="sub">Ajoutez vos inspirations : captures Pinterest ou Instagram, photo de votre tenue, d\'un décor, d\'une coiffure... Expliquez en un mot ce que vous voulez.</p>' +
     (S.ref && imgById(S.ref) ? '<div class="ref" style="padding:0 0 10px"><img src="' + esc(imgById(S.ref).url) + '" alt=""> Votre prochaine photo sera une variante de celle-ci <a href="#" style="color:var(--light);margin-left:6px" onclick="S.ref=null;render();return false">annuler</a></div>' : '') +
-    '<div class="drop" onclick="document.getElementById(\'files\').click()"><div class="ic">' + plus + '</div><b>Ajouter mes photos</b><span>Depuis votre galerie, plusieurs à la fois</span></div><div class="prog" id="prog"></div>';
+    '<div class="drop" id="dropz" onclick="document.getElementById(\'files\').click()"><div class="ic">' + plus + '</div><b>Ajouter mes photos</b><span>Depuis votre galerie, plusieurs à la fois, ou glissez-les ici</span></div><div class="prog" id="prog"></div>';
   if(S.mine.length) h += '<div class="grid">' + S.mine.map(function(m, k){ var r = m.ref && imgById(m.ref);
     return '<div class="t mine"><img class="ph" src="' + esc(m.url) + '" loading="lazy" alt="" onclick="zoom(\'' + esc(m.url) + '\')"><button class="x" onclick="retirer(' + k + ')" aria-label="Retirer">×</button>' +
       (r ? '<div class="ref"><img src="' + esc(r.url) + '" alt=""> variante de cette photo</div>' : '') +
@@ -204,6 +205,16 @@ function renderOk(){
     '<p><a href="#" style="color:var(--light)" onclick="S.sent=false;S.step=1;render();return false">Modifier mes choix</a></p></div>';
   document.getElementById('bar').style.display = 'none';
 }
+document.addEventListener('dragover', function(e){ if(S.b && !S.sent){ e.preventDefault(); var d = document.getElementById('dropz'); if(d) d.classList.add('over'); } });
+document.addEventListener('dragleave', function(e){ if(!e.relatedTarget){ var d = document.getElementById('dropz'); if(d) d.classList.remove('over'); } });
+document.addEventListener('drop', function(e){
+  if(!S.b || S.sent || !e.dataTransfer || !e.dataTransfer.files.length) return;
+  e.preventDefault();
+  var f = Array.prototype.filter.call(e.dataTransfer.files, function(x){ return /^image\//.test(x.type); });
+  if(!f.length) return;
+  if(S.step !== 2){ S.step = 2; render(); }
+  ajouter(f);
+});
 init();
 </script>
 </body>
