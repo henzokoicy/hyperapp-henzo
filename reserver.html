@@ -59,6 +59,7 @@ var SUPABASE_KEY = 'sb_publishable_L4Udla2VCbZsNjdm9IRuJw_ExshPrPc';
 var UNITS = { personne: 'par personne', tirage: 'par tirage', photo: 'par photo', heure: 'par heure', tenue: 'par tenue' };
 var S = { page: null, f: [], o: [], sel: null, qty: {}, promo: null, code: '', sent: null, form: { nom: '', tel: '', date: '', msg: '' } };
 var sb;
+function notif(o){ try { fetch(SUPABASE_URL + '/functions/v1/notifier', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY }, body: JSON.stringify(o), keepalive: true }).catch(function(){}); } catch(e){} }
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 function F(n){ return new Intl.NumberFormat('fr-FR').format(Math.round(Number(n) || 0)) + ' F'; }
 var tick = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
@@ -138,7 +139,7 @@ async function envoyer(){
     var r = await sb.rpc('creer_reservation', { p_slug: S.page.slug, p_nom: fm.nom.trim(), p_tel: fm.tel.trim(), p_formule_id: S.sel, p_options: opts,
       p_date: fm.date ? new Date(fm.date).toISOString() : '', p_message: fm.msg.trim(), p_code: S.promo && S.promo.valid ? S.code : '' });
     if(r.error) throw new Error(r.error.message);
-    S.sent = r.data; render();
+    S.sent = r.data; if(r.data && r.data.id) notif({ type: 'resa', id: r.data.id }); render();
   } catch(e){ err.textContent = (e.message || 'Erreur') .replace(/^.*?:\s*/, '') || 'Erreur, réessayez.'; b.disabled = false; b.textContent = 'Envoyer ma demande'; }
 }
 function renderOk(){

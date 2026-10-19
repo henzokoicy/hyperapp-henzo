@@ -78,6 +78,7 @@ var S = { tok: '', b: null, step: 1, picks: {}, notes: {}, mine: [], ref: null, 
 var heart = '<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" stroke-linejoin="round"/></svg>';
 var plus = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function notif(o){ try { fetch(SUPABASE_URL + '/functions/v1/notifier', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY }, body: JSON.stringify(o), keepalive: true }).catch(function(){}); } catch(e){} }
 function henzoImgs(){ return (S.b.images || []).filter(function(i){ return !i.mine; }); }
 function imgById(id){ return (S.b.images || []).filter(function(i){ return i.id === id; })[0]; }
 async function init(){
@@ -93,6 +94,7 @@ async function init(){
       else if(i.pick){ S.picks[i.id] = true; if(i.cnote) S.notes[i.id] = i.cnote; }
     });
   } catch(e){ document.getElementById('app').innerHTML = '<div class="empty">Impossible de charger. Vérifiez votre connexion.</div>'; return; }
+  notif({ type: 'mood_open', token: S.tok });
   render();
 }
 function go(n){ S.step = n; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -193,6 +195,7 @@ async function envoyer(){
     var r = await sb.rpc('mood_choisir', { p_token: S.tok, p_picks: ids.map(function(id){ return { id: Number(id), note: (S.notes[id] || '').trim() }; }), p_nom: S.nom.trim(), p_message: S.msg.trim() });
     if(r.error) throw new Error(r.error.message);
     try { localStorage.setItem('mb_nom', S.nom.trim()); } catch(e){}
+    notif({ type: 'mood_send', token: S.tok, nb: ids.length, added: S.mine.length, nom: S.nom.trim() });
     S.sent = true; S.busy = false; render();
   } catch(e){ S.busy = false; bar(); var er = document.getElementById('err'); if(er) er.textContent = 'Erreur, réessayez.'; }
 }

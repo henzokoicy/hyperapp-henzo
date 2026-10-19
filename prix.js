@@ -198,7 +198,7 @@ async function pxSave(id){
   agCloseSheet('crmTarif'); agToast('Enregistré'); crmRenderTarifs();
 }
 async function crmTarifDelete(id){
-  if(!confirm('Supprimer cette ligne de ta grille ?')) return;
+  if(!await agConfirm('Supprimer cette ligne de ta grille ?')) return;
   const { error } = await sb.from('tarifs').delete().eq('id', id);
   if(error){ alert(error.message); return; }
   CRM.tarifs = CRM.tarifs.filter(x => x.id !== id); agCloseSheet('crmTarif'); crmRenderTarifs();
@@ -329,7 +329,7 @@ async function pxQuoteStatus(id, status){
   PX.devis.find(x => x.id === id).status = status; pxOpenQuote(id); crmRenderTarifs();
 }
 async function pxQuoteDelete(id){
-  if(!confirm('Supprimer ce devis ?')) return;
+  if(!await agConfirm('Supprimer ce devis ?')) return;
   const { error } = await sb.from('devis').delete().eq('id', id);
   if(error){ alert(error.message); return; }
   PX.devis = PX.devis.filter(x => x.id !== id); agCloseSheet('pxQuote'); crmRenderTarifs();

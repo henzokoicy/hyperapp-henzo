@@ -300,7 +300,7 @@ async function saveNote(){
 }
 
 async function delNote(id){
-  if(!confirm('Supprimer cette note ?')) return;
+  if(!await agConfirm('Supprimer cette note ?')) return;
   const ok = await dbDelete('notes', id);
   if(!ok) return;
   notes = notes.filter(n => n.id !== id);
@@ -526,7 +526,7 @@ async function saveInspiration(){
 }
 
 async function delInspiration(id){
-  if(!confirm("Supprimer cette inspiration ?")) return;
+  if(!await agConfirm("Supprimer cette inspiration ?")) return;
   const ok = await dbDelete('inspirations', id);
   if(!ok) return;
   inspirations = inspirations.filter(x => x.id !== id);
@@ -1184,7 +1184,7 @@ async function saveCoffre(){
 }
 
 async function delCoffre(id){
-  if(!confirm("Supprimer cet objectif ?")) return;
+  if(!await agConfirm("Supprimer cet objectif ?")) return;
   const ok = await dbDelete('goals', id);
   if(!ok) return;
   coffres = coffres.filter(c => c.id !== id);
@@ -1465,7 +1465,7 @@ async function saveClient(){
 }
 
 async function delClient(id){
-  if(!confirm("Supprimer ce client ?")) return;
+  if(!await agConfirm("Supprimer ce client ?")) return;
   const ok = await dbDelete('clients', id);
   if(!ok) return;
   clients = clients.filter(c => c.id !== id);
@@ -1863,7 +1863,7 @@ async function validerRepartition(shootId, maxDisponible){
 // ANNULER UNE RÉPARTITION
 // ============================================================
 async function annulerRepartition(shootId, txId, montant, goalId){
-  if(!confirm('Annuler cette répartition ?')) return;
+  if(!await agConfirm('Annuler cette répartition ?')) return;
 
   // Supprimer la transaction d'épargne
   const ok = await dbDelete('transactions', txId);
@@ -1998,7 +1998,7 @@ async function saveShoot(){
       const conflitClient = conflit.client_id ? clients.find(c => c.id === conflit.client_id) : null;
       const conflitDate = new Date(conflit.date).toLocaleString('fr-FR', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'});
       const conflitTxt = `⚠️ Tu as déjà une séance prévue à moins de 3h de cette heure-là :\n${conflit.type}${conflitClient ? ' · ' + conflitClient.name : ''} — ${conflitDate}\n\nEnregistrer quand même ?`;
-      if(!confirm(conflitTxt)) return;
+      if(!await agConfirm(conflitTxt)) return;
     }
   }
 
@@ -2117,12 +2117,12 @@ async function delShoot(id){
         (reparti > 0 ? `• Réparti : ${fmt(reparti)}\n` : '') +
         (charges > 0 ? `• Charges : ${fmt(charges)}\n` : '') +
         `\nSupprimer la séance NE supprime PAS ces transactions dans ton historique — elles resteront, mais plus liées à aucune séance.\n\nSupprimer quand même ?`;
-      if(!confirm(avertissement)) return;
+      if(!await agConfirm(avertissement)) return;
     } else {
-      if(!confirm("Supprimer ?")) return;
+      if(!await agConfirm("Supprimer ?")) return;
     }
   } else {
-    if(!confirm("Supprimer ?")) return;
+    if(!await agConfirm("Supprimer ?")) return;
   }
 
   const ok = await dbDelete('shoots', id);
@@ -2350,10 +2350,10 @@ async function cancelShoot(id){
     const avertissement = `⚠️ Cette séance a déjà encaissé ${fmt(recuAvant)}` +
       (repartiAvant > 0 ? ` (dont ${fmt(repartiAvant)} déjà réparti dans tes coffres)` : '') +
       `.\n\nAnnuler la séance ne va PAS annuler ce paiement : il restera dans ton historique et tes coffres.\nSi besoin, utilise d'abord "↺ Reset des paiements" sur cette séance.\n\nContinuer l'annulation quand même ?`;
-    if(!confirm(avertissement)) return;
+    if(!await agConfirm(avertissement)) return;
   }
 
-  const reason = prompt(`Annuler la séance "${s.type}" ?\n\nRaison (optionnel) :`, '');
+  const reason = await agPrompt(`Annuler la séance "${s.type}" ?\n\nRaison (optionnel) :`, '');
   if(reason === null) return;
 
   const result = await dbUpdate('shoots', id, {
@@ -2372,7 +2372,7 @@ async function cancelShoot(id){
 async function reactivateShoot(id){
   const s = shoots.find(x => x.id === id);
   if(!s) return;
-  if(!confirm('Réactiver cette séance ?')) return;
+  if(!await agConfirm('Réactiver cette séance ?')) return;
 
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -3493,7 +3493,7 @@ function toggleSelectAll(){
 
 async function deleteSelected(){
   if(selectedTxIds.size === 0){ alert("Aucune transaction sélectionnée"); return; }
-  if(!confirm(`Supprimer ${selectedTxIds.size} transaction(s) ?`)) return;
+  if(!await agConfirm(`Supprimer ${selectedTxIds.size} transaction(s) ?`)) return;
 
   const ids = [...selectedTxIds];
   for(const id of ids) await dbDelete('transactions', id);
@@ -3507,8 +3507,8 @@ async function deleteSelected(){
 async function deleteAllFiltered(){
   const filtered = getFilteredTx();
   if(filtered.length === 0){ alert("Aucune transaction à supprimer"); return; }
-  if(!confirm(`⚠ Supprimer ${filtered.length} transaction(s) ?`)) return;
-  if(!confirm(`Confirmer ?`)) return;
+  if(!await agConfirm(`⚠ Supprimer ${filtered.length} transaction(s) ?`)) return;
+  if(!await agConfirm(`Confirmer ?`)) return;
 
   for(const t of filtered) await dbDelete('transactions', t.id);
   const ids = new Set(filtered.map(t => t.id));
@@ -3520,7 +3520,7 @@ async function deleteAllFiltered(){
 }
 
 async function delTxFromHistory(id){
-  if(!confirm("Supprimer cette transaction ?")) return;
+  if(!await agConfirm("Supprimer cette transaction ?")) return;
   const ok = await dbDelete('transactions', id);
   if(!ok) return;
   txs = txs.filter(t => t.id !== id);
@@ -3537,7 +3537,7 @@ async function resetTx(txId){
   const t = txs.find(x => x.id === txId);
   if(!t){ alert('Transaction introuvable'); return; }
 
-  if(!confirm(`Remettre "${t.category}" à 0 ?\n\nLe montant sera mis à zéro mais la ligne restera visible dans l'historique.`)) return;
+  if(!await agConfirm(`Remettre "${t.category}" à 0 ?\n\nLe montant sera mis à zéro mais la ligne restera visible dans l'historique.`)) return;
 
   const result = await dbUpdate('transactions', txId, {
     amount: 0,
@@ -3566,7 +3566,7 @@ async function annulerTx(txId){
     return;
   }
 
-  if(!confirm(`Annuler cette transaction ?\n\nElle restera visible mais barrée, et tu pourras la restaurer.`)) return;
+  if(!await agConfirm(`Annuler cette transaction ?\n\nElle restera visible mais barrée, et tu pourras la restaurer.`)) return;
 
   const result = await dbUpdate('transactions', txId, {
     cancelled: true,
@@ -3821,7 +3821,7 @@ async function saveIdeasAI(text){
 }
 
 async function clearIdeasAI(){
-  if(!confirm('Effacer les idées IA ?')) return;
+  if(!await agConfirm('Effacer les idées IA ?')) return;
   localStorage.removeItem('ideas_ai_last');
   localStorage.removeItem('ideas_ai_last_date');
   try {
@@ -4409,7 +4409,7 @@ async function saveGoalReminder(){
 }
 
 async function deleteGoalReminder(id){
-  if(!confirm('Supprimer ce rappel ?')) return;
+  if(!await agConfirm('Supprimer ce rappel ?')) return;
   const ok = await dbDelete('goal_reminders', id);
   if(!ok) return;
   goalReminders = goalReminders.filter(r => r.id !== id);
@@ -5003,7 +5003,7 @@ async function saveAnalysis(text){
 }
 
 async function clearAnalysis(){
-  if(!confirm('Effacer l\'analyse ?')) return;
+  if(!await agConfirm('Effacer l\'analyse ?')) return;
   localStorage.removeItem('ai_last_analysis');
   localStorage.removeItem('ai_last_analysis_date');
   try {
@@ -5601,7 +5601,7 @@ function copyFullChat(){
 }
 
 async function clearChat(){
-  if(!confirm('Effacer toute la conversation sur TOUS tes appareils ?')) return;
+  if(!await agConfirm('Effacer toute la conversation sur TOUS tes appareils ?')) return;
   chatHistory = [];
 
   try {
@@ -6860,7 +6860,7 @@ async function marquerLienPaye(id) {
   const link = paymentLinks.find(l => l.id === id);
   if(!link) { alert('Lien introuvable'); return; }
 
-  if(!confirm(`Confirmer que tu as reçu ${fmt(link.amount)} pour "${link.description}" ?`)) return;
+  if(!await agConfirm(`Confirmer que tu as reçu ${fmt(link.amount)} pour "${link.description}" ?`)) return;
 
   const result = await dbUpdate('payment_links', id, {
     status: 'paid',
@@ -6897,7 +6897,7 @@ async function marquerLienPaye(id) {
 }
 
 async function supprimerLien(id) {
-  if(!confirm('Supprimer ce lien ?')) return;
+  if(!await agConfirm('Supprimer ce lien ?')) return;
   const ok = await dbDelete('payment_links', id);
   if(!ok) return;
   paymentLinks = paymentLinks.filter(l => l.id !== id);
@@ -7046,7 +7046,7 @@ function ouvrirGuideRepartition(linkId) {
 }
 
 async function appliquerRepartition(linkId, montantEpargne){
-  if(!confirm(`Créer une épargne de ${fmt(montantEpargne)} ?`)) return;
+  if(!await agConfirm(`Créer une épargne de ${fmt(montantEpargne)} ?`)) return;
 
   const result = await dbInsert('transactions', {
     type: 'depense',
@@ -8064,7 +8064,7 @@ async function deverrouillerCoffre(coffreId){
   const c = coffres.find(x => x.id === coffreId);
   if(!c) return;
 
-  if(!confirm(`Déverrouiller "${c.name}" ?\n\nCet objectif était bloqué pour t'aider à ne pas y toucher. Es-tu sûr(e) ?`)) return;
+  if(!await agConfirm(`Déverrouiller "${c.name}" ?\n\nCet objectif était bloqué pour t'aider à ne pas y toucher. Es-tu sûr(e) ?`)) return;
 
   const result = await dbUpdate('goals', coffreId, {
     locked: false,
@@ -8125,13 +8125,13 @@ function renderEpargneLibre(){
 }
 
 async function ajouterEpargneLibre(){
-  const montantStr = prompt('💰 Combien veux-tu ajouter à ton épargne libre ?\n\n(Ex: 5000)', '');
+  const montantStr = await agPrompt('💰 Combien veux-tu ajouter à ton épargne libre ?\n\n(Ex: 5000)', '');
   if(montantStr === null) return;
 
   const montant = parseFloat(montantStr);
   if(!montant || montant <= 0){ alert('Montant invalide'); return; }
 
-  const noteStr = prompt('📝 Petite note (optionnel) ?', 'Épargne libre');
+  const noteStr = await agPrompt('📝 Petite note (optionnel) ?', 'Épargne libre');
   const note = noteStr === null ? 'Épargne libre' : (noteStr.trim() || 'Épargne libre');
 
   const result = await dbInsert('transactions', {
@@ -8158,14 +8158,14 @@ async function retirerEpargneLibre(){
     return;
   }
 
-  const montantStr = prompt(`➖ Combien veux-tu retirer ?\n\nDisponible : ${fmt(total)}\n\n(Ex: 5000)`, '');
+  const montantStr = await agPrompt(`➖ Combien veux-tu retirer ?\n\nDisponible : ${fmt(total)}\n\n(Ex: 5000)`, '');
   if(montantStr === null) return;
 
   const montant = parseFloat(montantStr);
   if(!montant || montant <= 0){ alert('Montant invalide'); return; }
   if(montant > total){ alert('Montant supérieur à ton épargne libre'); return; }
 
-  const motifStr = prompt('📝 Motif du retrait ?', '');
+  const motifStr = await agPrompt('📝 Motif du retrait ?', '');
   const motif = motifStr === null ? '' : motifStr.trim();
 
   const result = await dbInsert('transactions', {
@@ -8577,7 +8577,7 @@ function exportSuggestionIAEpargnePDF(){
 }
 
 async function effacerSuggestionIAEpargne(){
-  if(!confirm('Effacer la suggestion IA sur tous tes appareils ?')) return;
+  if(!await agConfirm('Effacer la suggestion IA sur tous tes appareils ?')) return;
 
   localStorage.removeItem('ia_epargne_last');
   localStorage.removeItem('ia_epargne_last_date');
@@ -8848,7 +8848,7 @@ async function bloquerCoffre(coffreId){
     `Niveau de protection : ${type.lockLevel === 3 ? '🔒🔒🔒 Maximum' : '🔒🔒 Fort'}\n\n` +
     `Confirmer ?`;
 
-  if(!confirm(msg)) return;
+  if(!await agConfirm(msg)) return;
 
   const result = await dbUpdate('goals', coffreId, {
     auto_locked: true,
@@ -8919,9 +8919,9 @@ async function debloquerCoffreTresStrict(c, type){
     `2. Confirmer 3 fois\n\n` +
     `Confirmation 1/3 : Veux-tu VRAIMENT débloquer ce coffre vital ?`;
 
-  if(!confirm(msg)) return;
+  if(!await agConfirm(msg)) return;
 
-  const raison = prompt(
+  const raison = await agPrompt(
     `📝 Confirmation 2/3 : Écris la RAISON (obligatoire).\n\n` +
     `Pourquoi veux-tu débloquer "${c.name}" ?\n\n` +
     `Sois honnête. Si c'est pour une vraie urgence, c'est ok.\n` +
@@ -8934,7 +8934,7 @@ async function debloquerCoffreTresStrict(c, type){
     return;
   }
 
-  const confirm3 = prompt(
+  const confirm3 = await agPrompt(
     `⚠️ Confirmation 3/3 — DERNIÈRE CHANCE.\n\n` +
     `Ta raison : "${raison.trim()}"\n\n` +
     `Ce coffre a actuellement ${fmt(c.current)} / ${fmt(c.goal)}.\n\n` +
@@ -8978,9 +8978,9 @@ async function debloquerCoffreStrict(c, type){
     `⚠️ Veux-tu vraiment débloquer ce coffre ?\n\n` +
     `(Il te faudra écrire une raison + confirmer 2 fois)`;
 
-  if(!confirm(msg)) return;
+  if(!await agConfirm(msg)) return;
 
-  const raison = prompt(
+  const raison = await agPrompt(
     `📝 Confirmation 2/2 : Pourquoi veux-tu débloquer "${c.name}" ?\n\n` +
     `(Raison obligatoire, min 5 caractères)`,
     ''
@@ -9011,7 +9011,7 @@ async function debloquerCoffreStrict(c, type){
 
 // ---- Déblocage SIMPLE (entreprise) ----
 async function debloquerCoffreSimple(c, type){
-  const raison = prompt(
+  const raison = await agPrompt(
     `${type.icon} Retirer d'un coffre entreprise\n\n` +
     `Tu vas débloquer "${c.name}" pour retirer de l'argent.\n\n` +
     `Pourquoi ? (obligatoire, noté dans l'historique)\n` +
@@ -9072,7 +9072,7 @@ async function retirerCoffre(coffreId){
   }
 
   // Le coffre est débloqué → on peut retirer
-  const montantStr = prompt(
+  const montantStr = await agPrompt(
     `💸 Retirer de "${c.name}"\n\n` +
     `Actuellement : ${fmt(c.current)}\n` +
     `Combien veux-tu retirer ?`,
@@ -9090,7 +9090,7 @@ async function retirerCoffre(coffreId){
   const type = getTypeCoffre(c);
   let raison = '';
   if(type.id !== 'perso'){
-    const raisonStr = prompt(
+    const raisonStr = await agPrompt(
       `📝 Pourquoi retires-tu ${fmt(montant)} ?\n\n` +
       `(Obligatoire pour ce type de coffre)`,
       ''
@@ -9157,7 +9157,7 @@ window.saveCoffre = async function(){
       `C'est pour te protéger de toi-même. 💪\n\n` +
       `Confirmer la création ?`;
 
-    if(!confirm(confirmMsg)){
+    if(!await agConfirm(confirmMsg)){
       return;
     }
   }
@@ -9998,7 +9998,7 @@ function nettoyerPourPDF(texte){
 // ============================================================
 // CALCUL DES FRAIS WAVE (sur l'acompte uniquement)
 // ============================================================
-function calculerFraisWave(){
+async function calculerFraisWave(){
   const flexEl = document.getElementById('lienMontantFlex');
   const montantAcompte = flexEl ? (parseFloat(flexEl.value) || 0) : 0;
   
@@ -10011,7 +10011,7 @@ function calculerFraisWave(){
   let tauxFrais = parseFloat(localStorage.getItem('wave_frais_taux') || '1');
   
   // Demander le taux si l'utilisateur veut le modifier
-  const tauxSaisi = prompt(
+  const tauxSaisi = await agPrompt(
     `💸 Calcul des frais Wave\n\n` +
     `Montant à payer par le client : ${fmt(montantAcompte)}\n\n` +
     `Taux de frais Wave actuel : ${tauxFrais}%\n\n` +

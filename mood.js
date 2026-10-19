@@ -7,19 +7,20 @@
 // - Collage a envoyer au client
 // ============================================================
 
-const MB = { boards: [], imgs: [], fb: [], loaded: false, cur: null, filter: 'all', sel: new Set(), selMode: false, busy: '' };
+const MB = { boards: [], imgs: [], fb: [], ev: [], loaded: false, cur: null, filter: 'all', sel: new Set(), selMode: false, busy: '' };
 const MB_TAGS = ['Pose', 'Lumière', 'Décor', 'Tenue', 'Couleurs', 'Cadrage', 'Accessoire', 'Coiffure / makeup', 'Retouche'];
 const MB_TYPES = ['Shooting studio', 'Anniversaire enfant', 'Grossesse', 'Mariage', 'Couple', 'Famille', 'Portrait pro', 'Extérieur', 'Événement', 'Bébé / naissance', 'Mode'];
 const MB_NETS = ['Instagram', 'TikTok', 'Facebook', 'Statut WhatsApp', 'Portfolio'];
 
 async function mbLoad(){
   try {
-    const [b, i, f] = await Promise.all([
+    const [b, i, f, e] = await Promise.all([
       sb.from('mood_boards').select('*').order('created_at', { ascending: false }),
       sb.from('mood_images').select('*').order('position', { ascending: true }).order('created_at', { ascending: true }),
-      sb.from('mood_feedback').select('*').order('created_at', { ascending: false })
+      sb.from('mood_feedback').select('*').order('created_at', { ascending: false }),
+      sb.from('mood_events').select('*').order('created_at', { ascending: false }).limit(500)
     ]);
-    MB.boards = b.data || []; MB.imgs = i.data || []; MB.fb = f.data || [];
+    MB.boards = b.data || []; MB.imgs = i.data || []; MB.fb = f.data || []; MB.ev = (e && e.data) || [];
   } catch(e){ console.warn('moodboard', e); }
   MB.loaded = true;
 }
@@ -108,7 +109,7 @@ async function mbSaveBoard(id){
 }
 async function mbDeleteBoard(id){
   const im = mbImgs(id);
-  if(!confirm(`Supprimer ce tableau et ses ${im.length} image(s) ?`)) return;
+  if(!await agConfirm(`Supprimer ce tableau et ses ${im.length} image(s) ?`)) return;
   const all = MB.imgs.filter(x => x.board_id === id);
   const cli = all.filter(x => x.from_client).map(x => x.id);
   if(cli.length) await mbCleanClient(cli);
@@ -305,7 +306,7 @@ async function mbRate(id, n){ await mbUpdateImg(id, { rating: n }); if(document.
 async function mbTag(id, t){ const x = MB.imgs.find(i => i.id === id); const s = new Set(x.tags || []); s.has(t) ? s.delete(t) : s.add(t); await mbUpdateImg(id, { tags: [...s] }); mbView(id); if(MB.cur) mbRenderBoard(); }
 async function mbSaveNote(id, v){ await mbUpdateImg(id, { note: v.trim() || null }); }
 async function mbDeleteImgs(ids){
-  if(!confirm(`Supprimer ${ids.length} image(s) ?`)) return;
+  if(!await agConfirm(`Supprimer ${ids.length} image(s) ?`)) return;
   const list = MB.imgs.filter(x => ids.includes(x.id));
   const own = list.filter(x => !x.from_client), cli = list.filter(x => x.from_client);
   const paths = own.map(x => x.path).filter(Boolean);
@@ -523,11 +524,17 @@ async function mbShare(id){
   mbRenderBoard();
 }
 async function mbShareOff(id){ await mbSaveBoardPatch(id, { share_on: false }); agCloseSheet('mbShare'); mbRenderBoard(); agToast('Lien désactivé'); }
+function mbActHtml(id){
+  const ev = MB.ev.filter(e => e.board_id === id), ouv = ev.filter(e => e.type === 'ouverture');
+  if(!ev.length) return '';
+  const dt = d => new Date(d).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return `<div class="mb-act">${agIcon('eye', 15)}<span>Lien ouvert <b>${ouv.length} fois</b>${ouv[0] ? ` · dernière fois ${dt(ouv[0].created_at)}${ouv[0].appareil ? ' (' + agEsc(ouv[0].appareil === 'Ordinateur' ? 'ordinateur' : ouv[0].appareil) + ')' : ''}` : ''}${ev.filter(e => e.type === 'envoi').length ? ` · ${ev.filter(e => e.type === 'envoi').length} envoi(s)` : ''}</span></div>`;
+}
 function mbFbHtml(id){
   const fb = MB.fb.filter(f => f.board_id === id);
-  if(!fb.length) return '';
+  if(!fb.length) return mbActHtml(id);
   const last = fb[0], added = mbImgs(id).filter(x => x.from_client).length;
-  return `<div class="mb-fb ${last.lu ? '' : 'new'}" onclick="mbFbOpen(${id})"><div class="ic">${agIcon('heart', 18)}</div>
+  return mbActHtml(id) + `<div class="mb-fb ${last.lu ? '' : 'new'}" onclick="mbFbOpen(${id})"><div class="ic">${agIcon('heart', 18)}</div>
     <div class="d"><b>${agEsc(last.nom || 'Le client')} a choisi ${(last.picks || []).length} photo${(last.picks || []).length > 1 ? 's' : ''}${added ? ` et proposé ${added} image${added > 1 ? 's' : ''}` : ''}</b><span>${new Date(last.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}${last.message ? ' · « ' + agEsc(last.message.slice(0, 60)) + ' »' : ''}</span></div>${agIcon('chev', 16)}</div>`;
 }
 async function mbFbOpen(id){
@@ -581,6 +588,7 @@ const _mbShowTab = showTab;
 showTab = function(name, btn){ _mbShowTab(name, btn); if(name === 'mood') mbRender(); };
 (async function mbInit(){
   await mbLoad();
+  if(window.__mbDeep && mbBoard(window.__mbDeep)){ MB.cur = window.__mbDeep; window.__mbDeep = null; }
   const a = document.querySelector('.page.active');
   if(a && a.id === 'page-mood') mbRender();
   mbCheckShare();

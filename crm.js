@@ -756,7 +756,7 @@ async function crmPromoStop(id){
   p.status = status; crmPromoOpen(id); crmRender();
 }
 async function crmPromoDelete(id){
-  if(!confirm('Supprimer cette promo ?')) return;
+  if(!await agConfirm('Supprimer cette promo ?')) return;
   const { error } = await sb.from('promos').delete().eq('id', id);
   if(error){ alert(error.message); return; }
   CRM.promos = CRM.promos.filter(x => x.id !== id);

@@ -49,6 +49,7 @@ ouvrirOngletGalerie = window.ouvrirOngletGalerie = async function(){
   if(!el) return;
   if(!galPwd) galPwd = await getGaleriePwd();
   if(!galPwd){ galRenderLogin(); return; }
+  if(window.__galDeep){ const code = window.__galDeep; window.__galDeep = null; await galLoad(); if(galList.find(x => x.code === code)){ window.__galTab = 'stats'; setTimeout(() => { window.__galTab = null; }, 4000); galCurrent = code; galOpen(code); } return; }
   if(galCurrent){ galOpen(galCurrent); return; }
   await galLoad();
 };
@@ -236,11 +237,13 @@ async function galOpen(code){
       <button class="on" data-t="photos" onclick="galTab(this)">Photos</button>
       <button data-t="choix" onclick="galTab(this)">Choix du client</button>
       <button data-t="tirages" onclick="galTab(this)">Tirages</button>
-      <button data-t="reactions" onclick="galTab(this)">Réactions</button>
+      <button data-t="stats" onclick="galTab(this)">Statistiques</button>
     </div>
     <div id="galTabBody"><div class="ag-empty">Chargement...</div></div>
     <button class="btn-danger" style="width:100%;padding:12px;margin-top:16px" onclick="galDelete('${agEsc(code)}')">Supprimer cette galerie</button>`;
-  galShowTab('photos');
+  const tab0 = window.__galTab || 'photos';
+  if(tab0 !== 'photos'){ const bt = el.querySelector(`.ag-gal-tabs button[data-t="${tab0}"]`); if(bt) agPick(bt); }
+  galShowTab(tab0);
 }
 function galTab(btn){ agPick(btn); galShowTab(btn.dataset.t); }
 
@@ -371,11 +374,7 @@ async function galShowTab(t){
         <div class="m">${x.prix_estime ? agF(x.prix_estime) : ''}</div></div>`).join('') + '</div>'
         : '<div class="ag-list"><div class="ag-empty">Aucune commande de tirage.</div></div>';
     } else {
-      const list = await galApi('/api/admin/interactions/' + encodeURIComponent(g.dossier));
-      const likes = list.filter(i => i.type === 'like').length, coms = list.filter(i => i.type === 'commentaire');
-      const vues = list.filter(i => i.type === 'vue').length;
-      box.innerHTML = `<div class="ag-total" style="padding:16px"><div class="split"><div>Vues<b>${vues}</b></div><div>J'aime<b>${likes}</b></div><div>Commentaires<b>${coms.length}</b></div></div></div>` +
-        (coms.length ? '<div class="ag-list">' + coms.map(c => `<div class="ag-tx"><div class="ic">${agIcon('chat')}</div><div class="d"><b>${agEsc(c.contenu || '')}</b><span>${agEsc(c.fichier || '')}</span></div></div>`).join('') + '</div>' : '');
+      await galStats(g, box);
     }
   } catch(e){
     box.innerHTML = `<div class="ag-list"><div class="ag-empty">${agEsc(e.message)}</div></div>`;
@@ -405,13 +404,13 @@ async function galUpload(code, files){
   galShowTab('photos');
 }
 async function galDelPhoto(code, f){
-  if(!confirm('Supprimer cette photo de la galerie ?')) return;
+  if(!await agConfirm('Supprimer cette photo de la galerie ?')) return;
   try { await galApi(`/api/admin/galeries/${encodeURIComponent(code)}/photos/${encodeURIComponent(f)}`, { method: 'DELETE' }); galShowTab('photos'); }
   catch(e){ alert(e.message); }
 }
 async function galDelete(code){
   const g = galList.find(x => x.code === code);
-  if(!confirm(`Supprimer définitivement la galerie de ${g ? g.nomClient : code} et toutes ses photos ?`)) return;
+  if(!await agConfirm(`Supprimer définitivement la galerie de ${g ? g.nomClient : code} et toutes ses photos ?`)) return;
   try {
     await galApi('/api/admin/galeries/' + encodeURIComponent(code), { method: 'DELETE' });
     galList = galList.filter(x => x.code !== code); galCurrent = null; galRenderList(); agToast('Galerie supprimée');
@@ -508,4 +507,90 @@ function galRenderAvis(){
 function galCopyAvis(id){
   const a = galAvis.find(x => x.id === id); if(!a) return;
   galCopyText(`"${a.texte || ''}"\n- ${a.nom_client || 'Client'} ${'★'.repeat(a.note)}`, 'Avis copié');
+}
+
+// ---------- Statistiques d'une galerie ----------
+const GAL_EV = {
+  ouverture: ['eye', 'a ouvert la galerie'], telechargement_tout: ['download', 'a téléchargé toutes les photos'],
+  telechargement_photo: ['download', 'a téléchargé'], like: ['heart', 'a aimé'], commentaire: ['chat', 'a commenté'],
+  selection: ['check', 'a envoyé sa sélection'], tirage: ['image', 'a demandé un tirage'], avis: ['star', 'a laissé un avis'],
+  partage: ['link', 'a partagé une photo'], diaporama: ['image', 'a lancé le diaporama']
+};
+function galQual(q){ return q === 'web1200' ? 'qualité moyenne' : 'originale'; }
+async function galStats(g, box){
+  let A;
+  try { A = await galApi('/api/admin/activite/' + encodeURIComponent(g.dossier)); }
+  catch(e){ const i = await galApi('/api/admin/interactions/' + encodeURIComponent(g.dossier)); A = { evenements: [], interactions: i, selections: [], tirages: [], avis: [], vieux: true }; }
+  const ev = A.evenements || [], it = A.interactions || [];
+  const ouv = ev.filter(e => e.type === 'ouverture');
+  const nbOuv = ouv.length || it.filter(i => i.type === 'vue').length;
+  const zips = ev.filter(e => e.type === 'telechargement_tout');
+  const singles = ev.filter(e => e.type === 'telechargement_photo');
+  const total = g.nbPhotos || 0;
+  const dlSet = new Set(singles.map(e => (e.details || {}).fichier).filter(Boolean));
+  const nbDl = zips.length ? Math.max(total, ...zips.map(z => (z.details || {}).nb || 0)) : dlSet.size;
+  const likes = it.filter(i => i.type === 'like'), coms = it.filter(i => i.type === 'commentaire');
+  const avis = A.avis || [], sels = A.selections || [], tirs = A.tirages || [];
+  const dev = {}; ev.forEach(e => { if(e.appareil && e.type === 'ouverture') dev[e.appareil] = (dev[e.appareil] || 0) + 1; });
+  // Fil d'activite (regroupe les actions identiques proches)
+  const items = [
+    ...ev.filter(e => !['like', 'commentaire', 'selection', 'tirage', 'avis'].includes(e.type)).map(e => ({ t: e.type, d: e.date_creation, x: e.details || {}, a: e.appareil })),
+    ...it.filter(i => i.type === 'like' || i.type === 'commentaire').map(i => ({ t: i.type, d: i.date_creation, x: { fichier: i.fichier, contenu: i.contenu } })),
+    ...sels.map(x => ({ t: 'selection', d: x.date_creation, x: { nb: (x.photos || []).length, message: x.message } })),
+    ...tirs.map(x => ({ t: 'tirage', d: x.date_creation, x: { fichier: x.fichier, nb: x.quantite || 1 } })),
+    ...avis.map(x => ({ t: 'avis', d: x.created_at, x: { note: x.note, texte: x.texte } }))
+  ].filter(x => x.d).sort((a, b) => String(b.d).localeCompare(String(a.d)));
+  const groups = [];
+  items.forEach(x => {
+    const last = groups[groups.length - 1];
+    if(last && last.t === x.t && ['telechargement_photo', 'like', 'partage'].includes(x.t) && Math.abs(new Date(last.d0) - new Date(x.d)) < 15 * 60000){ last.n++; last.files.push(x.x.fichier); last.d0 = x.d; if(x.x.qualite) last.q.add(x.x.qualite); }
+    else groups.push({ ...x, n: 1, files: [x.x.fichier], d0: x.d, q: new Set(x.x.qualite ? [x.x.qualite] : []) });
+  });
+  const lastAct = items[0] ? new Date(items[0].d) : null;
+  // Photos preferees
+  const score = {};
+  const add = (f, k) => { if(!f || f === '__galerie__') return; (score[f] = score[f] || { l: 0, d: 0, c: 0 })[k]++; };
+  likes.forEach(l => add(l.fichier, 'l')); coms.forEach(c => add(c.fichier, 'c')); singles.forEach(s => add((s.details || {}).fichier, 'd'));
+  const top = Object.entries(score).sort((a, b) => (b[1].l * 3 + b[1].d * 2 + b[1].c * 2) - (a[1].l * 3 + a[1].d * 2 + a[1].c * 2)).slice(0, 8);
+  const dt = d => new Date(d).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const line = x => {
+    const [ic, lbl] = GAL_EV[x.t] || ['info', x.t];
+    let txt = lbl;
+    if(x.t === 'telechargement_photo') txt = `a téléchargé ${x.n} photo${x.n > 1 ? 's' : ''} (${[...x.q].map(galQual).join(', ') || 'originale'})`;
+    if(x.t === 'telechargement_tout') txt = `a téléchargé toutes ses photos : ${x.x.nb || '?'} (${galQual(x.x.qualite)})`;
+    if(x.t === 'like') txt = `a aimé ${x.n} photo${x.n > 1 ? 's' : ''}`;
+    if(x.t === 'commentaire') txt = `a commenté : « ${agEsc(x.x.contenu || '')} »`;
+    if(x.t === 'selection') txt = `a choisi ${x.x.nb} photo${x.x.nb > 1 ? 's' : ''}${x.x.message ? ' : « ' + agEsc(x.x.message) + ' »' : ''}`;
+    if(x.t === 'tirage') txt = `a demandé ${x.x.nb} tirage${x.x.nb > 1 ? 's' : ''}`;
+    if(x.t === 'avis') txt = `a donné un avis ${'★'.repeat(x.x.note || 0)}${x.x.texte ? ' : « ' + agEsc(x.x.texte) + ' »' : ''}`;
+    if(x.t === 'partage') txt = `a partagé ${x.n > 1 ? x.n + ' photos' : 'une photo'}${x.x.canal ? ' (' + agEsc(x.x.canal) + ')' : ''}`;
+    if(x.t === 'ouverture') txt = `a ouvert la galerie${x.a ? ' sur ' + agEsc(x.a === 'Ordinateur' ? 'ordinateur' : x.a) : ''}`;
+    const thumbs = x.files.filter(Boolean).filter(f => f !== '__galerie__').slice(0, 6);
+    return `<div class="gal-ev"><div class="ic">${agIcon(ic, 16)}</div><div class="d"><b>${txt}</b><span>${dt(x.d)}</span>
+      ${thumbs.length && x.t !== 'telechargement_tout' ? `<div class="gal-ev-th">${thumbs.map(f => `<img loading="lazy" src="${galPhotoUrl(g.dossier, f, 'thumb')}" alt="">`).join('')}${x.files.length > 6 ? `<i>+${x.files.length - 6}</i>` : ''}</div>` : ''}</div></div>`;
+  };
+  box.innerHTML = `
+    ${A.vieux ? '<div class="ag-hint">Mets à jour le fichier server.js de la galerie pour voir tous les détails (téléchargements, appareil...).</div>' : ''}
+    <div class="gal-kpis">
+      <div><b>${nbOuv}</b><span>ouverture${nbOuv > 1 ? 's' : ''}</span></div>
+      <div><b>${nbDl}${total ? '<small>/' + total + '</small>' : ''}</b><span>photos téléchargées</span></div>
+      <div><b>${likes.length}</b><span>j'aime</span></div>
+      <div><b>${coms.length}</b><span>commentaire${coms.length > 1 ? 's' : ''}</span></div>
+      <div><b>${sels.reduce((a, x) => a + (x.photos || []).length, 0)}</b><span>photos choisies</span></div>
+      <div><b>${avis.length ? avis[0].note + '/5' : '-'}</b><span>avis</span></div>
+    </div>
+    <div class="ag-list gal-sum">
+      <div class="crm-line"><div><span>Dernière activité</span></div><b>${lastAct ? dt(lastAct) : 'Aucune'}</b></div>
+      ${zips.length ? `<div class="crm-line"><div><span>Tout téléchargé</span></div><b>${zips.length} fois, la dernière le ${dt(zips[0].date_creation)}</b></div>` : `<div class="crm-line"><div><span>Tout téléchargé</span></div><b>Pas encore</b></div>`}
+      ${Object.keys(dev).length ? `<div class="crm-line"><div><span>Appareils</span></div><b>${Object.entries(dev).map(([k, v]) => agEsc(k) + ' (' + v + ')').join(', ')}</b></div>` : ''}
+      ${tirs.length ? `<div class="crm-line"><div><span>Tirages demandés</span></div><b>${tirs.reduce((a, x) => a + (x.quantite || 1), 0)}</b></div>` : ''}
+    </div>
+    ${top.length ? `<div class="ag-sec"><h3>Photos préférées</h3></div><div class="gal-top">${top.map(([f, v]) => `<div><img loading="lazy" src="${galPhotoUrl(g.dossier, f, 'thumb')}" alt=""><span>${v.l ? agIcon('heart', 11) + v.l : ''} ${v.d ? agIcon('download', 11) + v.d : ''} ${v.c ? agIcon('chat', 11) + v.c : ''}</span></div>`).join('')}</div>` : ''}
+    <div class="ag-sec"><h3>Ce que le client a fait</h3>${groups.length ? `<span class="crm-count">${groups.length}</span>` : ''}</div>
+    <div class="ag-list">${groups.length ? groups.slice(0, 120).map(line).join('') : '<div class="ag-empty">Aucune activité pour le moment.</div>'}</div>
+    <button class="btn-secondary" style="margin-top:12px" onclick="galTestPush()">${agIcon('info', 14)} Tester la notification sur mon téléphone</button>`;
+}
+async function galTestPush(){
+  try { await galApi('/api/admin/test-push', { method: 'POST' }); agToast('Notification envoyée, regarde ton téléphone'); }
+  catch(e){ alert(e.message); }
 }

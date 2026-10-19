@@ -82,7 +82,7 @@ async function otSaveTx(id){
 async function otBulkCancel(cancel){
   const list = txs.filter(t => selectedTxIds.has(t.id) && !!t.cancelled !== cancel);
   if(!list.length) return;
-  if(!confirm(cancel ? `Annuler ${list.length} mouvement(s) ?\nIls restent visibles (barrés) et l'argent revient à sa place.` : `Restaurer ${list.length} mouvement(s) ?`)) return;
+  if(!await agConfirm(cancel ? `Annuler ${list.length} mouvement(s) ?\nIls restent visibles (barrés) et l'argent revient à sa place.` : `Restaurer ${list.length} mouvement(s) ?`)) return;
   for(const t of list){
     const r = await dbUpdate('transactions', t.id, { cancelled: cancel, cancelled_at: cancel ? new Date().toISOString() : null });
     if(r){ const i = txs.findIndex(x => x.id === t.id); if(i >= 0) txs[i] = r; }
@@ -111,7 +111,7 @@ async function otBulkAccountSave(){
 async function otBulkDelete(){
   const ids = [...selectedTxIds];
   if(!ids.length) return;
-  if(!confirm(`Supprimer définitivement ${ids.length} mouvement(s) ?\nL'argent revient à sa place (comptes et coffres).`)) return;
+  if(!await agConfirm(`Supprimer définitivement ${ids.length} mouvement(s) ?\nL'argent revient à sa place (comptes et coffres).`)) return;
   for(const id of ids){ const ok = await dbDelete('transactions', id); if(ok) txs = txs.filter(t => t.id !== id); }
   selectedTxIds.clear();
   if(typeof populateHistFilters === 'function') populateHistFilters();
@@ -175,13 +175,13 @@ function otCofNext(){
 async function otCofZero(){
   const list = coffres.filter(c => OT.cofIds.has(c.id));
   const tot = list.reduce((s, c) => s + (Number(c.current) || 0), 0);
-  if(!confirm(`Remettre ${list.length} coffre(s) à 0 F ?\n${agF(tot)} disparaîtront de tes coffres (sans aller sur un compte).\n\nPour déplacer l'argent vers un compte, utilise plutôt "Retirer".`)) return;
+  if(!await agConfirm(`Remettre ${list.length} coffre(s) à 0 F ?\n${agF(tot)} disparaîtront de tes coffres (sans aller sur un compte).\n\nPour déplacer l'argent vers un compte, utilise plutôt "Retirer".`)) return;
   for(const c of list){ const r = await dbUpdate('goals', c.id, { current: 0 }); if(r) Object.assign(c, r); }
   refreshAll(); agToast('Coffres remis à 0');
 }
 async function otCofDelete(){
   const list = coffres.filter(c => OT.cofIds.has(c.id));
-  if(!confirm(`Supprimer ${list.length} coffre(s) ?\nLes mouvements déjà enregistrés restent dans l'historique.`)) return;
+  if(!await agConfirm(`Supprimer ${list.length} coffre(s) ?\nLes mouvements déjà enregistrés restent dans l'historique.`)) return;
   for(const c of list){ const ok = await dbDelete('goals', c.id); if(ok) coffres = coffres.filter(x => x.id !== c.id); }
   OT.cofIds.clear(); refreshAll(); otCofBar(); agToast('Supprimé');
 }
@@ -350,7 +350,7 @@ async function otImportRun(){
   const keys = [...document.querySelectorAll('#otImp input:checked')].map(i => i.value);
   const mode = document.querySelector('#otImpMode button.on').dataset.m;
   if(!keys.length){ alert('Coche au moins une partie'); return; }
-  if(!confirm(mode === 'replace' ? 'Remplacer ces données par celles de la sauvegarde ?\nUne sauvegarde de ton état actuel sera faite avant.' : 'Ajouter les données de la sauvegarde ?')) return;
+  if(!await agConfirm(mode === 'replace' ? 'Remplacer ces données par celles de la sauvegarde ?\nUne sauvegarde de ton état actuel sera faite avant.' : 'Ajouter les données de la sauvegarde ?')) return;
   const tables = OT_GROUPS.filter(g => keys.includes(g.k)).flatMap(g => g.t);
   try {
     agToast('Sauvegarde de sécurité...');
@@ -438,6 +438,25 @@ function otAddMenus(){
     const b = document.createElement('button'); b.className = 'ag-side-it ot-data-btn';
     b.innerHTML = `<span class="si">${agIcon('shield', 18)}</span><span class="sl">Mes données</span>`;
     b.onclick = otOpenData; side.insertBefore(b, side.firstChild);
+  }
+  if(side && !side.querySelector('.ot-nt-btn')){
+    const b = document.createElement('button'); b.className = 'ag-side-it ot-nt-btn';
+    b.innerHTML = `<span class="si">${OT_BELL}</span><span class="sl">Notifications</span>`;
+    b.onclick = () => otNotifs(); side.insertBefore(b, side.firstChild);
+  }
+  const um0 = document.querySelector('.user-menu-items');
+  if(um0 && !um0.querySelector('.ot-nt-btn')){
+    const b = document.createElement('button'); b.className = 'ot-nt-btn';
+    b.innerHTML = `<span class="icon">${OT_BELL}</span><span>Notifications</span>`;
+    b.onclick = () => { if(typeof closeUserMenu === 'function') closeUserMenu(); otNotifs(); };
+    um0.insertBefore(b, um0.firstChild);
+  }
+  const th0 = document.querySelector('.drawer-nav.ag-theme-btn');
+  if(th0 && !document.querySelector('.drawer-nav.ot-nt-btn')){
+    const b = document.createElement('button'); b.className = 'drawer-nav ot-nt-btn';
+    b.innerHTML = `<span class="nav-icon">${OT_BELL}</span><span>Notifications</span>`;
+    b.onclick = () => { if(typeof closeDrawer === 'function') closeDrawer(); otNotifs(); };
+    th0.parentElement.insertBefore(b, th0.nextSibling);
   }
   const um = document.querySelector('.user-menu-items');
   if(um && !um.querySelector('.ot-data-btn')){
@@ -550,7 +569,7 @@ async function otAcceptResa(id){
   r.status = 'acceptee'; r.shoot_id = s.id;
   agCloseSheet('otResa'); refreshAll(); if(typeof crmRender === 'function') crmRender();
   const msg = `Bonjour ${String(r.nom).split(' ')[0]}, c'est Henzo Studio. Votre séance est confirmée pour le ${new Date(date).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}.${r.code ? `\nVotre code ${r.code} est appliqué : ${agN(price)} F au lieu de ${agN(r.prix_estime)} F.` : `\nMontant : ${agN(price)} F.`}\nÀ très vite au studio, Ahougnansou en face du Restaurant Le Rosier.\nHenzo Studio`;
-  if(confirm('Séance créée. Envoyer la confirmation au client sur WhatsApp ?')) crmWaRaw(crmPhone(r.telephone), msg);
+  if(await agConfirm('Séance créée. Envoyer la confirmation au client sur WhatsApp ?')) crmWaRaw(crmPhone(r.telephone), msg);
 }
 async function otResaStatus(id, status){
   await sb.from('reservations').update({ status }).eq('id', id);
@@ -558,7 +577,7 @@ async function otResaStatus(id, status){
   agCloseSheet('otResa'); if(typeof crmRender === 'function') crmRender();
 }
 async function otResaDelete(id){
-  if(!confirm('Supprimer cette demande ?')) return;
+  if(!await agConfirm('Supprimer cette demande ?')) return;
   await sb.from('reservations').delete().eq('id', id);
   OT.resas = OT.resas.filter(x => x.id !== id); agCloseSheet('otResa'); if(typeof crmRender === 'function') crmRender();
 }
@@ -669,6 +688,168 @@ function otDropTarget(){
 })();
 
 // ============================================================
+// 8. RAPPELS DE SEANCES (notifications envoyees par le serveur)
+// ============================================================
+const OT_BELL = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>';
+const OT_BELL_OFF = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 3A6 6 0 0 1 18 8a21 21 0 0 0 .6 5"/><path d="M17 17H3s3-2 3-9a4.7 4.7 0 0 1 .3-1.7"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="m2 2 20 20"/></svg>';
+// Reglages des notifications (enregistres dans user_preferences.notifs, lus par le serveur)
+const OT_NT_DEF = {
+  seances: { on: true, regles: [{ t: 'jour', j: 2, h: '09:00' }, { t: 'jour', j: 1, h: '09:00' }, { t: 'jour', j: 1, h: '19:00' }, { t: 'jour', j: 0, h: '07:00' }, { t: 'avant', m: 120 }] },
+  galerie: { on: true, mode: 'direct', heures: ['10:00', '20:00'] },
+  mood: { on: true, ouverture: true },
+  resa: { on: true },
+  motivation: { on: true, heures: ['08:00', '13:00', '20:00'] }
+};
+const OT_PRESETS = {
+  leger: { n: 'Léger', regles: [{ t: 'jour', j: 1, h: '19:00' }, { t: 'avant', m: 120 }] },
+  standard: { n: 'Standard', regles: OT_NT_DEF.seances.regles },
+  intense: { n: 'Intense', regles: [{ t: 'quotidien', j: 3, h: '09:00' }, { t: 'quotidien', j: 3, h: '19:00' }, { t: 'jour', j: 0, h: '07:00' }, { t: 'avant', m: 120 }, { t: 'avant', m: 60 }, { t: 'avant', m: 30 }] }
+};
+const otClone = o => JSON.parse(JSON.stringify(o));
+OT.nt = otClone(OT_NT_DEF);
+OT.rap = { get on(){ return OT.nt.seances.on !== false; } };
+async function otLoadRappels(){
+  try {
+    const uid = await otUid(); if(!uid) return;
+    const { data } = await sb.from('user_settings').select('user_preferences').eq('user_id', uid).maybeSingle();
+    const p = (data && data.user_preferences) || {};
+    const n = p.notifs || {};
+    OT.nt = otClone(OT_NT_DEF);
+    Object.keys(OT.nt).forEach(k => { if(n[k]) OT.nt[k] = Object.assign(OT.nt[k], n[k]); });
+    if(!n.seances && p.rappels && p.rappels.on === false) OT.nt.seances.on = false;
+  } catch(e){}
+}
+async function otSaveNotifs(){ if(typeof crmSavePrefs === 'function') await crmSavePrefs({ notifs: OT.nt }); }
+function otRegleTxt(r){
+  const [hh, mm] = String(r.h || '09:00').split(':'); const h = Number(hh) + ' h' + (mm && mm !== '00' ? ' ' + mm : '');
+  if(r.t === 'jour') return r.j === 0 ? `Le jour même à ${h}` : r.j === 1 ? `La veille à ${h}` : `${r.j} jours avant à ${h}`;
+  if(r.t === 'quotidien') return `Chaque jour à ${h}, pendant les ${r.j} jours avant`;
+  const m = r.m || 60; return m < 60 ? `${m} minutes avant` : m % 60 ? `${Math.floor(m / 60)} h ${m % 60} avant` : `${m / 60} heure${m >= 120 ? 's' : ''} avant`;
+}
+function otRapResume(){
+  const s = OT.nt.seances;
+  if(s.on === false) return 'désactivés';
+  return (s.regles || []).length ? s.regles.length + ' rappel' + (s.regles.length > 1 ? 's' : '') + ' par séance' : 'aucun rappel choisi';
+}
+function otRappelsCard(){
+  const host = document.getElementById('photo-subpage-seances');
+  const card = host && host.querySelector('.card');
+  if(!card) return;
+  let el = document.getElementById('otRapCard');
+  if(!el){ el = document.createElement('div'); el.id = 'otRapCard'; el.className = 'ot-rap'; const h = card.querySelector(':scope > h2'); if(h) h.insertAdjacentElement('afterend', el); else card.insertBefore(el, card.firstChild); }
+  const on = OT.nt.seances.on !== false;
+  el.innerHTML = `<span class="ic ${on ? 'on' : ''}">${on ? OT_BELL : OT_BELL_OFF}</span><div><b>Rappels de séances ${on ? 'activés' : 'désactivés'}</b><span>${agEsc(otRapResume())}</span></div><button onclick="otNotifs('seances')">Régler</button>`;
+}
+function otRappels(){ otNotifs('seances'); }
+function otSwitch(id, on, label, sub){ return `<label class="ot-sw"><div><b>${label}</b>${sub ? `<span>${sub}</span>` : ''}</div><input type="checkbox" id="${id}" ${on ? 'checked' : ''}><i></i></label>`; }
+function otHeuresHtml(cat){
+  const hs = OT.nt[cat].heures || [];
+  return `<div class="ot-hours">${hs.map((h, i) => `<span class="ot-hour"><input type="time" value="${agEsc(h)}" onchange="OT.nt.${cat}.heures[${i}]=this.value"><button onclick="OT.nt.${cat}.heures.splice(${i},1);otNotifsRender()" title="Retirer">×</button></span>`).join('')}
+    <button class="ot-addh" onclick="OT.nt.${cat}.heures.push('12:00');otNotifsRender()">+ Heure</button></div>`;
+}
+function otNotifs(focus){
+  OT.ntFocus = focus || '';
+  agSheet('otNt', '<div id="otNtBody"></div>');
+  otNotifsRender();
+  if(focus) setTimeout(() => { const el = document.getElementById('otNt-' + focus); if(el) el.scrollIntoView({ block: 'start' }); }, 50);
+}
+function otNotifsRead(){
+  const c = id => { const e = document.getElementById(id); return e ? e.checked : undefined; };
+  ['seances', 'galerie', 'mood', 'resa', 'motivation'].forEach(k => { const v = c('otNtOn-' + k); if(v !== undefined) OT.nt[k].on = v; });
+  const mo = c('otNtMoodOpen'); if(mo !== undefined) OT.nt.mood.ouverture = mo;
+}
+function otNotifsRender(){
+  const box = document.getElementById('otNtBody'); if(!box) return;
+  if(box.innerHTML) otNotifsRead();
+  const N = OT.nt, s = N.seances;
+  box.innerHTML = `
+    <h3>Notifications</h3>
+    <div class="ag-hint" style="margin-top:0">Choisis quand ton téléphone te prévient, même app fermée. Tout est déjà réglé de base, tu modifies si tu veux.</div>
+
+    <div class="ot-nt" id="otNt-seances">
+      ${otSwitch('otNtOn-seances', s.on !== false, 'Rappels de séances', 'Avant chaque séance planifiée')}
+      <div class="ot-nt-in">
+        <div class="ot-presets">${Object.entries(OT_PRESETS).map(([k, p]) => `<button onclick="OT.nt.seances.regles=otClone(OT_PRESETS.${k}.regles);otNotifsRender()">${p.n}</button>`).join('')}</div>
+        <div class="ot-rules">${(s.regles || []).map((r, i) => `<div class="ot-rule"><span>${agIcon('calendar', 15)}</span><b>${agEsc(otRegleTxt(r))}</b><button onclick="OT.nt.seances.regles.splice(${i},1);otNotifsRender()" title="Retirer">×</button></div>`).join('') || '<div class="ag-empty" style="padding:10px">Aucun rappel. Ajoute-en un ci-dessous.</div>'}</div>
+        <div class="ot-add">
+          <select id="otRt" onchange="otRuleUi()"><option value="jour">X jours avant, à une heure</option><option value="quotidien">Chaque jour, pendant X jours avant</option><option value="avant">X heures / minutes avant</option></select>
+          <div id="otRuleUi"></div>
+          <button class="btn-secondary" onclick="otRuleAdd()">+ Ajouter ce rappel</button>
+        </div>
+        <div class="ag-hint">Une séance enregistrée au dernier moment reçoit tout de suite le rappel. Pour couper une seule séance, touche la cloche sur la séance.</div>
+      </div>
+    </div>
+
+    <div class="ot-nt" id="otNt-galerie">
+      ${otSwitch('otNtOn-galerie', N.galerie.on !== false, 'Galerie clients', 'Téléchargements, j\'aime, commentaires, choix, avis')}
+      <div class="ot-nt-in">
+        <div class="ag-pills"><button class="${N.galerie.mode !== 'heures' ? 'on' : ''}" onclick="otNotifsRead();OT.nt.galerie.mode='direct';otNotifsRender()">À chaque visite du client</button><button class="${N.galerie.mode === 'heures' ? 'on' : ''}" onclick="otNotifsRead();OT.nt.galerie.mode='heures';otNotifsRender()">Résumé à heures fixes</button></div>
+        ${N.galerie.mode === 'heures' ? `<div class="ag-hint">Tu reçois un résumé de toute l'activité à ces heures-là :</div>${otHeuresHtml('galerie')}` : '<div class="ag-hint">Une notification quelques minutes après chaque visite, qui résume tout ce que le client a fait.</div>'}
+      </div>
+    </div>
+
+    <div class="ot-nt" id="otNt-mood">
+      ${otSwitch('otNtOn-mood', N.mood.on !== false, 'Moodboard', 'Quand le client envoie ses choix')}
+      <div class="ot-nt-in">${otSwitch('otNtMoodOpen', N.mood.ouverture !== false, 'Aussi quand il ouvre le lien', '')}</div>
+    </div>
+
+    <div class="ot-nt" id="otNt-resa">${otSwitch('otNtOn-resa', N.resa.on !== false, 'Réservations en ligne', 'Quand un client réserve depuis ta page')}</div>
+
+    <div class="ot-nt" id="otNt-motivation">
+      ${otSwitch('otNtOn-motivation', N.motivation.on !== false, 'Motivation du jour', 'Conseils et messages pour avancer')}
+      <div class="ot-nt-in">${otHeuresHtml('motivation')}</div>
+    </div>
+
+    <button class="btn-primary" style="margin-top:14px" onclick="otNotifsSave()">Enregistrer</button>
+    <button class="btn-secondary" style="margin-top:8px" onclick="OT.nt=otClone(OT_NT_DEF);otNotifsRender()">Remettre les réglages de base</button>`;
+  otRuleUi();
+}
+function otRuleUi(){
+  const t = (document.getElementById('otRt') || {}).value, el = document.getElementById('otRuleUi'); if(!el) return;
+  if(t === 'avant') el.innerHTML = `<div class="ot-row"><input type="number" id="otRv" value="1" min="1" inputmode="numeric"><select id="otRu"><option value="60">heure(s) avant</option><option value="1">minutes avant</option></select></div>`;
+  else el.innerHTML = `<div class="ot-row"><input type="number" id="otRv" value="${t === 'quotidien' ? 3 : 1}" min="0" max="30" inputmode="numeric"><span>${t === 'quotidien' ? 'jours avant, chaque jour à' : 'jour(s) avant, à'}</span><input type="time" id="otRh" value="09:00"></div><div class="ag-hint" style="margin:4px 0 0">${t === 'quotidien' ? 'Ex : 3 = un rappel chaque jour à cette heure pendant les 3 jours avant la séance.' : 'Mets 0 pour le jour même.'}</div>`;
+}
+function otRuleAdd(){
+  otNotifsRead();
+  const t = document.getElementById('otRt').value, v = Math.max(0, parseInt(document.getElementById('otRv').value) || 0);
+  let r;
+  if(t === 'avant'){ const m = v * Number(document.getElementById('otRu').value); if(!m){ agToast('Indique une durée'); return; } r = { t, m }; }
+  else r = { t, j: Math.min(30, v), h: document.getElementById('otRh').value || '09:00' };
+  OT.nt.seances.regles = [...(OT.nt.seances.regles || []), r];
+  otNotifsRender();
+}
+async function otNotifsSave(){
+  otNotifsRead();
+  ['galerie', 'motivation'].forEach(k => { OT.nt[k].heures = [...new Set((OT.nt[k].heures || []).filter(Boolean))].sort(); });
+  await otSaveNotifs();
+  agCloseSheet('otNt'); otRappelsCard(); otShootBells(true); agToast('Notifications enregistrées');
+}
+async function otRappelsSave(){ return otNotifsSave(); }
+function otShootBells(force){
+  document.querySelectorAll('.item-card .actions').forEach(a => {
+    const m = (a.innerHTML.match(/openShootModal\((\d+)\)/) || [])[1];
+    if(!m) return;
+    const s = (shoots || []).find(x => x.id === Number(m)); if(!s) return;
+    let b = a.querySelector('.ot-bell');
+    if(b && !force && b.dataset.off === String(!!s.rappels_off)) return;
+    if(!b){ b = document.createElement('button'); b.className = 'btn-ghost ag-ibtn ot-bell'; a.insertBefore(b, a.firstChild); }
+    const off = !!s.rappels_off || !OT.rap.on;
+    b.dataset.off = String(!!s.rappels_off);
+    b.title = s.rappels_off ? 'Rappels coupés pour cette séance (toucher pour réactiver)' : 'Rappels activés (toucher pour couper)';
+    b.innerHTML = off ? OT_BELL_OFF : OT_BELL;
+    b.classList.toggle('off', off);
+    b.onclick = e => { e.stopPropagation(); otToggleShootRappel(s.id); };
+  });
+}
+async function otToggleShootRappel(id){
+  const s = (shoots || []).find(x => x.id === id); if(!s) return;
+  if(!OT.rap.on){ if(await agConfirm('Les rappels sont coupés pour toutes les séances. Les réactiver ?', { ok: 'Réactiver' })){ OT.nt.seances.on = true; await otSaveNotifs(); otRappelsCard(); } else return; }
+  const r = await dbUpdate('shoots', id, { rappels_off: !s.rappels_off });
+  if(r){ Object.assign(s, r); otShootBells(true); agToast(r.rappels_off ? 'Rappels coupés pour cette séance' : 'Rappels réactivés pour cette séance'); }
+}
+new MutationObserver(() => { otShootBells(false); if(document.getElementById('photo-subpage-seances') && !document.getElementById('otRapCard')) otRappelsCard(); }).observe(document.body, { childList: true, subtree: true });
+
+// ============================================================
 // DEMARRAGE
 // ============================================================
 const _otShowTab = showTab;
@@ -678,8 +859,20 @@ showTab = function(name, btn){
   if(name !== 'coffres' && OT.cofSel){ OT.cofSel = false; OT.cofIds.clear(); }
   setTimeout(otTopButtons, 50);
 };
+// Lien direct depuis une notification : /?tab=galerie&g=CODE ou /?tab=mood&mb=ID
+(function otDeepLink(){
+  const q = new URLSearchParams(location.search), tab = q.get('tab');
+  if(!tab) return;
+  if(q.get('g')) window.__galDeep = q.get('g');
+  if(q.get('mb')) window.__mbDeep = Number(q.get('mb'));
+  history.replaceState(null, '', location.pathname);
+  try { localStorage.setItem('active_tab', tab); } catch(e){}
+  const go = () => { if(document.getElementById('page-' + tab) && !document.body.classList.contains('logged-out')){ agGoTab(tab); if(tab === 'mood' && typeof mbRender === 'function'){ if(window.__mbDeep && typeof MB !== 'undefined'){ MB.cur = window.__mbDeep; window.__mbDeep = null; } mbRender(); } } else setTimeout(go, 400); };
+  setTimeout(go, 300);
+})();
 (async function otInit(){
   await otLoadResas();
+  await otLoadRappels(); otRappelsCard(); otShootBells(true);
   let n = 0; const iv = setInterval(() => { otAddMenus(); otTopButtons(); if(++n > 20) clearInterval(iv); }, 500);
   if(otActivePage() === 'clients' && typeof crmRender === 'function') crmRender();
 })();

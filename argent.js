@@ -237,7 +237,7 @@ dbDelete = async function(table, id){
 // L'ancienne annulation de repartition retirait l'argent du coffre elle-meme :
 // maintenant la suppression du mouvement s'en charge (sinon on retirait 2 fois).
 annulerRepartition = async function(shootId, txId, montant){
-  if(!confirm('Annuler cette répartition ?')) return;
+  if(!await agConfirm('Annuler cette répartition ?')) return;
   const ok = await dbDelete('transactions', txId);
   if(!ok) return;
   txs = txs.filter(t => t.id !== txId);
@@ -359,7 +359,7 @@ async function agSaveAccount(id){
 async function agArchiveAccount(id){
   const a = accounts.find(x => x.id === id);
   const bal = agAccountBalance(a);
-  if(Math.round(bal) !== 0 && !confirm(`Ce compte a encore ${agF(bal)}.\nIl ne sera plus compté dans ton total. Continuer ?`)) return;
+  if(Math.round(bal) !== 0 && !await agConfirm(`Ce compte a encore ${agF(bal)}.\nIl ne sera plus compté dans ton total. Continuer ?`)) return;
   const r = await _agDbUpdate('accounts', id, { archived: true });
   if(!r) return;
   a.archived = true;
@@ -502,11 +502,11 @@ async function agDoTransfer(){
         alert(`🔒 "${c.name}" est bloqué.\n\nDébloque-le d'abord (bouton "Débloquer" dans le coffre), puis refais le transfert.`);
         return;
       }
-      if(!confirm(`"${c.name}" est protégé. Sortir ${agF(amount)} quand même ?`)) return;
+      if(!await agConfirm(`"${c.name}" est protégé. Sortir ${agF(amount)} quand même ?`)) return;
     }
     if(getTypeCoffre(c).id !== 'perso' && !note){ alert('Pour sortir de l\'argent de ce coffre, écris pourquoi dans la note.'); return; }
   } else if(agAccountBalance(from.obj) - amount < 0){
-    if(!confirm(`${from.obj.name} va passer en négatif (${agF(agAccountBalance(from.obj) - amount)}). Continuer ?`)) return;
+    if(!await agConfirm(`${from.obj.name} va passer en négatif (${agF(agAccountBalance(from.obj) - amount)}). Continuer ?`)) return;
   }
 
   if(btn){ btn.disabled = true; btn.textContent = 'Transfert en cours...'; }
@@ -657,7 +657,7 @@ function agOpenTx(id){
   `);
 }
 async function agDeleteTx(id){
-  if(!confirm('Supprimer définitivement ce mouvement ?\nL\'argent reviendra à sa place.')) return;
+  if(!await agConfirm('Supprimer définitivement ce mouvement ?\nL\'argent reviendra à sa place.')) return;
   const ok = await dbDelete('transactions', id);
   if(!ok) return;
   txs = txs.filter(t => t.id !== id);
@@ -1327,5 +1327,77 @@ agSetupInstall();
     showTab(saved && document.getElementById('page-' + saved) ? saved : 'dash');
   };
   setTimeout(tick, 600);
+})();
+
+// ============================================================
+// 0. FENETRES DE CONFIRMATION ET MESSAGES (remplacent les pop-up du navigateur)
+// ============================================================
+function agDialog(o){
+  return new Promise(res => {
+    const old = document.getElementById('agDlg'); if(old) old.remove();
+    const bg = document.createElement('div'); bg.id = 'agDlg'; bg.className = 'ag-dlg-bg';
+    const danger = o.danger || /supprim|effac|vider|retir|annuler|d[ée]finitiv|r[ée]initialis/i.test(o.msg || '');
+    const lines = String(o.msg || '').split('\n');
+    const title = o.title || (o.kind === 'alert' ? '' : lines.length > 1 ? lines.shift() : '');
+    const body = lines.join('\n').trim();
+    bg.innerHTML = `<div class="ag-dlg ${danger && o.kind !== 'alert' ? 'danger' : ''}" role="dialog" aria-modal="true">
+      <div class="ag-dlg-ic">${o.kind === 'alert' ? agIcon('info', 22) : danger ? agIcon('trash', 22) : agIcon('check', 22)}</div>
+      ${title ? `<h4>${agEsc(title)}</h4>` : ''}${body ? `<p>${agEsc(body)}</p>` : ''}
+      ${o.kind === 'prompt' ? `<input id="agDlgIn" value="${agEsc(o.value || '')}" ${o.readonly ? 'readonly' : ''}>` : ''}
+      <div class="ag-dlg-b">
+        ${o.kind === 'alert' ? '' : `<button class="ag-dlg-no">${agEsc(o.no || 'Annuler')}</button>`}
+        ${o.copy ? `<button class="ag-dlg-copy">Copier</button>` : ''}
+        <button class="ag-dlg-ok">${agEsc(o.ok || (o.kind === 'alert' ? 'OK' : danger ? 'Confirmer' : 'Valider'))}</button>
+      </div></div>`;
+    document.body.appendChild(bg);
+    requestAnimationFrame(() => bg.classList.add('show'));
+    const done = v => { bg.classList.remove('show'); setTimeout(() => bg.remove(), 160); document.removeEventListener('keydown', key, true); res(v); };
+    const key = e => { if(e.key === 'Escape'){ e.preventDefault(); done(o.kind === 'prompt' ? null : false); } if(e.key === 'Enter' && o.kind !== 'prompt'){ e.preventDefault(); done(true); } };
+    document.addEventListener('keydown', key, true);
+    bg.querySelector('.ag-dlg-ok').onclick = () => done(o.kind === 'prompt' ? document.getElementById('agDlgIn').value : true);
+    const no = bg.querySelector('.ag-dlg-no'); if(no) no.onclick = () => done(o.kind === 'prompt' ? null : false);
+    const cp = bg.querySelector('.ag-dlg-copy'); if(cp) cp.onclick = () => { const i = document.getElementById('agDlgIn'); i.select(); try { navigator.clipboard.writeText(i.value); } catch(e){ document.execCommand('copy'); } cp.textContent = 'Copié'; };
+    bg.onclick = e => { if(e.target === bg && o.kind === 'alert') done(true); };
+    setTimeout(() => { const i = document.getElementById('agDlgIn'); if(i){ i.focus(); i.select(); } else bg.querySelector('.ag-dlg-ok').focus(); }, 60);
+  });
+}
+const agConfirm = (msg, o) => agDialog({ ...(o || {}), msg, kind: 'confirm' });
+const agAlert = (msg, o) => agDialog({ ...(o || {}), msg, kind: 'alert' });
+const agPrompt = (msg, value, o) => agDialog({ ...(o || {}), msg, value, kind: 'prompt' });
+// Les anciens confirm()/prompt() de l'app sont synchrones : on affiche la belle fenetre,
+// et si tu valides, on rejoue le meme clic en repondant "oui" automatiquement.
+(function otNativePopups(){
+  const nConfirm = window.confirm.bind(window), nPrompt = window.prompt.bind(window);
+  let last = null, lastAt = 0, pass = 0, passVal = [];
+  document.addEventListener('click', e => { last = e.target; lastAt = Date.now(); }, true);
+  let passTimer = null;
+  const armPass = () => { clearTimeout(passTimer); passTimer = setTimeout(() => { pass = 0; passVal = []; }, 8000); };
+  const replay = () => {
+    const t = last;
+    if(!t || !t.isConnected) return false;
+    window.__agReplaying = true;
+    armPass();
+    try { t.click(); } finally { window.__agReplaying = false; }
+    return true;
+  };
+  const usable = () => last && last.isConnected && Date.now() - lastAt < 4000 && !/^(SELECT|INPUT|TEXTAREA|OPTION)$/.test(last.tagName);
+  window.__agChain = 0;
+  window.alert = msg => { agAlert(String(msg == null ? '' : msg)); };
+  window.confirm = msg => {
+    if(pass > 0){ pass--; return true; }
+    if(!usable()) return nConfirm(msg);
+    const n = window.__agChain;
+    agConfirm(String(msg == null ? '' : msg)).then(ok => { if(!ok){ window.__agChain = 0; return; } window.__agChain = n + 1; pass = window.__agChain; if(!replay()) agAlert("L'action n'a pas pu être relancée, réessaie."); window.__agChain = 0; });
+    return false;
+  };
+  window.prompt = (msg, def) => {
+    if(passVal.length){ return passVal.shift(); }
+    const txt = String(msg == null ? '' : msg);
+    const isCopy = /copie/i.test(txt);
+    if(isCopy){ agPrompt(txt, def || '', { readonly: true, copy: true, ok: 'Fermer', no: 'Annuler' }); return null; }
+    if(!usable()) return nPrompt(msg, def);
+    agPrompt(txt, def || '').then(v => { if(v === null) return; passVal = [v]; if(!replay()) agAlert("L'action n'a pas pu être relancée, réessaie."); });
+    return null;
+  };
 })();
 

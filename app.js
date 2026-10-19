@@ -160,7 +160,7 @@ async function handleSignUp(){
 }
 
 async function handleLogout(){
-  if(!confirm('Se déconnecter ?')) return;
+  if(!await agConfirm('Se déconnecter ?')) return;
 
   try {
     const OneSignal = window.OneSignal;
@@ -501,13 +501,13 @@ async function saveProfile(){
   alert('Profil enregistré et synchronisé !');
 }
 
-function changeAvatar(){
+async function changeAvatar(){
   const emojis = ['😎','📸','🔥','🚀','💪','⭐','🎯','💎','🏆','🌟','⚡','🎨','🎬','💼','🦁','🐺','🌞','🍀','🎁','👑'];
   let msg = 'Choisis un emoji (ou tape 0 pour revenir aux initiales) :\n\n';
   emojis.forEach((e, i) => msg += (i+1) + '. ' + e + '   ');
   msg += '\n\nNuméro (1-' + emojis.length + ') ou 0 :';
 
-  const choice = prompt(msg, '');
+  const choice = await agPrompt(msg, '');
   if(choice === null) return;
 
   getCurrentUser().then(async (user) => {
@@ -866,7 +866,7 @@ async function saveTx(){
 }
 
 async function delTx(id){
-  if(!confirm("Supprimer ?")) return;
+  if(!await agConfirm("Supprimer ?")) return;
 
   const ok = await dbDelete('transactions', id);
   if(!ok) return;
