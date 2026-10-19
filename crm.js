@@ -42,7 +42,12 @@ function crmFirst(c){
   const w = n.split(/\s+/)[0];
   return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
 }
-function crmFill(text, c){ return String(text || '').replace(/\{prenom\}/gi, crmFirst(c) || ''); }
+function crmPromoCode(){ const k = CRM.comp; const p = k && k.promoId ? CRM.promos.find(x => x.id === k.promoId) : null; return p ? p.code : ''; }
+function crmFill(text, c){
+  let t = String(text || '').replace(/\{prenom\}/gi, crmFirst(c) || '');
+  if(/\{lien\}/i.test(t)) t = t.replace(/\{lien\}/gi, typeof otResaLink === 'function' ? otResaLink(crmPromoCode()) : '');
+  return t;
+}
 function crmMd(t){
   const lines = agEsc(t || '').split('\n');
   let html = '', inList = false;
@@ -234,6 +239,7 @@ async function crmRender(){
     ${fetes.map((f, i) => `<div class="crm-fete" onclick="crmCompose(crmSegment('tous').map(x=>x.c.id),{goal:'fete',fete:crmFetes()[${i}].n})">
       <div class="ic">${agIcon('calendar')}</div><div class="d"><b>${agEsc(f.n)} ${f.j === 0 ? "aujourd'hui" : 'dans ' + f.j + ' jour' + (f.j > 1 ? 's' : '')}</b><span>${crmDate(f.d, { day: 'numeric', month: 'long' })} · prépare une offre pour tes clients</span></div>${agIcon('chev', 16)}</div>`).join('')}
 
+    ${typeof otResaHtml === 'function' ? otResaHtml() : ''}
     <div class="ag-sec"><h3>À relancer</h3>${sug.length ? `<span class="crm-count">${sug.length}</span>` : ''}</div>
     ${sug.length ? `<div class="ag-list">${sug.slice(0, 8).map(x => `
       <div class="crm-sug">
@@ -484,7 +490,7 @@ function crmContext(){
   return `Tu écris des messages WhatsApp pour Henzo Studio, studio photo et vidéo à Bouaké (Côte d'Ivoire), quartier Ahougnansou, en face du Restaurant Le Rosier. Le photographe s'appelle Henzo. Spécialités : portrait studio, anniversaires d'enfants, mariage, grossesse, événements.
 Objectif du message : ${CRM_GOALS[k.goal].n} (${CRM_GOALS[k.goal].d})${k.goal === 'fete' && k.fete ? ' - fête : ' + k.fete : ''}.
 ${who}
-${promo ? `Bon de réduction à inclure : "${promo.title || ''}" ${crmPromoValue(promo)}, code ${promo.code}${promo.valid_until ? ", valable jusqu'au " + crmDate(promo.valid_until, { day: 'numeric', month: 'long' }) : ''}.` : ''}
+${promo ? `Bon de réduction à inclure : "${promo.title || ''}" ${crmPromoValue(promo)}, code ${promo.code}${promo.valid_until ? ", valable jusqu'au " + crmDate(promo.valid_until, { day: 'numeric', month: 'long' }) : ''}. Termine le message par une ligne qui invite à réserver avec ce lien, écrit exactement {lien} (il sera remplacé par le vrai lien, où le code est déjà rempli).` : ''}
 ${tarifs ? 'Mes tarifs (à citer seulement si utile) : ' + tarifs : ''}
 Ce que Henzo veut dire : ${k.idea || '(rien de précis, propose)'}
 ${k.questions.length ? 'Précisions de Henzo :\n' + k.questions.map((q, i) => `- ${q} -> ${k.answers[i] || '(pas de réponse)'}`).join('\n') : ''}
@@ -545,23 +551,36 @@ function crmFallback(){
 function crmUse(i){
   const k = CRM.comp;
   if(!k.ids.length){ crmPickClients(); agToast('Choisis d\'abord les clients'); return; }
-  k.text = k.props[i].texte; k.step = 'send'; crmCompRender();
+  k.text = k.props[i].texte;
+  if(k.promoId && !/\{lien\}/i.test(k.text)) k.text += '\nRéservez avec votre code ici : {lien}';
+  k.step = 'send'; crmCompRender();
 }
 function crmSendRender(el){
   const k = CRM.comp, cs = crmCompClients();
   const nb = Object.keys(k.sent).length;
+  const next = cs.find(c => !k.sent[c.id] && crmPhone(c.phone));
+  const prev = next || cs[0];
   el.innerHTML = `
     <button class="ag-back" onclick="CRM.comp.step='brief';crmCompRender()">${agIcon('chev', 16)} Retour aux propositions</button>
     <h3>Envoyer (${nb}/${cs.length})</h3>
     <label>Message (modifiable)</label>
-    <textarea rows="6" oninput="CRM.comp.text=this.value">${agEsc(k.text)}</textarea>
-    <div class="ag-hint">Touche Envoyer : WhatsApp s'ouvre avec le message prêt et personnalisé. Reviens ici pour le client suivant.</div>
+    <textarea rows="6" oninput="CRM.comp.text=this.value;const p=document.getElementById('crmPrev');if(p)p.textContent=crmFill(this.value,(clients||[]).find(x=>x.id===${prev ? prev.id : 0}))">${agEsc(k.text)}</textarea>
+    ${prev ? `<div class="crm-prev"><span>Aperçu pour ${agEsc(prev.name)}</span><p id="crmPrev">${agEsc(crmFill(k.text, prev))}</p></div>` : ''}
+    ${next ? `<button class="btn-primary crm-next" onclick="crmSendOne(${next.id})">${agIcon('chat', 16)} ${nb ? 'Suivant : ' : 'Envoyer à '}${agEsc(next.name)}</button>
+      <div class="ag-hint">Envoyer à tous : touche ce bouton, envoie dans WhatsApp, reviens ici, et le client suivant est déjà prêt. WhatsApp ne permet pas d'envoyer à plusieurs personnes d'un seul coup sans un compte professionnel payant.</div>`
+      : `<div class="crm-done">${agIcon('check', 18)} Envoyé à tout le monde</div>`}
+    <button class="btn-secondary" style="margin-top:8px" onclick="crmCopyBroadcast()">Copier pour une liste de diffusion WhatsApp</button>
     <div class="ag-list" style="margin-top:12px">${cs.map(c => {
       const ok = k.sent[c.id], tel = crmPhone(c.phone);
       return `<div class="crm-send ${ok ? 'ok' : ''}"><div class="d"><b>${agEsc(c.name)}</b><span>${tel ? agEsc(c.phone) : 'Pas de numéro'}${ok ? ' · envoyé' : ''}</span></div>
         ${tel ? `<button class="${ok ? 'btn-secondary' : 'btn-primary'}" onclick="crmSendOne(${c.id})">${ok ? 'Renvoyer' : 'Envoyer'}</button>`
               : `<button class="btn-secondary" onclick="crmCopy(crmFill(CRM.comp.text, (clients||[]).find(x=>x.id===${c.id})))">Copier</button>`}</div>`; }).join('')}</div>
     <button class="btn-secondary" style="width:100%;margin-top:12px" onclick="agCloseSheet('crmComp');crmRender()">Terminer</button>`;
+}
+function crmCopyBroadcast(){
+  const t = crmFill(String(CRM.comp.text || '').replace(/\s*\{prenom\}\s*,?/gi, ' ').replace(/Bonjour\s+,/i, 'Bonjour,').replace(/  +/g, ' '), null);
+  crmCopy(t);
+  agToast('Copié : colle-le dans ta liste de diffusion WhatsApp');
 }
 function crmSendOne(id){
   const k = CRM.comp;
@@ -709,6 +728,9 @@ function crmPromoOpen(id){
       <button class="ag-act" onclick="agCloseSheet('crmPromoView');crmPromoForm(${p.id})"><span>${agIcon('edit')}</span>Modifier</button>
       <button class="ag-act" onclick="crmPromoStop(${p.id})"><span>${agIcon('ban')}</span>${p.status === 'arrete' ? 'Réactiver' : 'Arrêter'}</button>
     </div>
+    <div class="ag-list ag-share"><div class="ag-share-row"><div style="min-width:0"><span>Lien de réservation avec ce code</span><b class="ag-link">${agEsc(typeof otResaLink === 'function' ? otResaLink(p.code) : '')}</b></div>
+      <button class="ag-ibtn" title="Copier le lien" onclick="crmCopy(otResaLink('${agEsc(p.code)}'))">${agIcon('link', 17)}</button></div></div>
+    <div class="ag-hint">Le client ouvre ce lien, choisit sa formule et sa date : la réduction est déjà appliquée. Sa demande arrive dans Clients > Demandes de réservation.</div>
     ${uses.length ? `<h4 class="crm-h4">Utilisations</h4><div class="ag-list">${uses.map(u => `<div class="crm-line"><div><b>${agEsc((((clients || []).find(c => c.id === u.client_id)) || {}).name || u.name || 'Client')}</b><span>${crmDate(u.date)}</span></div></div>`).join('')}</div>` : ''}
     <button class="btn-danger" style="width:100%;padding:12px;margin-top:14px" onclick="crmPromoDelete(${p.id})">Supprimer</button>`);
 }
@@ -803,4 +825,6 @@ if(typeof agSheet === 'function'){
   };
 }
 // Tarifs, devis, conseiller IA et page publique (fichier prix.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'prix.js?v=1'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'prix.js?v=2'; document.body.appendChild(sc); })();
+// Selection multiple, mise a jour auto, sauvegardes, reservations (fichier outils.js)
+(function(){ const sc = document.createElement('script'); sc.src = 'outils.js?v=1'; document.body.appendChild(sc); })();

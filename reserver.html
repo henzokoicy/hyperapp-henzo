@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Réserver - Henzo Studio</title>
+<meta name="theme-color" content="#030b0a">
+<link rel="icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#030b0a;--card:#0a1c1a;--card2:#0f2a27;--line:#173b37;--txt:#fff;--muted:#9cbdb8;--accent:#48A89A;--light:#CBEFEB;--deep:#00524D;--forest:#053931;--gold:#ffd166}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,sans-serif;color:var(--txt);background:radial-gradient(1000px 500px at 85% -10%,rgba(72,168,154,.25),transparent 60%),var(--bg);min-height:100vh;padding-bottom:40px}
+.wrap{max-width:600px;margin:0 auto;padding:28px 16px}
+.brand{font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--light);opacity:.8}
+h1{font-size:28px;font-weight:800;line-height:1.15;margin:8px 0 10px}
+.intro{color:var(--muted);font-size:15px;line-height:1.55}
+.promo{margin:18px 0 6px;padding:18px;border-radius:20px;text-align:center;background:linear-gradient(150deg,var(--deep),var(--forest));border:1px dashed rgba(255,255,255,.35)}
+.promo .v{font-size:30px;font-weight:800}
+.promo .c{display:inline-block;margin:8px 0;padding:6px 14px;border-radius:10px;background:rgba(255,255,255,.12);letter-spacing:.12em;font-weight:700}
+.promo .u{font-size:12px;opacity:.85}
+.promo.bad{background:var(--card);border-color:#5a2a2a}
+h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--light);margin:26px 0 12px;opacity:.85}
+.f{display:flex;gap:12px;width:100%;text-align:left;font:inherit;color:inherit;background:var(--card);border:1.5px solid var(--line);border-radius:18px;padding:16px;margin-bottom:10px;cursor:pointer}
+.f.on{border-color:var(--accent);background:linear-gradient(160deg,rgba(0,82,77,.55),var(--card))}
+.f .d{flex:1;min-width:0}.f b{display:block;font-size:16px}.f span{font-size:13px;color:var(--muted)}
+.f .p{font-weight:800;font-size:17px;white-space:nowrap}
+.chk{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;flex-shrink:0;margin-top:2px}
+.f.on .chk{background:var(--accent);border-color:var(--accent)}
+.o{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:8px}
+.o .d{flex:1;min-width:0}.o b{display:block;font-size:15px}.o span{font-size:13px;color:var(--muted)}
+.st{display:flex;align-items:center;gap:4px;background:var(--card2);border-radius:12px;padding:3px}
+.st button{width:32px;height:32px;border:0;border-radius:9px;background:var(--line);color:#fff;font:600 18px Inter,sans-serif;cursor:pointer}
+.st b{min-width:20px;text-align:center}
+label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
+input,textarea{width:100%;background:var(--card);border:1px solid var(--line);border-radius:14px;color:var(--txt);font:inherit;font-size:15px;padding:13px 14px;outline:none}
+input:focus,textarea:focus{border-color:var(--accent)}
+.sum{margin-top:22px;padding:18px;border-radius:20px;background:var(--card);border:1px solid var(--line)}
+.sum .l{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);padding:4px 0}
+.sum .t{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;padding-top:10px;border-top:1px solid var(--line)}
+.sum .t b{font-size:26px}
+.btn{width:100%;margin-top:16px;border:0;border-radius:14px;padding:16px;font:700 16px Inter,sans-serif;cursor:pointer;background:#fff;color:var(--deep)}
+.btn:disabled{opacity:.6}
+.btn2{background:transparent;border:1px solid var(--line);color:var(--txt);margin-top:10px}
+.err{color:#ff8b8b;font-size:14px;margin-top:10px;text-align:center;min-height:18px}
+.ok{text-align:center;padding:30px 10px}
+.ok .ic{width:70px;height:70px;border-radius:50%;margin:0 auto 18px;display:grid;place-items:center;background:linear-gradient(150deg,var(--accent),var(--deep))}
+.ok p{color:var(--muted);line-height:1.55;margin-top:10px}
+.foot{text-align:center;color:#5f8580;font-size:12px;margin-top:30px;line-height:1.6}
+.empty{text-align:center;color:var(--muted);padding:60px 10px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="empty">Chargement...</div></div>
+<script>
+var SUPABASE_URL = 'https://lzxvktkryxizclkdetaa.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_L4Udla2VCbZsNjdm9IRuJw_ExshPrPc';
+var UNITS = { personne: 'par personne', tirage: 'par tirage', photo: 'par photo', heure: 'par heure', tenue: 'par tenue' };
+var S = { page: null, f: [], o: [], sel: null, qty: {}, promo: null, code: '', sent: null, form: { nom: '', tel: '', date: '', msg: '' } };
+var sb;
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function F(n){ return new Intl.NumberFormat('fr-FR').format(Math.round(Number(n) || 0)) + ' F'; }
+var tick = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+async function init(){
+  var q = new URLSearchParams(location.search), slug = (q.get('s') || 'henzo').toLowerCase();
+  S.code = (q.get('code') || '').toUpperCase();
+  var app = document.getElementById('app');
+  try {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    var p = await sb.from('tarif_page').select('*').eq('slug', slug).maybeSingle();
+    if(!p.data){ app.innerHTML = '<div class="empty">Cette page de réservation n\'est pas encore disponible.</div>'; return; }
+    S.page = p.data;
+    var t = await sb.from('tarifs').select('*').eq('user_id', p.data.user_id).order('position', { ascending: true });
+    var rows = t.data || [];
+    S.f = rows.filter(function(x){ return (x.kind || 'formule') === 'formule'; });
+    S.o = rows.filter(function(x){ return x.kind === 'option'; });
+    if(S.code){ var r = await sb.rpc('promo_info', { p_code: S.code }); S.promo = r.data || { invalid: true }; }
+  } catch(e){ app.innerHTML = '<div class="empty">Impossible de charger la page. Vérifiez votre connexion.</div>'; return; }
+  render();
+}
+function calc(){
+  var l = [], f = S.f.filter(function(x){ return x.id === S.sel; })[0];
+  if(f) l.push({ n: f.name, p: Number(f.price), q: 1 });
+  S.o.forEach(function(x){ var n = S.qty[x.id] || 0; if(n) l.push({ n: x.name, p: Number(x.price), q: n }); });
+  var tot = l.reduce(function(a, x){ return a + x.p * x.q; }, 0), rem = 0;
+  if(S.promo && S.promo.valid){ rem = S.promo.kind === 'amount' ? Number(S.promo.value) : Math.round(tot * Number(S.promo.value) / 100); rem = Math.min(rem, tot); }
+  return { l: l, tot: tot, rem: rem };
+}
+function promoHtml(){
+  if(!S.code) return '';
+  var p = S.promo;
+  if(!p || p.invalid || !p.valid) return '<div class="promo bad"><div class="u">Le code ' + esc(S.code) + ' n\'est plus valable. Vous pouvez quand même réserver au tarif normal.</div></div>';
+  return '<div class="promo"><div class="u">' + esc(p.title || 'Votre réduction') + '</div><div class="v">' + (p.kind === 'amount' ? '-' + F(p.value) : '-' + Math.round(p.value) + ' %') + '</div><div class="c">' + esc(p.code) + '</div>' +
+    '<div class="u">' + (p.valid_until ? 'Valable jusqu\'au ' + new Date(p.valid_until + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : '') + (p.notes ? ' · ' + esc(p.notes) : '') + '</div></div>';
+}
+function render(){
+  if(S.sent) return renderOk();
+  var P = S.page, c = calc(), fm = S.form;
+  var h = '<div class="brand">Henzo Studio</div><h1>Réserver ma séance</h1>' + (P.intro ? '<p class="intro">' + esc(P.intro) + '</p>' : '') + promoHtml();
+  if(S.f.length){
+    h += '<h2>1. Votre formule</h2>';
+    S.f.forEach(function(x){
+      var d = [x.duration_min ? x.duration_min + ' min' : '', x.photo_count ? x.photo_count + ' photos' : '', x.includes || ''].filter(Boolean).join(' · ');
+      h += '<button class="f' + (S.sel === x.id ? ' on' : '') + '" onclick="pick(' + x.id + ')"><span class="chk">' + (S.sel === x.id ? tick : '') + '</span><div class="d"><b>' + esc(x.name) + '</b>' + (d ? '<span>' + esc(d) + '</span>' : '') + '</div><span class="p">' + F(x.price) + '</span></button>';
+    });
+  }
+  if(S.o.length){
+    h += '<h2>Options (facultatif)</h2>';
+    S.o.forEach(function(x){
+      h += '<div class="o"><div class="d"><b>' + esc(x.name) + '</b><span>+' + F(x.price) + (UNITS[x.unit] ? ' ' + UNITS[x.unit] : '') + '</span></div><div class="st"><button onclick="qty(' + x.id + ',-1)">-</button><b>' + (S.qty[x.id] || 0) + '</b><button onclick="qty(' + x.id + ',1)">+</button></div></div>';
+    });
+  }
+  h += '<h2>' + (S.f.length ? '2. ' : '') + 'Vos informations</h2>' +
+    '<label>Votre nom</label><input id="nom" value="' + esc(fm.nom) + '" oninput="S.form.nom=this.value" autocomplete="name">' +
+    '<label>Votre numéro WhatsApp</label><input id="tel" type="tel" value="' + esc(fm.tel) + '" oninput="S.form.tel=this.value" placeholder="07 00 00 00 00" autocomplete="tel">' +
+    '<label>Date et heure souhaitées</label><input id="date" type="datetime-local" value="' + esc(fm.date) + '" oninput="S.form.date=this.value">' +
+    '<label>Un message ? (facultatif)</label><textarea id="msg" rows="3" oninput="S.form.msg=this.value" placeholder="Nombre de personnes, idée de photos...">' + esc(fm.msg) + '</textarea>';
+  h += '<div class="sum">' + c.l.map(function(x){ return '<div class="l"><span>' + esc(x.n) + (x.q > 1 ? ' x' + x.q : '') + '</span><span>' + F(x.p * x.q) + '</span></div>'; }).join('') +
+    (c.rem ? '<div class="l"><span>Code ' + esc(S.promo.code) + '</span><span>-' + F(c.rem) + '</span></div>' : '') +
+    '<div class="t"><span>Total estimé</span><b>' + F(c.tot - c.rem) + '</b></div></div>' +
+    '<button class="btn" id="go" onclick="envoyer()">Envoyer ma demande</button><div class="err" id="err"></div>' +
+    (P.notes ? '<p class="intro" style="margin-top:14px;font-size:13px">' + esc(P.notes) + '</p>' : '') +
+    '<div class="foot">Henzo Studio · Ahougnansou, en face du Restaurant Le Rosier · Bouaké</div>';
+  document.getElementById('app').innerHTML = h;
+}
+function pick(id){ S.sel = S.sel === id ? null : id; render(); }
+function qty(id, d){ S.qty[id] = Math.max(0, (S.qty[id] || 0) + d); render(); }
+async function envoyer(){
+  var fm = S.form, err = document.getElementById('err'); err.textContent = '';
+  if(S.f.length && !S.sel){ err.textContent = 'Choisissez une formule.'; return; }
+  if(fm.nom.trim().length < 2){ err.textContent = 'Indiquez votre nom.'; return; }
+  if(fm.tel.replace(/\D/g, '').length < 8){ err.textContent = 'Indiquez votre numéro WhatsApp.'; return; }
+  var b = document.getElementById('go'); b.disabled = true; b.textContent = 'Envoi...';
+  var opts = S.o.filter(function(x){ return S.qty[x.id]; }).map(function(x){ return { id: x.id, qty: S.qty[x.id] }; });
+  try {
+    var r = await sb.rpc('creer_reservation', { p_slug: S.page.slug, p_nom: fm.nom.trim(), p_tel: fm.tel.trim(), p_formule_id: S.sel, p_options: opts,
+      p_date: fm.date ? new Date(fm.date).toISOString() : '', p_message: fm.msg.trim(), p_code: S.promo && S.promo.valid ? S.code : '' });
+    if(r.error) throw new Error(r.error.message);
+    S.sent = r.data; render();
+  } catch(e){ err.textContent = (e.message || 'Erreur') .replace(/^.*?:\s*/, '') || 'Erreur, réessayez.'; b.disabled = false; b.textContent = 'Envoyer ma demande'; }
+}
+function renderOk(){
+  var c = calc(), fm = S.form, f = S.f.filter(function(x){ return x.id === S.sel; })[0];
+  var msg = 'Bonjour Henzo Studio, je viens de réserver en ligne.\nNom : ' + fm.nom + (f ? '\nFormule : ' + f.name : '') + (fm.date ? '\nDate souhaitée : ' + new Date(fm.date).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : '') + (c.rem ? '\nCode : ' + S.promo.code : '') + '\nTotal estimé : ' + F(c.tot - c.rem);
+  document.getElementById('app').innerHTML = '<div class="ok"><div class="ic"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>' +
+    '<h1>Demande envoyée !</h1><p>Merci ' + esc(fm.nom.split(' ')[0]) + '. Henzo Studio va vous confirmer la date sur WhatsApp' + (c.rem ? ', avec votre réduction déjà appliquée' : '') + '.</p>' +
+    (S.page.phone ? '<a class="btn" style="display:block;text-decoration:none;text-align:center" href="https://wa.me/' + esc(S.page.phone) + '?text=' + encodeURIComponent(msg) + '" target="_blank">Prévenir Henzo sur WhatsApp</a>' : '') +
+    '<div class="foot">Henzo Studio · Ahougnansou, en face du Restaurant Le Rosier · Bouaké</div></div>';
+}
+init();
+</script>
+</body>
+</html>

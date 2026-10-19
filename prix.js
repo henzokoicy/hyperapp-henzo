@@ -484,7 +484,9 @@ function pxRenderPartage(el){
   el.innerHTML = `
     ${link ? `<div class="ag-list ag-share" style="margin-top:12px">
       <div class="ag-share-row"><div style="min-width:0"><span>Lien de ma page de tarifs</span><b class="ag-link">${agEsc(link)}</b></div>
-        <button class="ag-ibtn" title="Copier le lien" onclick="crmCopy(pxLink())">${agIcon('link', 17)}</button></div></div>
+        <button class="ag-ibtn" title="Copier le lien" onclick="crmCopy(pxLink())">${agIcon('link', 17)}</button></div>
+      <div class="ag-share-row"><div style="min-width:0"><span>Lien pour réserver en ligne</span><b class="ag-link">${agEsc(typeof otResaLink === 'function' ? otResaLink('') : '')}</b></div>
+        <button class="ag-ibtn" title="Copier le lien" onclick="crmCopy(otResaLink(''))">${agIcon('link', 17)}</button></div></div>
     <div class="ag-actions" style="margin-top:12px">
       <button class="ag-act main" onclick="pxShareWa()"><span>${agIcon('chat')}</span>WhatsApp</button>
       <button class="ag-act" onclick="window.open(pxLink(),'_blank')"><span>${agIcon('eye')}</span>Voir</button>
