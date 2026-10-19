@@ -109,7 +109,10 @@ async function mbSaveBoard(id){
 async function mbDeleteBoard(id){
   const im = mbImgs(id);
   if(!confirm(`Supprimer ce tableau et ses ${im.length} image(s) ?`)) return;
-  const paths = im.map(x => x.path).filter(Boolean);
+  const all = MB.imgs.filter(x => x.board_id === id);
+  const cli = all.filter(x => x.from_client).map(x => x.id);
+  if(cli.length) await mbCleanClient(cli);
+  const paths = all.filter(x => !x.from_client).map(x => x.path).filter(Boolean);
   if(paths.length) await sb.storage.from('moodboard').remove(paths);
   await sb.from('mood_images').delete().eq('board_id', id);
   const { error } = await sb.from('mood_boards').delete().eq('id', id);
@@ -303,11 +306,21 @@ async function mbSaveNote(id, v){ await mbUpdateImg(id, { note: v.trim() || null
 async function mbDeleteImgs(ids){
   if(!confirm(`Supprimer ${ids.length} image(s) ?`)) return;
   const list = MB.imgs.filter(x => ids.includes(x.id));
-  const paths = list.map(x => x.path).filter(Boolean);
+  const own = list.filter(x => !x.from_client), cli = list.filter(x => x.from_client);
+  const paths = own.map(x => x.path).filter(Boolean);
   if(paths.length) await sb.storage.from('moodboard').remove(paths);
-  for(const id of ids) await sb.from('mood_images').delete().eq('id', id);
+  for(const x of own) await sb.from('mood_images').delete().eq('id', x.id);
+  if(cli.length) await mbCleanClient(cli.map(x => x.id));
   MB.imgs = MB.imgs.filter(x => !ids.includes(x.id)); ids.forEach(i => MB.sel.delete(i));
   agCloseSheet('mbView'); mbRender();
+}
+async function mbCleanClient(ids){
+  try {
+    const { data: ss } = await sb.auth.getSession();
+    await fetch(`${SUPABASE_URL}/functions/v1/mood-clean`, { method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: 'Bearer ' + (ss && ss.session ? ss.session.access_token : '') },
+      body: JSON.stringify({ ids }) });
+  } catch(e){ console.warn(e); }
 }
 function mbDeleteSel(){ mbDeleteImgs([...MB.sel]); }
 function mbMoveOne(id){ MB.moveIds = [id]; mbMovePick(); }

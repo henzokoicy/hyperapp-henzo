@@ -179,6 +179,7 @@ async function ajouter(files){
 async function retirer(k){
   var m = S.mine[k]; if(!m || !confirm('Retirer cette photo ?')) return;
   try { await sb.rpc('mood_retirer_image', { p_token: S.tok, p_id: m.id }); } catch(e){}
+  try { await fetch(SUPABASE_URL + '/functions/v1/mood-clean', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY }, body: JSON.stringify({ token: S.tok, ids: [m.id] }) }); } catch(e){}
   S.mine.splice(k, 1); render();
 }
 async function noter(k){ var m = S.mine[k]; if(m) try { await sb.rpc('mood_note_image', { p_token: S.tok, p_id: m.id, p_note: m.note }); } catch(e){} }
