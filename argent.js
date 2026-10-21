@@ -25,21 +25,21 @@ const AG_KINDS = {
 
 const AG_GROUPS = {
   accueil: { label: 'Accueil', icon: 'home',     tabs: ['dash'] },
-  argent:  { label: 'Argent',  icon: 'wallet',   tabs: ['argent', 'coffres', 'objectifs', 'historique'] },
-  studio:  { label: 'Studio',  icon: 'camera',   tabs: ['photo', 'clients', 'mood', 'galerie', 'tarifs'] },
+  argent:  { label: 'Argent',  icon: 'wallet',   tabs: ['argent', 'coffres', 'objectifs', 'historique', 'materiel'] },
+  studio:  { label: 'Studio',  icon: 'camera',   tabs: ['photo', 'clients', 'mood', 'galerie', 'tarifs', 'marketing'] },
   idees:   { label: 'Idées',   icon: 'bulb',     tabs: ['notes', 'business', 'inspiration', 'motiv'] },
   coach:   { label: 'Coach',   icon: 'sparkles', tabs: ['ia'] }
 };
 const AG_TAB_LABELS = {
   dash: 'Accueil', argent: 'Comptes', coffres: 'Coffres', objectifs: 'Objectifs', historique: 'Historique',
-  photo: 'Séances', clients: 'Clients', mood: 'Moodboard', galerie: 'Galerie', tarifs: 'Tarifs', notes: 'Notes', business: 'Business',
+  photo: 'Séances', clients: 'Clients', mood: 'Moodboard', galerie: 'Galerie', tarifs: 'Tarifs', marketing: 'Marketing', materiel: 'Matériel', notes: 'Notes', business: 'Business',
   inspiration: 'Inspiration', motiv: 'Motivation', ia: 'IA'
 };
 // Pages Clients et Tarifs (remplies par crm.js)
 (function agMakeCrmPages(){
   const ref = document.getElementById('page-coffres');
   if(!ref) return;
-  [['clients', 'crmClientsBody'], ['mood', 'mbBody'], ['tarifs', 'crmTarifsBody']].forEach(([n, b]) => {
+  [['clients', 'crmClientsBody'], ['mood', 'mbBody'], ['tarifs', 'crmTarifsBody'], ['marketing', 'mkBody'], ['materiel', 'mtBody']].forEach(([n, b]) => {
     if(document.getElementById('page-' + n)) return;
     const d = document.createElement('div');
     d.className = 'page'; d.id = 'page-' + n;
@@ -49,7 +49,7 @@ const AG_TAB_LABELS = {
 })();
 const AG_TITLES = {
   dash: 'Accueil', argent: 'Mon argent', coffres: 'Mes coffres', objectifs: 'Mes objectifs',
-  historique: 'Historique', photo: 'Studio', clients: 'Mes clients', mood: 'Moodboard', tarifs: 'Grille tarifaire', galerie: 'Galerie clients', notes: 'Notes & à faire',
+  historique: 'Historique', photo: 'Studio', clients: 'Mes clients', mood: 'Moodboard', tarifs: 'Grille tarifaire', marketing: 'Agent marketing', materiel: 'Mon matériel', galerie: 'Galerie clients', notes: 'Notes & à faire',
   business: 'Idées business', inspiration: 'Inspiration', motiv: 'Motivation', ia: 'Coach IA'
 };
 
@@ -177,6 +177,8 @@ function agLinkedChanges(id, cancelled){
 // sign = -1 (annulé / supprimé) ou +1 (restauré). "liees" = ses mouvements rep: qui ont changé avec lui.
 async function agSyncShootFromRevenu(rev, sign, liees){
   if(window.__agNoShootSync || !rev || rev.type !== 'revenu' || !rev.shoot_id) return;
+  // Paiement d'une dette (suivi client) : c'est un surplus, la séance ne bouge pas
+  if(String(rev.details || '').startsWith('dette:')) return;
   const s = (typeof shoots !== 'undefined' ? shoots : []).find(x => x.id === rev.shoot_id);
   if(!s) return;
   const transferts = liees.filter(x => x.type === 'transfert').reduce((a, x) => a + (Number(x.amount) || 0), 0);
@@ -1323,11 +1325,15 @@ async function agInstall(){
 agSetupInstall();
 
 // Galerie clients integree (fichier galerie.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=4'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=5'; document.body.appendChild(sc); })();
 // Clients, relances, promos et tarifs (fichier crm.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=6'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=9'; document.body.appendChild(sc); })();
 // Moodboard : idees de seance (fichier mood.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'mood.js?v=1'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'mood.js?v=2'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'marketing.js?v=1'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'extras.js?v=4'; document.body.appendChild(sc); })();
+// Suivi client : impressions et dettes (fichier suivi.js)
+(function(){ const sc = document.createElement('script'); sc.src = 'suivi.js?v=1'; document.body.appendChild(sc); })();
 
 (function agDesignInit(){
   document.body.classList.add('ag-ui');

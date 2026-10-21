@@ -215,7 +215,7 @@ async function otRefresh(force){
   OT.busy = false;
 }
 // Nouvelle version du site publiee ? On recharge tout seul.
-const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'theme.css'];
+const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'theme.css'];
 async function otCheckVersion(){
   let changed = false;
   for(const f of OT_FILES){
@@ -252,16 +252,17 @@ const OT_GROUPS = [
   { k: 'comptes', n: 'Comptes', t: ['accounts'], d: 'Wave, espèces, banque...' },
   { k: 'coffres', n: 'Coffres et objectifs', t: ['goal_reminders', 'goals'], d: 'Avec leurs rappels' },
   { k: 'seances', n: 'Séances', t: ['shoots'] },
-  { k: 'clients', n: 'Clients', t: ['client_messages', 'reservations', 'clients'], d: 'Avec messages envoyés et réservations' },
+  { k: 'clients', n: 'Clients', t: ['client_suivi', 'client_messages', 'reservations', 'clients'], d: 'Avec suivi (impressions, dettes), messages envoyés et réservations' },
   { k: 'liens', n: 'Liens de paiement', t: ['payment_links'] },
   { k: 'notes', n: 'Notes et rappels', t: ['notes', 'reminders'] },
   { k: 'idees', n: 'Idées et inspirations', t: ['saved_ideas', 'inspirations'] },
   { k: 'promos', n: 'Promos et bons', t: ['promos'] },
-  { k: 'tarifs', n: 'Tarifs, devis, page de tarifs', t: ['devis', 'tarifs', 'tarif_page'] },
+  { k: 'tarifs', n: 'Tarifs, devis, page de tarifs', t: ['devis', 'tarifs', 'tarif_collections', 'tarif_page'] },
   { k: 'mood', n: 'Moodboards', t: ['mood_feedback', 'mood_images', 'mood_boards'], d: 'Tableaux, images et choix des clients' },
+  { k: 'materiel', n: 'Matériel', t: ['materiel'], d: 'Ton matériel et son usure' },
   { k: 'reglages', n: 'Réglages', t: ['user_settings'], d: 'Notifications, préférences, thème, messages' }
 ];
-const OT_ORDER = ['accounts', 'goals', 'goal_reminders', 'clients', 'shoots', 'transactions', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'client_messages', 'promos', 'tarifs', 'devis', 'tarif_page', 'reservations', 'mood_boards', 'mood_images', 'mood_feedback', 'user_settings'];
+const OT_ORDER = ['accounts', 'goals', 'goal_reminders', 'clients', 'shoots', 'client_suivi', 'transactions', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'client_messages', 'promos', 'tarifs', 'tarif_collections', 'devis', 'tarif_page', 'reservations', 'mood_boards', 'mood_images', 'mood_feedback', 'materiel', 'user_settings'];
 
 // La cle IA et le mot de passe galerie ne partent jamais dans une sauvegarde
 const OT_SECRETS = ['ai_config', 'galerie_admin_pwd'];
@@ -424,7 +425,7 @@ async function otImportRun(){
     // 2. Mode Remplacer : on enleve seulement ce qui n'existait pas dans la sauvegarde
     //    (les plus "dependants" d'abord). Les clients ne sont jamais effaces.
     if(mode === 'replace'){
-      const order = ['transactions', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'mood_feedback', 'mood_images', 'mood_boards', 'goals', 'accounts'];
+      const order = ['transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'goals', 'accounts'];
       for(const t of order.filter(x => tables.includes(x))){
         const ids = (snap.tables[t] || []).map(r => r.id).filter(v => v != null);
         let q = sb.from(t).delete().eq('user_id', uid);
@@ -459,7 +460,7 @@ async function otAutoBackup(){
 setTimeout(otAutoBackup, 20000);
 
 async function otWipe(tables, uid){
-  const order = ['transactions', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_page', 'mood_feedback', 'mood_images', 'mood_boards', 'clients', 'goals', 'accounts'];
+  const order = ['transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'tarif_page', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'clients', 'goals', 'accounts'];
   for(const t of order.filter(x => tables.includes(x))){
     const { error } = await sb.from(t).delete().eq('user_id', uid);
     if(error) throw new Error(t + ' : ' + error.message);
@@ -627,7 +628,7 @@ function otResaHtml(){
   return `<div class="ag-sec"><h3>Demandes de réservation</h3>${nouv.length ? `<span class="crm-count ot-new">${nouv.length} nouvelle${nouv.length > 1 ? 's' : ''}</span>` : ''}</div>
     <div class="ag-list">${OT.resas.slice(0, nouv.length ? Math.max(nouv.length, 3) : 3).map(r => `
       <div class="crm-row" onclick="otOpenResa(${r.id})"><div class="crm-av">${agEsc(String(r.nom || '?').slice(0, 2).toUpperCase())}</div>
-        <div class="d"><b>${agEsc(r.nom)}</b><span>${agEsc(r.formule || 'Séance')}${r.code ? ' · code ' + agEsc(r.code) : ''} · ${agEsc(r.date_souhaitee ? otFmtDate(r.date_souhaitee) : 'date à fixer')}</span></div>
+        <div class="d"><b>${agEsc(r.nom)}</b><span>${agEsc(r.formule || 'Séance')}${r.code ? ' · code ' + agEsc(r.code) : ''} · ${agEsc(r.date_souhaitee ? otFmtDate(r.date_souhaitee) : 'date à fixer')}</span>${typeof svResaBadge === 'function' ? svResaBadge(r) : ''}</div>
         <div class="m">${agF(Number(r.prix_estime) - Number(r.remise))}<span class="crm-st ${r.status === 'nouvelle' ? 'st-Actif' : ''}">${{ nouvelle: 'Nouvelle', acceptee: 'Acceptée', refusee: 'Refusée' }[r.status] || r.status}</span></div></div>`).join('')}</div>`;
 }
 function otFmtDate(s){ const d = new Date(s); return isNaN(d) ? s : d.toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
@@ -636,6 +637,7 @@ function otOpenResa(id){
   const total = Number(r.prix_estime) - Number(r.remise);
   agSheet('otResa', `
     <h3>Réservation de ${agEsc(r.nom)}</h3>
+    ${typeof svResaAlertHtml === 'function' ? svResaAlertHtml(r) : ''}
     <div class="crm-info">
       <div><span>Téléphone</span><b>${agEsc(r.telephone)}</b></div>
       <div><span>Formule</span><b>${agEsc(r.formule || 'Non choisie')}</b></div>
@@ -645,6 +647,8 @@ function otOpenResa(id){
       ${r.code ? `<div><span>Code ${agEsc(r.code)}</span><b>-${agF(r.remise)}</b></div>` : ''}
       <div><span>À payer</span><b>${agF(total)}</b></div>
       ${r.message ? `<div><span>Message</span><b>${agEsc(r.message)}</b></div>` : ''}
+      ${r.source ? `<div><span>Nous a connu par</span><b>${agEsc(typeof crmSrcLabel === 'function' ? crmSrcLabel(r.source) : r.source)}</b></div>` : ''}
+      ${r.parrain_code ? `<div><span>Recommandé par</span><b>${agEsc(((clients || []).find(x => String(x.code_parrain || '').toUpperCase() === String(r.parrain_code).toUpperCase()) || {}).name || 'code ' + r.parrain_code)}</b></div>` : ''}
     </div>
     ${r.status === 'nouvelle' ? `
       <label>Date et heure de la séance</label><input id="otResaDate" type="datetime-local" value="${agEsc(otIsoLocal(r.date_souhaitee))}">
@@ -663,7 +667,19 @@ async function otAcceptResa(id){
   if(!date){ alert('Choisis la date de la séance'); return; }
   const digits = String(r.telephone || '').replace(/\D/g, '').slice(-8);
   let c = (clients || []).find(x => digits && String(x.phone || '').replace(/\D/g, '').slice(-8) === digits);
-  if(!c){ c = await dbInsert('clients', { name: r.nom, phone: r.telephone, categories: [] }); if(!c) return; clients.unshift(c); }
+  // Parrain : le client dont le code perso = code de la reservation (jamais soi-meme)
+  const parCode = String(r.parrain_code || '').trim().toUpperCase();
+  const parrain = parCode ? (clients || []).find(x => String(x.code_parrain || '').toUpperCase() === parCode && (!c || x.id !== c.id)) : null;
+  const srcResa = String(r.source || '').trim() || (parrain ? 'Recommandé par un client' : '');
+  if(!c){
+    c = await dbInsert('clients', { name: r.nom, phone: r.telephone, categories: [], source: srcResa || null, parrain_id: parrain ? parrain.id : null }); if(!c) return; clients.unshift(c);
+  } else {
+    // Sans ecraser ce qui est deja rempli
+    const patch = {};
+    if(!c.source && srcResa) patch.source = srcResa;
+    if(c.parrain_id == null && parrain) patch.parrain_id = parrain.id;
+    if(Object.keys(patch).length){ const u = await dbUpdate('clients', c.id, patch); if(u) Object.assign(c, u); else Object.assign(c, patch); }
+  }
   const notes = ['Réservation en ligne', r.formule ? 'Formule : ' + r.formule : '', (r.options || []).length ? 'Options : ' + r.options.map(o => o.name + (o.qty > 1 ? ' x' + o.qty : '')).join(', ') : '',
     r.code ? `Code ${r.code} : -${agN(r.remise)} F (prix normal ${agN(r.prix_estime)} F)` : '', r.message ? 'Message : ' + r.message : ''].filter(Boolean).join('\n');
   const s = await dbInsert('shoots', { client_id: c.id, type: r.formule || 'Séance', date, price, payment: 'impaye', notes, status: 'planifie', status_updated_at: new Date().toISOString(), shoot_expenses: [] });
@@ -822,8 +838,16 @@ const OT_NT_DEF = {
   galerie: { on: true, mode: 'direct', heures: ['10:00', '20:00'] },
   mood: { on: true, ouverture: true },
   resa: { on: true },
-  motivation: { on: true, heures: ['08:00', '13:00', '20:00'] }
+  motivation: { on: true, heures: ['08:00', '13:00', '20:00'] },
+  // Lus par le serveur : user_preferences.notifs.<cle> (garder ces noms)
+  marketing: { on: true, heure: '18:00' },
+  stats_posts: { on: true },
+  bilan_semaine: { on: true, jour: 0, heure: '19:00' },
+  bilan_mois: { on: true, heure: '09:00' },
+  checklist: { on: true, heure: '20:00' },
+  dettes: { on: true, jours: 7 }
 };
+const OT_JOURS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 const OT_PRESETS = {
   leger: { n: 'Léger', regles: [{ t: 'jour', j: 1, h: '19:00' }, { t: 'avant', m: 120 }] },
   standard: { n: 'Standard', regles: OT_NT_DEF.seances.regles },
@@ -888,8 +912,12 @@ function otNotifs(focus){
 }
 function otNotifsRead(){
   const c = id => { const e = document.getElementById(id); return e ? e.checked : undefined; };
-  ['seances', 'galerie', 'mood', 'resa', 'motivation'].forEach(k => { const v = c('otNtOn-' + k); if(v !== undefined) OT.nt[k].on = v; });
+  ['seances', 'galerie', 'mood', 'resa', 'motivation', 'marketing', 'stats_posts', 'bilan_semaine', 'bilan_mois', 'checklist', 'dettes'].forEach(k => { const v = c('otNtOn-' + k); if(v !== undefined) OT.nt[k].on = v; });
+  const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
+  [['marketing', '18:00'], ['bilan_semaine', '19:00'], ['bilan_mois', '09:00'], ['checklist', '20:00']].forEach(([k, d]) => { const h = val('otNtH-' + k); if(h) OT.nt[k].heure = h; else if(!OT.nt[k].heure) OT.nt[k].heure = d; });
+  const j = val('otNtJ-bilan_semaine'); if(j !== '') OT.nt.bilan_semaine.jour = Number(j);
   const mo = c('otNtMoodOpen'); if(mo !== undefined) OT.nt.mood.ouverture = mo;
+  const dj = parseInt(val('otNtJ-dettes'), 10); if(dj > 0) OT.nt.dettes.jours = Math.min(60, dj);
 }
 function otNotifsRender(){
   const box = document.getElementById('otNtBody'); if(!box) return;
@@ -931,6 +959,33 @@ function otNotifsRender(){
     <div class="ot-nt" id="otNt-motivation">
       ${otSwitch('otNtOn-motivation', N.motivation.on !== false, 'Motivation du jour', 'Conseils et messages pour avancer')}
       <div class="ot-nt-in">${otHeuresHtml('motivation')}</div>
+    </div>
+
+    <div class="ot-nt" id="otNt-checklist">
+      ${otSwitch('otNtOn-checklist', N.checklist.on !== false, 'Checklist avant séance', "La veille d'une séance, pour vérifier ton matériel")}
+      <div class="ot-nt-in"><div class="ot-row"><span>La veille à</span><input type="time" id="otNtH-checklist" value="${agEsc(N.checklist.heure || '20:00')}"></div></div>
+    </div>
+
+    <div class="ot-nt" id="otNt-marketing">
+      ${otSwitch('otNtOn-marketing', N.marketing.on !== false, "Quoi publier aujourd'hui", 'Une idée de publication pour tes réseaux')}
+      <div class="ot-nt-in"><div class="ot-row"><span>Chaque jour à</span><input type="time" id="otNtH-marketing" value="${agEsc(N.marketing.heure || '18:00')}"></div></div>
+    </div>
+
+    <div class="ot-nt" id="otNt-stats_posts">${otSwitch('otNtOn-stats_posts', N.stats_posts.on !== false, 'Résultats de mes publications', 'Demander les résultats 2 jours après une publication')}</div>
+
+    <div class="ot-nt" id="otNt-bilan_semaine">
+      ${otSwitch('otNtOn-bilan_semaine', N.bilan_semaine.on !== false, 'Bilan de la semaine', 'Le résumé de ta semaine')}
+      <div class="ot-nt-in"><div class="ot-row"><select id="otNtJ-bilan_semaine">${OT_JOURS.map((d, i) => `<option value="${i}" ${Number(N.bilan_semaine.jour) === i ? 'selected' : ''}>Chaque ${d.toLowerCase()}</option>`).join('')}</select><span>à</span><input type="time" id="otNtH-bilan_semaine" value="${agEsc(N.bilan_semaine.heure || '19:00')}"></div></div>
+    </div>
+
+    <div class="ot-nt" id="otNt-bilan_mois">
+      ${otSwitch('otNtOn-bilan_mois', N.bilan_mois.on !== false, 'Bilan du mois', 'Le 1er du mois, ton bilan du mois passé est prêt')}
+      <div class="ot-nt-in"><div class="ot-row"><span>Le 1er du mois à</span><input type="time" id="otNtH-bilan_mois" value="${agEsc(N.bilan_mois.heure || '09:00')}"></div></div>
+    </div>
+
+    <div class="ot-nt" id="otNt-dettes">
+      ${otSwitch('otNtOn-dettes', (N.dettes || {}).on !== false, "Clients qui te doivent de l'argent", 'Un rappel quand une dette n\'est pas payée, puis chaque semaine')}
+      <div class="ot-nt-in"><div class="ot-row"><span>Premier rappel après</span><input type="number" id="otNtJ-dettes" min="1" max="60" inputmode="numeric" value="${Number((N.dettes || {}).jours) || 7}" style="width:80px"><span>jours</span></div></div>
     </div>
 
     <button class="btn-primary" style="margin-top:14px" onclick="otNotifsSave()">Enregistrer</button>
@@ -1012,6 +1067,8 @@ showTab = function(name, btn){
   if(!tab) return;
   if(q.get('g')) window.__galDeep = q.get('g');
   if(q.get('mb')) window.__mbDeep = Number(q.get('mb'));
+  if(q.get('bilan')) window.__bilanDeep = q.get('bilan');
+  if(q.get('dettes')) window.__dettesDeep = 1;
   history.replaceState(null, '', location.pathname);
   try { localStorage.setItem('active_tab', tab); } catch(e){}
   const go = () => { if(document.getElementById('page-' + tab) && !document.body.classList.contains('logged-out')){ agGoTab(tab); if(tab === 'mood' && typeof mbRender === 'function'){ if(window.__mbDeep && typeof MB !== 'undefined'){ MB.cur = window.__mbDeep; window.__mbDeep = null; } mbRender(); } } else setTimeout(go, 400); };

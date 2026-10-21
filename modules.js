@@ -1981,6 +1981,7 @@ function openShootModal(id){
   onShootTypeChange();
   renderShootExpenses();
   document.getElementById('shootModalBg').classList.add('show');
+  if(typeof svShootAlert === 'function') svShootAlert();
 }
 
 function closeShootModal(){
@@ -2461,6 +2462,9 @@ function ouvrirRecuHorsApp(shootId){
   const X = chargesResteTotal(s);
   const st = statsHorsApp();
   const ferme = st.mois.n >= 3;
+  // On reprend la somme déjà tapée dans "Paiement reçu" (sinon le reste à payer)
+  const tape = Math.round(parseFloat(document.getElementById('paiementMontant')?.value) || 0);
+  const montantDepart = (tape > 0 && tape <= reste) ? tape : reste;
   fermerPaiementSeance();
   document.getElementById('recuHorsAppModal')?.remove();
 
@@ -2503,7 +2507,7 @@ function ouvrirRecuHorsApp(shootId){
       ${ferme ? `<div style="background:rgba(255,107,107,.15);border:1px solid var(--red);border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700;color:var(--red);margin-bottom:12px">Tu l'as déjà fait ${st.mois.n} fois ce mois-ci. Ce n'est pas normal : enregistre plutôt tes paiements avec "Paiement reçu", sinon l'app ne sert plus à suivre ton argent.</div>` : ''}
 
       <label>Montant (FCFA)</label>
-      <input type="number" id="recuHorsAppMontant" inputmode="decimal" value="${reste}" min="1" max="${reste}" style="font-weight:700;text-align:center">
+      <input type="number" id="recuHorsAppMontant" inputmode="decimal" value="${montantDepart}" min="1" max="${reste}" style="font-weight:700;text-align:center">
 
       <label>Pourquoi ? (obligatoire)</label>
       <input type="text" id="recuHorsAppRaison" placeholder="Ex : payé en espèces avant l'app, déjà dépensé" oninput="recuHorsAppMaj()">
@@ -3035,6 +3039,7 @@ function renderShoots(){
       ${financeBlock}
       ${isCancelled && s.cancel_reason ? `<div style="font-size:12px;color:var(--red);margin-top:6px;font-style:italic">❌ Raison : ${s.cancel_reason}</div>` : ''}
       ${s.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">${s.notes}</div>` : ''}
+      ${typeof exChecklistBtn === 'function' ? exChecklistBtn(s) : ''}
       <div class="actions" style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${actionButtons}</div>
     </div>`;
   }).join('');
@@ -3177,6 +3182,7 @@ function onShootClientChange(){
   } else {
     wrap.style.display = 'none';
   }
+  if(typeof svShootAlert === 'function') svShootAlert();
 }
 
 function annulerNouveauClientShoot(){
@@ -10968,7 +10974,8 @@ async function resetPaiementSeance(shootId){
   const debut = String(s.created_at || '').slice(0, 10);
   const memeClient = t => (s.client_id && t.client_id === s.client_id) || (!t.client_id && clientName && String(t.client_name || '').toLowerCase() === clientName.toLowerCase());
   const memeType = t => t.prestation_type ? t.prestation_type === s.type : String(t.note || '').includes(s.type);
-  const revenus = txs.filter(t => t.type === 'revenu' && !t.cancelled && (
+  // (les paiements de dette du suivi client sont un surplus : le Reset n'y touche pas)
+  const revenus = txs.filter(t => t.type === 'revenu' && !t.cancelled && !String(t.details || '').startsWith('dette:') && (
     t.shoot_id === s.id ||
     (!t.shoot_id && t.category === 'Shooting photo' && memeClient(t) && memeType(t) && (!debut || String(t.date || '') >= debut))
   ));

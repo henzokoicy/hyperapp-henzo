@@ -165,6 +165,7 @@ function mbRenderBoard(){
     </div>
     <button class="btn-secondary mb-sharebtn" onclick="mbShare(${b.id})">${agIcon('chat', 16)} ${b.share_on ? 'Lien client actif : renvoyer ou gérer' : 'Envoyer au client pour qu\'il choisisse'}</button>
     ${mbFbHtml(b.id)}
+    ${mbSourceHtml(b)}
     <input type="file" id="mbFiles" accept="image/*" multiple style="display:none" onchange="mbUpload(${b.id}, this.files)">
     <div class="ot-dropzone" onclick="document.getElementById('mbFiles').click()">${agIcon('download', 20)}<div><b>Glisse tes images ici</b><span>ou touche pour les choisir</span></div></div>
     <div id="mbUp"></div>
@@ -536,6 +537,24 @@ function mbFbHtml(id){
   const last = fb[0], added = mbImgs(id).filter(x => x.from_client).length;
   return mbActHtml(id) + `<div class="mb-fb ${last.lu ? '' : 'new'}" onclick="mbFbOpen(${id})"><div class="ic">${agIcon('heart', 18)}</div>
     <div class="d"><b>${agEsc(last.nom || 'Le client')} a choisi ${(last.picks || []).length} photo${(last.picks || []).length > 1 ? 's' : ''}${added ? ` et proposé ${added} image${added > 1 ? 's' : ''}` : ''}</b><span>${new Date(last.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}${last.message ? ' · « ' + agEsc(last.message.slice(0, 60)) + ' »' : ''}</span></div>${agIcon('chev', 16)}</div>`;
+}
+// Reponse du client a "Comment avez-vous connu Henzo Studio ?"
+function mbBoardClient(b){
+  const s = b && b.shoot_id ? (shoots || []).find(x => x.id === b.shoot_id) : null;
+  const cid = (b && b.client_id) || (s && s.client_id);
+  return cid ? (clients || []).find(c => c.id === Number(cid)) : null;
+}
+function mbSourceHtml(b){
+  if(!b || !b.client_source) return '';
+  const c = mbBoardClient(b), lbl = typeof crmSrcLabel === 'function' ? crmSrcLabel(b.client_source) : b.client_source;
+  return `<div class="mb-act">${agIcon('users', 15)}<span>Le client a connu Henzo Studio par : <b>${agEsc(lbl)}</b>${c && c.source ? ' · déjà dans sa fiche' : ''}</span></div>
+    ${c && !c.source ? `<button class="crm-link" onclick="mbSourceCopy(${b.id})">Recopier dans la fiche de ${agEsc(c.name)}</button>` : ''}`;
+}
+async function mbSourceCopy(id){
+  const b = mbBoard(id), c = mbBoardClient(b); if(!b || !c || c.source) return;
+  const r = await dbUpdate('clients', c.id, { source: b.client_source });
+  if(!r) return;
+  Object.assign(c, r); agToast('Ajouté dans la fiche de ' + c.name); mbRenderBoard();
 }
 async function mbFbOpen(id){
   const fb = MB.fb.filter(f => f.board_id === id);

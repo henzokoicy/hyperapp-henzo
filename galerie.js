@@ -500,7 +500,7 @@ function galRenderAvis(){
     <p class="ag-hint" style="margin:12px 2px">Les clients donnent leur avis sur la page de remerciement, juste après avoir téléchargé leurs photos.</p>
     <div class="ag-list">${n ? galAvis.map(a => `
       <div class="ag-avis">
-        <div class="ag-avis-h"><div><b>${agEsc(a.nom_client || 'Client')}</b>${a.lu ? '' : ' <i class="ag-new">Nouveau</i>'}<div class="ag-avis-d">${galStars(a.note)} · ${new Date(a.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}${a.code ? ' · ' + agEsc(a.code) : ''}</div></div>
+        <div class="ag-avis-h"><div><b>${agEsc(a.nom_client || 'Client')}</b>${a.lu ? '' : ' <i class="ag-new">Nouveau</i>'}<div class="ag-avis-d">${galStars(a.note)} · ${new Date(a.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}${a.code ? ' · ' + agEsc(a.code) : ''}${a.source ? ' · connu par ' + agEsc(typeof crmSrcLabel === 'function' ? crmSrcLabel(a.source) : a.source) : ''}</div></div>
           ${a.publiable && a.texte ? `<button class="ag-ibtn" title="Copier pour publier" onclick="galCopyAvis(${a.id})">${agIcon('copy', 16)}</button>` : ''}</div>
         ${a.texte ? `<p class="ag-avis-t">${agEsc(a.texte)}</p>` : '<p class="ag-avis-t" style="opacity:.5">Pas de commentaire</p>'}
         ${a.publiable ? '' : '<div class="ag-avis-d">Le client ne souhaite pas que son avis soit partagé</div>'}
@@ -540,7 +540,7 @@ async function galStats(g, box){
     ...it.filter(i => i.type === 'like' || i.type === 'commentaire').map(i => ({ t: i.type, d: i.date_creation, x: { fichier: i.fichier, contenu: i.contenu } })),
     ...sels.map(x => ({ t: 'selection', d: x.date_creation, x: { nb: (x.photos || []).length, message: x.message } })),
     ...tirs.map(x => ({ t: 'tirage', d: x.date_creation, x: { fichier: x.fichier, nb: x.quantite || 1 } })),
-    ...avis.map(x => ({ t: 'avis', d: x.created_at, x: { note: x.note, texte: x.texte } }))
+    ...avis.map(x => ({ t: 'avis', d: x.created_at, x: { note: x.note, texte: x.texte, source: x.source } }))
   ].filter(x => x.d).sort((a, b) => String(b.d).localeCompare(String(a.d)));
   const groups = [];
   items.forEach(x => {
@@ -564,7 +564,7 @@ async function galStats(g, box){
     if(x.t === 'commentaire') txt = `a commenté : « ${agEsc(x.x.contenu || '')} »`;
     if(x.t === 'selection') txt = `a choisi ${x.x.nb} photo${x.x.nb > 1 ? 's' : ''}${x.x.message ? ' : « ' + agEsc(x.x.message) + ' »' : ''}`;
     if(x.t === 'tirage') txt = `a demandé ${x.x.nb} tirage${x.x.nb > 1 ? 's' : ''}`;
-    if(x.t === 'avis') txt = `a donné un avis ${'★'.repeat(x.x.note || 0)}${x.x.texte ? ' : « ' + agEsc(x.x.texte) + ' »' : ''}`;
+    if(x.t === 'avis') txt = `a donné un avis ${'★'.repeat(x.x.note || 0)}${x.x.texte ? ' : « ' + agEsc(x.x.texte) + ' »' : ''}${x.x.source ? ' · a connu Henzo Studio par ' + agEsc(x.x.source) : ''}`;
     if(x.t === 'partage') txt = `a partagé ${x.n > 1 ? x.n + ' photos' : 'une photo'}${x.x.canal ? ' (' + agEsc(x.x.canal) + ')' : ''}`;
     if(x.t === 'ouverture') txt = `a ouvert la galerie${x.a ? ' sur ' + agEsc(x.a === 'Ordinateur' ? 'ordinateur' : x.a) : ''}`;
     const thumbs = x.files.filter(Boolean).filter(f => f !== '__galerie__').slice(0, 6);

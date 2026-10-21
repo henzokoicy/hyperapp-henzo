@@ -10,7 +10,7 @@
 
 const CRM = {
   msgs: [], promos: [], tarifs: [], info: {}, analysis: null,
-  loaded: false, seg: 'tous', q: '', comp: null, view: 'clients'
+  loaded: false, seg: 'tous', q: '', src: '', comp: null, view: 'clients'
 };
 
 // ---------- Outils ----------
@@ -221,6 +221,27 @@ const CRM_GOALS = {
   libre:        { n: 'Libre',         d: 'Ce que tu veux' }
 };
 
+// ---------- Comment il t'a connu (sources) ----------
+const CRM_SOURCES = ['Facebook', 'Instagram', 'TikTok', 'Statut WhatsApp', 'Google Maps', 'Bouche à oreille / un ami', 'Recommandé par un client', 'Déjà client', 'Affiche / flyer', 'Autre'];
+const CRM_SRC_SHORT = { 'Bouche à oreille / un ami': 'Bouche à oreille', 'Recommandé par un client': 'Recommandé', 'Affiche / flyer': 'Affiche', 'Statut WhatsApp': 'WhatsApp' };
+function crmSrcKey(s){ s = String(s || '').trim(); if(!s) return ''; return CRM_SOURCES.find(x => x.toLowerCase() === s.toLowerCase()) || 'Autre'; }
+function crmSrcDetail(s){ s = String(s || '').trim(); const m = s.match(/^autre\s*:\s*(.+)$/i); if(m) return m[1].trim(); return crmSrcKey(s) === 'Autre' && !/^autre$/i.test(s) ? s : ''; }
+function crmSrcLabel(s){ const k = crmSrcKey(s); if(!k) return ''; return k === 'Autre' ? (crmSrcDetail(s) || 'Autre') : k; }
+function crmSrcShort(s){ const k = crmSrcKey(s); if(!k) return ''; const l = k === 'Autre' ? (crmSrcDetail(s) || 'Autre') : (CRM_SRC_SHORT[k] || k); return l.length > 16 ? l.slice(0, 15) + '.' : l; }
+function crmSrcFilter(x){ const f = CRM.src || ''; if(!f) return true; const k = crmSrcKey(x.c.source); return f === '__none' ? !k : k === f; }
+function crmSourcesHtml(all){
+  const rows = {};
+  all.forEach(({ c, s }) => { const k = crmSrcKey(c.source) || '__none'; const r = rows[k] || (rows[k] = { n: 0, ca: 0 }); r.n++; r.ca += s.encaisse; });
+  const known = Object.keys(rows).filter(k => k !== '__none');
+  if(!known.length) return `<div class="ag-sec"><h3>Sources de tes clients</h3></div><div class="ag-list"><div class="ag-empty">Remplis « Comment il t'a connu » dans les fiches clients pour savoir ce qui t'amène le plus de clients.</div></div>`;
+  const list = Object.entries(rows).sort((a, b) => (a[0] === '__none') - (b[0] === '__none') || b[1].ca - a[1].ca || b[1].n - a[1].n);
+  const max = Math.max(1, ...list.map(([, r]) => r.ca));
+  return `<div class="ag-sec"><h3>Sources de tes clients</h3>${CRM.src ? `<button onclick="CRM.src='';crmRender()">Voir tout</button>` : ''}</div>
+    <div class="ag-list">${list.map(([k, r]) => `<div class="ex-src ${CRM.src === k ? 'on' : ''}" onclick="CRM.src=CRM.src==='${k === '__none' ? '__none' : agEsc(k)}'?'':'${k === '__none' ? '__none' : agEsc(k)}';crmRender()">
+      <div class="d"><b>${agEsc(k === '__none' ? 'Non renseigné' : k)}</b><span>${r.n} client${r.n > 1 ? 's' : ''} · ${agF(r.ca)} encaissé</span><div class="ex-bar"><i style="width:${Math.round(r.ca / max * 100)}%"></i></div></div>
+      <div class="m">${Math.round(r.n / all.length * 100)} %</div></div>`).join('')}</div>`;
+}
+
 // ============================================================
 // PAGE CLIENTS
 // ============================================================
@@ -229,6 +250,7 @@ async function crmRender(){
   const el = crmBody(); if(!el) return;
   if(!CRM.loaded){ el.innerHTML = '<div class="ag-empty">Chargement...</div>'; await crmLoad(); }
   if(CRM.view === 'promos') return crmRenderPromos();
+  if(CRM.view === 'ambassadeurs' && typeof exRenderAmbassadeurs === 'function') return exRenderAmbassadeurs();
   const all = crmAllStats(), vip = crmVipMin(all);
   const sug = crmSuggestions();
   const fid = all.filter(x => x.s.count >= 2).length;
@@ -237,7 +259,7 @@ async function crmRender(){
   const fetes = crmFetes().filter(f => f.j <= 30).slice(0, 2);
   const seg = CRM_SEGS[CRM.seg] || CRM_SEGS.tous;
   const q = CRM.q.toLowerCase();
-  const list = all.filter(x => seg.f(x, vip)).filter(x => !q || (x.c.name + ' ' + (x.c.phone || '') + ' ' + (x.c.city || '')).toLowerCase().includes(q))
+  const list = all.filter(x => seg.f(x, vip)).filter(crmSrcFilter).filter(x => !q || (x.c.name + ' ' + (x.c.phone || '') + ' ' + (x.c.city || '')).toLowerCase().includes(q))
     .sort((a, b) => (b.s.last || b.c.created_at || '').localeCompare(a.s.last || a.c.created_at || ''));
 
   el.innerHTML = `
@@ -246,6 +268,7 @@ async function crmRender(){
       <div class="amt">${all.length} <small>client${all.length > 1 ? 's' : ''}</small></div>
       <div class="split"><div>Fidèles<b>${fid}</b></div><div>À relancer<b>${sug.length}</b></div><div>Chiffre total<b>Encaissé ${agF(ca)} / Facturé ${agF(caFact)}</b></div></div>
     </div>
+    ${typeof svTotalHtml === 'function' ? svTotalHtml() : ''}
     <div class="ag-actions">
       <button class="ag-act main" onclick="crmCompose([])"><span>${agIcon('sparkles')}</span>Message IA</button>
       <button class="ag-act" onclick="crmEditClient(null)"><span>${agIcon('plus')}</span>Client</button>
@@ -257,6 +280,7 @@ async function crmRender(){
       <div class="ic">${agIcon('calendar')}</div><div class="d"><b>${agEsc(f.n)} ${f.j === 0 ? "aujourd'hui" : 'dans ' + f.j + ' jour' + (f.j > 1 ? 's' : '')}</b><span>${crmDate(f.d, { day: 'numeric', month: 'long' })} · prépare une offre pour tes clients</span></div>${agIcon('chev', 16)}</div>`).join('')}
 
     ${typeof otResaHtml === 'function' ? otResaHtml() : ''}
+    ${typeof exParRewardsHtml === 'function' ? exParRewardsHtml() : ''}
     <div class="ag-sec"><h3>À relancer</h3>${sug.length ? `<span class="crm-count">${sug.length}</span>` : ''}</div>
     ${sug.length ? `<div class="ag-list">${sug.slice(0, 8).map(x => `
       <div class="crm-sug">
@@ -274,12 +298,15 @@ async function crmRender(){
       const n = all.filter(x => v.f(x, vip)).length;
       return `<button class="${k === CRM.seg ? 'on' : ''}" onclick="CRM.seg='${k}';crmRender()">${v.n} <i>${n}</i></button>`; }).join('')}</div>
     <input id="crmQ" placeholder="Rechercher un nom, un numéro, une ville" value="${agEsc(CRM.q)}" oninput="CRM.q=this.value;crmRenderListOnly()" style="margin:10px 0">
+    <select id="crmSrcF" onchange="CRM.src=this.value;crmRender()" style="margin:0 0 10px"><option value="">Toutes les sources (comment ils t'ont connu)</option>${CRM_SOURCES.map(k => `<option value="${agEsc(k)}" ${CRM.src === k ? 'selected' : ''}>${agEsc(k)}</option>`).join('')}<option value="__none" ${CRM.src === '__none' ? 'selected' : ''}>Non renseigné</option></select>
     ${CRM.seg !== 'tous' && list.length ? `<button class="btn-primary crm-segbtn" onclick="crmCompose(crmSegment('${CRM.seg}').map(x=>x.c.id))">${agIcon('chat', 16)} Écrire aux ${list.length} client${list.length > 1 ? 's' : ''} "${agEsc(seg.n)}"</button>` : ''}
-    <div id="crmList">${crmListHtml(list)}</div>`;
+    <div id="crmList">${crmListHtml(list)}</div>
+    ${crmSourcesHtml(all)}
+    ${typeof exParEntryHtml === 'function' ? exParEntryHtml() : ''}`;
 }
 function crmRenderListOnly(){
   const all = crmAllStats(), vip = crmVipMin(all), seg = CRM_SEGS[CRM.seg] || CRM_SEGS.tous, q = CRM.q.toLowerCase();
-  const list = all.filter(x => seg.f(x, vip)).filter(x => !q || (x.c.name + ' ' + (x.c.phone || '') + ' ' + (x.c.city || '')).toLowerCase().includes(q))
+  const list = all.filter(x => seg.f(x, vip)).filter(crmSrcFilter).filter(x => !q || (x.c.name + ' ' + (x.c.phone || '') + ' ' + (x.c.city || '')).toLowerCase().includes(q))
     .sort((a, b) => (b.s.last || b.c.created_at || '').localeCompare(a.s.last || a.c.created_at || ''));
   const el = document.getElementById('crmList'); if(el) el.innerHTML = crmListHtml(list);
 }
@@ -289,7 +316,7 @@ function crmListHtml(list){
   return `<div class="ag-list">${list.map(({ c, s }) => `
     <div class="crm-row" onclick="crmOpenClient(${c.id})">
       <div class="crm-av">${agEsc(crmInitials(c))}</div>
-      <div class="d"><b>${agEsc(c.name)}</b><span>${s.count} séance${s.count > 1 ? 's' : ''} · ${s.upcoming.length ? 'prochaine ' + crmDate(s.upcoming[0].date, { day: 'numeric', month: 'short' }) : 'dernière ' + crmAgo(s.days)}</span></div>
+      <div class="d"><b>${agEsc(c.name)}${typeof svListBadge === 'function' ? svListBadge(c) : ''}</b><span>${c.source ? `<i class="crm-tag ex-srctag">${agEsc(crmSrcShort(c.source))}</i>` : ''}${s.count} séance${s.count > 1 ? 's' : ''} · ${s.upcoming.length ? 'prochaine ' + crmDate(s.upcoming[0].date, { day: 'numeric', month: 'short' }) : 'dernière ' + crmAgo(s.days)}</span></div>
       <div class="m">${agF(s.total)}</div>
     </div>`).join('')}</div>`;
 }
@@ -306,6 +333,7 @@ function crmOpenClient(id){
     <div class="crm-head"><div class="crm-av big">${agEsc(crmInitials(c))}</div><div><h3 style="margin:0">${agEsc(c.name)}</h3>
       <div class="ag-hint">${agEsc([c.phone, c.city].filter(Boolean).join(' · ') || 'Pas de numéro')}</div></div></div>
     ${tags.length ? `<div class="crm-tags">${tags.map(t => `<i>${agEsc(t)}</i>`).join('')}</div>` : ''}
+    ${typeof svFicheHtml === 'function' ? svFicheHtml(c) : ''}
     <div class="crm-kpis">
       <div><b>${s.count}</b><span>séance${s.count > 1 ? 's' : ''}</span></div>
       <div><b>${agF(s.encaisse)} / ${agF(s.facture)}</b><span>Encaissé / Facturé</span></div>
@@ -320,10 +348,13 @@ function crmOpenClient(id){
     <div class="crm-info">
       <div><span>Anniversaire</span><b>${c.birthday ? crmDate(c.birthday, { day: 'numeric', month: 'long' }) + (s.bday != null && s.bday <= 30 ? ` (dans ${s.bday} j)` : '') : 'Non renseigné'}</b></div>
       <div><span>On l'appelle</span><b>${agEsc(crmFirst(c))}</b></div>
+      <div><span>Comment il t'a connu</span><b>${c.source ? agEsc(crmSrcLabel(c.source)) : 'Non renseigné'}</b></div>
+      ${c.parrain_id && (clients || []).find(x => x.id === Number(c.parrain_id)) ? `<div><span>Recommandé par</span><b style="cursor:pointer;color:var(--accent)" onclick="crmOpenClient(${Number(c.parrain_id)})">${agEsc((clients || []).find(x => x.id === Number(c.parrain_id)).name)}</b></div>` : ''}
       ${crm.famille ? `<div><span>Famille</span><b>${agEsc(crm.famille)}</b></div>` : ''}
       ${crm.aime ? `<div><span>Ce qu'il/elle aime</span><b>${agEsc(crm.aime)}</b></div>` : ''}
       ${c.notes ? `<div><span>Notes</span><b>${agEsc(c.notes)}</b></div>` : ''}
     </div>
+    ${typeof exParFicheHtml === 'function' ? exParFicheHtml(c) : ''}
     <h4 class="crm-h4">Séances</h4>
     <div class="ag-list">${[...s.upcoming, ...s.done].length ? [...s.upcoming, ...s.done].sort((a, b) => String(b.date).localeCompare(String(a.date))).map(x => `
       <div class="crm-line"><div><b>${agEsc(x.type || 'Séance')}</b><span>${crmDate(x.date)}${new Date(x.date) > crmNow() ? ' · à venir' : ''}</span></div><b>${agF(x.price)}</b></div>`).join('') : '<div class="ag-empty">Aucune séance</div>'}</div>
@@ -345,12 +376,25 @@ function crmEditClient(id){
     <label>Email</label><input id="crmEEmail" type="email" value="${agEsc(c ? c.email || '' : '')}">
     <label>Ville / quartier</label><input id="crmECity" value="${agEsc(c ? c.city || '' : '')}">
     <label>Date d'anniversaire</label><input id="crmEBday" type="date" value="${c && c.birthday ? String(c.birthday).slice(0, 10) : ''}">
+    <label>Comment il t'a connu</label>
+    <select id="crmESrc" onchange="crmSrcUi()"><option value="">Je ne sais pas</option>${CRM_SOURCES.map(k => `<option value="${agEsc(k)}" ${c && crmSrcKey(c.source) === k ? 'selected' : ''}>${agEsc(k)}</option>`).join('')}</select>
+    <input id="crmESrcAutre" value="${agEsc(c ? crmSrcDetail(c.source) : '')}" placeholder="Précise (ex : radio, salon, site web)" style="margin-top:8px;display:none">
+    <div id="crmEParBox" style="display:none"><label>Recommandé par</label>
+      <select id="crmEPar"><option value="">Choisir le client</option>${(clients || []).filter(x => !c || x.id !== c.id).slice().sort((a, b) => a.name.localeCompare(b.name)).map(x => `<option value="${x.id}" ${c && Number(c.parrain_id) === x.id ? 'selected' : ''}>${agEsc(x.name)}</option>`).join('')}</select></div>
     <label>Étiquettes (séparées par des virgules)</label><input id="crmETags" value="${agEsc(c ? (c.categories || []).join(', ') : '')}" placeholder="Ex : Fidèle, Maman, Entreprise">
     <label>Famille (enfants, conjoint...)</label><input id="crmEFam" value="${agEsc(crm.famille || '')}" placeholder="Ex : 2 enfants, Kevin 5 ans">
     <label>Ce qu'il/elle aime</label><input id="crmEAime" value="${agEsc(crm.aime || '')}" placeholder="Ex : photos en extérieur, style chic">
     <label>Notes</label><textarea id="crmENotes" rows="3">${agEsc(c ? c.notes || '' : '')}</textarea>
     <div class="ag-hint">Plus tu remplis, plus l'IA écrit des messages personnels.</div>
     <button class="btn-primary" onclick="crmSaveClient(${c ? c.id : 'null'})">Enregistrer</button>`);
+  CRM.editHadPar = !!(c && c.parrain_id);
+  crmSrcUi();
+}
+function crmSrcUi(){
+  const k = (document.getElementById('crmESrc') || {}).value || '';
+  const a = document.getElementById('crmESrcAutre'), b = document.getElementById('crmEParBox');
+  if(a) a.style.display = k === 'Autre' ? '' : 'none';
+  if(b) b.style.display = (k === 'Recommandé par un client' || CRM.editHadPar) ? '' : 'none';
 }
 async function crmSaveClient(id){
   const v = k => document.getElementById(k).value.trim();
@@ -362,6 +406,11 @@ async function crmSaveClient(id){
     categories: v('crmETags').split(',').map(t => t.trim()).filter(Boolean),
     crm: Object.assign({}, (old && old.crm) || {}, { appel: v('crmEAppel') || null, famille: v('crmEFam') || null, aime: v('crmEAime') || null })
   };
+  const srcK = v('crmESrc'), srcA = v('crmESrcAutre');
+  data.source = srcK === 'Autre' ? (srcA ? 'Autre : ' + srcA.slice(0, 50) : 'Autre') : (srcK || null);
+  const parBox = document.getElementById('crmEParBox');
+  if(parBox && parBox.style.display !== 'none') data.parrain_id = Number(v('crmEPar')) || null;
+  if(srcK === 'Recommandé par un client' && !data.parrain_id && !(old && old.parrain_id)){ if(!await agConfirm("Qui l'a recommandé ?\nChoisis le client dans « Recommandé par » pour que son parrainage compte.", { ok: 'Enregistrer quand même', no: 'Choisir' })) return; }
   try {
     if(id){
       const { data: r, error } = await sb.from('clients').update(data).eq('id', id).select().single();
@@ -498,7 +547,7 @@ function crmPickDone(){
 
 function crmClientBrief(c){
   const s = crmStats(c), crm = c.crm || {};
-  return `- ${c.name} (appeler : ${crmFirst(c)}) : ${s.count} séance(s)${s.types.length ? ' [' + s.types.join(', ') + ']' : ''}, total ${Math.round(s.total)} F, dernière ${s.last ? crmDate(s.last) : 'aucune'}${s.upcoming.length ? ', séance prévue le ' + crmDate(s.upcoming[0].date) : ''}${c.city ? ', ' + c.city : ''}${(c.categories || []).length ? ', étiquettes : ' + c.categories.join(', ') : ''}${c.birthday ? ', anniversaire le ' + crmDate(c.birthday, { day: 'numeric', month: 'long' }) : ''}${crm.famille ? ', famille : ' + crm.famille : ''}${crm.aime ? ', aime : ' + crm.aime : ''}${c.notes ? ', notes : ' + c.notes : ''}`;
+  return `- ${c.name} (appeler : ${crmFirst(c)}) : ${s.count} séance(s)${s.types.length ? ' [' + s.types.join(', ') + ']' : ''}, total ${Math.round(s.total)} F, dernière ${s.last ? crmDate(s.last) : 'aucune'}${s.upcoming.length ? ', séance prévue le ' + crmDate(s.upcoming[0].date) : ''}${c.city ? ', ' + c.city : ''}${(c.categories || []).length ? ', étiquettes : ' + c.categories.join(', ') : ''}${c.birthday ? ', anniversaire le ' + crmDate(c.birthday, { day: 'numeric', month: 'long' }) : ''}${crm.famille ? ', famille : ' + crm.famille : ''}${crm.aime ? ', aime : ' + crm.aime : ''}${c.notes ? ', notes : ' + c.notes : ''}${typeof svBrief === 'function' ? svBrief(c) : ''}`;
 }
 function crmContext(){
   const k = CRM.comp, cs = crmCompClients();
@@ -519,7 +568,7 @@ ${promo ? `Bon de réduction à inclure : "${promo.title || ''}" ${crmPromoValue
 ${tarifs ? 'Mes tarifs (à citer seulement si utile) : ' + tarifs : ''}
 Ce que Henzo veut dire : ${k.idea || '(rien de précis, propose)'}
 ${k.questions.length ? 'Précisions de Henzo :\n' + k.questions.map((q, i) => `- ${q} -> ${k.answers[i] || '(pas de réponse)'}`).join('\n') : ''}
-Règles : en français simple, ton ${tons[k.ton]}, ${k.vous ? 'vouvoiement' : 'tutoiement'}, commence par saluer avec {prenom} (ce mot sera remplacé par le prénom), pas d'emoji ou au maximum 1, pas de tirets longs, une seule invitation claire à répondre ou réserver, signe "Henzo Studio". Ne jamais inventer de prix ni de réduction qui ne sont pas donnés ici.`;
+Règles : en français simple, ton ${tons[k.ton]}, ${k.vous ? 'vouvoiement' : 'tutoiement'}, commence par saluer avec {prenom} (ce mot sera remplacé par le prénom), pas d'emoji ou au maximum 1, pas de tirets longs, une seule invitation claire à répondre ou réserver, signe "Henzo Studio". Ne jamais inventer de prix ni de réduction qui ne sont pas donnés ici.${typeof svRules === 'function' ? svRules(cs, k) : ''}`;
 }
 async function crmAskQuestions(){
   const k = CRM.comp; k.busy = 'q'; crmCompRender(); crmErr('');
@@ -856,6 +905,6 @@ if(typeof agSheet === 'function'){
   };
 }
 // Tarifs, devis, conseiller IA et page publique (fichier prix.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'prix.js?v=2'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'prix.js?v=3'; document.body.appendChild(sc); })();
 // Selection multiple, mise a jour auto, sauvegardes, reservations (fichier outils.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'outils.js?v=3'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'outils.js?v=6'; document.body.appendChild(sc); })();

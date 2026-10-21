@@ -64,6 +64,12 @@ input.f,textarea{width:100%;background:var(--card);border:1px solid var(--line);
 .full{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
 .full img{max-width:100%;max-height:100%;border-radius:12px}
 .full.show{display:flex}
+.srcq{margin:16px 0 4px;padding:16px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
+.srcq b{display:block;font-size:15px}.srcq p{font-size:13px;color:var(--muted);margin:4px 0 10px}
+.srcq .bt{display:flex;flex-wrap:wrap;gap:8px}
+.srcq .bt button{border:1px solid var(--line);background:var(--card2);color:var(--txt);border-radius:12px;padding:9px 12px;font:500 13px Inter,sans-serif;cursor:pointer}
+.srcq .skip{background:none;border:0;color:var(--muted);font:500 13px Inter,sans-serif;margin-top:10px;cursor:pointer;text-decoration:underline}
+.srcq .row{display:flex;gap:8px;margin-top:10px}.srcq .row input{flex:1}
 </style>
 </head>
 <body>
@@ -74,7 +80,27 @@ input.f,textarea{width:100%;background:var(--card);border:1px solid var(--line);
 <script>
 var SUPABASE_URL = 'https://lzxvktkryxizclkdetaa.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_L4Udla2VCbZsNjdm9IRuJw_ExshPrPc';
-var S = { tok: '', b: null, step: 1, picks: {}, notes: {}, mine: [], ref: null, sent: false, nom: '', msg: '', busy: false }, sb;
+var S = { tok: '', b: null, step: 1, picks: {}, notes: {}, mine: [], ref: null, sent: false, nom: '', msg: '', busy: false, srcAsk: false, srcAutre: false }, sb;
+// "Comment avez-vous connu Henzo Studio ?" (facultatif, demande une seule fois)
+var SOURCES = [['Facebook', 'Facebook'], ['Instagram', 'Instagram'], ['TikTok', 'TikTok'], ['Statut WhatsApp', 'Statut WhatsApp'], ['Google Maps', 'Google Maps'],
+  ['Bouche à oreille / un ami', 'Un ami, la famille'], ['Recommandé par un client', 'Un client m\'a recommandé'], ['Déjà client', 'Je suis déjà client'], ['Affiche / flyer', 'Une affiche, un flyer'], ['Autre', 'Autre']];
+function srcAsked(){ try { return !!(localStorage.getItem('hz_src_done') || localStorage.getItem('mb_src_' + S.tok)); } catch(e){ return true; } }
+function srcDone(){ try { localStorage.setItem('hz_src_done', '1'); localStorage.setItem('mb_src_' + S.tok, '1'); } catch(e){} S.srcAsk = false; S.srcAutre = false; }
+function srcHtml(){
+  if(!S.srcAsk) return '';
+  return '<div class="srcq" id="srcq"><b>Une petite question</b><p>Comment avez-vous connu Henzo Studio ? (facultatif)</p><div class="bt">' +
+    SOURCES.map(function(x, i){ return '<button type="button" onclick="srcPick(' + i + ')">' + esc(x[1]) + '</button>'; }).join('') + '</div>' +
+    (S.srcAutre ? '<div class="row"><input class="f" id="srcAutre" maxlength="50" placeholder="Où ? (radio, salon, site...)"><button class="btn" type="button" onclick="srcSend(\'Autre\')">OK</button></div>' : '') +
+    '<button class="skip" type="button" onclick="srcDone();render()">Passer</button></div>';
+}
+function srcPick(i){ var v = SOURCES[i][0]; if(v === 'Autre'){ S.srcAutre = true; render(); setTimeout(function(){ var e = document.getElementById('srcAutre'); if(e) e.focus(); }, 50); return; } srcSend(v); }
+async function srcSend(v){
+  if(v === 'Autre'){ var a = (document.getElementById('srcAutre') || {}).value || ''; v = a.trim() ? 'Autre : ' + a.trim().slice(0, 50) : 'Autre'; }
+  srcDone();
+  var box = document.getElementById('srcq'); if(box) box.innerHTML = '<b>Merci !</b>';
+  try { await sb.rpc('mood_source', { p_token: S.tok, p_source: v }); } catch(e){}
+  setTimeout(render, 900);
+}
 var heart = '<svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" stroke-linejoin="round"/></svg>';
 var plus = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -95,6 +121,7 @@ async function init(){
     });
   } catch(e){ document.getElementById('app').innerHTML = '<div class="empty">Impossible de charger. Vérifiez votre connexion.</div>'; return; }
   notif({ type: 'mood_open', token: S.tok });
+  S.srcAsk = !srcAsked();
   render();
 }
 function go(n){ S.step = n; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -103,7 +130,7 @@ function render(){
   var b = S.b, np = Object.keys(S.picks).length, nm = S.mine.length;
   var h = '<div class="brand">Henzo Studio</div><h1>' + esc(b.title || 'Préparons votre séance') + '</h1>' +
     '<p class="intro">' + (b.type ? esc(b.type) + '. ' : '') + (b.notes ? esc(b.notes) : 'Dites-moi ce que vous aimez pour que votre séance vous ressemble.') + '</p>' +
-    '<div class="steps"><button class="' + (S.step === 1 ? 'on' : '') + '" onclick="go(1)"><b>' + np + '</b>1. Coups de cœur</button>' +
+    srcHtml() + '<div class="steps"><button class="' + (S.step === 1 ? 'on' : '') + '" onclick="go(1)"><b>' + np + '</b>1. Coups de cœur</button>' +
     '<button class="' + (S.step === 2 ? 'on' : '') + '" onclick="go(2)"><b>' + nm + '</b>2. Mes idées</button>' +
     '<button class="' + (S.step === 3 ? 'on' : '') + '" onclick="go(3)"><b>' + (np + nm ? '✓' : '-') + '</b>3. Envoyer</button></div>';
   if(S.step === 1) h += step1(); else if(S.step === 2) h += step2(); else h += step3();
