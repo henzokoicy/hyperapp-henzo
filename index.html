@@ -820,6 +820,7 @@
           <select id="notesFilterStatus" onchange="renderNotes()">
             <option value="active">📌 Actives</option>
             <option value="all">Toutes</option>
+            <option value="fav">⭐ Favoris</option>
             <option value="archived">🗄️ Archivées</option>
           </select>
         </div>
@@ -1524,6 +1525,10 @@
   <div class="modal">
     <div class="modal-wrap"><h3 id="noteModalTitle">📝 Nouvelle note</h3>
       <button class="close" onclick="closeNoteModal()" aria-label="Fermer">×</button></div>
+    <div class="note-flags">
+      <button type="button" class="note-flag" id="noteFavBtn" onclick="noteToggleFlag('favorite')" aria-pressed="false">Mettre en favori</button>
+      <button type="button" class="note-flag" id="notePinBtn" onclick="noteToggleFlag('pinned')" aria-pressed="false">Épingler en haut</button>
+    </div>
     <label for="noteTitle">Titre (optionnel)</label>
     <input type="text" id="noteTitle" placeholder="Ex: Appeler client" maxlength="80">
     <label for="noteContent">Contenu</label>
@@ -1546,8 +1551,11 @@
       <option value="haute">🟠 Haute</option>
       <option value="urgente">🔴 Urgente</option>
     </select>
-    <label for="noteReminder">Rappel (optionnel)</label>
-    <input type="datetime-local" id="noteReminder">
+    <div class="note-rem-head">
+      <label for="noteReminder">⏰ Rappel</label>
+      <label class="note-sw" for="noteReminderOn"><span id="noteReminderState">Activé</span><input type="checkbox" id="noteReminderOn" role="switch" checked onchange="noteRemSync()"><i></i></label>
+    </div>
+    <div id="noteReminderWrap"><input type="datetime-local" id="noteReminder"></div>
     <label for="noteTags">Tags (séparés par virgules)</label>
     <input type="text" id="noteTags" placeholder="Ex: kouassi, mariage, urgent">
     <button class="btn-primary" id="noteSubmit" onclick="saveNote()">💾 Enregistrer</button>
@@ -1639,9 +1647,9 @@
 
 <script src="config.js"></script>
 <script src="app.js?v=2"></script>
-<script src="modules.js?v=7"></script>
-<script src="coach.js"></script>
-<script src="argent.js?v=9"></script>
+<script src="modules.js?v=8"></script>
+<script src="coach.js?v=2"></script>
+<script src="argent.js?v=12"></script>
 
 </body>
 </html>

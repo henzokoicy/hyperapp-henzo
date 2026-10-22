@@ -215,7 +215,7 @@ async function otRefresh(force){
   OT.busy = false;
 }
 // Nouvelle version du site publiee ? On recharge tout seul.
-const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'theme.css'];
+const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'coach2.js', 'marketing.js', 'suivi.js', 'budget.js', 'theme.css'];
 async function otCheckVersion(){
   let changed = false;
   for(const f of OT_FILES){
@@ -260,9 +260,11 @@ const OT_GROUPS = [
   { k: 'tarifs', n: 'Tarifs, devis, page de tarifs', t: ['devis', 'tarifs', 'tarif_collections', 'tarif_page'] },
   { k: 'mood', n: 'Moodboards', t: ['mood_feedback', 'mood_images', 'mood_boards'], d: 'Tableaux, images et choix des clients' },
   { k: 'materiel', n: 'Matériel', t: ['materiel'], d: 'Ton matériel et son usure' },
+  { k: 'budgets', n: 'Budgets et charges fixes', t: ['charges_paiements', 'charges_fixes', 'budgets'], d: 'Calculs de budget, charges fixes et leurs paiements' },
+  { k: 'coach', n: 'Coach', t: ['ecole_progres', 'negociations', 'coach_journal', 'coach_plans'], d: 'Plans d\'action, journal, négociations, école de la vente' },
   { k: 'reglages', n: 'Réglages', t: ['user_settings'], d: 'Notifications, préférences, thème, messages' }
 ];
-const OT_ORDER = ['accounts', 'goals', 'goal_reminders', 'clients', 'shoots', 'client_suivi', 'transactions', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'client_messages', 'promos', 'tarifs', 'tarif_collections', 'devis', 'tarif_page', 'reservations', 'mood_boards', 'mood_images', 'mood_feedback', 'materiel', 'user_settings'];
+const OT_ORDER = ['accounts', 'goals', 'goal_reminders', 'clients', 'shoots', 'client_suivi', 'transactions', 'budgets', 'charges_fixes', 'charges_paiements', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'client_messages', 'promos', 'tarifs', 'tarif_collections', 'devis', 'tarif_page', 'reservations', 'coach_plans', 'coach_journal', 'negociations', 'ecole_progres', 'mood_boards', 'mood_images', 'mood_feedback', 'materiel', 'user_settings'];
 
 // La cle IA et le mot de passe galerie ne partent jamais dans une sauvegarde
 const OT_SECRETS = ['ai_config', 'galerie_admin_pwd'];
@@ -425,7 +427,7 @@ async function otImportRun(){
     // 2. Mode Remplacer : on enleve seulement ce qui n'existait pas dans la sauvegarde
     //    (les plus "dependants" d'abord). Les clients ne sont jamais effaces.
     if(mode === 'replace'){
-      const order = ['transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'goals', 'accounts'];
+      const order = ['charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'charges_fixes', 'budgets', 'goals', 'accounts'];
       for(const t of order.filter(x => tables.includes(x))){
         const ids = (snap.tables[t] || []).map(r => r.id).filter(v => v != null);
         let q = sb.from(t).delete().eq('user_id', uid);
@@ -460,7 +462,7 @@ async function otAutoBackup(){
 setTimeout(otAutoBackup, 20000);
 
 async function otWipe(tables, uid){
-  const order = ['transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'tarif_page', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'clients', 'goals', 'accounts'];
+  const order = ['charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'tarif_page', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'charges_fixes', 'budgets', 'clients', 'goals', 'accounts'];
   for(const t of order.filter(x => tables.includes(x))){
     const { error } = await sb.from(t).delete().eq('user_id', uid);
     if(error) throw new Error(t + ' : ' + error.message);
@@ -654,9 +656,19 @@ function otOpenResa(id){
       <label>Date et heure de la séance</label><input id="otResaDate" type="datetime-local" value="${agEsc(otIsoLocal(r.date_souhaitee))}">
       <label>Prix final (FCFA)</label><input id="otResaPrix" type="number" value="${total}">
       <button class="btn-primary" style="margin-top:12px" onclick="otAcceptResa(${r.id})">Accepter et créer la séance</button>
+      ${typeof coNegocier === 'function' ? `<button class="btn-secondary" style="margin-top:8px" onclick="otNegoResa(${r.id})">${agIcon('briefcase', 16)} Négocier le prix</button>` : ''}
       <div class="crm-2" style="margin-top:8px"><button class="btn-secondary" onclick="crmWaRaw('${agEsc(crmPhone(r.telephone))}','')">WhatsApp</button><button class="btn-danger" style="padding:12px" onclick="otResaStatus(${r.id},'refusee')">Refuser</button></div>`
     : `<div class="ag-hint">Cette demande est ${r.status === 'acceptee' ? 'acceptée' : 'refusée'}.</div>
        <div class="crm-2" style="margin-top:8px"><button class="btn-secondary" onclick="crmWaRaw('${agEsc(crmPhone(r.telephone))}','')">WhatsApp</button><button class="btn-danger" style="padding:12px" onclick="otResaDelete(${r.id})">Supprimer</button></div>`}`);
+}
+// Ouvre la negociation du coach, preremplie avec la demande (coach2.js)
+function otNegoResa(id){
+  const r = OT.resas.find(x => x.id === id); if(!r || typeof coNegocier !== 'function') return;
+  const c = typeof svClientDeResa === 'function' ? svClientDeResa(r) : null;
+  const opts = (r.options || []).map(o => o.name + (o.qty > 1 ? ' x' + o.qty : '')).join(', ');
+  const travail = [r.formule || 'Séance', opts ? 'options : ' + opts : '', r.date_souhaitee ? 'le ' + otFmtDate(r.date_souhaitee) : '', r.message ? 'message : ' + r.message : ''].filter(Boolean).join(', ');
+  agCloseSheet('otResa');
+  coNegocier({ reservation_id: r.id, client_id: c ? c.id : null, client_nom: c ? c.name : r.nom, travail, prix: Number(r.prix_estime) - Number(r.remise || 0) });
 }
 function otIsoLocal(s){ const d = new Date(s); if(isNaN(d)) return ''; d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); }
 function crmWaRaw(tel, text){ window.open(`https://wa.me/${tel}${text ? '?text=' + encodeURIComponent(text) : ''}`, '_blank'); }
@@ -845,7 +857,10 @@ const OT_NT_DEF = {
   bilan_semaine: { on: true, jour: 0, heure: '19:00' },
   bilan_mois: { on: true, heure: '09:00' },
   checklist: { on: true, heure: '20:00' },
-  dettes: { on: true, jours: 7 }
+  dettes: { on: true, jours: 7 },
+  coach: { on: true, heure: '08:00' },
+  charges: { on: true, jours: [7, 2] },
+  coach_resultats: { on: true }
 };
 const OT_JOURS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 const OT_PRESETS = {
@@ -867,7 +882,12 @@ async function otLoadRappels(){
     if(!n.seances && p.rappels && p.rappels.on === false) OT.nt.seances.on = false;
   } catch(e){}
 }
-async function otSaveNotifs(){ return typeof crmSavePrefs === 'function' ? await crmSavePrefs({ notifs: OT.nt }) : false; }
+async function otSaveNotifs(){
+  // Cles du coach (lues par le serveur) : coach, charges, coach_resultats
+  ['coach', 'charges', 'coach_resultats'].forEach(k => { OT.nt[k] = Object.assign(otClone(OT_NT_DEF[k]), OT.nt[k] || {}); });
+  OT.nt.charges.jours = [...new Set((OT.nt.charges.jours || []).map(Number).filter(n => n >= 0 && n <= 30))].sort((a, b) => b - a);
+  return typeof crmSavePrefs === 'function' ? await crmSavePrefs({ notifs: OT.nt }) : false;
+}
 function otRegleTxt(r){
   const [hh, mm] = String(r.h || '09:00').split(':'); const h = Number(hh) + ' h' + (mm && mm !== '00' ? ' ' + mm : '');
   if(r.t === 'jour') return r.j === 0 ? `Le jour même à ${h}` : r.j === 1 ? `La veille à ${h}` : `${r.j} jours avant à ${h}`;
@@ -912,12 +932,13 @@ function otNotifs(focus){
 }
 function otNotifsRead(){
   const c = id => { const e = document.getElementById(id); return e ? e.checked : undefined; };
-  ['seances', 'galerie', 'mood', 'resa', 'motivation', 'marketing', 'stats_posts', 'bilan_semaine', 'bilan_mois', 'checklist', 'dettes'].forEach(k => { const v = c('otNtOn-' + k); if(v !== undefined) OT.nt[k].on = v; });
+  ['seances', 'galerie', 'mood', 'resa', 'motivation', 'marketing', 'stats_posts', 'bilan_semaine', 'bilan_mois', 'checklist', 'dettes', 'coach', 'charges', 'coach_resultats'].forEach(k => { const v = c('otNtOn-' + k); if(v !== undefined) OT.nt[k].on = v; });
   const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
-  [['marketing', '18:00'], ['bilan_semaine', '19:00'], ['bilan_mois', '09:00'], ['checklist', '20:00']].forEach(([k, d]) => { const h = val('otNtH-' + k); if(h) OT.nt[k].heure = h; else if(!OT.nt[k].heure) OT.nt[k].heure = d; });
+  [['marketing', '18:00'], ['bilan_semaine', '19:00'], ['bilan_mois', '09:00'], ['checklist', '20:00'], ['coach', '08:00']].forEach(([k, d]) => { const h = val('otNtH-' + k); if(h) OT.nt[k].heure = h; else if(!OT.nt[k].heure) OT.nt[k].heure = d; });
   const j = val('otNtJ-bilan_semaine'); if(j !== '') OT.nt.bilan_semaine.jour = Number(j);
   const mo = c('otNtMoodOpen'); if(mo !== undefined) OT.nt.mood.ouverture = mo;
   const dj = parseInt(val('otNtJ-dettes'), 10); if(dj > 0) OT.nt.dettes.jours = Math.min(60, dj);
+  const cj = [...document.querySelectorAll('#otNtCh input[type=checkbox]')]; if(cj.length) OT.nt.charges.jours = cj.filter(x => x.checked).map(x => Number(x.value));
 }
 function otNotifsRender(){
   const box = document.getElementById('otNtBody'); if(!box) return;
@@ -987,6 +1008,18 @@ function otNotifsRender(){
       ${otSwitch('otNtOn-dettes', (N.dettes || {}).on !== false, "Clients qui te doivent de l'argent", 'Un rappel quand une dette n\'est pas payée, puis chaque semaine')}
       <div class="ot-nt-in"><div class="ot-row"><span>Premier rappel après</span><input type="number" id="otNtJ-dettes" min="1" max="60" inputmode="numeric" value="${Number((N.dettes || {}).jours) || 7}" style="width:80px"><span>jours</span></div></div>
     </div>
+
+    <div class="ot-nt" id="otNt-coach">
+      ${otSwitch('otNtOn-coach', (N.coach || {}).on !== false, 'Le conseil du jour', 'Le coach te dit la chose la plus importante à faire aujourd\'hui')}
+      <div class="ot-nt-in"><div class="ot-row"><span>Chaque jour à</span><input type="time" id="otNtH-coach" value="${agEsc((N.coach || {}).heure || '08:00')}"></div></div>
+    </div>
+
+    <div class="ot-nt" id="otNt-charges">
+      ${otSwitch('otNtOn-charges', (N.charges || {}).on !== false, 'Charges fixes', 'Avant chaque charge (loyer, électricité, crédit...)')}
+      <div class="ot-nt-in"><div class="ot-row" id="otNtCh" style="flex-wrap:wrap">${[[7, '7 jours avant'], [3, '3 jours avant'], [2, '2 jours avant'], [1, 'La veille'], [0, 'Le jour même']].map(([d, l]) => `<label style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 6px 0;font-size:13px;color:var(--text)"><input type="checkbox" value="${d}" style="width:18px;height:18px;margin:0" ${((N.charges || {}).jours || []).map(Number).includes(d) ? 'checked' : ''}>${l}</label>`).join('')}</div></div>
+    </div>
+
+    <div class="ot-nt" id="otNt-coach_resultats">${otSwitch('otNtOn-coach_resultats', (N.coach_resultats || {}).on !== false, 'Résultats demandés par le coach', 'Quelques jours après une étape faite ou une négociation en cours')}</div>
 
     <button class="btn-primary" style="margin-top:14px" onclick="otNotifsSave()">Enregistrer</button>
     <button class="btn-secondary" style="margin-top:8px" onclick="otNotifsReset()">Remettre les réglages de base</button>`;
@@ -1069,6 +1102,7 @@ showTab = function(name, btn){
   if(q.get('mb')) window.__mbDeep = Number(q.get('mb'));
   if(q.get('bilan')) window.__bilanDeep = q.get('bilan');
   if(q.get('dettes')) window.__dettesDeep = 1;
+  if(q.get('co')) window.__coDeep = q.get('co');
   history.replaceState(null, '', location.pathname);
   try { localStorage.setItem('active_tab', tab); } catch(e){}
   const go = () => { if(document.getElementById('page-' + tab) && !document.body.classList.contains('logged-out')){ agGoTab(tab); if(tab === 'mood' && typeof mbRender === 'function'){ if(window.__mbDeep && typeof MB !== 'undefined'){ MB.cur = window.__mbDeep; window.__mbDeep = null; } mbRender(); } } else setTimeout(go, 400); };

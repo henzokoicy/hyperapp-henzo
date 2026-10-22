@@ -437,9 +437,9 @@ function agOpenAccount(id){
   agSheet('agAccView', `
     <h3>${agEsc(a.name)}</h3>
     <div class="ag-total ${bal < 0 ? 'neg' : ''}" style="margin-top:6px">
-      <div class="lbl">Solde actuel</div>
-      <div class="amt">${agN(bal)} <small>FCFA</small></div>
-      <div class="split"><div>Solde de départ<b>${agF(a.initial_balance)}</b></div><div>Mouvements<b>${mv.filter(t => !t.cancelled).length}</b></div></div>
+      <div class="lbl">Solde actuel</div><button class="ag-eye" title="Afficher / cacher les montants" onclick="event.stopPropagation();agToggleMontants()">${agEyeIcon()}</button>
+      <div class="amt ag-m">${agN(bal)} <small>FCFA</small></div>
+      <div class="split"><div>Solde de départ<b class="ag-m">${agF(a.initial_balance)}</b></div><div>Mouvements<b>${mv.filter(t => !t.cancelled).length}</b></div></div>
     </div>
     <div class="ag-btns">
       <button class="btn-ghost" onclick="agCloseSheet('agAccView');agOpenTransfer({fromAccount:${id}})">⇄ Transférer</button>
@@ -605,8 +605,8 @@ function agCoffreCard(c){
   const lock = estCoffreBloque(c) ? '<span class="ag-lock">🔒 bloqué</span>' : '';
   return `<div class="ag-coffre" onclick="agOpenCoffre(${c.id})">
     <div class="h"><div class="t"><div class="e">${agIcon(agCoffreIcon(c))}</div><div style="min-width:0"><div class="nm">${agEsc(c.name)}</div><div class="tag">${agEsc(String(t.label || '').replace(/^\S+\s/, ''))}</div></div></div>
-    <div><div class="v">${agF(c.current)}</div>${hasGoal ? `<div class="goal">sur ${agF(c.goal)}</div>` : ''}${lock}</div></div>
-    ${hasGoal ? `<div class="ag-bar"><i style="width:${pct}%"></i></div>` : ''}
+    <div><div class="v ag-m">${agF(c.current)}</div>${hasGoal ? `<div class="goal ag-m">sur ${agF(c.goal)}</div>` : ''}${lock}</div></div>
+    ${hasGoal ? `<div class="ag-bar ag-mb"><i style="width:${pct}%"></i></div>` : ''}
   </div>`;
 }
 function agOpenCoffre(id){
@@ -619,9 +619,9 @@ function agOpenCoffre(id){
   agSheet('agCoffreView', `
     <h3>${agEsc(c.name)}</h3>
     <div class="ag-total">
-      <div class="lbl">Dans ce coffre</div>
-      <div class="amt">${agN(c.current)} <small>FCFA</small></div>
-      <div class="split"><div>Type<b>${agEsc(String(t.label || '').replace(/^\S+\s/, ''))}</b></div>${hasGoal ? `<div>Objectif<b>${agF(c.goal)}</b></div>` : ''}<div>État<b>${bloque ? '🔒 Bloqué' : 'Libre'}</b></div></div>
+      <div class="lbl">Dans ce coffre</div><button class="ag-eye" title="Afficher / cacher les montants" onclick="event.stopPropagation();agToggleMontants()">${agEyeIcon()}</button>
+      <div class="amt ag-m">${agN(c.current)} <small>FCFA</small></div>
+      <div class="split"><div>Type<b>${agEsc(String(t.label || '').replace(/^\S+\s/, ''))}</b></div>${hasGoal ? `<div>Objectif<b class="ag-m">${agF(c.goal)}</b></div>` : ''}<div>État<b>${bloque ? '🔒 Bloqué' : 'Libre'}</b></div></div>
     </div>
     <div class="ag-actions" style="grid-template-columns:repeat(3,1fr);margin-bottom:10px">
       <button class="ag-act main" onclick="agOpenTransfer({toGoal:${id}})"><span>${agIcon('plus')}</span>Déposer</button>
@@ -756,9 +756,9 @@ function agRenderArgent(){
   const recent = txs.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 6);
   el.innerHTML = `
     <div class="ag-total ${tot.total < 0 ? 'neg' : ''}">
-      <div class="lbl">Mon argent total</div>
-      <div class="amt">${agN(tot.total)} <small>FCFA</small></div>
-      <div class="split"><div>Sur mes comptes<b>${agF(tot.comptes)}</b></div><div>Dans mes coffres<b>${agF(tot.coffres)}</b></div></div>
+      <div class="lbl">Mon argent total</div><button class="ag-eye" title="Afficher / cacher les montants" onclick="event.stopPropagation();agToggleMontants()">${agEyeIcon()}</button>
+      <div class="amt ag-m">${agN(tot.total)} <small>FCFA</small></div>
+      <div class="split"><div>Sur mes comptes<b class="ag-m">${agF(tot.comptes)}</b></div><div>Dans mes coffres<b class="ag-m">${agF(tot.coffres)}</b></div></div>
     </div>
     <div class="ag-actions">
       <button class="ag-act main" onclick="agNewTx('revenu')"><span>${agIcon('plus')}</span>Entrée</button>
@@ -770,7 +770,7 @@ function agRenderArgent(){
     <div class="ag-row">
       ${accs.map(a => { const b = agAccountBalance(a); const k = agKind(a); return `
         <div class="ag-acc" onclick="agOpenAccount(${a.id})"><div class="ic">${agIcon(k.svg)}</div>
-        <div class="n">${agEsc(a.name)}</div><div class="v ${b < 0 ? 'neg' : ''}">${agF(b)}</div></div>`; }).join('')}
+        <div class="n">${agEsc(a.name)}</div><div class="v ag-m ${b < 0 ? 'neg' : ''}">${agF(b)}</div></div>`; }).join('')}
       <div class="ag-acc add" onclick="agOpenAccountForm()">${agIcon('plus')}Compte</div>
     </div>
     <div class="ag-sec"><h3>Mes coffres</h3><button onclick="agGoTab('coffres')">Tout voir</button></div>
@@ -787,9 +787,9 @@ function agRenderCoffresPage(){
   const bloq = cof.filter(estCoffreBloque).reduce((s, c) => s + (Number(c.current) || 0), 0);
   el.innerHTML = `
     <div class="ag-total">
-      <div class="lbl">Dans mes coffres</div>
-      <div class="amt">${agN(tot)} <small>FCFA</small></div>
-      <div class="split"><div>Coffres<b>${cof.length}</b></div><div>Bloqué<b>${agF(bloq)}</b></div><div>Libre<b>${agF(tot - bloq)}</b></div></div>
+      <div class="lbl">Dans mes coffres</div><button class="ag-eye" title="Afficher / cacher les montants" onclick="event.stopPropagation();agToggleMontants()">${agEyeIcon()}</button>
+      <div class="amt ag-m">${agN(tot)} <small>FCFA</small></div>
+      <div class="split"><div>Coffres<b>${cof.length}</b></div><div>Bloqué<b class="ag-m">${agF(bloq)}</b></div><div>Libre<b class="ag-m">${agF(tot - bloq)}</b></div></div>
     </div>
     <div class="ag-actions" style="grid-template-columns:repeat(3,1fr)">
       <button class="ag-act main" onclick="agOpenTransfer({toGoal:${cof[0] ? cof[0].id : 'null'}})"><span>${agIcon('plus')}</span>Déposer</button>
@@ -851,13 +851,13 @@ function agRenderDashMini(){
   const accs = agActiveAccounts();
   const recent = txs.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 4);
   el.innerHTML = head + `<div class="ag-total ${tot.total < 0 ? 'neg' : ''}" onclick="agGoTab('argent')" style="cursor:pointer">
-    <div class="lbl">Mon argent total</div><div class="amt">${agN(tot.total)} <small>FCFA</small></div>
-    <div class="split"><div>Sur mes comptes<b>${agF(tot.comptes)}</b></div><div>Dans mes coffres<b>${agF(tot.coffres)}</b></div></div></div>`
+    <div class="lbl">Mon argent total</div><button class="ag-eye" title="Afficher / cacher les montants" onclick="event.stopPropagation();agToggleMontants()">${agEyeIcon()}</button><div class="amt ag-m">${agN(tot.total)} <small>FCFA</small></div>
+    <div class="split"><div>Sur mes comptes<b class="ag-m">${agF(tot.comptes)}</b></div><div>Dans mes coffres<b class="ag-m">${agF(tot.coffres)}</b></div></div></div>`
     + actions
     + `<div class="ag-sec"><h3>Mes comptes</h3><button onclick="agGoTab('argent')">Tout voir</button></div>
     <div class="ag-row">${accs.map(a => { const b = agAccountBalance(a); const k = agKind(a); return `
       <div class="ag-acc" onclick="agOpenAccount(${a.id})"><div class="ic">${agIcon(k.svg)}</div>
-      <div class="n">${agEsc(a.name)}</div><div class="v ${b < 0 ? 'neg' : ''}">${agF(b)}</div></div>`; }).join('')}</div>
+      <div class="n">${agEsc(a.name)}</div><div class="v ag-m ${b < 0 ? 'neg' : ''}">${agF(b)}</div></div>`; }).join('')}</div>
     <div class="ag-sec"><h3>Derniers mouvements</h3><button onclick="agGoTab('historique')">Historique</button></div>
     ${agListHtml(recent)}`;
 }
@@ -1325,13 +1325,15 @@ async function agInstall(){
 agSetupInstall();
 
 // Galerie clients integree (fichier galerie.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=5'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=6'; document.body.appendChild(sc); })();
 // Clients, relances, promos et tarifs (fichier crm.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=9'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=11'; document.body.appendChild(sc); })();
 // Moodboard : idees de seance (fichier mood.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'mood.js?v=2'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'marketing.js?v=1'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'extras.js?v=4'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'budget.js?v=2'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'coach2.js?v=2'; document.body.appendChild(sc); })();
 // Suivi client : impressions et dettes (fichier suivi.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'suivi.js?v=1'; document.body.appendChild(sc); })();
 
@@ -1466,3 +1468,43 @@ const agPrompt = (msg, value, o) => agDialog({ ...(o || {}), msg, value, kind: '
   };
 })();
 
+
+
+// ------------------------------------------------------------
+// MONTANTS CACHES : caches a chaque ouverture, l'oeil les montre
+// (jamais memorise : ils se recachent en quittant l'app ou en actualisant)
+// ------------------------------------------------------------
+function agEyeIcon(){
+  const ouvert = document.body.classList.contains('ag-voir');
+  return ouvert
+    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'
+    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.7-1.3"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+}
+function agMajYeux(){ document.querySelectorAll('.ag-eye').forEach(b => { b.innerHTML = agEyeIcon(); b.title = document.body.classList.contains('ag-voir') ? 'Cacher les montants' : 'Afficher les montants'; }); }
+function agToggleMontants(force){
+  const voir = typeof force === 'boolean' ? force : !document.body.classList.contains('ag-voir');
+  document.body.classList.toggle('ag-voir', voir);
+  agMajYeux();
+}
+(function agMontantsCaches(){
+  const st = document.createElement('style');
+  st.textContent = `
+    .ag-total{position:relative}
+    .ag-eye{position:absolute;top:12px;right:12px;width:36px;height:36px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:inherit;display:grid;place-items:center;cursor:pointer;padding:0;margin:0}
+    .ag-eye:active{transform:scale(.94)}
+    body:not(.ag-voir) .ag-m{font-size:0 !important;letter-spacing:0 !important}
+    body:not(.ag-voir) .ag-m *{display:none !important}
+    body:not(.ag-voir) .ag-m::after{content:'••••••';font-size:1rem;letter-spacing:.12em;opacity:.85}
+    body:not(.ag-voir) .ag-total .amt.ag-m::after{content:'•••••••';font-size:30px;letter-spacing:.14em}
+    body:not(.ag-voir) .ag-acc .v.ag-m::after,body:not(.ag-voir) .ag-coffre .v.ag-m::after{content:'•••••';font-size:15px}
+    body:not(.ag-voir) .ag-coffre .goal.ag-m::after{content:'sur •••••';font-size:12px}
+    body:not(.ag-voir) .ag-mb i{width:0 !important}
+    body:not(.ag-voir) .ag-total.neg .amt,body:not(.ag-voir) .ag-acc .v.neg{color:inherit}
+    body:not(.ag-voir) .ag-total .amt.ag-m{color:#fff}
+  `;
+  document.head.appendChild(st);
+  // Toujours caches au demarrage, et des qu'on quitte l'app
+  document.body.classList.remove('ag-voir');
+  document.addEventListener('visibilitychange', () => { if(document.hidden) agToggleMontants(false); });
+  window.addEventListener('pagehide', () => agToggleMontants(false));
+})();

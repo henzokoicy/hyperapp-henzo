@@ -161,7 +161,7 @@ async function crmRenderTarifs(){
   if(!PX.loaded){ el.innerHTML = '<div class="ag-empty">Chargement...</div>'; await pxLoad(); }
   const f = pxFormules(), o = pxOptions(), cols = pxCols(), info = CRM.info;
   const acc = PX.devis.filter(d => d.status === 'accepte').length, ref = PX.devis.filter(d => d.status === 'refuse').length;
-  const views = [['grille', 'Ma grille'], ['devis', 'Devis'], ['conseil', 'Conseiller IA'], ['partage', 'Partager']];
+  const views = [['grille', 'Ma grille'], ['devis', 'Devis'], ['negocier', 'Négocier'], ['conseil', 'Conseiller IA'], ['partage', 'Partager']];
   el.innerHTML = `
     <div class="ag-total">
       <div class="lbl">Tarifs et devis</div>
@@ -172,6 +172,7 @@ async function crmRenderTarifs(){
     <div id="pxView"></div>`;
   const v = document.getElementById('pxView');
   if(PX.view === 'devis') pxRenderDevis(v);
+  else if(PX.view === 'negocier'){ if(typeof coRenderNego === 'function') coRenderNego(v); else v.innerHTML = '<div class="ag-empty">La négociation se charge...</div>'; }
   else if(PX.view === 'conseil') pxRenderConseil(v);
   else if(PX.view === 'partage') pxRenderPartage(v);
   else pxRenderGrille(v);

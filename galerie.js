@@ -50,6 +50,8 @@ ouvrirOngletGalerie = window.ouvrirOngletGalerie = async function(){
   if(!galPwd) galPwd = await getGaleriePwd();
   if(!galPwd){ galRenderLogin(); return; }
   if(window.__galDeep){ const code = window.__galDeep; window.__galDeep = null; await galLoad(); if(galList.find(x => x.code === code)){ window.__galTab = 'stats'; setTimeout(() => { window.__galTab = null; }, 4000); galCurrent = code; galOpen(code); } return; }
+  if(window.__galAvisDeep){ window.__galAvisDeep = false; galAvisFiltre = 'attente'; await galLoad(); galOpenAvis(); return; }
+  if(galCurrent === '__avis__'){ galOpenAvis(); return; }
   if(galCurrent){ galOpen(galCurrent); return; }
   await galLoad();
 };
@@ -85,7 +87,7 @@ async function galLoad(){
   try {
     galList = await galApi('/api/admin/galeries');
     galLoaded = true;
-    galApi('/api/admin/avis').then(a => { galAvis = Array.isArray(a) ? a : []; galAvisNonLus = galAvis.filter(x => !x.lu).length; if(!galCurrent && document.getElementById('galListBox')) galRenderList(); }).catch(() => {});
+    galApi('/api/admin/avis').then(a => { galAvis = Array.isArray(a) ? a : []; galAvisNonLus = galAvisAttente(); if(!galCurrent && document.getElementById('galListBox')) galRenderList(); }).catch(() => {});
     galRenderList();
   } catch(e){
     if(e.code === 401){ galPwd = ''; galRenderLogin('Mot de passe refusé par la galerie. Vérifie-le.'); return; }
@@ -114,7 +116,7 @@ function galRenderList(){
     </div>
     <div class="ag-actions">
       <button class="ag-act main" onclick="galOpenCreate()"><span>${agIcon('plus')}</span>Nouvelle</button>
-      <button class="ag-act" onclick="galOpenAvis()" style="position:relative"><span>${agIcon('star')}</span>Avis${galAvisNonLus ? `<i class="ag-dot">${galAvisNonLus}</i>` : ''}</button>
+      <button class="ag-act" onclick="galOpenAvis()" style="position:relative"><span>${agIcon('star')}</span>Avis${galAvisAttente() ? `<i class="ag-dot" title="${galAvisAttente()} avis en attente">${galAvisAttente()}</i>` : ''}</button>
       <button class="ag-act" onclick="galLoad()"><span>${agIcon('refresh')}</span>Actualiser</button>
       <button class="ag-act" onclick="window.open('${galApiBase()}/admin.html','_blank')"><span>${agIcon('link')}</span>Ancien admin</button>
     </div>
@@ -475,40 +477,218 @@ function galStars(n, size){
   for(let i = 1; i <= 5; i++) h += `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="vertical-align:-2px"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z" fill="${i <= n ? '#ffd166' : 'none'}" stroke="${i <= n ? '#ffd166' : 'currentColor'}" stroke-width="1.5" stroke-linejoin="round" opacity="${i <= n ? 1 : .35}"/></svg>`;
   return h;
 }
+// Etat d'un avis pour le site : en attente / sur le site / refuse
+function galAvisEtat(a){ return a.approuve === true ? 'site' : a.approuve === false ? 'refuse' : 'attente'; }
+function galAvisPrive(a){ return a.publiable === false; }
+// A traiter : en attente ET le client a accepte la publication
+function galAvisAttente(){ return galAvis.filter(a => galAvisEtat(a) === 'attente' && !galAvisPrive(a)).length; }
+// "Awa Kone" -> "Awa K." ; "KONAN Cedric" -> "Cedric K." (meme regle que le serveur)
+function galPrenomInitiale(nom){
+  const T = /^(m\.?|mr\.?|mme\.?|mlle\.?|madame|monsieur|mademoiselle|dr\.?|docteur)$/i;
+  const mots = String(nom || '').replace(/[<>"]/g, '').split(/[\s,&+/]+/).map(m => m.trim()).filter(m => m && !T.test(m));
+  if(!mots.length) return 'Client';
+  const caps = m => m.length > 1 && m === m.toUpperCase() && /[A-ZÀ-Ý]/.test(m);
+  let p = mots[0], o = mots[1];
+  if(caps(mots[0]) && mots.slice(1).some(m => !caps(m))){ p = mots.slice(1).find(m => !caps(m)); o = mots[0]; }
+  p = p.split('-').map(x => x ? x.charAt(0).toUpperCase() + x.slice(1).toLowerCase() : x).join('-');
+  return o ? `${p} ${o.charAt(0).toUpperCase()}.` : p;
+}
+const GAL_OK_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const GAL_NO_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+let galAvisFiltre = null;
+let galWidgetOpt = { theme: 'clair', nombre: 6, min: 1 };
+try { if(new URLSearchParams(location.search).get('avis')) window.__galAvisDeep = true; } catch(e){}
+
+(function galAvisCss(){
+  if(document.getElementById('galAvisCss')) return;
+  const st = document.createElement('style');
+  st.id = 'galAvisCss';
+  st.textContent = `
+.gal-av-etat{display:inline-block;font-style:normal;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:1px;border:1px solid var(--border)}
+.gal-av-etat.attente{background:rgba(245,197,66,.15);color:var(--yellow);border-color:rgba(245,197,66,.35)}
+.gal-av-etat.site{background:rgba(52,211,153,.14);color:var(--green);border-color:rgba(52,211,153,.35)}
+.gal-av-etat.refuse{background:var(--card2);color:var(--muted)}
+.gal-av-etat.prive{background:var(--card2);color:var(--muted)}
+.gal-av-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.gal-av-act button{display:inline-flex;align-items:center;gap:6px;width:auto;margin:0;padding:8px 13px;border-radius:12px;font:600 13px Inter,sans-serif;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text)}
+.gal-av-act button.ok{background:var(--pri-bg);color:var(--pri-fg);border-color:transparent}
+.gal-av-act button.no{color:var(--red)}
+.gal-av-nom{font-size:12.5px;color:var(--text-2);margin-top:8px}
+.gal-av-nom b{color:var(--text)}
+.gal-av-warn{font-size:12.5px;color:var(--muted);margin-top:10px;padding:8px 10px;border-radius:10px;background:var(--card2);border:1px dashed var(--border)}
+.gal-pills{display:flex;gap:6px;overflow-x:auto;margin:4px 0 12px;scrollbar-width:none}
+.gal-pills::-webkit-scrollbar{display:none}
+.gal-pills button{flex:none;width:auto;margin:0;padding:8px 12px;border-radius:12px;background:var(--card2);border:1px solid var(--border);color:var(--text-2);font:500 13px Inter,sans-serif;cursor:pointer;white-space:nowrap}
+.gal-pills button.on{background:var(--card3);border-color:var(--accent);color:var(--text)}
+.gal-pills button i{font-style:normal;font-size:11px;font-weight:700;margin-left:5px;padding:1px 6px;border-radius:9px;background:var(--card3);color:var(--muted)}
+.gal-pills button i.chaud{background:#ff6b6b;color:#fff}
+.gal-site{margin-top:18px;padding:16px;border-radius:16px;background:var(--card);border:1px solid var(--border)}
+.gal-site h3{font-size:15px;margin:0 0 4px}
+.gal-site p{font-size:13px;color:var(--muted);margin:0 0 12px;line-height:1.45}
+.gal-code{font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:12px;white-space:pre-wrap;word-break:break-all;color:var(--text-2);user-select:all}
+.gal-site .row2{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}
+.gal-site select{width:auto;margin:0;padding:8px 10px;font-size:13px}
+.gal-prev{margin-top:12px;padding:18px 16px;border-radius:14px;border:1px solid var(--border)}
+.gal-prev.clair{background:#f6f5f2}
+.gal-prev.sombre{background:#0e0f11}
+.gal-prev-l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 2px 6px}
+.gal-av-mini{border:1px solid var(--border);border-radius:14px;padding:12px;margin:10px 0;background:var(--card2)}
+`;
+  document.head.appendChild(st);
+})();
+
 async function galOpenAvis(){
   galCurrent = '__avis__';
   galBody().innerHTML = `<button class="ag-back" onclick="galCurrent=null;galRenderList()">${agIcon('chev', 16)} Toutes les galeries</button><div class="ag-empty">Chargement des avis...</div>`;
   try { galAvis = await galApi('/api/admin/avis'); } catch(e){ galBody().innerHTML += `<div class="ag-empty">${agEsc(e.message)}</div>`; return; }
+  if(!Array.isArray(galAvis)) galAvis = [];
+  if(!galAvisFiltre) galAvisFiltre = galAvisAttente() ? 'attente' : 'tous';
   galRenderAvis();
   const nonLus = galAvis.filter(a => !a.lu);
   galAvisNonLus = 0;
   // Format attendu par le serveur : JSON avec Content-Type (sinon "lu" n'est pas lu)
   nonLus.forEach(a => galApi('/api/admin/avis/' + a.id, { method: 'PUT', json: { lu: true } }).then(() => { a.lu = true; }).catch(e => console.warn('avis lu', e)));
 }
+function galAvisFiltrer(f){ galAvisFiltre = f; galRenderAvis(); }
 function galRenderAvis(){
   const n = galAvis.length;
   const moy = n ? galAvis.reduce((s, a) => s + (a.note || 0), 0) / n : 0;
-  const cinq = galAvis.filter(a => a.note === 5).length;
+  const nb = { attente: galAvisAttente(), site: galAvis.filter(a => galAvisEtat(a) === 'site').length, refuse: galAvis.filter(a => galAvisEtat(a) === 'refuse').length, tous: n };
+  const f = galAvisFiltre || 'tous';
+  const list = galAvis.filter(a => f === 'tous' ? true : f === 'attente' ? (galAvisEtat(a) === 'attente' && !galAvisPrive(a)) : galAvisEtat(a) === f);
+  const vide = { attente: 'Aucun avis en attente. Tout est traité.', site: "Aucun avis sur ton site pour l'instant. Accepte un avis pour l'y mettre.", refuse: 'Aucun avis refusé.', tous: 'Aucun avis pour le moment.' }[f];
+  const pill = (k, l) => `<button class="${f === k ? 'on' : ''}" onclick="galAvisFiltrer('${k}')">${l}<i class="${k === 'attente' && nb[k] ? 'chaud' : ''}">${nb[k]}</i></button>`;
   galBody().innerHTML = `
     <button class="ag-back" onclick="galCurrent=null;galRenderList()">${agIcon('chev', 16)} Toutes les galeries</button>
     <div class="ag-total">
       <div class="lbl">Avis clients</div>
       <div class="amt">${n ? moy.toFixed(1).replace('.', ',') : '-'} <small>/ 5</small></div>
       <div style="margin:-6px 0 12px;color:#fff">${galStars(Math.round(moy), 18)}</div>
-      <div class="split"><div>Avis reçus<b>${n}</b></div><div>5 étoiles<b>${cinq}</b></div><div>Partageables<b>${galAvis.filter(a => a.publiable).length}</b></div></div>
+      <div class="split"><div>Avis reçus<b>${n}</b></div><div>Sur ton site<b>${nb.site}</b></div><div>En attente<b>${nb.attente}</b></div></div>
     </div>
-    <p class="ag-hint" style="margin:12px 2px">Les clients donnent leur avis sur la page de remerciement, juste après avoir téléchargé leurs photos.</p>
-    <div class="ag-list">${n ? galAvis.map(a => `
-      <div class="ag-avis">
-        <div class="ag-avis-h"><div><b>${agEsc(a.nom_client || 'Client')}</b>${a.lu ? '' : ' <i class="ag-new">Nouveau</i>'}<div class="ag-avis-d">${galStars(a.note)} · ${new Date(a.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}${a.code ? ' · ' + agEsc(a.code) : ''}${a.source ? ' · connu par ' + agEsc(typeof crmSrcLabel === 'function' ? crmSrcLabel(a.source) : a.source) : ''}</div></div>
-          ${a.publiable && a.texte ? `<button class="ag-ibtn" title="Copier pour publier" onclick="galCopyAvis(${a.id})">${agIcon('copy', 16)}</button>` : ''}</div>
-        ${a.texte ? `<p class="ag-avis-t">${agEsc(a.texte)}</p>` : '<p class="ag-avis-t" style="opacity:.5">Pas de commentaire</p>'}
-        ${a.publiable ? '' : '<div class="ag-avis-d">Le client ne souhaite pas que son avis soit partagé</div>'}
-      </div>`).join('') : '<div class="ag-empty">Aucun avis pour le moment.</div>'}</div>`;
+    ${nb.attente ? `<div class="ag-hint warn" style="margin:12px 2px 0">${nb.attente} avis en attente : accepte-les pour les mettre sur ton site, ou refuse-les.</div>` : ''}
+    <p class="ag-hint" style="margin:10px 2px">Les clients donnent leur avis sur la page de remerciement. Rien ne va sur ton site sans ton accord.</p>
+    <div class="gal-pills">${pill('attente', 'En attente')}${pill('site', 'Sur le site')}${pill('refuse', 'Refusés')}${pill('tous', 'Tous')}</div>
+    <div class="ag-list" id="galAvisList">${list.length ? list.map(galAvisCarte).join('') : `<div class="ag-empty">${vide}</div>`}</div>
+    ${galSiteEncart()}`;
+  galWidgetPreview();
+}
+function galAvisCarte(a){
+  const e = galAvisEtat(a), prive = galAvisPrive(a);
+  const etat = prive && e !== 'site' ? '<i class="gal-av-etat prive">Privé</i>' : `<i class="gal-av-etat ${e}">${{ attente: 'En attente', site: 'Sur le site', refuse: 'Refusé' }[e]}</i>`;
+  let act = '';
+  if(prive){
+    act = `<div class="gal-av-warn">Le client n'a pas accepté la publication : cet avis ne peut pas aller sur ton site.</div>`
+      + (e === 'site' ? `<div class="gal-av-act"><button class="no" onclick="galAvisRetirer(${a.id})">Retirer du site</button></div>` : '');
+  } else if(e === 'attente'){
+    act = `<div class="gal-av-act"><button class="ok" onclick="galAvisAccepter(${a.id})">${GAL_OK_SVG} Accepter</button><button class="no" onclick="galAvisRefuser(${a.id})">${GAL_NO_SVG} Refuser</button></div>`;
+  } else if(e === 'site'){
+    act = `<div class="gal-av-nom">Nom affiché sur le site : <b>${agEsc(a.nom_affiche || galPrenomInitiale(a.nom_client))}</b></div>
+      <div class="gal-av-act"><button onclick="galAvisAccepter(${a.id})">${agIcon('edit', 14)} Modifier le nom</button><button class="no" onclick="galAvisRetirer(${a.id})">Retirer du site</button></div>`;
+  } else {
+    act = `<div class="gal-av-act"><button class="ok" onclick="galAvisAccepter(${a.id})">${GAL_OK_SVG} Accepter quand même</button></div>`;
+  }
+  return `<div class="ag-avis" data-avis="${a.id}">
+    <div class="ag-avis-h"><div><b>${agEsc(a.nom_client || 'Client')}</b>${etat}${a.lu ? '' : ' <i class="ag-new">Nouveau</i>'}<div class="ag-avis-d">${galStars(a.note)} · ${new Date(a.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}${a.code ? ' · ' + agEsc(a.code) : ''}${a.source ? ' · connu par ' + agEsc(typeof crmSrcLabel === 'function' ? crmSrcLabel(a.source) : a.source) : ''}</div></div>
+      ${!prive && a.texte ? `<button class="ag-ibtn" title="Copier pour publier" onclick="galCopyAvis(${a.id})">${agIcon('copy', 16)}</button>` : ''}</div>
+    ${a.texte ? `<p class="ag-avis-t">${agEsc(a.texte)}</p>` : '<p class="ag-avis-t" style="opacity:.5">Pas de commentaire</p>'}
+    ${act}
+  </div>`;
+}
+async function galAvisMaj(id, json){
+  const a = galAvis.find(x => x.id === id); if(!a) return null;
+  const r = await galApi('/api/admin/avis/' + id, { method: 'PUT', json });
+  if(r && r.avis) Object.assign(a, r.avis);
+  else { Object.assign(a, json); if('approuve' in json) a.approuve_le = json.approuve === true ? new Date().toISOString() : null; }
+  return a;
+}
+function galAvisAccepter(id){
+  const a = galAvis.find(x => x.id === id); if(!a) return;
+  if(galAvisPrive(a)){ alert("Le client n'a pas accepté la publication : cet avis ne peut pas aller sur ton site."); return; }
+  const nom = a.nom_affiche || galPrenomInitiale(a.nom_client);
+  agSheet('galAvisOk', `
+    <h3>${a.approuve === true ? 'Nom affiché sur le site' : 'Mettre cet avis sur ton site'}</h3>
+    <div class="gal-av-mini"><div>${galStars(a.note)}</div>${a.texte ? `<p class="ag-avis-t" style="margin-top:6px">${agEsc(a.texte)}</p>` : ''}</div>
+    <label for="galAvNom">Nom affiché</label>
+    <input id="galAvNom" maxlength="60" value="${agEsc(nom)}" placeholder="Ex : Awa K.">
+    <div class="ag-hint">Par défaut : le prénom et l'initiale du nom (${agEsc(galPrenomInitiale(a.nom_client))}). Tu peux le changer.</div>
+    <button class="btn-primary" style="width:100%;margin-top:14px" onclick="galAvisValider(${a.id})">${a.approuve === true ? 'Enregistrer' : 'Mettre sur le site'}</button>`);
+  setTimeout(() => { const i = document.getElementById('galAvNom'); if(i){ i.focus(); i.select(); } }, 80);
+}
+async function galAvisValider(id){
+  const a = galAvis.find(x => x.id === id); if(!a) return;
+  const nom = (document.getElementById('galAvNom')?.value || '').trim() || galPrenomInitiale(a.nom_client);
+  const deja = a.approuve === true;
+  try { await galAvisMaj(id, { approuve: true, nom_affiche: nom }); }
+  catch(e){ alert(e.message); return; }
+  agCloseSheet('galAvisOk');
+  galRenderAvis();
+  agToast(deja ? 'Nom enregistré' : 'Avis mis sur ton site');
+}
+async function galAvisRefuser(id){
+  try { await galAvisMaj(id, { approuve: false }); } catch(e){ alert(e.message); return; }
+  galRenderAvis(); agToast('Avis refusé : il ne sera pas sur ton site');
+}
+async function galAvisRetirer(id){
+  if(typeof agConfirm === 'function' && !await agConfirm('Retirer cet avis de ton site ?')) return;
+  try { await galAvisMaj(id, { approuve: false }); } catch(e){ alert(e.message); return; }
+  galRenderAvis(); agToast('Avis retiré du site');
 }
 function galCopyAvis(id){
   const a = galAvis.find(x => x.id === id); if(!a) return;
-  galCopyText(`"${a.texte || ''}"\n- ${a.nom_client || 'Client'} ${'★'.repeat(a.note)}`, 'Avis copié');
+  galCopyText(`"${a.texte || ''}"\n- ${a.nom_affiche || galPrenomInitiale(a.nom_client)} ${'★'.repeat(a.note)}`, 'Avis copié');
+}
+
+// ---------- Encart "Afficher mes avis sur mon site" ----------
+function galWidgetCode(){
+  const o = galWidgetOpt, at = [];
+  if(o.theme === 'sombre') at.push('data-theme="sombre"');
+  if(o.nombre !== 6) at.push(`data-nombre="${o.nombre}"`);
+  if(o.min > 1) at.push(`data-note-min="${o.min}"`);
+  return `<div id="henzo-avis"${at.length ? ' ' + at.join(' ') : ''}></div>\n<script src="${galApiBase()}/avis-widget.js" async></script>`;
+}
+function galSiteEncart(){
+  const o = galWidgetOpt;
+  const opt = (v, cur, l) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${l}</option>`;
+  return `<div class="gal-site" id="galSite">
+    <h3>Afficher mes avis sur mon site</h3>
+    <p>Colle ce code une seule fois sur ton site, à l'endroit où tu veux les avis. Ensuite, chaque avis que tu acceptes ici apparaît tout seul sur le site (en quelques minutes).</p>
+    <div class="row2">
+      <div class="gal-pills" style="margin:0">${['clair', 'sombre'].map(t => `<button class="${o.theme === t ? 'on' : ''}" onclick="galWidgetSet('theme','${t}')">Fond ${t}</button>`).join('')}</div>
+      <select onchange="galWidgetSet('nombre',+this.value)" aria-label="Nombre d'avis">${[3, 6, 9, 12].map(n => opt(n, o.nombre, n + ' avis')).join('')}</select>
+      <select onchange="galWidgetSet('min',+this.value)" aria-label="Note minimum">${opt(1, o.min, 'Toutes les notes')}${opt(4, o.min, '4 étoiles et +')}${opt(5, o.min, '5 étoiles')}</select>
+    </div>
+    <div class="gal-code" id="galWidgetCode">${agEsc(galWidgetCode())}</div>
+    <button class="btn-primary" style="width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px" onclick="galCopyText(galWidgetCode(),'Code copié : colle-le sur ton site')">${agIcon('copy', 15)} Copier le code</button>
+    <div class="gal-prev-l">Aperçu sur ton site</div>
+    <div class="gal-prev ${o.theme}"><div id="galWidgetPrev" data-henzo-apercu></div></div>
+  </div>`;
+}
+function galWidgetSet(k, v){
+  galWidgetOpt[k] = v;
+  const box = document.getElementById('galSite');
+  if(box){ box.outerHTML = galSiteEncart(); galWidgetPreview(); }
+}
+// Meme filtre que le serveur (/api/avis-publics), pour un apercu immediat
+function galAvisPublics(){
+  const o = galWidgetOpt, M = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const ok = galAvis.filter(a => a.approuve === true && a.publiable !== false && a.note >= 1);
+  const total = ok.length, moyenne = total ? Math.round(ok.reduce((s, a) => s + a.note, 0) / total * 10) / 10 : 0;
+  const avis = ok.filter(a => a.note >= o.min).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, o.nombre)
+    .map(a => { const d = new Date(a.created_at); return { id: a.id, nom: a.nom_affiche || galPrenomInitiale(a.nom_client), note: a.note, texte: a.texte || '', mois: isNaN(d) ? '' : M[d.getUTCMonth()] + ' ' + d.getUTCFullYear() }; });
+  return { total, moyenne, avis };
+}
+function galWidgetPreview(){
+  const el = document.getElementById('galWidgetPrev'); if(!el) return;
+  const data = galAvisPublics();
+  if(!data.avis.length){ el.innerHTML = `<div class="ag-empty" style="color:${galWidgetOpt.theme === 'sombre' ? '#a1a1a6' : '#6e6e73'}">Aucun avis accepté${galWidgetOpt.min > 1 ? ' avec cette note' : ''} : rien ne s'affiche encore sur ton site.</div>`; return; }
+  const go = () => { try { window.HenzoAvis.afficher(el, data, { theme: galWidgetOpt.theme }); } catch(e){ console.warn('apercu avis', e); } };
+  if(window.HenzoAvis) return go();
+  if(!window.__galWidgetLoading){
+    window.__galWidgetLoading = new Promise((ok, ko) => { const s = document.createElement('script'); s.src = galApiBase() + '/avis-widget.js'; s.onload = ok; s.onerror = ko; document.head.appendChild(s); });
+  }
+  window.__galWidgetLoading.then(() => { if(document.getElementById('galWidgetPrev') === el) go(); })
+    .catch(() => { window.__galWidgetLoading = null; el.innerHTML = '<div class="ag-empty">Aperçu indisponible : la galerie ne répond pas. Réessaie dans une minute.</div>'; });
 }
 
 // ---------- Statistiques d'une galerie ----------

@@ -205,12 +205,89 @@ function analyzeNoteLive(){
   analysisEl.classList.add('show');
 }
 
+// ---------- Rappel, favori, epingle (fenetre des notes) ----------
+// Date locale "AAAA-MM-JJTHH:MM" pour un champ datetime-local
+function noteLocalInput(d){ return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
+// Heure de rappel par defaut, toujours aujourd'hui :
+// - le matin (avant midi) : 18 h, le moment ou on fait le point de la journee ;
+// - l'apres-midi et le soir : la prochaine heure pleine (14 h 20 -> 15 h) ;
+// - tard le soir, si l'heure pleine tombe demain : 23 h 59, sinon dans 15 minutes.
+function noteDefaultReminder(now){
+  now = now ? new Date(now) : new Date();
+  const d = new Date(now);
+  if(now.getHours() < 12){ d.setHours(18, 0, 0, 0); return d; }
+  d.setHours(now.getHours() + 1, 0, 0, 0);
+  if(d.getDate() !== now.getDate()){
+    const fin = new Date(now); fin.setHours(23, 59, 0, 0);
+    return fin - now > 5 * 60000 ? fin : new Date(now.getTime() + 15 * 60000);
+  }
+  return d;
+}
+let noteRemDefault = '';       // valeur par defaut proposee (pour savoir si on peut la remplacer)
+let noteFlags = { favorite: false, pinned: false };
+function noteRemSync(){
+  const on = document.getElementById('noteReminderOn');
+  const inp = document.getElementById('noteReminder');
+  const wrap = document.getElementById('noteReminderWrap');
+  if(!on || !inp) return;
+  if(on.checked && !inp.value){ inp.value = noteLocalInput(noteDefaultReminder()); noteRemDefault = inp.value; }
+  inp.disabled = !on.checked;
+  if(wrap) wrap.classList.toggle('off', !on.checked);
+  const st = document.getElementById('noteReminderState');
+  if(st) st.textContent = on.checked ? 'Activé' : 'Coupé';
+}
+function noteFlagsSync(){
+  const f = document.getElementById('noteFavBtn'), p = document.getElementById('notePinBtn');
+  if(f){ f.classList.toggle('on', !!noteFlags.favorite); f.setAttribute('aria-pressed', !!noteFlags.favorite); f.innerHTML = `${noteIcon('star', noteFlags.favorite)} ${noteFlags.favorite ? 'Favori' : 'Mettre en favori'}`; }
+  if(p){ p.classList.toggle('on', !!noteFlags.pinned); p.setAttribute('aria-pressed', !!noteFlags.pinned); p.innerHTML = `${noteIcon('pin', noteFlags.pinned)} ${noteFlags.pinned ? 'Épinglée' : 'Épingler en haut'}`; }
+}
+function noteToggleFlag(k){ noteFlags[k] = !noteFlags[k]; noteFlagsSync(); }
+function noteIcon(n, on){
+  const p = n === 'star'
+    ? '<path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z"/>'
+    : n === 'pin'
+    ? '<path d="M9 3h6l-1 6 4 4v2H6v-2l4-4z"/><path d="M12 15v6"/>'
+    : '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>';
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${p}</svg>`;
+}
+(function noteCss(){
+  if(document.getElementById('noteExtraCss')) return;
+  const st = document.createElement('style');
+  st.id = 'noteExtraCss';
+  st.textContent = `
+.note-flags{display:flex;gap:8px;margin:2px 0 12px;flex-wrap:wrap}
+.note-flag{width:auto;margin:0;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:12px;border:1px solid var(--border);background:var(--card2);color:var(--text-2);font:500 13px Inter,sans-serif;cursor:pointer}
+.note-flag.on{border-color:var(--accent);color:var(--text);background:var(--card3)}
+#noteFavBtn.on svg{color:#f5c542}
+.note-rem-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
+.note-rem-head label{margin:0}
+.note-sw{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;color:var(--muted);margin:0 !important}
+.note-sw input{position:absolute;opacity:0;width:1px;height:1px;margin:0}
+.note-sw i{position:relative;width:40px;height:23px;border-radius:12px;background:var(--card3);border:1px solid var(--border);transition:background .2s}
+.note-sw i::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:var(--muted);transition:transform .2s,background .2s}
+.note-sw input:checked + i{background:var(--accent);border-color:var(--accent)}
+.note-sw input:checked + i::after{transform:translateX(17px);background:#fff}
+.note-sw input:focus-visible + i{outline:2px solid var(--accent);outline-offset:2px}
+#noteReminderWrap.off input{opacity:.45}
+.note-card.pinned{box-shadow:inset 0 0 0 1px var(--accent)}
+.note-quick{display:flex;gap:2px;flex:none;margin-left:6px}
+.note-quick button{width:32px;height:32px;margin:0;padding:0;display:grid;place-items:center;border-radius:10px;border:none;background:transparent;color:var(--muted);cursor:pointer}
+.note-quick button:hover{background:var(--card2);color:var(--text)}
+.note-quick button.on{color:var(--text)}
+.note-quick button.fav.on{color:#f5c542}
+.note-pin-tag{font-size:11px;color:var(--accent);font-weight:600;margin-right:6px}
+`;
+  document.head.appendChild(st);
+})();
+
 function openNoteModal(id){
   editingNoteId = id || null;
   const n = id ? notes.find(x => x.id === id) : null;
 
   document.getElementById('noteModalTitle').textContent = n ? '✏️ Modifier' : '📝 Nouvelle note';
   document.getElementById('noteSubmit').textContent = '💾 Enregistrer';
+  const remOn = document.getElementById('noteReminderOn');
+  const remIn = document.getElementById('noteReminder');
 
   if(n){
     document.getElementById('noteTitle').value = n.title || '';
@@ -218,19 +295,25 @@ function openNoteModal(id){
     document.getElementById('noteCategory').value = n.category || 'note';
     document.getElementById('notePriority').value = n.priority || 'normale';
     document.getElementById('noteTags').value = (n.tags || []).join(', ');
-    if(n.reminder_date){
-      const d = new Date(n.reminder_date);
-      const localISO = new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
-      document.getElementById('noteReminder').value = localISO;
-    } else { document.getElementById('noteReminder').value = ''; }
+    // En modification : on garde l'etat actuel de la note
+    remIn.value = n.reminder_date ? noteLocalInput(new Date(n.reminder_date)) : '';
+    if(remOn) remOn.checked = !!n.reminder_date;
+    noteRemDefault = '';
+    noteFlags = { favorite: !!n.favorite, pinned: !!n.pinned };
   } else {
     document.getElementById('noteTitle').value = '';
     document.getElementById('noteContent').value = '';
     document.getElementById('noteCategory').value = 'note';
     document.getElementById('notePriority').value = 'normale';
     document.getElementById('noteTags').value = '';
-    document.getElementById('noteReminder').value = '';
+    // A la creation : rappel active par defaut, aujourd'hui
+    remIn.value = noteLocalInput(noteDefaultReminder());
+    noteRemDefault = remIn.value;
+    if(remOn) remOn.checked = true;
+    noteFlags = { favorite: false, pinned: false };
   }
+  noteRemSync();
+  noteFlagsSync();
 
   document.getElementById('noteAnalysis').classList.remove('show');
   document.getElementById('noteModalBg').classList.add('show');
@@ -249,9 +332,14 @@ function autoFillFromContent(){
   const catSelect = document.getElementById('noteCategory');
   const prioSelect = document.getElementById('notePriority');
   const remInput = document.getElementById('noteReminder');
+  const remOn = document.getElementById('noteReminderOn');
   if(catSelect.value === 'note' && a.category) catSelect.value = a.category;
   if(prioSelect.value === 'normale' && a.priority) prioSelect.value = a.priority;
-  if(!remInput.value && a.date) remInput.value = a.date.slice(0,16);
+  // Une date trouvee dans le texte ("demain a 14h") remplace l'heure proposee par defaut, pas celle choisie a la main
+  if(a.date && (!remOn || remOn.checked) && (!remInput.value || remInput.value === noteRemDefault)){
+    remInput.value = noteLocalInput(new Date(a.date));
+    noteRemDefault = remInput.value;
+  }
 }
 
 async function saveNote(){
@@ -263,6 +351,8 @@ async function saveNote(){
   const title = document.getElementById('noteTitle').value.trim();
   let category = document.getElementById('noteCategory').value;
   let priority = document.getElementById('notePriority').value;
+  const remOnEl = document.getElementById('noteReminderOn');
+  const remOn = remOnEl ? remOnEl.checked : true;
   const reminderInput = document.getElementById('noteReminder').value;
   const tagsRaw = document.getElementById('noteTags').value.trim();
   const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
@@ -271,16 +361,23 @@ async function saveNote(){
   if(category === 'note' && a.category) category = a.category;
   if(priority === 'normale' && a.priority) priority = a.priority;
 
+  // Interrupteur coupe : pas de rappel du tout
+  const reminder_date = !remOn ? null : (reminderInput ? new Date(reminderInput).toISOString() : (a.date || null));
   const data = {
     title: title || null,
     content,
     category,
     priority,
-    reminder_date: reminderInput ? new Date(reminderInput).toISOString() : (a.date || null),
+    reminder_date,
+    favorite: !!noteFlags.favorite,
+    pinned: !!noteFlags.pinned,
     tags: tags.length ? tags : null
   };
 
   if(editingNoteId){
+    const old = notes.find(x => x.id === editingNoteId);
+    // Nouvelle date de rappel : il pourra de nouveau sonner
+    if(old && reminder_date && (!old.reminder_date || new Date(old.reminder_date).getTime() !== new Date(reminder_date).getTime())) data.reminder_sent = false;
     const result = await dbUpdate('notes', editingNoteId, data);
     if(!result) return;
     const idx = notes.findIndex(x => x.id === editingNoteId);
@@ -297,6 +394,34 @@ async function saveNote(){
     showToast('Note créée' + (data.reminder_date ? ' avec rappel' : ''));
   }
   refreshAll();
+}
+
+async function toggleNoteFlag(id, k){
+  const n = notes.find(x => x.id === id);
+  if(!n) return;
+  const v = !n[k];
+  const result = await dbUpdate('notes', id, { [k]: v });
+  if(!result) return;
+  n[k] = v;
+  renderNotes();
+  showToast(k === 'pinned' ? (v ? 'Note épinglée en haut' : 'Note désépinglée') : (v ? 'Ajoutée aux favoris' : 'Retirée des favoris'));
+}
+function toggleNoteFav(id){ return toggleNoteFlag(id, 'favorite'); }
+function toggleNotePin(id){ return toggleNoteFlag(id, 'pinned'); }
+
+async function copyNote(id){
+  const n = notes.find(x => x.id === id);
+  if(!n) return;
+  const txt = [n.title, n.content].filter(Boolean).join('\n\n');
+  try { await navigator.clipboard.writeText(txt); showToast('Note copiée'); }
+  catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch(_){}
+    ta.remove();
+    if(ok) showToast('Note copiée'); else prompt('Copie ta note :', txt);
+  }
 }
 
 async function delNote(id){
@@ -346,6 +471,7 @@ function renderNotes(){
   let filtered = notes.filter(n => {
     if(statusFilter === 'active' && n.archived) return false;
     if(statusFilter === 'archived' && !n.archived) return false;
+    if(statusFilter === 'fav' && (!n.favorite || n.archived)) return false;
     if(catFilter !== 'all' && n.category !== catFilter) return false;
     if(search){
       const haystack = [n.title, n.content, (n.tags||[]).join(' ')].filter(Boolean).join(' ').toLowerCase();
@@ -357,13 +483,15 @@ function renderNotes(){
   const prioOrder = {urgente: 0, haute: 1, normale: 2, basse: 3};
   filtered.sort((a,b) => {
     if(a.archived !== b.archived) return a.archived ? 1 : -1;
+    // Les notes epinglees restent toujours en haut
+    if(!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
     const pa = prioOrder[a.priority] ?? 2;
     const pb = prioOrder[b.priority] ?? 2;
     if(pa !== pb) return pa - pb;
     return (b.created_at || '').localeCompare(a.created_at || '');
   });
 
-  if(filtered.length === 0){ el.innerHTML = '<div class="empty">Aucune note trouvée</div>'; return; }
+  if(filtered.length === 0){ el.innerHTML = `<div class="empty">${statusFilter === 'fav' ? "Aucune note en favori. Touche l'étoile d'une note pour l'ajouter." : 'Aucune note trouvée'}</div>`; return; }
 
   const catIcons = {note:'📝', idee:'💡', todo:'✅', appel:'📞', rdv:'📅', achat:'🛒', business:'💼'};
   const catLabels = {note:'Note', idee:'Idée', todo:'À faire', appel:'Appel', rdv:'RDV', achat:'Achat', business:'Business'};
@@ -384,11 +512,16 @@ function renderNotes(){
     const createdStr = n.created_at ? new Date(n.created_at).toLocaleDateString('fr-FR', {day:'2-digit', month:'short'}) : '';
     const priorityBadge = n.priority && n.priority !== 'normale' ? `<span class="note-priority-badge ${n.priority}">${n.priority}</span>` : '';
 
-    return `<div class="note-card priority-${n.priority || 'normale'} ${n.archived ? 'archived' : ''}">
+    return `<div class="note-card priority-${n.priority || 'normale'} ${n.archived ? 'archived' : ''} ${n.pinned ? 'pinned' : ''}" data-note="${n.id}">
       <div class="note-header">
         <div style="flex:1;min-width:0;">
-          <div class="note-title">${icon} ${n.title || (n.content || '').substring(0, 40)}
+          <div class="note-title">${n.pinned ? `<span class="note-pin-tag">${noteIcon('pin', true)}</span>` : ''}${icon} ${n.title || (n.content || '').substring(0, 40)}
           <span class="note-category-badge">${catLabel}</span>${priorityBadge}</div>
+        </div>
+        <div class="note-quick">
+          <button class="fav ${n.favorite ? 'on' : ''}" onclick="toggleNoteFav(${n.id})" title="${n.favorite ? 'Retirer des favoris' : 'Mettre en favori'}" aria-label="Favori" aria-pressed="${!!n.favorite}">${noteIcon('star', n.favorite)}</button>
+          <button class="pin ${n.pinned ? 'on' : ''}" onclick="toggleNotePin(${n.id})" title="${n.pinned ? 'Désépingler' : 'Épingler en haut'}" aria-label="Épingler" aria-pressed="${!!n.pinned}">${noteIcon('pin', n.pinned)}</button>
+          <button class="copy" onclick="copyNote(${n.id})" title="Copier la note" aria-label="Copier">${noteIcon('copy')}</button>
         </div>
       </div>
       ${n.content ? `<div class="note-content">${(n.content || '').replace(/\n/g, '<br>')}</div>` : ''}

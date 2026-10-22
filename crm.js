@@ -345,6 +345,7 @@ function crmOpenClient(id){
       <button class="ag-act" onclick="agCloseSheet('crmClient');crmPromoForm(null,{ids:[${c.id}]})"><span>${agIcon('star')}</span>Offrir un bon</button>
       <button class="ag-act" onclick="crmEditClient(${c.id})"><span>${agIcon('edit')}</span>Modifier</button>
     </div>
+    ${typeof coNegocier === 'function' ? `<button class="btn-secondary crm-nego" style="margin:-4px 0 14px;width:100%" onclick="agCloseSheet('crmClient');coNegocier({client_id:${c.id}})">${agIcon('briefcase', 16)} Négocier un prix avec ${agEsc(crmFirst(c) || 'ce client')}</button>` : ''}
     <div class="crm-info">
       <div><span>Anniversaire</span><b>${c.birthday ? crmDate(c.birthday, { day: 'numeric', month: 'long' }) + (s.bday != null && s.bday <= 30 ? ` (dans ${s.bday} j)` : '') : 'Non renseigné'}</b></div>
       <div><span>On l'appelle</span><b>${agEsc(crmFirst(c))}</b></div>
@@ -905,6 +906,6 @@ if(typeof agSheet === 'function'){
   };
 }
 // Tarifs, devis, conseiller IA et page publique (fichier prix.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'prix.js?v=3'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'prix.js?v=4'; document.body.appendChild(sc); })();
 // Selection multiple, mise a jour auto, sauvegardes, reservations (fichier outils.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'outils.js?v=6'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'outils.js?v=8'; document.body.appendChild(sc); })();

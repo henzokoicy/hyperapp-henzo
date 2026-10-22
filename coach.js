@@ -406,6 +406,7 @@ function coachRenderList(){
           Tu n'as rien à corriger pour l'instant.<br>
           Reviens demain ou ajoute de nouvelles données.
         </div>
+        ${typeof coOpen === 'function' ? `<button class="btn-primary" style="width:100%;margin-top:18px" onclick="coachClose();coOpen('aujourdhui')">Ouvrir mon coach complet</button>` : ''}
       </div>
     `;
     return;
@@ -451,6 +452,7 @@ function coachRenderList(){
       </button>
     `).join('')}
 
+    ${typeof coOpen === 'function' ? `<button class="btn-primary" style="width:100%;margin-top:14px" onclick="coachClose();coOpen('aujourdhui')">Ouvrir mon coach complet (plans, école, négociation)</button>` : ''}
     <button class="btn-ghost" style="width:100%;margin-top:14px" onclick="coachIgnoreAllToday()">
       😴 Ne plus me montrer aujourd'hui
     </button>
