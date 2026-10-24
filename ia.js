@@ -56,8 +56,56 @@ function iaCompter(label){
   const s = stGet(), j = iaJour();
   if(s.jour !== j){ s.jour = j; s.compte = {}; }
   s.compte[label] = (s.compte[label] || 0) + 1;
+  // Historique des 14 derniers jours (pour la progression)
+  s.histo = s.histo || {};
+  s.histo[j] = s.histo[j] || {};
+  s.histo[j][label] = (s.histo[j][label] || 0) + 1;
+  Object.keys(s.histo).sort().slice(0, -14).forEach(k => delete s.histo[k]);
   stPut(s);
+  try { iaMajJauges(); } catch(e){}
 }
+// Limites gratuites estimees par jour (null = payant, pas de limite fixe)
+const IA_LIMITES = { 'Gemini Flash-Lite': 500, 'Gemini Flash': 20, 'Groq': 1000, 'DeepSeek': null, 'Claude': null, 'OpenAI': null, 'Autre IA': null };
+function iaUsage(){
+  const cfg = iaCfg(), n = iaComptes(), l = [];
+  if(cfg.keys.gemini){ l.push('Gemini Flash-Lite'); l.push('Gemini Flash'); }
+  [['groq', 'Groq'], ['deepseek', 'DeepSeek'], ['anthropic', 'Claude'], ['openai', 'OpenAI'], ['custom', 'Autre IA']].forEach(([p, lb]) => { if(cfg.keys[p] || n[lb]) l.push(lb); });
+  const items = l.map(lb => ({ label: lb, utilise: n[lb] || 0, limite: IA_LIMITES[lb] }));
+  const gratuits = items.filter(x => x.limite);
+  const total = items.reduce((a, x) => a + x.utilise, 0);
+  const max = gratuits.reduce((a, x) => a + x.limite, 0);
+  const reste = gratuits.reduce((a, x) => a + Math.max(0, x.limite - x.utilise), 0);
+  return { items, total, max, reste };
+}
+function iaCouleur(pc){ return pc >= 85 ? '#ff6b6b' : pc >= 60 ? '#f5c542' : '#3ecf8e'; }
+function iaBarre(u, lim){
+  if(!lim) return `<div class="ia-bar off"><i style="width:0"></i></div>`;
+  const pc = Math.min(100, Math.round(u / lim * 100));
+  return `<div class="ia-bar"><i style="width:${Math.max(pc, u ? 2 : 0)}%;background:${iaCouleur(pc)}"></i></div>`;
+}
+// Petite jauge resumee (onglet Coach et reglages)
+function iaJaugeHtml(){
+  const u = iaUsage();
+  if(!u.items.length) return '';
+  const pc = u.max ? Math.min(100, Math.round((u.max - u.reste) / u.max * 100)) : 0;
+  return `<div class="ia-jauge" onclick="iaOuvrirReglages()" title="Voir le détail">
+    <div class="l"><b>IA aujourd'hui : ${u.total} demande${u.total > 1 ? 's' : ''}</b><span>${u.max ? `Il te reste environ ${new Intl.NumberFormat('fr-FR').format(u.reste)} demandes gratuites` : 'Clés payantes seulement'}</span></div>
+    ${u.max ? iaBarre(u.max - u.reste, u.max) : ''}</div>`;
+}
+function iaMajJauges(){
+  document.querySelectorAll('.ia-jauge-zone').forEach(z => { z.innerHTML = iaJaugeHtml(); });
+  if(document.getElementById('iaCompteurs')) iaRenderCompteurs();
+}
+// La jauge en haut de l'onglet Coach
+function iaPoserJaugeCoach(){
+  const page = document.getElementById('page-ia'); if(!page) return;
+  const host = page.querySelector('.container') || page;
+  let z = host.querySelector(':scope > .ia-jauge-zone');
+  if(!z){ z = document.createElement('div'); z.className = 'ia-jauge-zone'; host.insertBefore(z, host.firstChild); }
+  z.innerHTML = iaJaugeHtml();
+}
+setTimeout(iaPoserJaugeCoach, 3000);
+document.addEventListener('click', () => setTimeout(iaPoserJaugeCoach, 400), true);
 function iaComptes(){ const s = stGet(); return s.jour === iaJour() ? s.compte : {}; }
 function iaPauseGet(id){ const p = stGet().pause[id]; return p && p.jusqua > Date.now() ? p : null; }
 function iaPauseSet(id, jusqua, raison){
@@ -405,7 +453,21 @@ function iaCss(){
 .ia-r.ok b{color:#3ecf8e}.ia-r.ko b{color:#ff6b6b}
 .ia-cpt{font-size:13px;line-height:1.7}
 .ia-cpt .pz{color:var(--yellow,#f5c542);font-size:12px}
-.ia-note{font-size:12px;color:var(--muted,#999);margin-top:8px;line-height:1.5}`;
+.ia-note{font-size:12px;color:var(--muted,#999);margin-top:8px;line-height:1.5}
+.ia-bar{height:8px;border-radius:6px;background:var(--border,rgba(127,127,127,.18));overflow:hidden;margin:4px 0 8px}
+.ia-bar i{display:block;height:100%;border-radius:6px;transition:width .4s}
+.ia-bar.off{opacity:.4}
+.ia-l{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.ia-l span{color:var(--muted,#999);font-size:12px;white-space:nowrap}
+.ia-jauge{cursor:pointer;background:var(--card,rgba(127,127,127,.08));border:1px solid var(--border,rgba(127,127,127,.18));border-radius:14px;padding:10px 12px;margin:0 0 12px}
+.ia-jauge .l{display:flex;flex-direction:column;gap:2px}
+.ia-jauge .l b{font-size:13px}.ia-jauge .l span{font-size:12px;color:var(--muted,#999)}
+.ia-jauge .ia-bar{margin:8px 0 0}
+.ia-semaine{display:flex;align-items:flex-end;gap:6px;height:70px;margin:8px 0 4px}
+.ia-semaine div{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end}
+.ia-semaine i{display:block;width:100%;max-width:26px;border-radius:5px 5px 2px 2px;background:var(--accent,#48A89A);min-height:2px}
+.ia-semaine span{font-size:10px;color:var(--muted,#999)}
+.ia-semaine em{font-style:normal;font-size:10px;font-weight:700}`;
   document.head.appendChild(s);
 }
 function iaEsc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -495,19 +557,31 @@ function iaMonter(i, d){
 }
 function iaRenderCompteurs(){
   const box = document.getElementById('iaCompteurs'); if(!box) return;
-  const cfg = iaCfg(), n = iaComptes(), s = stGet(), now = Date.now();
-  const lignes = [];
-  const pauseDe = pref => Object.keys(s.pause).filter(k => k.startsWith(pref) && s.pause[k].jusqua > now && s.pause[k].raison !== 'modèle plus disponible').map(k => s.pause[k]).sort((a, b) => b.jusqua - a.jusqua)[0];
-  const gm = (s.modeles.gemini || {}).m || gemDefaut();
-  const ligne = (label, pz) => `<div>${label} : <b>${n[label] || 0}</b> aujourd'hui${pz ? ` <span class="pz">(en pause jusqu'à ${iaHeure(pz.jusqua)}, ${iaEsc(pz.raison)})</span>` : ''}</div>`;
-  if(cfg.keys.gemini){
-    lignes.push(ligne('Gemini Flash-Lite', pauseDe('gemini:' + (gm.lite[0] || ''))));
-    lignes.push(ligne('Gemini Flash', pauseDe('gemini:' + (gm.flash[0] || ''))));
+  const st = stGet(), now = Date.now(), u = iaUsage();
+  const pauseDe = pref => Object.keys(st.pause).filter(k => k.startsWith(pref) && st.pause[k].jusqua > now && st.pause[k].raison !== 'modèle plus disponible').map(k => st.pause[k]).sort((a, b) => b.jusqua - a.jusqua)[0];
+  const gm = (st.modeles.gemini || {}).m || gemDefaut();
+  const pref = { 'Gemini Flash-Lite': 'gemini:' + (gm.lite[0] || ''), 'Gemini Flash': 'gemini:' + (gm.flash[0] || ''), 'Groq': 'groq:', 'DeepSeek': 'deepseek:', 'Claude': 'anthropic:', 'OpenAI': 'openai:', 'Autre IA': 'custom:' };
+  const N = x => new Intl.NumberFormat('fr-FR').format(x);
+  const lignes = u.items.map(x => {
+    const pz = pauseDe(pref[x.label] || x.label);
+    return `<div class="ia-l"><b>${x.label}</b><span>${x.limite ? `${N(x.utilise)} / ${N(x.limite)}` : `${N(x.utilise)} (payant)`}</span></div>
+      ${iaBarre(x.utilise, x.limite)}${pz ? `<div class="pz" style="margin:-4px 0 8px">En pause jusqu'à ${iaHeure(pz.jusqua)} (${iaEsc(pz.raison)}) : l'app utilise les autres.</div>` : ''}`;
+  });
+  // 7 derniers jours
+  const h = st.histo || {}, jours = [];
+  for(let i = 6; i >= 0; i--){
+    const d = new Date(Date.now() - i * 864e5), o = ptParts(d), k = `${o.year}-${o.month}-${o.day}`;
+    const t = Object.values(h[k] || {}).reduce((a, v) => a + v, 0);
+    jours.push({ k, t, nom: i === 0 ? 'Auj.' : d.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '') });
   }
-  [['groq', 'Groq'], ['deepseek', 'DeepSeek'], ['anthropic', 'Claude'], ['openai', 'OpenAI'], ['custom', 'Autre IA']].forEach(([p, l]) => { if(cfg.keys[p] || n[l]) lignes.push(ligne(l, pauseDe(p + ':'))); });
-  box.innerHTML = (lignes.join('') || '<div class="ia-note" style="margin:0">Aucune clé pour le moment.</div>')
-    + `<div class="ia-note">Les compteurs repartent à zéro chaque jour vers ${iaHeure(iaMinuitPT() - MIN)}, quand Google remet les quotas gratuits.</div>`;
+  const mx = Math.max(1, ...jours.map(j => j.t));
+  const semaine = `<div class="ia-h" style="margin-top:12px">Les 7 derniers jours</div>
+    <div class="ia-semaine">${jours.map(j => `<div><em>${j.t || ''}</em><i style="height:${Math.round(j.t / mx * 48)}px"></i><span>${j.nom}</span></div>`).join('')}</div>`;
+  box.innerHTML = (u.items.length ? iaJaugeHtml() + lignes.join('') + semaine
+      : '<div class="ia-note" style="margin:0">Aucune clé pour le moment.</div>')
+    + `<div class="ia-note">Les limites sont des estimations des offres gratuites. Les compteurs repartent à zéro chaque jour vers ${iaHeure(iaMinuitPT() - MIN)}. Ils comptent les demandes faites depuis cet appareil.</div>`;
 }
+window.iaUsage = iaUsage;
 async function iaTester(){
   const btn = document.getElementById('iaTestBtn'), box = document.getElementById('iaTestRes'); if(!box) return;
   const v = p => { const el = document.getElementById('iaK_' + p); return el ? el.value.trim() : ''; };
