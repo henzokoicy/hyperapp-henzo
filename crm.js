@@ -908,4 +908,4 @@ if(typeof agSheet === 'function'){
 // Tarifs, devis, conseiller IA et page publique (fichier prix.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'prix.js?v=4'; document.body.appendChild(sc); })();
 // Selection multiple, mise a jour auto, sauvegardes, reservations (fichier outils.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'outils.js?v=8'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'outils.js?v=9'; document.body.appendChild(sc); })();

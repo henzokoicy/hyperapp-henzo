@@ -357,6 +357,13 @@ async function mbImgB64(url){
   return await new Promise(ok => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.readAsDataURL(small); });
 }
 async function mbAI(prompt, urls){
+  // Relais automatique entre les IA (ia.js) : les photos vont seulement aux IA qui les voient
+  if(typeof window.iaRelais === 'function'){
+    const imgs = [];
+    for(const u of (urls || []).slice(0, 6)){ try { imgs.push({ mime: 'image/jpeg', data: await mbImgB64(u) }); } catch(e){} }
+    const r = await window.iaRelais({ messages: [{ role: 'user', text: prompt }], images: imgs, maxTokens: 2000, tache: imgs.length ? 'images' : (/\bJSON\b/.test(prompt) ? 'json' : 'texte') });
+    return r.text;
+  }
   let cfg = null; try { cfg = JSON.parse(localStorage.getItem('aiConfig')); } catch(e){}
   if(!cfg || !cfg.key) throw new Error("Configure ta clé IA dans l'onglet Coach");
   const imgs = [];

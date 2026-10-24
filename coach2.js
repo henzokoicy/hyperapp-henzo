@@ -951,9 +951,20 @@ async function coFinishSave(pid){
   agCloseSheet('coFin'); coToast(st === 'reussi' ? 'Bravo Henzo !' : 'C\'est noté. On apprend de chaque essai.'); coRender();
   coLearn(`Plan "${p.titre}" (${p.domaine}), ${st === 'reussi' ? 'réussi' : 'arrêté'}. Résultat : ${resultat}.\nÉtapes : ${p.etapes.map(e => `${e.t} [${e.statut}${e.note ? ', raison : ' + e.note : ''}${e.res ? ', résultat : ' + e.res : ''}]`).join(' / ')}`, { plan_id: p.id, domaine: p.domaine });
 }
-// L'IA tire une leçon et la garde dans le journal
+// L'IA tire une leçon et la garde dans le journal.
+// Appel automatique (sans bouton) : une seule fois par jour au maximum pour économiser le quota.
+// Les autres événements du jour attendent et sont regroupés dans la leçon du lendemain.
+const CO_LEARN_K = 'coLearnFile';
+function coLearnFile(){ let f = null; try { f = JSON.parse(localStorage.getItem(CO_LEARN_K)); } catch(e){} f = f && typeof f === 'object' ? f : {}; f.q = Array.isArray(f.q) ? f.q : []; return f; }
+function coLearnPut(f){ try { localStorage.setItem(CO_LEARN_K, JSON.stringify(f)); } catch(e){} }
 async function coLearn(txt, data){
   if(!coHasAI()) return null;
+  const f = coLearnFile(), day = coToday();
+  f.q = f.q.concat([{ txt: String(txt || '').slice(0, 1500), data: data || null }]).slice(-6);
+  if(f.d === day){ coLearnPut(f); return null; }
+  const items = f.q; f.d = day; f.q = []; coLearnPut(f);
+  data = items[items.length - 1].data;
+  txt = items.length > 1 ? items.map((x, i) => `${i + 1}. ${x.txt}`).join('\n') : items[0].txt;
   try {
     const t = await coAsk(`TÂCHE : tirer une leçon pour la mémoire du coach.\n${txt}\nCe que le coach sait déjà :\n${coMemoire(8)}\nÉcris UNE leçon courte (1 ou 2 phrases) sur ce qui marche ou ne marche pas pour Henzo, à réutiliser la prochaine fois. Réponds uniquement par la leçon.`, { maxTokens: 400 });
     const s = coClean(t).replace(/^["\s]+|["\s]+$/g, '').slice(0, 400); if(!s) return null;
@@ -961,7 +972,11 @@ async function coLearn(txt, data){
     CO.journal.unshift(j);
     const pg = document.querySelector('.page.active'); if(pg && pg.id === 'page-ia' && !document.querySelector('.ag-sheet') && CO.tab === 'journal') coRender();
     return j;
-  } catch(e){ console.warn('coLearn', e); return null; }
+  } catch(e){
+    // Pas de leçon aujourd'hui (IA à la limite) : on garde les événements pour demain
+    const g = coLearnFile(); g.q = items.concat(g.q).slice(-6); coLearnPut(g);
+    console.warn('coLearn', e); return null;
+  }
 }
 async function coPlanReopen(pid){ const p = CO.plans.find(x => x.id === pid); if(!p) return; try { await coPlanSave(p, { statut: 'en_cours' }); } catch(e){ return coErr(e); } coRender(); }
 async function coPlanDelete(pid){

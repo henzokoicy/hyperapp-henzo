@@ -402,6 +402,13 @@ function mkTurns(messages){
 }
 // mkAI({system, messages:[{role:'user'|'agent', text}], images:[base64 jpeg], recherche, maxTokens}) -> {text, sources}
 async function mkAI(o){
+  // Relais automatique entre les IA (ia.js) : meme entree, meme sortie {text, sources}
+  if(typeof window.iaRelais === 'function'){
+    const imgs = (o.images || []).slice(0, 8);
+    const r = await window.iaRelais({ system: o.system || '', messages: mkTurns(o.messages || [{ role: 'user', text: o.prompt || '' }]),
+      images: imgs.map(d => ({ mime: 'image/jpeg', data: d })), recherche: !!o.recherche, maxTokens: o.maxTokens || 2500, tache: imgs.length ? 'images' : 'texte' });
+    return { text: r.text, sources: r.sources || [], fournisseur: r.fournisseur, modele: r.modele };
+  }
   const cfg = mkAiCfg();
   if(!cfg || !cfg.key) throw new Error("Configure d'abord ta clé IA dans l'onglet Coach IA.");
   const turns = mkTurns(o.messages || [{ role: 'user', text: o.prompt || '' }]);
