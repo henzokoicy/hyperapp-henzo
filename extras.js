@@ -147,7 +147,8 @@ function exFilleulValide(f, depuis){
 // Date de remise a zero du compteur (bon perdu), ou null
 function exParReset(c){ return (c && c.crm && c.crm.parrain_reset) || null; }
 function exParStats(c){
-  const all = (clients || []).filter(x => x.parrain_id != null && Number(x.parrain_id) === Number(c.id) && x.id !== c.id);
+  // Un filleul qui n'est pas client (modele, ami...) ne compte que s'il a vraiment paye une seance
+  const all = (clients || []).filter(x => x.parrain_id != null && Number(x.parrain_id) === Number(c.id) && x.id !== c.id && (typeof estClient !== 'function' || estClient(x) || exFilleulValide(x)));
   const reset = exParReset(c);
   const val = all.filter(f => exFilleulValide(f, reset));
   // Valides avant la remise a zero : perdus (ne comptent plus)
@@ -709,7 +710,7 @@ function exBilanCalc(y, m, opt){
   const parType = {};
   ss.forEach(s => { const k = s.type || 'Séance'; parType[k] = (parType[k] || 0) + 1; });
   const annulees = (shoots || []).filter(s => exCancelled(s) && exInMonth(s.date, y, m)).length;
-  const nouveaux = (clients || []).filter(c => exInMonth(c.created_at, y, m));
+  const nouveaux = (clients || []).filter(c => exInMonth(c.created_at, y, m) && (typeof estClient !== 'function' || estClient(c)));
   const sources = {};
   nouveaux.forEach(c => { const k = (typeof crmSrcLabel === 'function' ? crmSrcLabel(c.source) : c.source) || 'Non renseigné'; sources[k] = (sources[k] || 0) + 1; });
   const filleuls = nouveaux.filter(c => c.parrain_id != null);

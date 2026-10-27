@@ -215,7 +215,7 @@ async function otRefresh(force){
   OT.busy = false;
 }
 // Nouvelle version du site publiee ? On recharge tout seul.
-const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'ia.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'coach2.js', 'marketing.js', 'suivi.js', 'budget.js', 'theme.css'];
+const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'ia.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'coach2.js', 'marketing.js', 'suivi.js', 'budget.js', 'voix.js', 'equipe.js', 'patron.js', 'theme.css'];
 async function otCheckVersion(){
   let changed = false;
   for(const f of OT_FILES){
@@ -248,11 +248,11 @@ setTimeout(otCheckVersion, 4000);
 // 4. MES DONNEES : sauvegarde, import, remise a zero
 // ============================================================
 const OT_GROUPS = [
-  { k: 'transactions', n: 'Transactions (argent)', t: ['transactions'], d: 'Entrées, dépenses, transferts' },
+  { k: 'transactions', n: 'Transactions (argent)', t: ['transactions', 'manquants'], d: 'Entrées, dépenses, transferts, manquants (Mode patron)' },
   { k: 'comptes', n: 'Comptes', t: ['accounts'], d: 'Wave, espèces, banque...' },
   { k: 'coffres', n: 'Coffres et objectifs', t: ['goal_reminders', 'goals'], d: 'Avec leurs rappels' },
   { k: 'seances', n: 'Séances', t: ['shoots'] },
-  { k: 'clients', n: 'Clients', t: ['client_suivi', 'client_messages', 'reservations', 'clients'], d: 'Avec suivi (impressions, dettes), messages envoyés et réservations' },
+  { k: 'clients', n: 'Clients', t: ['client_suivi', 'client_messages', 'reservations', 'equipe_evals', 'clients'], d: 'Avec suivi (impressions, dettes), messages envoyés, réservations et évaluations de l\'équipe' },
   { k: 'liens', n: 'Liens de paiement', t: ['payment_links'] },
   { k: 'notes', n: 'Notes et rappels', t: ['notes', 'reminders'] },
   { k: 'idees', n: 'Idées et inspirations', t: ['saved_ideas', 'inspirations'] },
@@ -264,7 +264,7 @@ const OT_GROUPS = [
   { k: 'coach', n: 'Coach', t: ['ecole_progres', 'negociations', 'coach_journal', 'coach_plans'], d: 'Plans d\'action, journal, négociations, école de la vente' },
   { k: 'reglages', n: 'Réglages', t: ['user_settings'], d: 'Notifications, préférences, thème, messages' }
 ];
-const OT_ORDER = ['accounts', 'goals', 'goal_reminders', 'clients', 'shoots', 'client_suivi', 'transactions', 'budgets', 'charges_fixes', 'charges_paiements', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'client_messages', 'promos', 'tarifs', 'tarif_collections', 'devis', 'tarif_page', 'reservations', 'coach_plans', 'coach_journal', 'negociations', 'ecole_progres', 'mood_boards', 'mood_images', 'mood_feedback', 'materiel', 'user_settings'];
+const OT_ORDER = ['accounts', 'goals', 'goal_reminders', 'clients', 'shoots', 'client_suivi', 'transactions', 'manquants', 'budgets', 'charges_fixes', 'charges_paiements', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'client_messages', 'promos', 'tarifs', 'tarif_collections', 'devis', 'tarif_page', 'reservations', 'equipe_evals', 'coach_plans', 'coach_journal', 'negociations', 'ecole_progres', 'mood_boards', 'mood_images', 'mood_feedback', 'materiel', 'user_settings'];
 
 // La cle IA et le mot de passe galerie ne partent jamais dans une sauvegarde
 const OT_SECRETS = ['ai_config', 'galerie_admin_pwd'];
@@ -427,7 +427,7 @@ async function otImportRun(){
     // 2. Mode Remplacer : on enleve seulement ce qui n'existait pas dans la sauvegarde
     //    (les plus "dependants" d'abord). Les clients ne sont jamais effaces.
     if(mode === 'replace'){
-      const order = ['charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'charges_fixes', 'budgets', 'goals', 'accounts'];
+      const order = ['manquants', 'equipe_evals', 'charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'charges_fixes', 'budgets', 'goals', 'accounts'];
       for(const t of order.filter(x => tables.includes(x))){
         const ids = (snap.tables[t] || []).map(r => r.id).filter(v => v != null);
         let q = sb.from(t).delete().eq('user_id', uid);
@@ -462,7 +462,7 @@ async function otAutoBackup(){
 setTimeout(otAutoBackup, 20000);
 
 async function otWipe(tables, uid){
-  const order = ['charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'tarif_page', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'charges_fixes', 'budgets', 'clients', 'goals', 'accounts'];
+  const order = ['manquants', 'equipe_evals', 'charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'tarif_page', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'charges_fixes', 'budgets', 'clients', 'goals', 'accounts'];
   for(const t of order.filter(x => tables.includes(x))){
     const { error } = await sb.from(t).delete().eq('user_id', uid);
     if(error) throw new Error(t + ' : ' + error.message);
@@ -657,7 +657,8 @@ function otOpenResa(id){
       <label>Prix final (FCFA)</label><input id="otResaPrix" type="number" value="${total}">
       <button class="btn-primary" style="margin-top:12px" onclick="otAcceptResa(${r.id})">Accepter et créer la séance</button>
       ${typeof coNegocier === 'function' ? `<button class="btn-secondary" style="margin-top:8px" onclick="otNegoResa(${r.id})">${agIcon('briefcase', 16)} Négocier le prix</button>` : ''}
-      <div class="crm-2" style="margin-top:8px"><button class="btn-secondary" onclick="crmWaRaw('${agEsc(crmPhone(r.telephone))}','')">WhatsApp</button><button class="btn-danger" style="padding:12px" onclick="otResaStatus(${r.id},'refusee')">Refuser</button></div>`
+      <div class="crm-2" style="margin-top:8px"><button class="btn-secondary" onclick="crmWaRaw('${agEsc(crmPhone(r.telephone))}','')">WhatsApp</button><button class="btn-danger" style="padding:12px" onclick="otResaStatus(${r.id},'refusee')">Refuser</button></div>
+      ${typeof rdvMessage === 'function' ? `<button class="btn-secondary ot-rdv-btn" style="margin-top:8px;width:100%" onclick="otRdvResa(${r.id})">${agIcon('calendar', 16)} Comment réserver (envoyer le message)</button>` : ''}`
     : `<div class="ag-hint">Cette demande est ${r.status === 'acceptee' ? 'acceptée' : 'refusée'}.</div>
        <div class="crm-2" style="margin-top:8px"><button class="btn-secondary" onclick="crmWaRaw('${agEsc(crmPhone(r.telephone))}','')">WhatsApp</button><button class="btn-danger" style="padding:12px" onclick="otResaDelete(${r.id})">Supprimer</button></div>`}`);
 }
@@ -671,6 +672,14 @@ function otNegoResa(id){
   coNegocier({ reservation_id: r.id, client_id: c ? c.id : null, client_nom: c ? c.name : r.nom, travail, prix: Number(r.prix_estime) - Number(r.remise || 0) });
 }
 function otIsoLocal(s){ const d = new Date(s); if(isNaN(d)) return ''; d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); }
+// Envoie le message "Comment reserver" (patron.js) au client de la demande
+function otRdvResa(id){
+  const r = OT.resas.find(x => x.id === id); if(!r || typeof rdvMessage !== 'function') return;
+  const tel = crmPhone(r.telephone);
+  const txt = rdvMessage({ name: r.nom });
+  if(!tel){ crmCopy(txt); return; }
+  crmWaRaw(tel, txt);
+}
 function crmWaRaw(tel, text){ window.open(`https://wa.me/${tel}${text ? '?text=' + encodeURIComponent(text) : ''}`, '_blank'); }
 async function otAcceptResa(id){
   const r = OT.resas.find(x => x.id === id); if(!r) return;

@@ -1072,6 +1072,7 @@ function pxRenderPartage(el){
     <div class="ag-sec"><h3>Par collection</h3><span class="crm-count">${cols.length}</span></div>
     <div class="ag-list ag-share">${cols.length ? cols.map(c => `<div class="ag-share-row px-shrow ${c.public === false || c.actif === false ? 'off' : ''}"><div style="min-width:0"><span>${agEsc(c.nom)}${c.public === false ? ' · masquée' : ''}${c.actif === false ? ' · plus proposée' : ''}</span><b class="ag-link">${agEsc('...&c=' + (c.slug || ''))}</b></div>${shareBtns(c.id)}</div>`).join('') : '<div class="ag-empty">Crée tes collections dans "Ma grille".</div>'}</div>` :
     `<div class="crm-fete" style="cursor:default"><div class="ic">${agIcon('link')}</div><div class="d"><b>Crée ta page de tarifs</b><span>Un lien et un PDF par collection, plus un catalogue complet. Le client choisit son pack et te réserve sur WhatsApp.</span></div></div>`}
+    ${pxRdvHtml()}
     <div class="ag-sec"><h3>Ma page</h3></div>
     <div class="ag-list" style="padding:4px 16px 14px">
       <label>Marque</label><input id="pxMarque" value="${agEsc(p.marque || 'Henzo Photographie')}">
@@ -1085,6 +1086,74 @@ function pxRenderPartage(el){
       <label>Conditions communes (sur toutes les collections)</label><textarea id="pxNotes" rows="3" placeholder="Ex : Réservation : acompte de 50 % pour bloquer votre date.">${agEsc(p.notes || '')}</textarea>
       <button class="btn-primary" style="margin-top:12px" onclick="pxSavePage()">${link ? 'Enregistrer' : 'Créer ma page'}</button>
     </div>`;
+  pxRdvPrev();
+}
+
+// ---------- Comment reserver (message + moyens de paiement) ----------
+// Le texte et les outils sont dans patron.js (window.ptRdv, window.rdvMessage)
+function pxRdvOk(){ return typeof ptRdv !== 'undefined' && ptRdv && typeof ptRdv.texte === 'function'; }
+function pxRdvHtml(){
+  if(!pxRdvOk()) return '';
+  PX.rdvCur = null;
+  const p = PX.page || {}, tpl = p.comment_reserver || ptRdv.DEFAUT, mo = ptRdv.moyens(p);
+  const vars = ['{lien_tarifs}', '{lien_reservation}', '{adresse}', '{acompte}', '{moyens}', '{moyen}', '{prenom}', '{numeros}'];
+  return `<div class="ag-sec"><h3>Comment réserver</h3></div>
+    <div class="ag-list" style="padding:4px 16px 14px" id="pxRdv">
+      <p class="ag-hint">Le message à envoyer quand un client demande comment prendre rendez-vous. Il est aussi dans la fiche client et dans les demandes de réservation.</p>
+      <label for="pxRdvTxt">Le message</label>
+      <textarea id="pxRdvTxt" rows="11" oninput="PX.rdvCur=[this.selectionStart,this.selectionEnd];pxRdvPrev()" onclick="PX.rdvCur=[this.selectionStart,this.selectionEnd]" onkeyup="PX.rdvCur=[this.selectionStart,this.selectionEnd]">${agEsc(tpl)}</textarea>
+      <div class="pt-rdv-vars">${vars.map(v => `<button type="button" title="Ajouter ${v}" onclick="pxRdvVar('${v}')">${v}</button>`).join('')}</div>
+      <p class="ag-hint" style="margin-top:4px">{moyens} devient par exemple "Wave ou Orange Money", {moyen} le premier moyen coché, {numeros} les numéros ci-dessous.</p>
+      <label>Moyens de paiement acceptés</label>
+      <div id="pxRdvMoy">${ptRdv.MOYENS.map(m => { const x = mo.find(y => y.k === m.k) || {}; const on = x.k ? x.on !== false : false; return `<div class="pt-rdv-m">
+        <label><input type="checkbox" data-k="${m.k}" ${on ? 'checked' : ''} onchange="pxRdvPrev()"> ${agEsc(m.n)}</label>
+        <input type="text" data-info="${m.k}" value="${agEsc(x.info || '')}" placeholder="${m.k === 'especes' ? 'Ex : au studio, du lundi au samedi' : m.k === 'virement' ? 'Ex : banque et numéro de compte' : 'Numéro ou instruction'}" oninput="pxRdvPrev()" ${on ? '' : 'disabled'}></div>`; }).join('')}</div>
+      <label>Aperçu</label>
+      <div class="pt-rdv-prev ag-keep" id="pxRdvPrev"></div>
+      <div class="crm-2" style="margin-top:10px"><button class="btn-secondary" onclick="pxRdvCopy()">${agIcon('copy', 15)} Copier</button><button class="btn-secondary" onclick="pxRdvWa()">${agIcon('chat', 15)} Envoyer sur WhatsApp</button></div>
+      <button class="crm-link" onclick="pxRdvReset()">Remettre le texte de base</button>
+      <button class="btn-primary" style="margin-top:10px" onclick="pxRdvSave()">Enregistrer le message et les moyens</button>
+    </div>`;
+}
+function pxRdvLire(){
+  const box = document.getElementById('pxRdv'); if(!box) return null;
+  const moyens = [...box.querySelectorAll('#pxRdvMoy input[type=checkbox]')].map(c => {
+    const i = box.querySelector(`#pxRdvMoy input[data-info="${c.dataset.k}"]`);
+    if(i) i.disabled = !c.checked;
+    return { k: c.dataset.k, on: c.checked, info: ((i && i.value) || '').trim() };
+  }).filter(x => x.on || x.info);
+  return { tpl: document.getElementById('pxRdvTxt').value, moyens };
+}
+function pxRdvTexte(){ const f = pxRdvLire(); return f ? ptRdv.texte({ tpl: f.tpl, moyens: f.moyens }) : ''; }
+function pxRdvPrev(){ const el = document.getElementById('pxRdvPrev'); if(el && pxRdvOk()) el.textContent = pxRdvTexte(); }
+function pxRdvVar(v){
+  const t = document.getElementById('pxRdvTxt'); if(!t) return;
+  // Pas encore touche : on ajoute a la fin (sinon a l'endroit du curseur)
+  const vu = PX.rdvCur != null;
+  const a = vu ? PX.rdvCur[0] : t.value.length, b = vu ? PX.rdvCur[1] : a;
+  const sep = !vu && t.value && !/\s$/.test(t.value) ? '\n' : '';
+  t.value = t.value.slice(0, a) + sep + v + t.value.slice(b); t.focus(); t.selectionStart = t.selectionEnd = a + sep.length + v.length;
+  PX.rdvCur = [t.selectionStart, t.selectionEnd];
+  pxRdvPrev();
+}
+function pxRdvCopy(){ const t = pxRdvTexte(); if(t) crmCopy(t); }
+function pxRdvWa(){ const t = pxRdvTexte(); if(t) window.open(`https://wa.me/?text=${encodeURIComponent(t)}`, '_blank'); }
+async function pxRdvReset(){
+  const t = document.getElementById('pxRdvTxt'); if(!t) return;
+  if(t.value.trim() !== ptRdv.DEFAUT.trim() && !await agConfirm('Remettre le texte de base ?\nTon texte actuel sera remplacé (rien n\'est enregistré tant que tu ne touches pas "Enregistrer").', { danger: false })) return;
+  t.value = ptRdv.DEFAUT; PX.rdvCur = null; pxRdvPrev();
+}
+async function pxRdvSave(){
+  const f = pxRdvLire(); if(!f) return;
+  if(!PX.page || !PX.page.slug){ await agAlert("Crée d'abord ta page (Ma page, juste en dessous).\nEnsuite, enregistre ce message."); return; }
+  if(!f.moyens.some(m => m.on)){ await agAlert('Coche au moins un moyen de paiement.'); return; }
+  const tpl = String(f.tpl || '').replace(/[\u2013\u2014]/g, '-');
+  const patch = { comment_reserver: tpl.trim() && tpl.trim() !== ptRdv.DEFAUT.trim() ? tpl : null, moyens_paiement: f.moyens };
+  const { data, error } = await sb.from('tarif_page').update(patch).eq('user_id', PX.page.user_id || await pxUid()).select().single();
+  if(error){ alert(error.message); return; }
+  PX.page = Object.assign(PX.page, data || patch);
+  agToast('Message "Comment réserver" enregistré');
+  pxRdvPrev();
 }
 async function pxSavePage(){
   const v = k => document.getElementById(k).value.trim();

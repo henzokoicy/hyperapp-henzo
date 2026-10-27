@@ -12,6 +12,13 @@ const CRM = {
   msgs: [], promos: [], tarifs: [], info: {}, analysis: null,
   loaded: false, seg: 'tous', q: '', src: '', comp: null, view: 'clients'
 };
+// Une fiche est cliente si son role est vide, null ou 'client'. Les autres (modele, maquilleuse...) sont dans equipe.js
+window.estClient = window.estClient || function(c){ if(!c) return false; const r = String(c.role == null ? '' : c.role).trim().toLowerCase(); return !r || r === 'client'; };
+// Dans les chiffres et relances clients : les clients, plus une autre personne seulement si elle doit de l'argent
+function crmEstClient(c){
+  if(window.estClient(c)) return true;
+  try { return typeof svDu === 'function' && svDu(c.id).total > 0; } catch(e){ return false; }
+}
 
 // ---------- Outils ----------
 const crmDay = 864e5;
@@ -172,7 +179,7 @@ function crmStats(c){
   }
   return { ss, done, upcoming, total, encaisse, facture, last, days, count: done.length, msgs, lastMsgDays, types, bday };
 }
-function crmAllStats(){ return (clients || []).map(c => ({ c, s: crmStats(c) })); }
+function crmAllStats(){ return (clients || []).filter(crmEstClient).map(c => ({ c, s: crmStats(c) })); }
 function crmVipMin(all){
   const tot = all.map(x => x.s.total).filter(v => v > 0).sort((a, b) => b - a);
   if(tot.length < 3) return Infinity;
@@ -251,11 +258,14 @@ async function crmRender(){
   if(!CRM.loaded){ el.innerHTML = '<div class="ag-empty">Chargement...</div>'; await crmLoad(); }
   if(CRM.view === 'promos') return crmRenderPromos();
   if(CRM.view === 'ambassadeurs' && typeof exRenderAmbassadeurs === 'function') return exRenderAmbassadeurs();
+  if(CRM.view === 'equipe' && typeof eqRender === 'function') return eqRender(el);
   const all = crmAllStats(), vip = crmVipMin(all);
   const sug = crmSuggestions();
   const fid = all.filter(x => x.s.count >= 2).length;
-  const ca = all.reduce((a, x) => a + x.s.encaisse, 0);
-  const caFact = all.reduce((a, x) => a + x.s.facture, 0);
+  // Chiffre total : tout l'argent des seances, meme si la personne n'est pas cliente (une seance payee compte toujours)
+  const ids = new Set((clients || []).map(c => c.id));
+  const ca = (shoots || []).filter(s => ids.has(s.client_id)).reduce((a, s) => a + (Number(s.montant_recu) || 0), 0);
+  const caFact = (shoots || []).filter(s => ids.has(s.client_id) && !crmCancelled(s)).reduce((a, s) => a + (Number(s.price) || 0), 0);
   const fetes = crmFetes().filter(f => f.j <= 30).slice(0, 2);
   const seg = CRM_SEGS[CRM.seg] || CRM_SEGS.tous;
   const q = CRM.q.toLowerCase();
@@ -263,6 +273,7 @@ async function crmRender(){
     .sort((a, b) => (b.s.last || b.c.created_at || '').localeCompare(a.s.last || a.c.created_at || ''));
 
   el.innerHTML = `
+    ${typeof eqSwitchHtml === 'function' ? eqSwitchHtml('clients') : ''}
     <div class="ag-total">
       <div class="lbl">Mes clients</div>
       <div class="amt">${all.length} <small>client${all.length > 1 ? 's' : ''}</small></div>
@@ -324,6 +335,8 @@ function crmListHtml(list){
 // ---------- Fiche client ----------
 function crmOpenClient(id){
   const c = (clients || []).find(x => x.id === id); if(!c) return;
+  // Pas client (modele, maquilleuse...) : fiche equipe
+  if(!window.estClient(c) && typeof eqOpen === 'function') return eqOpen(id);
   const s = crmStats(c);
   const crm = c.crm || {};
   const tags = (c.categories || []).filter(Boolean);
@@ -371,7 +384,9 @@ function crmEditClient(id){
   const crm = (c && c.crm) || {};
   agSheet('crmEdit', `
     <h3>${c ? 'Modifier le client' : 'Nouveau client'}</h3>
+    ${!c && typeof eqImportBar === 'function' ? eqImportBar('crm') : ''}
     <label>Nom complet</label><input id="crmEName" value="${agEsc(c ? c.name : '')}" placeholder="Ex : Mme Koffi Awa">
+    ${typeof eqRoleSelectHtml === 'function' ? eqRoleSelectHtml('crmERole', c ? c.role : 'client') : ''}
     <label>Comment tu l'appelles dans tes messages</label><input id="crmEAppel" value="${agEsc(crm.appel || '')}" placeholder="${agEsc(c ? crmFirst(c) : 'Ex : Awa, Mme Koffi')}">
     <label>Téléphone WhatsApp</label><input id="crmEPhone" type="tel" value="${agEsc(c ? c.phone || '' : '')}" placeholder="07 00 00 00 00">
     <label>Email</label><input id="crmEEmail" type="email" value="${agEsc(c ? c.email || '' : '')}">
@@ -412,6 +427,10 @@ async function crmSaveClient(id){
   const parBox = document.getElementById('crmEParBox');
   if(parBox && parBox.style.display !== 'none') data.parrain_id = Number(v('crmEPar')) || null;
   if(srcK === 'Recommandé par un client' && !data.parrain_id && !(old && old.parrain_id)){ if(!await agConfirm("Qui l'a recommandé ?\nChoisis le client dans « Recommandé par » pour que son parrainage compte.", { ok: 'Enregistrer quand même', no: 'Choisir' })) return; }
+  // Role (client, modele, maquilleuse...) et doublon de numero (equipe.js)
+  const roleEl = document.getElementById('crmERole');
+  if(roleEl) data.role = roleEl.value || 'client';
+  if(!id && typeof eqDupConfirm === 'function' && !await eqDupConfirm(data.phone, 'crmEdit')) return;
   try {
     if(id){
       const { data: r, error } = await sb.from('clients').update(data).eq('id', id).select().single();
@@ -425,7 +444,7 @@ async function crmSaveClient(id){
     }
   } catch(e){ alert('Erreur : ' + (e.message || e)); return; }
   agCloseSheet('crmEdit');
-  agToast('Client enregistré');
+  agToast(window.estClient(data) ? 'Client enregistré' : 'Personne enregistrée');
   crmRender();
   if(id && document.getElementById('crmClient')) crmOpenClient(id);
   if(typeof renderClients === 'function') try { renderClients(); } catch(e){}
@@ -906,6 +925,6 @@ if(typeof agSheet === 'function'){
   };
 }
 // Tarifs, devis, conseiller IA et page publique (fichier prix.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'prix.js?v=4'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'prix.js?v=5'; document.body.appendChild(sc); })();
 // Selection multiple, mise a jour auto, sauvegardes, reservations (fichier outils.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'outils.js?v=9'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'outils.js?v=10'; document.body.appendChild(sc); })();

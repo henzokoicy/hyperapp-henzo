@@ -78,6 +78,9 @@ function mbNewBoard(pre){
   const b = pre.id ? mbBoard(pre.id) : null;
   const up = (shoots || []).filter(s => !crmCancelled(s)).sort((a, c) => String(c.date).localeCompare(String(a.date))).slice(0, 40);
   const shootId = b ? b.shoot_id : pre.shoot_id;
+  // Pour qui : n'importe quelle personne (client, modele, ami...), pas seulement un client
+  const pid = b ? b.client_id : pre.client_id;
+  const gens = (clients || []).slice().sort((a, c) => String(a.name).localeCompare(String(c.name)));
   agSheet('mbNew', `
     <h3>${b ? 'Modifier le tableau' : 'Nouveau tableau'}</h3>
     <label>Nom</label><input id="mbTitle" value="${agEsc(b ? b.title : (pre.title || ''))}" placeholder="Ex : Anniversaire enfant - thème jungle">
@@ -85,6 +88,8 @@ function mbNewBoard(pre){
     <label>Lier à une séance (facultatif)</label>
     <select id="mbShoot"><option value="">Aucune, tableau général</option>${up.map(s => { const c = (clients || []).find(x => x.id === s.client_id);
       return `<option value="${s.id}" ${s.id === shootId ? 'selected' : ''}>${agEsc((s.type || 'Séance') + (c ? ' · ' + c.name : '') + ' · ' + crmDate(s.date, { day: 'numeric', month: 'short' }))}</option>`; }).join('')}</select>
+    <label>Pour qui (facultatif)</label>
+    <select id="mbPerson"><option value="">Personne en particulier</option>${gens.map(c => `<option value="${c.id}" ${Number(pid) === c.id ? 'selected' : ''}>${agEsc(c.name + (typeof eqRoleLabel === 'function' && typeof estClient === 'function' && !estClient(c) ? ' · ' + eqRoleLabel(c) : ''))}</option>`).join('')}</select>
     <label>Notes (idée générale, thème, couleurs)</label><textarea id="mbNotes" rows="3" placeholder="Ex : ambiance douce, tons beige et blanc, ballons dorés">${agEsc(b ? b.notes || '' : '')}</textarea>
     <button class="btn-primary" onclick="mbSaveBoard(${b ? b.id : 'null'})">${b ? 'Enregistrer' : 'Créer le tableau'}</button>
     ${b ? `<button class="btn-danger" style="width:100%;padding:12px;margin-top:8px" onclick="mbDeleteBoard(${b.id})">Supprimer le tableau</button>` : ''}`);
@@ -93,7 +98,8 @@ async function mbSaveBoard(id){
   const v = k => document.getElementById(k).value.trim();
   const shoot_id = v('mbShoot') ? Number(v('mbShoot')) : null;
   const s = shoot_id ? (shoots || []).find(x => x.id === shoot_id) : null;
-  const data = { title: v('mbTitle') || (s ? s.type : 'Mon tableau'), shoot_type: v('mbType') || (s ? s.type : null), shoot_id, client_id: s ? s.client_id : null, notes: v('mbNotes') || null };
+  const pers = document.getElementById('mbPerson') ? Number(v('mbPerson')) || null : null;
+  const data = { title: v('mbTitle') || (s ? s.type : 'Mon tableau'), shoot_type: v('mbType') || (s ? s.type : null), shoot_id, client_id: pers || (s ? s.client_id : null), notes: v('mbNotes') || null };
   try {
     if(id){
       const { data: r, error } = await sb.from('mood_boards').update(data).eq('id', id).select().single();

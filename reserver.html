@@ -61,6 +61,19 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .cols button.on{border-color:var(--accent);background:linear-gradient(160deg,rgba(0,82,77,.55),var(--card))}
 .tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--accent);color:#fff;margin-left:6px;vertical-align:2px}
 .f .d span.x{display:block;margin-top:3px}
+.rdv{margin-top:28px;padding:18px 16px;border-radius:20px;background:var(--card);border:1px solid var(--line)}
+.rdv h2{font-size:18px;font-weight:800;letter-spacing:0;text-transform:none;color:var(--txt);opacity:1;margin:0 0 6px}
+.rdv ol{list-style:none;margin:0;padding:0}
+.rdv li{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+.rdv li:last-child{border-bottom:0}
+.rdv .ri{position:relative;width:36px;height:36px;border-radius:12px;background:var(--card2);color:var(--light);display:grid;place-items:center;flex-shrink:0}
+.rdv .ri i{position:absolute;top:-6px;left:-6px;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font:700 10.5px Inter,sans-serif;font-style:normal;display:grid;place-items:center}
+.rdv li b{display:block;font-size:15px;font-weight:600;line-height:1.35}
+.rdv li span{display:block;font-size:13.5px;color:var(--muted);margin-top:3px;line-height:1.5}
+.rdv-mh{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--light);opacity:.85;margin:14px 0 8px}
+.rdv-m{display:flex;flex-wrap:wrap;gap:8px}
+.rdv-m span{display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:6px;font-size:13.5px;padding:8px 12px;border-radius:12px;background:var(--card2);border:1px solid var(--line)}
+.rdv-m b{font-weight:600}.rdv-m small{font-size:12.5px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -117,7 +130,52 @@ async function init(){
   } catch(e){ app.innerHTML = '<div class="empty">Impossible de charger la page. Vérifiez votre connexion.</div>'; return; }
   render();
 }
+// ---------- Comment reserver (moyens de paiement lus dans tarif_page) ----------
+var MOY = [['wave', 'Wave', 'Wave', 'Wave'], ['orange', 'Orange Money', 'Orange Money', 'Orange Money'], ['mtn', 'MTN Money', 'MTN Money', 'MTN Money'],
+  ['moov', 'Moov Money', 'Moov Money', 'Moov Money'], ['especes', 'Espèces au studio', 'en espèces au studio', 'espèces'], ['virement', 'Virement bancaire', 'virement bancaire', 'virement']];
+function moyensOn(){
+  var m = S.page && S.page.moyens_paiement;
+  if(typeof m === 'string'){ try { m = JSON.parse(m); } catch(e){ m = null; } }
+  var l = Array.isArray(m) ? m.filter(function(x){ return x && x.on !== false; }) : [];
+  var on = MOY.filter(function(d){ return l.some(function(x){ return x.k === d[0]; }); }).map(function(d){
+    return { k: d[0], n: d[1], p: d[2], c: d[3], info: String((l.filter(function(x){ return x.k === d[0]; })[0] || {}).info || '').trim() };
+  });
+  return on.length ? on : [{ k: 'wave', n: 'Wave', p: 'Wave', c: 'Wave', info: '' }];
+}
+function joinOu(a){ return a.length <= 1 ? (a[0] || '') : a.slice(0, -1).join(', ') + ' ou ' + a[a.length - 1]; }
+function parMoyens(){ return ('par ' + joinOu(moyensOn().map(function(m){ return m.p; }))).replace('par en espèces', 'en espèces'); }
+function pasDe(){ var c = moyensOn()[0].c; return (/^[aeiouyéè]/i.test(c) ? "Pas d'" : 'Pas de ') + c; }
+var RI = {
+  pack: '<path d="M4 5h16v14H4z"/><path d="M4 10h16M9 10v9"/>',
+  chat: '<path d="M4 5h16v11H9l-5 4z"/>',
+  cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  pay: '<rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M16 15h2"/>',
+  ok: '<path d="m5 12 5 5 9-10"/>'
+};
+function ri(n, k){ return '<span class="ri"><i>' + k + '</i><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + RI[n] + '</svg></span>'; }
+// o = { acompte, pour (nom de la collection), s1, s2, somme }
+function rdvHtml(o){
+  var acc = Number(o.acompte) || 0, ms = moyensOn();
+  var steps = [
+    ['pack', 'Choisissez votre pack', o.s1],
+    ['chat', 'Envoyez-nous vos informations', o.s2],
+    ['cal', 'Nous vérifions la disponibilité', 'Puis nous vous envoyons un lien de paiement.'],
+    acc ? ['pay', 'Payez un acompte de ' + acc + ' %' + (o.somme ? ' (' + F(o.somme) + ')' : ''), parMoyens().charAt(0).toUpperCase() + parMoyens().slice(1) + ' pour bloquer votre date' + (o.pour ? ' (' + o.pour + ')' : '') + '. ' + pasDe() + ' ? Dites-le-nous, nous vous proposerons un autre moyen.']
+        : ['pay', 'Confirmez votre date', 'Nous bloquons votre date dès votre accord. Paiement ' + parMoyens() + '.'],
+    ['ok', 'Recevez votre confirmation et votre reçu', acc ? 'Le reste se règle le jour de la séance.' : 'Le paiement se règle le jour de la séance.']
+  ];
+  return '<section class="rdv" id="rdv"><h2>Comment réserver</h2><ol>' + steps.map(function(s, i){
+    return '<li>' + ri(s[0], i + 1) + '<div><b>' + esc(s[1]) + '</b><span>' + esc(s[2]) + '</span></div></li>';
+  }).join('') + '</ol><div class="rdv-mh">Moyens de paiement acceptés</div><div class="rdv-m">' + ms.map(function(m){
+    return '<span><b>' + esc(m.n) + '</b>' + (m.info ? '<small>' + esc(m.info) + '</small>' : '') + '</span>';
+  }).join('') + '</div></section>';
+}
 function byPos(a, b){ return ((Number(a.position) || 0) - (Number(b.position) || 0)) || (a.id - b.id); }
+function accCommun(){
+  var n = {}; S.cols.forEach(function(x){ var a = Number(x.acompte) || 0; if(a) n[a] = (n[a] || 0) + 1; });
+  var k = Object.keys(n).sort(function(a, b){ return n[b] - n[a]; })[0];
+  return k ? Number(k) : 0;
+}
 function curCol(){ return S.cols.filter(function(c){ return c.id === S.col; })[0] || null; }
 // Packs et options de la collection choisie
 function setLists(){
@@ -202,8 +260,9 @@ function render(){
     (c.rem ? '<div class="l"><span>Code ' + esc(S.promo.code) + '</span><span>-' + F(c.rem) + '</span></div>' : '') +
     '<div class="t"><span>Total estimé</span><b>' + F(c.tot - c.rem) + '</b></div></div>' +
     '<button class="btn" id="go" onclick="envoyer()">Envoyer ma demande</button><div class="err" id="err"></div>' +
-    (col && Number(col.acompte) ? '<p class="intro" style="margin-top:14px;font-size:13px"><b>Acompte : ' + Number(col.acompte) + ' %</b> pour bloquer votre date' + (c.tot - c.rem > 0 ? ', soit ' + F(Math.round((c.tot - c.rem) * Number(col.acompte) / 100)) : '') + '.</p>' : '') +
-    (col && col.conditions ? '<p class="intro" style="margin-top:8px;font-size:13px">' + esc(col.conditions) + '</p>' : '') +
+    rdvHtml({ acompte: col ? Number(col.acompte) || 0 : accCommun(), pour: '', somme: col && Number(col.acompte) && c.tot - c.rem > 0 ? Math.round((c.tot - c.rem) * Number(col.acompte) / 100) : 0,
+      s1: 'Ci-dessus, avec vos options si vous voulez.', s2: 'Avec ce formulaire : votre nom, votre numéro WhatsApp, le jour et l\'heure souhaités.' }) +
+    (col && col.conditions ? '<p class="intro" style="margin-top:14px;font-size:13px">' + esc(col.conditions) + '</p>' : '') +
     (P.notes ? '<p class="intro" style="margin-top:8px;font-size:13px">' + esc(P.notes) + '</p>' : '') +
     '<div class="foot">' + esc(P.marque || 'Henzo Studio') + ' · ' + esc(P.adresse || 'Ahougnansou, en face du Restaurant Le Rosier · Bouaké') + '</div>';
   document.getElementById('app').innerHTML = h;

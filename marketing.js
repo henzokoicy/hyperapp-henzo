@@ -477,11 +477,11 @@ function mkContext(){
   const recent = all.filter(s => { const t = new Date(s.date).getTime(); return t >= now - 60 * mkDayMs && t <= now; }).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 15);
   const up = all.filter(s => new Date(s.date).getTime() > now).sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(0, 8);
   const line = s => { const c = mkClient(s.client_id); const pub = MK.posts.some(p => p.shoot_id === s.id && p.status === 'publie'); const plan = MK.posts.some(p => p.shoot_id === s.id && p.status === 'prevu');
-    return `- n°${s.id} ${mkDay(s.date)} ${s.type || 'Séance'}${c ? ' (' + mkFirst(c) + ')' : ''}, ${s.payment === 'paye' ? 'payée' : 'pas encore payée'}${s.price ? ', ' + Math.round(s.price) + ' F' : ''}, ${pub ? 'déjà publiée' : plan ? 'publication prévue' : 'pas encore publiée'}`; };
+    return `- n°${s.id} ${mkDay(s.date)} ${s.type || 'Séance'}${c ? ' (' + mkFirst(c) + ')' : ''}, ${s.collab ? 'séance collaboration (portfolio, sans prix)' : s.payment === 'paye' ? 'payée' : 'pas encore payée'}${s.price ? ', ' + Math.round(s.price) + ' F' : ''}, ${pub ? 'déjà publiée' : plan ? 'publication prévue' : 'pas encore publiée'}`; };
   L.push(`\nSÉANCES DES 60 DERNIERS JOURS (${recent.length}) :`); recent.forEach(s => L.push(line(s)));
   if(up.length){ L.push('SÉANCES À VENIR :'); up.forEach(s => L.push(line(s))); }
-  // Clients
-  const cl = typeof clients !== 'undefined' ? clients : [];
+  // Clients (sans l'equipe : modeles, maquilleuses...)
+  const cl = (typeof clients !== 'undefined' ? clients : []).filter(c => (typeof estClient !== 'function' || estClient(c)));
   const src = {}; cl.forEach(c => { const k = c.source || (c.parrain_id ? 'parrainage' : 'inconnue'); src[k] = (src[k] || 0) + 1; });
   L.push(`\nCLIENTS : ${cl.length} au total. D'où ils viennent : ${Object.entries(src).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ') || 'pas noté'}.`);
   // Avis
@@ -1180,7 +1180,7 @@ function mkSlot(h){ const n = parseInt(String(h || '').slice(0, 2), 10); if(isNa
 function mkResHtml(){
   const pub = MK.posts.filter(p => p.status === 'publie').sort((a, b) => String(b.published_at || b.date).localeCompare(String(a.published_at || a.date)));
   const withS = pub.filter(p => mkHasStats(p) && !p.stats.ignore);
-  const cl = typeof clients !== 'undefined' ? clients : [];
+  const cl = (typeof clients !== 'undefined' ? clients : []).filter(c => (typeof estClient !== 'function' || estClient(c)));
   const src = {}; cl.forEach(c => { const k = c.source || (c.parrain_id ? 'Parrainage' : null); if(k) src[k] = (src[k] || 0) + 1; });
   const srcRows = Object.entries(src).sort((a, b) => b[1] - a[1]); const srcMax = srcRows.length ? srcRows[0][1] : 1;
   const unknown = cl.filter(c => !c.source && !c.parrain_id).length;

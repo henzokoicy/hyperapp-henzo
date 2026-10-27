@@ -2206,6 +2206,7 @@ async function saveShoot(){
         tx_ids: Array.isArray(e.tx_ids) ? e.tx_ids.slice() : [],
         account_id: e.account_id ? Number(e.account_id) : null
       };
+      if(e.personne_id) o.personne_id = Number(e.personne_id);   // charge liee a une personne de l'equipe (equipe.js)
       if(e.type === 'Autre' && String(e.customLabel || '').trim()) o.customLabel = String(e.customLabel).trim();
       else if(e.type !== 'Autre' && e.customLabel) o.customLabel = e.customLabel;
       return o;
@@ -2229,6 +2230,8 @@ async function saveShoot(){
     type, location, photo_count, date, price, payment: paymentCalcule, notes,
     shoot_expenses
   };
+  // Seance collaboration et equipe sur la seance (equipe.js) : une collab n'a pas de prix
+  if(typeof eqShootPatch === 'function'){ try { Object.assign(data, eqShootPatch(editingShootId)); } catch(e){ console.warn('eqShootPatch', e); } }
 
   // Statut recalculé selon la (nouvelle) date, sauf pour une séance annulée
   const ancienne = editingShootId ? shoots.find(s => s.id === editingShootId) : null;

@@ -65,14 +65,40 @@ function iaCompter(label){
   try { iaMajJauges(); } catch(e){}
 }
 // Limites gratuites estimees par jour (null = payant, pas de limite fixe)
-const IA_LIMITES = { 'Gemini Flash-Lite': 500, 'Gemini Flash': 20, 'Groq': 1000, 'DeepSeek': null, 'Claude': null, 'OpenAI': null, 'Autre IA': null };
+const IA_LIMITES = { 'Gemini Flash-Lite': 500, 'Gemini Flash': 20, 'Groq': 1000, 'Groq Whisper': 2000, 'DeepSeek': null, 'Claude': null, 'OpenAI': null, 'Autre IA': null };
+const IA_AUDIO = { 'Groq Whisper': true };   // dictee vocale : comptee a part (pas dans la jauge des demandes texte)
+
+// ---------- Limite apprise ----------
+// Quand une IA dit "quota du jour atteint", le nombre de demandes deja faites aujourd'hui
+// devient la vraie limite (moyenne des 3 dernieres fois). Elle remplace l'estimation.
+function iaApprendreLimite(label){
+  if(!label) return null;
+  const n = iaComptes()[label] || 0;
+  if(n <= 0) return null;                       // rien compte ici (quota use ailleurs) : on ne devine pas
+  const s = stGet(), j = iaJour();
+  s.appris = s.appris || {};
+  const a = s.appris[label] && Array.isArray(s.appris[label].vals) ? s.appris[label] : { vals: [] };
+  if(a.jour === j && a.vals.length) a.vals[a.vals.length - 1] = Math.max(a.vals[a.vals.length - 1], n);
+  else a.vals.push(n);
+  a.vals = a.vals.slice(-3);
+  a.jour = j; a.t = Date.now();
+  a.limite = Math.max(1, Math.round(a.vals.reduce((x, v) => x + v, 0) / a.vals.length));
+  s.appris[label] = a;
+  stPut(s);
+  try { iaMajJauges(); } catch(e){}
+  return a.limite;
+}
+function iaAppris(label){ const a = (stGet().appris || {})[label]; return a && a.limite > 0 ? a : null; }
+function iaLimite(label){ const a = iaAppris(label); return a ? a.limite : IA_LIMITES[label]; }
+
 function iaUsage(){
   const cfg = iaCfg(), n = iaComptes(), l = [];
   if(cfg.keys.gemini){ l.push('Gemini Flash-Lite'); l.push('Gemini Flash'); }
   [['groq', 'Groq'], ['deepseek', 'DeepSeek'], ['anthropic', 'Claude'], ['openai', 'OpenAI'], ['custom', 'Autre IA']].forEach(([p, lb]) => { if(cfg.keys[p] || n[lb]) l.push(lb); });
-  const items = l.map(lb => ({ label: lb, utilise: n[lb] || 0, limite: IA_LIMITES[lb] }));
-  const gratuits = items.filter(x => x.limite);
-  const total = items.reduce((a, x) => a + x.utilise, 0);
+  if(n['Groq Whisper'] || (cfg.keys.groq && iaAppris('Groq Whisper'))) l.push('Groq Whisper');
+  const items = l.map(lb => ({ label: lb, utilise: n[lb] || 0, limite: iaLimite(lb), constatee: !!(IA_LIMITES[lb] !== undefined && iaAppris(lb)), audio: !!IA_AUDIO[lb] }));
+  const gratuits = items.filter(x => x.limite && !x.audio);
+  const total = items.filter(x => !x.audio).reduce((a, x) => a + x.utilise, 0);
   const max = gratuits.reduce((a, x) => a + x.limite, 0);
   const reste = gratuits.reduce((a, x) => a + Math.max(0, x.limite - x.utilise), 0);
   return { items, total, max, reste };
@@ -383,6 +409,7 @@ async function iaRelais(opts){
         const info = e.ia || { type: 'autre', raison: e.message || String(e) };
         if(info.type === 'refus'){ const er = new Error(info.raison); er.iaRefus = true; throw er; }
         if(info.jusqua) iaPauseSet(pid, info.jusqua, info.raison);
+        if(info.type === 'quota' && /du jour/.test(info.raison || '')) iaApprendreLimite(c.label);
         echecs.push({ c, model, ...info });
         console.warn(`[IA relais] ${c.label} (${model}) : ${info.type} - ${info.raison}`);
         if(info.type === 'indispo') continue;   // modele suivant du meme fournisseur
@@ -459,6 +486,7 @@ function iaCss(){
 .ia-bar.off{opacity:.4}
 .ia-l{display:flex;justify-content:space-between;gap:8px;font-size:13px}
 .ia-l span{color:var(--muted,#999);font-size:12px;white-space:nowrap}
+.ia-l .ia-lc{font-style:normal;color:var(--accent,#48A89A);font-weight:600}
 .ia-jauge{cursor:pointer;background:var(--card,rgba(127,127,127,.08));border:1px solid var(--border,rgba(127,127,127,.18));border-radius:14px;padding:10px 12px;margin:0 0 12px}
 .ia-jauge .l{display:flex;flex-direction:column;gap:2px}
 .ia-jauge .l b{font-size:13px}.ia-jauge .l span{font-size:12px;color:var(--muted,#999)}
@@ -560,11 +588,12 @@ function iaRenderCompteurs(){
   const st = stGet(), now = Date.now(), u = iaUsage();
   const pauseDe = pref => Object.keys(st.pause).filter(k => k.startsWith(pref) && st.pause[k].jusqua > now && st.pause[k].raison !== 'modèle plus disponible').map(k => st.pause[k]).sort((a, b) => b.jusqua - a.jusqua)[0];
   const gm = (st.modeles.gemini || {}).m || gemDefaut();
-  const pref = { 'Gemini Flash-Lite': 'gemini:' + (gm.lite[0] || ''), 'Gemini Flash': 'gemini:' + (gm.flash[0] || ''), 'Groq': 'groq:', 'DeepSeek': 'deepseek:', 'Claude': 'anthropic:', 'OpenAI': 'openai:', 'Autre IA': 'custom:' };
+  const pref = { 'Gemini Flash-Lite': 'gemini:' + (gm.lite[0] || ''), 'Gemini Flash': 'gemini:' + (gm.flash[0] || ''), 'Groq': 'groq:', 'Groq Whisper': 'groqw:', 'DeepSeek': 'deepseek:', 'Claude': 'anthropic:', 'OpenAI': 'openai:', 'Autre IA': 'custom:' };
   const N = x => new Intl.NumberFormat('fr-FR').format(x);
   const lignes = u.items.map(x => {
     const pz = pauseDe(pref[x.label] || x.label);
-    return `<div class="ia-l"><b>${x.label}</b><span>${x.limite ? `${N(x.utilise)} / ${N(x.limite)}` : `${N(x.utilise)} (payant)`}</span></div>
+    const nom = x.audio ? x.label + ' (dictée)' : x.label;
+    return `<div class="ia-l"><b>${nom}</b><span>${x.limite ? `${N(x.utilise)} / ${N(x.limite)} ${x.constatee ? '<em class="ia-lc">(limite constatée)</em>' : '(estimée)'}` : `${N(x.utilise)} (payant)`}</span></div>
       ${iaBarre(x.utilise, x.limite)}${pz ? `<div class="pz" style="margin:-4px 0 8px">En pause jusqu'à ${iaHeure(pz.jusqua)} (${iaEsc(pz.raison)}) : l'app utilise les autres.</div>` : ''}`;
   });
   // 7 derniers jours
@@ -579,9 +608,10 @@ function iaRenderCompteurs(){
     <div class="ia-semaine">${jours.map(j => `<div><em>${j.t || ''}</em><i style="height:${Math.round(j.t / mx * 48)}px"></i><span>${j.nom}</span></div>`).join('')}</div>`;
   box.innerHTML = (u.items.length ? iaJaugeHtml() + lignes.join('') + semaine
       : '<div class="ia-note" style="margin:0">Aucune clé pour le moment.</div>')
-    + `<div class="ia-note">Les limites sont des estimations des offres gratuites. Les compteurs repartent à zéro chaque jour vers ${iaHeure(iaMinuitPT() - MIN)}. Ils comptent les demandes faites depuis cet appareil.</div>`;
+    + `<div class="ia-note">Les limites "estimées" viennent des offres gratuites. Quand une IA dit "quota du jour atteint", l'app note le vrai chiffre : c'est la "limite constatée" (moyenne des 3 dernières fois). Les compteurs repartent à zéro chaque jour vers ${iaHeure(iaMinuitPT() - MIN)}. Ils comptent les demandes faites depuis cet appareil.</div>`;
 }
 window.iaUsage = iaUsage;
+Object.assign(window, { iaCompter, iaApprendreLimite, iaLimite, IA_LIMITES });
 async function iaTester(){
   const btn = document.getElementById('iaTestBtn'), box = document.getElementById('iaTestRes'); if(!box) return;
   const v = p => { const el = document.getElementById('iaK_' + p); return el ? el.value.trim() : ''; };
@@ -700,7 +730,7 @@ async function callChatAI(userMessage){
 }
 
 // Pour les tests et le depannage
-function iaRelaisEtat(){ const s = stGet(); return { jour: s.jour, compte: iaComptes(), pause: s.pause, modeles: s.modeles, cfg: { ordre: iaCfg().ordre, fournisseurs: Object.keys(iaCfg().keys) } }; }
+function iaRelaisEtat(){ const s = stGet(); return { jour: s.jour, compte: iaComptes(), appris: s.appris || {}, pause: s.pause, modeles: s.modeles, cfg: { ordre: iaCfg().ordre, fournisseurs: Object.keys(iaCfg().keys) } }; }
 function iaRelaisReset(){ const s = stGet(); s.pause = {}; stPut(s); }
 
 Object.assign(window, { iaRelais, iaRelaisEtat, iaRelaisReset, iaHasKey, iaOuvrirReglages, iaTester, iaMonter, iaRenderReglages, iaRenderOrdre,

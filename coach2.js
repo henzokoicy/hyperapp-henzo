@@ -389,7 +389,7 @@ function coContexte(){
   const act = CO.plans.filter(p => p.statut === 'en_cours');
   if(act.length) L.push('Plans en cours : ' + act.map(p => p.titre).join(' ; ') + '.');
   const st = coNegoStats(); if(st.n) L.push(`Négociations : ${st.n} terminées, ${st.taux} % acceptées.`);
-  L.push(`Clients : ${(typeof clients !== 'undefined' ? clients : []).length}. Séances ce mois : ${(typeof shoots !== 'undefined' ? shoots : []).filter(s => s.date && String(s.date).slice(0, 7) === coToday().slice(0, 7)).length}.`);
+  L.push(`Clients : ${(typeof clients !== 'undefined' ? clients : []).filter(c => (typeof estClient !== 'function' || estClient(c))).length}. Séances ce mois : ${(typeof shoots !== 'undefined' ? shoots : []).filter(s => s.date && String(s.date).slice(0, 7) === coToday().slice(0, 7)).length}.`);
   L.push('Ce que le coach a appris sur Henzo (journal) :\n' + coMemoire(10));
   return L.join('\n');
 }
@@ -407,13 +407,13 @@ function coLastDone(c){
   return (typeof shoots !== 'undefined' ? shoots : []).filter(s => Number(s.client_id) === c.id && s.date && !/annul/i.test(s.status || '') && new Date(s.date).getTime() <= now).map(s => s.date).sort().pop() || null;
 }
 function coInactifs(days){
-  return (typeof clients !== 'undefined' ? clients : []).map(c => ({ c, last: coLastDone(c) })).filter(x => x.last && coAgo(x.last) > (days || 90))
+  return (typeof clients !== 'undefined' ? clients : []).filter(c => (typeof estClient !== 'function' || estClient(c))).map(c => ({ c, last: coLastDone(c) })).filter(x => x.last && coAgo(x.last) > (days || 90))
     .filter(x => { try { return !(typeof svDu === 'function' && svDu(x.c.id).total > 0) && ((typeof svLastImpression === 'function' ? svLastImpression(x.c.id) : null) || {}).humeur !== 'negatif'; } catch(e){ return true; } })
     .sort((a, b) => String(b.last).localeCompare(String(a.last)));
 }
 function coRecentDone(days){
   const now = Date.now();
-  return (typeof shoots !== 'undefined' ? shoots : []).filter(s => s.date && !/annul/i.test(s.status || '') && new Date(s.date).getTime() <= now && now - new Date(s.date).getTime() < days * coDayMs);
+  return (typeof shoots !== 'undefined' ? shoots : []).filter(s => s.date && !s.collab && !/annul/i.test(s.status || '') && new Date(s.date).getTime() <= now && now - new Date(s.date).getTime() < days * coDayMs);
 }
 function coDetect(){
   const out = [], add = p => out.push(p);
@@ -1229,7 +1229,7 @@ function coBilanCalc(){
   const tx = (typeof txs !== 'undefined' ? txs : []).filter(t => !t.cancelled && inW(t.date));
   const entrees = tx.filter(t => t.type === 'revenu').reduce((a, t) => a + Number(t.amount), 0), depenses = tx.filter(t => t.type === 'depense').reduce((a, t) => a + Number(t.amount), 0);
   const sh = (typeof shoots !== 'undefined' ? shoots : []).filter(s => !/annul/i.test(s.status || '') && inW(s.date));
-  const nc = (typeof clients !== 'undefined' ? clients : []).filter(c => inW(c.created_at)).length;
+  const nc = (typeof clients !== 'undefined' ? clients : []).filter(c => inW(c.created_at) && (typeof estClient !== 'function' || estClient(c))).length;
   let etapes = 0, echecs = 0; CO.plans.forEach(p => (p.etapes || []).forEach(e => { if(inW(e.date)){ if(e.statut === 'fait') etapes++; if(e.statut === 'echec') echecs++; } }));
   const neg = CO.negos.filter(n => inW(n.updated_at || n.created_at));
   const lec = CO.ecole.filter(e => e.fait && inW(e.date || e.created_at)), sc = lec.filter(e => e.score != null);
@@ -1359,7 +1359,7 @@ function coNegoOpen(id, step){
 function coNegoForm(s){
   const n = CO.nego, cols = coHasPx() ? pxCols().filter(c => c.actif !== false) : [];
   const col = coPxCol(n.collection_id), packs = col ? pxPacks(col.id).filter(t => t.active !== false) : [];
-  const cl = (typeof clients !== 'undefined' ? clients : []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  const cl = (typeof clients !== 'undefined' ? clients : []).filter(c => (typeof estClient !== 'function' || estClient(c)) || c.id === n.client_id).slice().sort((a, b) => String(a.name).localeCompare(String(b.name)));
   s.innerHTML = `<div class="co-card co-form">
     <label>Client</label>
     <select id="coNCl" onchange="coNegoClient(this.value)"><option value="">Client pas encore enregistré</option>${cl.map(c => `<option value="${c.id}" ${n.client_id === c.id ? 'selected' : ''}>${coE(c.name)}</option>`).join('')}</select>
