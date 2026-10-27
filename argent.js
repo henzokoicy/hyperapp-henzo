@@ -1335,7 +1335,7 @@ agSetupInstall();
 (function(){ const sc = document.createElement('script'); sc.src = 'budget.js?v=2'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'coach2.js?v=4'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'equipe.js?v=2'; document.body.appendChild(sc); })();
-(function(){ const sc = document.createElement('script'); sc.src = 'patron.js?v=2'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'patron.js?v=3'; document.body.appendChild(sc); })();
 // Suivi client : impressions et dettes (fichier suivi.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'suivi.js?v=1'; document.body.appendChild(sc); })();
 

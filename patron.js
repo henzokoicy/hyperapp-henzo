@@ -184,6 +184,7 @@ window.ptRdv = { DEFAUT: PT_RDV_DEFAUT, MOYENS: PT_MOYENS, moyens: ptRdvMoyens, 
 .pt-info.red{border-color:var(--red)}
 .pt-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .pt-chips button{margin:0;width:auto;padding:7px 11px;border-radius:10px;background:var(--card2);border:1px solid var(--border);color:var(--text);font:600 12px Inter,sans-serif;cursor:pointer}
+.pt-tag{font-style:normal;font-size:10px;font-weight:700;color:var(--accent);margin-left:4px}
 .pt-rep{margin:0 0 12px;padding:12px;border-radius:12px;border:1px dashed var(--yellow);background:rgba(245,197,66,.08);font-size:12.8px;line-height:1.5;color:var(--text)}
 .pt-rep small{display:block;color:var(--muted);margin-top:4px}
 .pt-rep button{margin:8px 0 0;width:auto;padding:8px 12px;border-radius:10px;background:var(--card2);border:1px solid var(--yellow);color:var(--text);font:600 12.5px Inter,sans-serif;cursor:pointer}
@@ -308,6 +309,16 @@ function ptCible(r){
   if(g && agIsCoffre(g) && (!sal || g.id !== sal.id)) return g;
   return ptCoffreNom('studio');
 }
+// Ou va l'argent rembourse : par defaut, la ou il manquait (le compte ou le coffre), sinon Revenu Studio
+function ptDest(r){
+  const sal = ptCoffreNom('salaire');
+  if(r && r.account_id){ const a = ptCompte(r.account_id); if(a && !a.archived) return { account_id: a.id, name: a.name }; }
+  const g = r && r.goal_id ? ptCoffre(r.goal_id) : null;
+  if(g && agIsCoffre(g) && (!sal || g.id !== sal.id)) return { goal_id: g.id, name: g.name };
+  const st = ptCoffreNom('studio');
+  return st ? { goal_id: st.id, name: st.name } : null;
+}
+const ptMemeLieu = (a, b) => !!a && !!b && ((a.account_id && a.account_id === b.account_id) || (a.goal_id && a.goal_id === b.goal_id));
 function ptRetenue(salaire){
   const du = ptDu();
   if(!(du > 0) || !(salaire > 0)) return 0;
@@ -559,7 +570,7 @@ function ptRepLigne(){
   const sal = Math.round(parseFloat(document.getElementById('repSalaireMontant')?.value) || 0);
   const ret = ptRetenue(sal), du = ptDu();
   if(!d){ d = document.createElement('div'); d.id = 'ptRepLine'; btn.insertAdjacentElement('beforebegin', d); }
-  const r0 = ptOuverts()[0], cible = ptCible(r0), salC = ptCoffreNom('salaire');
+  const r0 = ptOuverts()[0], cible = ptDest(r0), salC = ptCoffreNom('salaire');
   d.className = 'pt-rep' + (PT.rep.skip ? ' skip' : '');
   if(PT.rep.skip){
     d.innerHTML = `<b>Mode patron : retenue passée pour ce paiement.</b> Ce sera noté. Il reste ${agF(du)} à rembourser.
@@ -631,11 +642,11 @@ async function ptRetenueApres(salId, salM, skip, label){
   let reste = Math.min(voulu, Math.round(Number(sal.current) || 0)), fait = 0;
   for(const r of ouverts){
     if(!(reste > 0)) break;
-    const cible = ptCible(r);
-    if(!cible || cible.id === sal.id) continue;
+    const cible = ptDest(r);
+    if(!cible || cible.goal_id === sal.id) continue;
     const part = Math.min(reste, ptReste(r), Math.round(Number(sal.current) || 0));
     if(!(part > 0)) continue;
-    const tr = await ptTransfert({ from: { goal_id: sal.id }, to: { goal_id: cible.id }, amount: part, note: 'Mode patron · remboursement du studio · ' + label, details: 'ptremb:' + r.id });
+    const tr = await ptTransfert({ from: { goal_id: sal.id }, to: cible.account_id ? { account_id: cible.account_id } : { goal_id: cible.goal_id }, amount: part, note: 'Mode patron · remboursement du studio · ' + label, details: 'ptremb:' + r.id });
     if(!tr) break;
     await ptNoter(r, { date: ptToday(), montant: part, tx_id: tr.id, source: 'retenue', note: label });
     reste -= part; fait += part;
@@ -684,29 +695,57 @@ function ptEpisode(){
 function ptRembourser(){
   const ouverts = ptOuverts();
   if(!ouverts.length){ agToast('Rien à rembourser', 'info'); return; }
-  const du = ptDu(), cible = ptCible(ouverts[0]);
-  const accs = agActiveAccounts().map(a => `<button type="button" data-v="a${a.id}" onclick="agPick(this)">${agEsc(a.name)}<small>${agF(agAccountBalance(a))}</small></button>`).join('');
+  const du = ptDu(), d0 = ptDest(ouverts[0]);
   const sal = ptCoffreNom('salaire');
-  const cofs = agCoffres().filter(c => !cible || c.id !== cible.id).map(c => `<button type="button" data-v="g${c.id}" class="${sal && c.id === sal.id ? 'on' : ''}" onclick="agPick(this)">${agEsc(c.name)}<small>${agF(c.current)}</small></button>`).join('');
+  const lieu = (k, nom, solde, on, tag) => `<button type="button" data-v="${k}" class="${on ? 'on' : ''}" onclick="agPick(this);ptRbMaj()">${agEsc(nom)}${tag ? ` <em class="pt-tag">${tag}</em>` : ''}<small>${agF(solde)}</small></button>`;
+  const srcs = agActiveAccounts().map(a => lieu('a' + a.id, a.name, agAccountBalance(a), false))
+    .concat(agCoffres().map(c => lieu('g' + c.id, c.name, c.current, sal && c.id === sal.id, sal && c.id === sal.id ? 'ton salaire' : '')));
+  const dsts = agActiveAccounts().map(a => lieu('a' + a.id, a.name, agAccountBalance(a), d0 && d0.account_id === a.id, d0 && d0.account_id === a.id ? 'là où il manquait' : ''))
+    .concat(agCoffres().filter(c => !sal || c.id !== sal.id).map(c => lieu('g' + c.id, c.name, c.current, d0 && d0.goal_id === c.id, d0 && d0.goal_id === c.id ? (ouverts[0].goal_id === c.id ? 'là où il manquait' : 'par défaut') : '')));
   agSheet('ptRemb', `
-    <h3>Je rembourse maintenant</h3>
-    <div class="ag-hint" style="margin-top:0">Tu dois encore <b>${agF(du)}</b> au studio. L'argent va dans le coffre <b>${agEsc(cible ? cible.name : 'Revenu Studio')}</b>.</div>
-    <input id="ptRbMt" type="number" inputmode="decimal" class="big" value="${du}" placeholder="0">
-    <label>D'où part l'argent ?</label>
-    <div class="ag-pills pt-src" id="ptRbFrom">${accs}${cofs}</div>
+    <h3>Je rembourse le studio</h3>
+    <div class="ag-hint" style="margin-top:0">Tu dois encore <b>${agF(du)}</b> au studio.</div>
+    <label>Combien tu rembourses ?</label>
+    <input id="ptRbMt" type="number" inputmode="decimal" class="big" value="${du}" placeholder="0" oninput="ptRbMaj()">
+    <label>1. D'où part l'argent ?</label>
+    <div class="ag-hint" style="margin-top:-2px">Là où tu prends l'argent pour rembourser (ex : ton coffre Salaire, ou l'argent que tu as sur toi en espèces).</div>
+    <div class="ag-pills pt-src" id="ptRbFrom">${srcs.join('')}</div>
+    <label>2. Où va l'argent ?</label>
+    <div class="ag-hint" style="margin-top:-2px">Là où l'argent doit revenir. Par défaut : là où il manquait.</div>
+    <div class="ag-pills pt-src" id="ptRbTo">${dsts.join('')}</div>
+    <div class="pt-rep" id="ptRbRes" style="margin-top:12px"></div>
     <button class="btn-primary" id="ptRbBtn" style="margin-top:12px" onclick="ptRembourserGo()">Rembourser</button>
   `);
   if(!document.querySelector('#ptRbFrom button.on')) document.querySelector('#ptRbFrom button')?.classList.add('on');
+  if(!document.querySelector('#ptRbTo button.on')) document.querySelector('#ptRbTo button')?.classList.add('on');
+  ptRbMaj();
+}
+function ptRbLieu(v){
+  if(!v) return null;
+  if(v[0] === 'g'){ const c = ptCoffre(Number(v.slice(1))); return c ? { goal_id: c.id, name: c.name } : null; }
+  const a = ptCompte(Number(v.slice(1))); return a ? { account_id: a.id, name: a.name } : null;
+}
+// Le resume en clair : d'ou ca part, ou ca va, ce qu'il reste
+function ptRbMaj(){
+  const box = document.getElementById('ptRbRes'); if(!box) return;
+  const mt = Math.min(Math.round(parseFloat(document.getElementById('ptRbMt')?.value) || 0), ptDu());
+  const from = ptRbLieu(document.querySelector('#ptRbFrom button.on')?.dataset.v), to = ptRbLieu(document.querySelector('#ptRbTo button.on')?.dataset.v);
+  if(!(mt > 0) || !from || !to){ box.innerHTML = 'Choisis le montant, d\'où part l\'argent et où il va.'; return; }
+  if(ptMemeLieu(from, to)){ box.innerHTML = '<b>Choisis deux endroits différents</b> : l\'argent ne peut pas partir et arriver au même endroit.'; return; }
+  box.innerHTML = `<b>${agF(mt)} vont sortir de « ${agEsc(from.name)} » et arriver dans « ${agEsc(to.name)} ».</b>
+    <small>Ton argent total ne change pas : il change seulement de place. Il restera ${agF(ptDu() - mt)} à rembourser.</small>`;
 }
 async function ptRembourserGo(){
   if(PT.busy) return;
   let amount = Math.round(parseFloat(document.getElementById('ptRbMt')?.value) || 0);
-  const v = document.querySelector('#ptRbFrom button.on')?.dataset.v;
+  const src = ptRbLieu(document.querySelector('#ptRbFrom button.on')?.dataset.v);
+  const dst = ptRbLieu(document.querySelector('#ptRbTo button.on')?.dataset.v);
   if(!(amount > 0)){ agAlert('Tape un montant.'); return; }
-  if(!v){ agAlert("Choisis d'où part l'argent."); return; }
+  if(!src){ agAlert("Choisis d'où part l'argent."); return; }
+  if(!dst){ agAlert("Choisis où va l'argent."); return; }
+  if(ptMemeLieu(src, dst)){ agAlert("L'argent ne peut pas partir et arriver au même endroit."); return; }
   const du = ptDu();
   if(amount > du){ amount = du; }
-  const src = v[0] === 'g' ? { goal_id: Number(v.slice(1)) } : { account_id: Number(v.slice(1)) };
   if(src.goal_id){
     const c = ptCoffre(src.goal_id);
     if(!c || amount > Math.round(Number(c.current) || 0)){ agAlert(`Le coffre "${c ? c.name : ''}" n'a que ${agF(c ? c.current : 0)}.`); return; }
@@ -721,10 +760,8 @@ async function ptRembourserGo(){
     let reste = amount;
     for(const r of ptOuverts()){
       if(!(reste > 0)) break;
-      const cible = ptCible(r);
-      if(!cible || (src.goal_id && cible.id === src.goal_id)) continue;
       const part = Math.min(reste, ptReste(r));
-      const tr = await ptTransfert({ from: src, to: { goal_id: cible.id }, amount: part, note: 'Mode patron · je rembourse le studio', details: 'ptremb:' + r.id });
+      const tr = await ptTransfert({ from: src.goal_id ? { goal_id: src.goal_id } : { account_id: src.account_id }, to: dst.goal_id ? { goal_id: dst.goal_id } : { account_id: dst.account_id }, amount: part, note: 'Mode patron · je rembourse le studio', details: 'ptremb:' + r.id });
       if(!tr) break;
       await ptNoter(r, { date: ptToday(), montant: part, tx_id: tr.id, source: 'manuel' });
       reste -= part; fait += part;
@@ -732,7 +769,7 @@ async function ptRembourserGo(){
   } finally { PT.busy = false; }
   agCloseSheet('ptRemb');
   ptRefresh();
-  if(fait) agToast(`${agF(fait)} remboursés au studio${ptDu() > 0 ? ' · reste ' + agF(ptDu()) : ''}`);
+  if(fait) agToast(`${agF(fait)} remboursés : de ${src.name} vers ${dst.name}${ptDu() > 0 ? ' · reste ' + agF(ptDu()) : ''}`);
   await ptFinCheck();
 }
 
