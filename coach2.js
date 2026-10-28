@@ -586,7 +586,8 @@ function coGo(go){
       case 'client': tab('clients'); setTimeout(() => typeof crmOpenClient === 'function' && crmOpenClient(Number(arg)), 250); return;
       case 'clients': tab('clients'); return;
       case 'compose': tab('clients'); setTimeout(() => typeof crmCompose === 'function' && crmCompose(ids(), { goal: 'relance' }), 250); return;
-      case 'compose_merci': tab('clients'); setTimeout(() => typeof crmCompose === 'function' && crmCompose(ids(), { goal: 'merci' }), 250); return;
+      case 'compose_merci': tab('clients'); setTimeout(() => typeof msgEcrire === 'function' ? msgEcrire({ ids: ids(), occasion: 'merci' }) : (typeof crmCompose === 'function' && crmCompose(ids(), { goal: 'merci' })), 250); return;
+      case 'ecrire': tab('clients'); setTimeout(() => typeof msgEcrire === 'function' ? msgEcrire({ ids: ids() }) : (typeof crmCompose === 'function' && crmCompose(ids())), 250); return;
       case 'promo': tab('clients'); setTimeout(() => typeof crmPromoForm === 'function' && crmPromoForm(null), 250); return;
       case 'marketing': tab('marketing'); if(arg) setTimeout(() => typeof mkGo === 'function' && mkGo(arg), 300); return;
       case 'tarifs': if(typeof PX !== 'undefined'){ PX.view = arg || 'grille'; PX.col = null; } tab('tarifs'); return;

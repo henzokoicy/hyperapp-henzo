@@ -215,7 +215,7 @@ async function otRefresh(force){
   OT.busy = false;
 }
 // Nouvelle version du site publiee ? On recharge tout seul.
-const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'ia.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'coach2.js', 'marketing.js', 'suivi.js', 'budget.js', 'voix.js', 'equipe.js', 'patron.js', 'studio.js', 'theme.css'];
+const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'ia.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'coach2.js', 'marketing.js', 'suivi.js', 'budget.js', 'voix.js', 'equipe.js', 'patron.js', 'studio.js', 'messages.js', 'theme.css'];
 async function otCheckVersion(){
   let changed = false;
   for(const f of OT_FILES){
@@ -252,7 +252,8 @@ const OT_GROUPS = [
   { k: 'comptes', n: 'Comptes', t: ['accounts'], d: 'Wave, espèces, banque...' },
   { k: 'coffres', n: 'Coffres et objectifs', t: ['goal_reminders', 'goals'], d: 'Avec leurs rappels' },
   { k: 'seances', n: 'Séances', t: ['shoots'] },
-  { k: 'clients', n: 'Clients', t: ['client_suivi', 'client_messages', 'reservations', 'equipe_evals', 'clients'], d: 'Avec suivi (impressions, dettes), messages envoyés, réservations et évaluations de l\'équipe' },
+  { k: 'clients', n: 'Clients', t: ['client_suivi', 'client_messages', 'messages_programmes', 'reservations', 'equipe_evals', 'clients'], d: 'Avec suivi (impressions, dettes), messages envoyés et programmés, réservations et évaluations de l\'équipe' },
+  { k: 'equipe', n: 'Équipe', t: ['equipe_bonus', 'equipe_defis_suivi', 'equipe_defis', 'equipe_taches'], d: 'Tâches, défis du mois et bonus de promotion de ton équipe' },
   { k: 'liens', n: 'Liens de paiement', t: ['payment_links'] },
   { k: 'notes', n: 'Notes et rappels', t: ['notes', 'reminders'] },
   { k: 'idees', n: 'Idées et inspirations', t: ['saved_ideas', 'inspirations'] },
@@ -264,7 +265,7 @@ const OT_GROUPS = [
   { k: 'coach', n: 'Coach', t: ['ecole_progres', 'negociations', 'coach_journal', 'coach_plans'], d: 'Plans d\'action, journal, négociations, école de la vente' },
   { k: 'reglages', n: 'Réglages', t: ['user_settings'], d: 'Notifications, préférences, thème, messages' }
 ];
-const OT_ORDER = ['accounts', 'goals', 'goal_reminders', 'clients', 'shoots', 'client_suivi', 'transactions', 'manquants', 'budgets', 'charges_fixes', 'charges_paiements', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'client_messages', 'promos', 'tarifs', 'tarif_collections', 'devis', 'tarif_page', 'reservations', 'equipe_evals', 'coach_plans', 'coach_journal', 'negociations', 'ecole_progres', 'mood_boards', 'mood_images', 'mood_feedback', 'materiel', 'user_settings'];
+const OT_ORDER = ['accounts', 'goals', 'goal_reminders', 'clients', 'shoots', 'client_suivi', 'transactions', 'manquants', 'budgets', 'charges_fixes', 'charges_paiements', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'client_messages', 'promos', 'tarifs', 'tarif_collections', 'devis', 'tarif_page', 'reservations', 'equipe_evals', 'messages_programmes', 'equipe_taches', 'equipe_defis', 'equipe_defis_suivi', 'equipe_bonus', 'coach_plans', 'coach_journal', 'negociations', 'ecole_progres', 'mood_boards', 'mood_images', 'mood_feedback', 'materiel', 'user_settings'];
 
 // La cle IA et le mot de passe galerie ne partent jamais dans une sauvegarde
 const OT_SECRETS = ['ai_config', 'galerie_admin_pwd'];
@@ -427,7 +428,7 @@ async function otImportRun(){
     // 2. Mode Remplacer : on enleve seulement ce qui n'existait pas dans la sauvegarde
     //    (les plus "dependants" d'abord). Les clients ne sont jamais effaces.
     if(mode === 'replace'){
-      const order = ['manquants', 'equipe_evals', 'charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'charges_fixes', 'budgets', 'goals', 'accounts'];
+      const order = ['manquants', 'equipe_bonus', 'equipe_defis_suivi', 'equipe_defis', 'equipe_taches', 'messages_programmes', 'equipe_evals', 'charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'charges_fixes', 'budgets', 'goals', 'accounts'];
       for(const t of order.filter(x => tables.includes(x))){
         const ids = (snap.tables[t] || []).map(r => r.id).filter(v => v != null);
         let q = sb.from(t).delete().eq('user_id', uid);
@@ -462,7 +463,7 @@ async function otAutoBackup(){
 setTimeout(otAutoBackup, 20000);
 
 async function otWipe(tables, uid){
-  const order = ['manquants', 'equipe_evals', 'charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'tarif_page', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'charges_fixes', 'budgets', 'clients', 'goals', 'accounts'];
+  const order = ['manquants', 'equipe_bonus', 'equipe_defis_suivi', 'equipe_defis', 'equipe_taches', 'messages_programmes', 'equipe_evals', 'charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'tarif_page', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'charges_fixes', 'budgets', 'clients', 'goals', 'accounts'];
   for(const t of order.filter(x => tables.includes(x))){
     const { error } = await sb.from(t).delete().eq('user_id', uid);
     if(error) throw new Error(t + ' : ' + error.message);
@@ -869,7 +870,9 @@ const OT_NT_DEF = {
   dettes: { on: true, jours: 7 },
   coach: { on: true, heure: '08:00' },
   charges: { on: true, jours: [7, 2] },
-  coach_resultats: { on: true }
+  coach_resultats: { on: true },
+  // Espace equipe : tache faite par un membre, defi a valider, bonus a payer (envoye par le serveur)
+  equipe: { on: true }
 };
 const OT_JOURS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 const OT_PRESETS = {
@@ -893,7 +896,7 @@ async function otLoadRappels(){
 }
 async function otSaveNotifs(){
   // Cles du coach (lues par le serveur) : coach, charges, coach_resultats
-  ['coach', 'charges', 'coach_resultats'].forEach(k => { OT.nt[k] = Object.assign(otClone(OT_NT_DEF[k]), OT.nt[k] || {}); });
+  ['coach', 'charges', 'coach_resultats', 'equipe'].forEach(k => { OT.nt[k] = Object.assign(otClone(OT_NT_DEF[k]), OT.nt[k] || {}); });
   OT.nt.charges.jours = [...new Set((OT.nt.charges.jours || []).map(Number).filter(n => n >= 0 && n <= 30))].sort((a, b) => b - a);
   return typeof crmSavePrefs === 'function' ? await crmSavePrefs({ notifs: OT.nt }) : false;
 }
@@ -941,7 +944,7 @@ function otNotifs(focus){
 }
 function otNotifsRead(){
   const c = id => { const e = document.getElementById(id); return e ? e.checked : undefined; };
-  ['seances', 'galerie', 'mood', 'resa', 'motivation', 'marketing', 'stats_posts', 'bilan_semaine', 'bilan_mois', 'checklist', 'dettes', 'coach', 'charges', 'coach_resultats'].forEach(k => { const v = c('otNtOn-' + k); if(v !== undefined) OT.nt[k].on = v; });
+  ['seances', 'galerie', 'mood', 'resa', 'motivation', 'marketing', 'stats_posts', 'bilan_semaine', 'bilan_mois', 'checklist', 'dettes', 'coach', 'charges', 'coach_resultats', 'equipe'].forEach(k => { const v = c('otNtOn-' + k); if(v !== undefined) OT.nt[k].on = v; });
   const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
   [['marketing', '18:00'], ['bilan_semaine', '19:00'], ['bilan_mois', '09:00'], ['checklist', '20:00'], ['coach', '08:00']].forEach(([k, d]) => { const h = val('otNtH-' + k); if(h) OT.nt[k].heure = h; else if(!OT.nt[k].heure) OT.nt[k].heure = d; });
   const j = val('otNtJ-bilan_semaine'); if(j !== '') OT.nt.bilan_semaine.jour = Number(j);
@@ -1029,6 +1032,8 @@ function otNotifsRender(){
     </div>
 
     <div class="ot-nt" id="otNt-coach_resultats">${otSwitch('otNtOn-coach_resultats', (N.coach_resultats || {}).on !== false, 'Résultats demandés par le coach', 'Quelques jours après une étape faite ou une négociation en cours')}</div>
+
+    <div class="ot-nt" id="otNt-equipe">${otSwitch('otNtOn-equipe', (N.equipe || {}).on !== false, 'Mon équipe', 'Tâche faite par un membre, défi à valider, bonus de promotion à payer')}</div>
 
     <button class="btn-primary" style="margin-top:14px" onclick="otNotifsSave()">Enregistrer</button>
     <button class="btn-secondary" style="margin-top:8px" onclick="otNotifsReset()">Remettre les réglages de base</button>`;

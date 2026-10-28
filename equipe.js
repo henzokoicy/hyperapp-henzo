@@ -5,6 +5,7 @@
 // - Fiche d'une personne : seances, paye, rapporte, notes, progression, IA
 // - Seance collaboration et equipe sur une seance (formulaire seance)
 // - Ajouter un contact vite : contacts du telephone, .vcf, texte colle, capture
+// - Espace equipe : lien personnel secret (equipe.html?t=...), taches, defis, bonus de promotion, analyse
 // Les personnes qui ne sont pas clientes ne comptent pas dans les chiffres clients.
 // ============================================================
 
@@ -148,7 +149,10 @@ async function eqLoad(){
     const { data, error } = await sb.from('equipe_evals').select('*').order('date', { ascending: false });
     if(!error) EQ.evals = data || [];
   } catch(e){ console.warn('equipe_evals', e); }
+  await eqLoadPort(true);
   EQ.loaded = true;
+  eqBonusSoon();
+  setTimeout(eqParRepair, 3000);
 }
 async function eqUid(){ try { const { data } = await sb.auth.getUser(); return data && data.user ? data.user.id : null; } catch(e){ return null; } }
 
@@ -208,6 +212,8 @@ async function eqRender(el){
       <button class="ag-act" onclick="eqExport()"><span>${eqI('chat')}</span>Partager</button>
       <button class="ag-act" onclick="CRM.view='clients';crmRender()"><span>${eqI('users')}</span>Clients</button>
     </div>
+
+    ${eqEspaceHtml()}
 
     ${pend.length ? `<div class="ag-sec"><h3>À noter</h3><span class="crm-count">${pend.length}</span></div>
       ${pend.slice(0, 4).map(x => eqPendCard(x.c, x.s)).join('')}<div style="height:14px"></div>` : ''}
@@ -294,6 +300,7 @@ function eqOpen(id){
   const c = eqPerson(id); if(!c) return;
   eqStyle();
   if(!EQ.loaded){ eqLoad().then(() => { if(document.getElementById('eqFiche')) eqOpen(id); }); }
+  else if(Date.now() - EQ.portAt > 60000) eqLoadPort().then(() => { if(document.getElementById('eqFiche')){ eqPortRender(id); eqTachesRender(id); const b = document.getElementById('eqBonusBox'); if(b) b.innerHTML = eqBonusHtml(c); } });
   const s = eqStats(c), inf = eqInfo(c), role = eqRoleKey(c);
   const pend = eqPending(c).slice(0, 3);
   const withShoots = eqWith(c.id);
@@ -317,6 +324,12 @@ function eqOpen(id){
       <div><b>${eqF(s.paid)}</b><span>tu lui as payé</span></div>
       <div><b>${eqF(s.rapport)}</b><span>ces séances ont rapporté</span></div>
     </div>
+    ${typeof window.msgEcrire === 'function' ? `<button class="btn-secondary eq-msg" onclick="window.msgEcrire({ids:[${c.id}]})">${eqI('mail', 16)} Écrire un message</button>` : ''}
+
+    <div id="eqPortBox">${eqPortHtml(c)}</div>
+    <div id="eqTachesBox">${eqTachesHtml(c)}</div>
+    <div id="eqBonusBox">${eqBonusHtml(c)}</div>
+    <div id="eqAnaBox">${eqAnaHtml(c)}</div>
 
     ${pend.length ? `<h4 class="crm-h4">À noter</h4>${pend.map(x => eqPendCard(c, x)).join('')}` : ''}
 
@@ -848,9 +861,10 @@ function eqTeamAddOpen(){
 // Ce que saveShoot (modules.js) enregistre en plus
 function eqShootPatch(){
   if(!eqShootOpen()) return {};
+  // On garde ce qui vient de l'espace equipe (consignes, presence confirmee)
   const list = (EQ.sh.equipe || []).filter(m => m.personne_id).map(m => {
-    const o = { personne_id: Number(m.personne_id), role: m.role || null };
-    if(Number(m.montant) > 0) o.montant = Number(m.montant);
+    const o = Object.assign({}, m, { personne_id: Number(m.personne_id), role: m.role || null });
+    if(Number(m.montant) > 0) o.montant = Number(m.montant); else delete o.montant;
     return o;
   });
   const out = {};
@@ -869,6 +883,569 @@ function eqDecorateShoots(){
     if(s.collab){ const b = card.querySelector('.shoot-badges'); if(b) b.insertAdjacentHTML('beforeend', '<span class="badge eq-collab-badge">Collab</span>'); }
     if(team.length){ const h = card.querySelector('.head'); if(h) h.insertAdjacentHTML('afterend', `<div class="eq-teamline">Équipe : ${team.map(p => `<a onclick="eqOpen(${p.id})">${eqE(eqFirst(p))}</a> (${eqE(eqRoleLabel(eqRoleOn(s, p.id)).toLowerCase())})`).join(', ')}</div>`); }
   });
+}
+
+// ============================================================
+// ESPACE EQUIPE : lien personnel secret, taches, defis, bonus, analyse
+// Le membre ouvre equipe.html?t=TOKEN (sans compte). La page ne lit rien
+// directement : elle passe par les fonctions equipe_portail, equipe_tache_maj,
+// equipe_confirmer et equipe_defi_maj, qui verifient le lien.
+// ============================================================
+const EQ_VOIR = [
+  ['seances', 'Ses séances', 'Date, heure, lieu, consignes, moodboard. Jamais le prix ni le nom du client'],
+  ['taches', 'Ses tâches', 'Il coche « fait » et laisse un commentaire'],
+  ['notes', 'Ses notes', 'Moyennes et courbe'],
+  ['commentaires', 'Tes commentaires', 'Les derniers commentaires de ses notes'],
+  ['paiements', 'Ses paiements', 'Ce que tu lui as payé et ce que tu lui dois'],
+  ['promo', 'Promotion', 'Son lien à partager, son bonus, ses filleuls'],
+  ['defis', 'Défis du mois', 'Il avance et dit quand il a fini'],
+  ['classement', 'Classement du mois', 'Prénoms, clients ramenés et défis validés']
+];
+const EQ_VOIR_DEF = { seances: true, taches: true, notes: true, commentaires: false, paiements: true, promo: true, defis: true, classement: true };
+const EQ_MODELES = {
+  maquilleuse: ['Arriver 30 min avant', 'Kit nettoyé', 'Produits pour peau noire prêts', 'Envoyer une photo du maquillage fini'],
+  coiffeuse: ['Arriver 30 min avant', 'Matériel propre', 'Perruques et accessoires prêts'],
+  assistant: ['Batteries chargées', 'Fond installé', 'Cartes mémoire vidées', 'Lumières testées', 'Ranger le studio après'],
+  videaste: ['Batteries chargées', 'Cartes vidées', 'Envoyer les rushs', 'Micro testé'],
+  modele: ['Tenues préparées', 'Arriver à l\'heure', 'Partager les photos en story'],
+  decorateur: ['Décor installé 1 h avant', 'Photos du décor envoyées'],
+  partenaire: ['Lieu ouvert et propre', 'Confirmer la réservation'],
+  autre: ['Arriver à l\'heure', 'Confirmer sa présence']
+};
+Object.assign(EQ, { taches: [], defis: [], suivi: [], bonus: [], promo: {}, portAt: 0 });
+
+function eqPort(c){ const p = c && c.portail; return p && typeof p === 'object' && !Array.isArray(p) ? p : {}; }
+function eqPortOn(c){ return eqPort(c).actif === true && !!(c && c.portail_token); }
+function eqVoir(c){ return Object.assign({}, EQ_VOIR_DEF, eqPort(c).voir || {}); }
+// Lien secret : 40 caracteres tires au hasard (crypto), sans biais
+function eqNewToken(){
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', out = [], buf = new Uint8Array(64);
+  while(out.length < 40){ crypto.getRandomValues(buf); for(const b of buf){ if(b < 248 && out.length < 40) out.push(A[b % 62]); } }
+  return out.join('');
+}
+function eqPortUrl(c){
+  if(!c || !c.portail_token) return '';
+  const base = /^https?:/.test(location.origin) ? location.origin : 'https://hyperapp-henzo.vercel.app';
+  return base + '/equipe.html?t=' + encodeURIComponent(c.portail_token);
+}
+function eqPromoCfg(){ return Object.assign({ bonus_type: 'montant', valeur: 0, message: '', classement: true, depuis: null }, EQ.promo || {}); }
+function eqTime(d){ return d ? new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ') : ''; }
+function eqShootPaid(s){
+  if(!s || eqCancelled(s) || s.collab) return false;
+  return s.payment === 'paye' || (Number(s.price) > 0 && Number(s.montant_recu || 0) >= Number(s.price));
+}
+
+// ---------- Chargement ----------
+async function eqLoadPort(force){
+  if(!force && EQ.portAt && Date.now() - EQ.portAt < 60000) return;
+  EQ.portAt = Date.now();
+  const get = async t => { try { const { data, error } = await sb.from(t).select('*').order('id', { ascending: false }); return error ? null : (data || []); } catch(e){ return null; } };
+  const [t, d, s, b] = await Promise.all([get('equipe_taches'), get('equipe_defis'), get('equipe_defis_suivi'), get('equipe_bonus')]);
+  if(t) EQ.taches = t; if(d) EQ.defis = d; if(s) EQ.suivi = s; if(b) EQ.bonus = b;
+  try {
+    const u = await eqUid();
+    if(u){ const { data } = await sb.from('user_settings').select('user_preferences').eq('user_id', u).maybeSingle(); EQ.promo = (data && data.user_preferences && data.user_preferences.equipe_promo) || {}; }
+  } catch(e){}
+  // Les membres confirment leur presence depuis leur page : on reprend shoots.equipe a jour
+  try {
+    const { data } = await sb.from('shoots').select('id,equipe').gte('date', new Date(Date.now() - 45 * eqDay).toISOString());
+    (data || []).forEach(r => { const s = eqShoots().find(x => x.id === r.id); if(s && Array.isArray(r.equipe)) s.equipe = r.equipe; });
+  } catch(e){}
+  EQ.portLoaded = true;
+}
+
+// ============================================================
+// FICHE MEMBRE : ESPACE PERSONNEL
+// ============================================================
+function eqPortHtml(c){
+  const on = eqPortOn(c), p = eqPort(c), v = eqVoir(c), url = eqPortUrl(c);
+  const next = eqWorked(c.id).filter(s => s.date && new Date(s.date) >= new Date(Date.now() - 3 * 3600e3)).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  return `<div class="eq-port ${on ? 'on' : ''}">
+    <div class="eq-port-h"><div><b>Espace personnel</b><span>${on ? (p.vu ? 'Ouvert ' + eqAgo(p.vu) : 'Lien pas encore ouvert') : p.actif === false && c.portail_token ? 'Lien coupé' : 'Un lien secret, sans compte ni mot de passe'}</span></div>
+      <i class="eq-port-st">${on ? 'Actif' : 'Inactif'}</i></div>
+    ${on ? `<div class="eq-port-url" onclick="crmCopy('${eqE(url)}')"><span>${eqE(url.replace(/^https?:\/\//, ''))}</span>${eqI('copy', 15)}</div>
+      <div class="eq-port-b">
+        <button class="main" onclick="eqPortWa(${c.id})">${eqI('chat', 15)}Envoyer sur WhatsApp</button>
+        <button onclick="crmCopy('${eqE(url)}')">${eqI('copy', 15)}Copier</button>
+        <button onclick="window.open('${eqE(url)}','_blank')">${eqI('eye', 15)}Voir sa page</button>
+        <button onclick="eqPortRegen(${c.id})">${eqI('refresh', 15)}Nouveau lien</button>
+        <button class="danger" onclick="eqPortCouper(${c.id})">${eqI('ban', 15)}Couper</button>
+      </div>
+      <div class="eq-sub">Ce qu'il voit</div>
+      <div class="eq-voir">${EQ_VOIR.map(([k, n, d]) => `<label class="eq-tg"><div><b>${eqE(n)}</b><span>${eqE(d)}</span></div><input type="checkbox" ${v[k] ? 'checked' : ''} onchange="eqVoirSet(${c.id},'${k}',this.checked)"><i></i></label>`).join('')}</div>
+      <div class="eq-sub">Consignes pour toutes ses séances</div>
+      <textarea id="eqConsAll" rows="2" placeholder="Ex : toujours arriver 30 min avant, tenue noire">${eqE(p.consignes || '')}</textarea>
+      <button class="eq-mini" onclick="eqConsAllSave(${c.id})">Enregistrer</button>
+      ${next.length ? `<div class="eq-sub">Consignes pour ses prochaines séances</div>${next.slice(0, 5).map(s => { const m = eqTeam(s).find(e => Number(e.personne_id) === c.id) || {}; return `
+        <div class="eq-cons"><div class="eq-cons-h"><b>${eqE(s.type || 'Séance')} · ${eqDate(s.date, { weekday: 'short', day: 'numeric', month: 'short' })} ${eqTime(s.date)}</b>
+          ${m.confirme ? '<i class="eq-ok">Présence confirmée</i>' : '<i class="eq-wait">Pas encore confirmé</i>'}</div>
+          <textarea id="eqCons_${s.id}" rows="2" placeholder="Ex : maquillage naturel, la mariée a la peau sensible">${eqE(m.consignes || '')}</textarea>
+          <button class="eq-mini" onclick="eqConsSave(${c.id},${s.id})">Enregistrer</button></div>`; }).join('')}` : ''}`
+    : `<p class="eq-port-txt">${eqE(eqFirst(c))} reçoit un lien personnel. Il y voit ses séances, ses tâches, ses notes, ses paiements, son lien de promotion et les défis du mois, selon ce que tu choisis. Pas de compte, pas de mot de passe.</p>
+      <button class="btn-primary" onclick="eqPortActiver(${c.id})">${c.portail_token ? 'Réactiver son espace' : 'Activer son espace'}</button>`}
+  </div>`;
+}
+function eqPortRender(id){
+  const c = eqPerson(id), el = document.getElementById('eqPortBox');
+  if(c && el) el.innerHTML = eqPortHtml(c);
+}
+async function eqPortSave(c, patch, extra){
+  const portail = Object.assign({}, eqPort(c), patch);
+  const r = await dbUpdate('clients', c.id, Object.assign({ portail }, extra || {}));
+  if(r) Object.assign(c, r);
+  return r;
+}
+async function eqPortActiver(id){
+  const c = eqPerson(id); if(!c) return;
+  const extra = c.portail_token ? {} : { portail_token: eqNewToken() };
+  const r = await eqPortSave(c, { actif: true, voir: eqVoir(c), active_le: eqPort(c).active_le || new Date().toISOString() }, extra);
+  if(!r) return;
+  if(!c.code_parrain && typeof exParEnsureCode === 'function'){ try { await exParEnsureCode(c); } catch(e){} }
+  agToast('Espace personnel activé');
+  eqPortRender(id);
+}
+async function eqPortRegen(id){
+  const c = eqPerson(id); if(!c) return;
+  if(!await agConfirm(`Créer un nouveau lien ?\nL'ancien lien de ${eqFirst(c)} ne marchera plus. Tu devras lui envoyer le nouveau.`, { ok: 'Nouveau lien' })) return;
+  const r = await eqPortSave(c, { actif: true }, { portail_token: eqNewToken() });
+  if(r){ agToast('Nouveau lien créé : l\'ancien ne marche plus'); eqPortRender(id); }
+}
+async function eqPortCouper(id){
+  const c = eqPerson(id); if(!c) return;
+  if(!await agConfirm(`Couper l'espace de ${eqFirst(c)} ?\nSon lien ne montrera plus rien. Tu pourras le réactiver plus tard.`, { ok: 'Couper' })) return;
+  const r = await eqPortSave(c, { actif: false });
+  if(r){ agToast('Espace coupé'); eqPortRender(id); }
+}
+async function eqVoirSet(id, k, on){
+  const c = eqPerson(id); if(!c) return;
+  const v = eqVoir(c); v[k] = !!on;
+  const r = await eqPortSave(c, { voir: v });
+  if(!r) eqPortRender(id);
+}
+function eqPortMsg(c){
+  const v = eqVoir(c), url = eqPortUrl(c);
+  const l = [v.seances && 'tes séances avec l\'heure, le lieu et mes consignes', v.taches && 'tes tâches à cocher', v.notes && 'tes notes', v.paiements && 'tes paiements',
+    v.promo && 'ton lien pour me ramener des clients (avec un bonus pour toi)', v.defis && 'les défis du mois'].filter(Boolean);
+  return `Bonjour ${eqFirst(c)} ! Voici ton espace personnel Henzo Photographie :\n${url}\n\n${l.length ? 'Tu y trouveras :\n' + l.map(x => '- ' + x).join('\n') + '\n\n' : ''}Pense à confirmer ta présence avant chaque séance. Ce lien est personnel : ne le partage pas. Garde-le dans tes favoris.`;
+}
+function eqPortWa(id){ const c = eqPerson(id); if(c) crmWa(id, eqPortMsg(c)); }
+async function eqConsAllSave(id){
+  const c = eqPerson(id), el = document.getElementById('eqConsAll'); if(!c || !el) return;
+  const r = await eqPortSave(c, { consignes: el.value.trim().slice(0, 1000) });
+  if(r) agToast('Consignes enregistrées');
+}
+async function eqConsSave(pid, sid){
+  const s = eqShoots().find(x => x.id === Number(sid)), el = document.getElementById('eqCons_' + sid); if(!s || !el) return;
+  const txt = el.value.trim().slice(0, 1000);
+  const team = JSON.parse(JSON.stringify(eqTeam(s)));
+  let m = team.find(e => Number(e.personne_id) === Number(pid));
+  if(!m){ m = { personne_id: Number(pid), role: eqRoleKey(eqPerson(pid)) }; team.push(m); }
+  if(txt) m.consignes = txt; else delete m.consignes;
+  const r = await dbUpdate('shoots', s.id, { equipe: team });
+  if(r){ Object.assign(s, r); if(!Array.isArray(s.equipe)) s.equipe = team; agToast('Consignes enregistrées'); }
+}
+
+// ============================================================
+// TACHES
+// ============================================================
+function eqTacheLate(t){ return (t.statut === 'a_faire' || t.statut === 'refuse') && t.echeance && new Date(t.echeance) < new Date(); }
+const EQ_TST = { a_faire: ['À faire', ''], fait: ['Fait, à valider', 'fait'], valide: ['Validé', 'ok'], refuse: ['Refusé, à refaire', 'ko'] };
+function eqTacheRow(t, withName){
+  const p = withName ? eqPerson(t.personne_id) : null, s = t.shoot_id ? eqShoots().find(x => x.id === Number(t.shoot_id)) : null;
+  const late = eqTacheLate(t), st = EQ_TST[t.statut] || EQ_TST.a_faire;
+  return `<div class="eq-task ${late ? 'late' : ''} ${t.statut}">
+    <div class="eq-task-h"><b>${p ? eqE(eqFirst(p)) + ' · ' : ''}${eqE(t.titre || 'Tâche')}</b><i class="eq-st ${late ? 'late' : st[1]}">${late ? 'En retard' : st[0]}</i></div>
+    <span>${[t.echeance ? 'Pour le ' + eqDate(t.echeance, { day: 'numeric', month: 'short' }) + ' ' + eqTime(t.echeance) : 'Sans date', s ? eqE((s.type || 'Séance') + ' du ' + eqDate(s.date, { day: 'numeric', month: 'short' })) : ''].filter(Boolean).join(' · ')}</span>
+    ${t.detail ? `<p>${eqE(t.detail)}</p>` : ''}
+    ${t.fait_le ? `<span class="eq-done">Fait ${eqAgo(t.fait_le)}${t.echeance && new Date(t.fait_le) > new Date(t.echeance) ? ' (en retard)' : ''}</span>` : ''}
+    ${t.commentaire ? `<p class="eq-com">« ${eqE(t.commentaire)} »</p>` : ''}
+    ${t.photo_url ? `<a class="eq-photo" href="${eqE(t.photo_url)}" target="_blank" rel="noopener">Voir la photo</a>` : ''}
+    <div class="eq-task-b">
+      ${t.statut === 'fait' ? `<button class="ok" onclick="eqTacheValider(${t.id},true)">Valider</button><button class="ko" onclick="eqTacheValider(${t.id},false)">Refuser</button>` : ''}
+      ${t.statut !== 'valide' ? `<button onclick="eqTacheForm(${t.personne_id},${t.id})">Modifier</button>` : ''}
+      <button onclick="eqTacheDelete(${t.id})">Supprimer</button>
+    </div></div>`;
+}
+function eqTachesHtml(c){
+  const all = EQ.taches.filter(t => Number(t.personne_id) === c.id);
+  const ouvertes = all.filter(t => t.statut !== 'valide').sort((a, b) => (b.statut === 'fait') - (a.statut === 'fait') || String(a.echeance || '9').localeCompare(String(b.echeance || '9')));
+  const faites = all.filter(t => t.statut === 'valide').sort((a, b) => String(b.valide_le || '').localeCompare(String(a.valide_le || ''))).slice(0, 3);
+  return `<h4 class="crm-h4">Tâches <span class="crm-count">${ouvertes.length}</span></h4>
+    ${ouvertes.length ? ouvertes.map(t => eqTacheRow(t)).join('') : '<div class="ag-list"><div class="ag-empty">Pas de tâche en cours.</div></div>'}
+    ${faites.length ? `<div class="eq-sub">Dernières validées</div>${faites.map(t => `<div class="eq-task-mini"><i class="eq-ck"></i>${eqE(t.titre)} <span>${eqDate(t.valide_le, { day: 'numeric', month: 'short' })}</span></div>`).join('')}` : ''}
+    <button class="crm-link" onclick="eqTacheForm(${c.id},null)">+ Nouvelle tâche pour ${eqE(eqFirst(c))}</button>`;
+}
+function eqTachesRender(pid){
+  const c = eqPerson(pid), el = document.getElementById('eqTachesBox');
+  if(c && el) el.innerHTML = eqTachesHtml(c);
+  const ana = document.getElementById('eqAnaBox'); if(c && ana) ana.innerHTML = eqAnaHtml(c);
+  if(document.querySelector('.page.active#page-clients') && typeof CRM !== 'undefined' && CRM.view === 'equipe' && !document.getElementById('eqFiche')) eqRender();
+}
+function eqLocalInput(d){ if(!d) return ''; const x = new Date(d); return new Date(x - x.getTimezoneOffset() * 6e4).toISOString().slice(0, 16); }
+function eqTacheForm(pid, id){
+  const c = eqPerson(pid); if(!c) return;
+  const t = id ? EQ.taches.find(x => x.id === Number(id)) : null;
+  const ss = eqWorked(pid).filter(s => s.date && new Date(s.date) > Date.now() - 7 * eqDay).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const mod = EQ_MODELES[eqRoleKey(c)] || EQ_MODELES.autre;
+  agSheet('eqTache', `<h3>${t ? 'Modifier la tâche' : 'Tâche pour ' + eqE(eqFirst(c))}</h3>
+    ${!t ? `<label>Modèles rapides</label><div class="ag-pills" id="eqTMod">${mod.map(m => `<button type="button" onclick="document.getElementById('eqTTitre').value=this.textContent;this.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===this))">${eqE(m)}</button>`).join('')}</div>` : ''}
+    <label>Titre</label><input id="eqTTitre" maxlength="150" value="${eqE(t ? t.titre : '')}" placeholder="Ex : Arriver 30 min avant">
+    <label>Détail (facultatif)</label><textarea id="eqTDetail" rows="2" maxlength="600">${eqE(t ? t.detail || '' : '')}</textarea>
+    <label>Séance liée (facultatif)</label><select id="eqTShoot" onchange="const o=this.selectedOptions[0];const e=document.getElementById('eqTEch');if(o&&o.dataset.d&&!e.value)e.value=o.dataset.d">
+      <option value="">Aucune</option>${ss.map(s => `<option value="${s.id}" data-d="${eqLocalInput(s.date)}" ${t && Number(t.shoot_id) === s.id ? 'selected' : ''}>${eqE((s.type || 'Séance') + ' · ' + eqDate(s.date, { day: 'numeric', month: 'short' }) + ' ' + eqTime(s.date))}</option>`).join('')}</select>
+    <label>Échéance</label><input id="eqTEch" type="datetime-local" value="${eqLocalInput(t && t.echeance)}">
+    <button class="btn-primary" id="eqTBtn" onclick="eqTacheSave(${pid},${t ? t.id : 'null'})">Enregistrer</button>`);
+}
+async function eqTacheSave(pid, id){
+  const v = k => String((document.getElementById(k) || {}).value || '').trim();
+  const titre = v('eqTTitre').slice(0, 150); if(!titre){ agAlert('Donne un titre à la tâche.'); return; }
+  const btn = document.getElementById('eqTBtn'); if(btn){ if(btn.dataset.busy) return; btn.dataset.busy = '1'; btn.disabled = true; }
+  const row = { personne_id: Number(pid), titre, detail: v('eqTDetail').slice(0, 600) || null, shoot_id: v('eqTShoot') ? Number(v('eqTShoot')) : null, echeance: v('eqTEch') ? new Date(v('eqTEch')).toISOString() : null };
+  let r;
+  if(id){ r = await dbUpdate('equipe_taches', id, row); if(r) Object.assign(EQ.taches.find(x => x.id === id) || {}, r); }
+  else { r = await dbInsert('equipe_taches', Object.assign(row, { statut: 'a_faire' })); if(r) EQ.taches.unshift(r); }
+  if(!r){ if(btn){ btn.disabled = false; delete btn.dataset.busy; } return; }
+  agCloseSheet('eqTache');
+  agToast(id ? 'Tâche modifiée' : 'Tâche créée : elle apparaît sur sa page');
+  eqTachesRender(pid);
+}
+async function eqTacheValider(id, ok){
+  const t = EQ.taches.find(x => x.id === Number(id)); if(!t) return;
+  let patch;
+  if(ok) patch = { statut: 'valide', valide_le: new Date().toISOString() };
+  else {
+    const why = await agPrompt('Refuser la tâche\nDis-lui ce qui ne va pas (il le verra sur sa page).', '');
+    if(why == null) return;
+    patch = { statut: 'refuse', fait_le: null, valide_le: null, commentaire: ('Henzo : ' + (why.trim() || 'à refaire')).slice(0, 500) };
+  }
+  const r = await dbUpdate('equipe_taches', t.id, patch);
+  if(!r) return;
+  Object.assign(t, r);
+  agToast(ok ? 'Tâche validée' : 'Tâche refusée : il doit la refaire');
+  eqTachesRender(t.personne_id);
+  if(document.getElementById('eqAValider')) eqAValider();
+}
+async function eqTacheDelete(id){
+  const t = EQ.taches.find(x => x.id === Number(id)); if(!t) return;
+  if(!await agConfirm('Supprimer cette tâche ?')) return;
+  if(!await dbDelete('equipe_taches', t.id)) return;
+  EQ.taches = EQ.taches.filter(x => x.id !== t.id);
+  eqTachesRender(t.personne_id);
+}
+
+// ============================================================
+// DEFIS DU MOIS
+// ============================================================
+function eqDefiOuvert(d){ const t = eqToday(); return d.actif !== false && (!d.fin || d.fin >= t) && (!d.debut || d.debut <= t); }
+function eqSuiviOf(did){ return EQ.suivi.filter(s => Number(s.defi_id) === Number(did)); }
+function eqDefis(){
+  const l = EQ.defis.slice().sort((a, b) => (eqDefiOuvert(b) - eqDefiOuvert(a)) || String(b.debut || '').localeCompare(String(a.debut || '')));
+  agSheet('eqDefis', `<h3>Défis du mois</h3>
+    <div class="ag-hint" style="margin-top:0">Un défi motive ton équipe : « Ramène 3 clients », « 5 stories sur Henzo »... Chacun avance depuis sa page, tu valides.</div>
+    <button class="btn-primary" style="margin:10px 0" onclick="eqDefiForm(null)">+ Nouveau défi</button>
+    ${l.length ? l.map(d => {
+      const su = eqSuiviOf(d.id), obj = Math.max(1, Number(d.objectif) || 1);
+      return `<div class="eq-defi ${eqDefiOuvert(d) ? '' : 'off'}">
+        <div class="eq-task-h"><b>${eqE(d.titre)}</b><i class="eq-st ${eqDefiOuvert(d) ? 'ok' : ''}">${d.actif === false ? 'Arrêté' : eqDefiOuvert(d) ? 'En cours' : 'Terminé'}</i></div>
+        <span>${d.debut ? 'Du ' + eqDate(d.debut, { day: 'numeric', month: 'short' }) : ''}${d.fin ? ' au ' + eqDate(d.fin, { day: 'numeric', month: 'short' }) : ''} · objectif ${obj}${d.recompense ? ' · ' + eqE(d.recompense) : ''}</span>
+        ${d.detail ? `<p>${eqE(d.detail)}</p>` : ''}
+        <div class="eq-defi-l">${su.length ? su.map(s => { const p = eqPerson(s.personne_id); const pc = Math.min(100, Math.round((Number(s.progres) || 0) / obj * 100)); return `
+          <div class="eq-defi-r"><div class="eq-defi-n"><b>${eqE(p ? eqFirst(p) : 'Personne')}</b><span>${Number(s.progres) || 0}/${obj}${s.preuve ? ' · ' + eqE(String(s.preuve).slice(0, 120)) : ''}</span>
+            <div class="eq-pbar"><i style="width:${pc}%"></i></div></div>
+            ${s.statut === 'a_valider' ? `<div class="eq-task-b"><button class="ok" onclick="eqDefiValider(${s.id},true)">Valider</button><button class="ko" onclick="eqDefiValider(${s.id},false)">Refuser</button></div>`
+              : `<i class="eq-st ${s.statut === 'valide' ? 'ok' : s.statut === 'refuse' ? 'ko' : ''}">${{ valide: 'Validé', refuse: 'Refusé', en_cours: 'En cours' }[s.statut] || 'En cours'}</i>`}</div>`; }).join('')
+          : '<div class="eq-team-empty">Personne n\'a encore commencé.</div>'}</div>
+        <div class="eq-task-b"><button onclick="eqDefiForm(${d.id})">Modifier</button><button onclick="eqDefiPartager(${d.id})">Annoncer sur WhatsApp</button></div>
+      </div>`; }).join('') : '<div class="ag-list"><div class="ag-empty">Aucun défi pour le moment.</div></div>'}`);
+}
+function eqDefiForm(id){
+  const d = id ? EQ.defis.find(x => x.id === Number(id)) : null;
+  const now = new Date(), fin = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const ymd = x => new Date(x - x.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+  agSheet('eqDefiF', `<h3>${d ? 'Modifier le défi' : 'Nouveau défi'}</h3>
+    ${!d ? `<label>Idées</label><div class="ag-pills">${[['Ramène 3 clients', 3, 'Partage ton lien et ramène 3 nouveaux clients ce mois'], ['5 stories sur Henzo', 5, 'Publie 5 stories qui parlent du studio'], ['Zéro retard ce mois', 1, 'Arrive à l\'heure à toutes tes séances'], ['2 avis Google', 2, 'Demande à 2 clients de laisser un avis']]
+      .map(([t, o, dt]) => `<button type="button" onclick="eqDefiIdee(this)" data-t="${eqE(t)}" data-o="${o}" data-d="${eqE(dt)}">${eqE(t)}</button>`).join('')}</div>` : ''}
+    <label>Titre</label><input id="eqDTitre" maxlength="120" value="${eqE(d ? d.titre : '')}" placeholder="Ex : Ramène 3 clients">
+    <label>Détail</label><textarea id="eqDDetail" rows="2" maxlength="600">${eqE(d ? d.detail || '' : '')}</textarea>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><label>Début</label><input id="eqDDebut" type="date" value="${eqE(d ? d.debut || '' : ymd(now))}"></div>
+      <div><label>Fin</label><input id="eqDFin" type="date" value="${eqE(d ? d.fin || '' : ymd(fin))}"></div></div>
+    <label>Objectif (nombre)</label><input id="eqDObj" type="number" min="1" inputmode="numeric" value="${d ? Number(d.objectif) || 1 : 3}">
+    <label>Récompense</label><input id="eqDRec" maxlength="150" value="${eqE(d ? d.recompense || '' : '')}" placeholder="Ex : 5 000 F de bonus">
+    <label class="eq-check"><input type="checkbox" id="eqDActif" ${!d || d.actif !== false ? 'checked' : ''}> Défi actif (visible par l'équipe)</label>
+    <button class="btn-primary" id="eqDBtn" onclick="eqDefiSave(${d ? d.id : 'null'})">Enregistrer</button>`);
+}
+function eqDefiIdee(b){ document.getElementById('eqDTitre').value = b.dataset.t; document.getElementById('eqDObj').value = b.dataset.o; const d = document.getElementById('eqDDetail'); if(!d.value) d.value = b.dataset.d; }
+async function eqDefiSave(id){
+  const v = k => String((document.getElementById(k) || {}).value || '').trim();
+  const titre = v('eqDTitre').slice(0, 120); if(!titre){ agAlert('Donne un titre au défi.'); return; }
+  if(v('eqDFin') && v('eqDDebut') && v('eqDFin') < v('eqDDebut')){ agAlert('La date de fin est avant le début.'); return; }
+  const btn = document.getElementById('eqDBtn'); if(btn){ if(btn.dataset.busy) return; btn.dataset.busy = '1'; btn.disabled = true; }
+  const row = { titre, detail: v('eqDDetail').slice(0, 600) || null, debut: v('eqDDebut') || eqToday(), fin: v('eqDFin') || null, objectif: Math.max(1, parseInt(v('eqDObj')) || 1), recompense: v('eqDRec').slice(0, 150) || null, actif: !!(document.getElementById('eqDActif') || {}).checked };
+  let r;
+  if(id){ r = await dbUpdate('equipe_defis', id, row); if(r) Object.assign(EQ.defis.find(x => x.id === id) || {}, r); }
+  else { r = await dbInsert('equipe_defis', row); if(r) EQ.defis.unshift(r); }
+  if(!r){ if(btn){ btn.disabled = false; delete btn.dataset.busy; } return; }
+  agCloseSheet('eqDefiF');
+  agToast(id ? 'Défi modifié' : 'Défi créé : il apparaît sur la page de ton équipe');
+  eqDefis();
+}
+async function eqDefiValider(sid, ok){
+  const s = EQ.suivi.find(x => x.id === Number(sid)); if(!s) return;
+  const p = eqPerson(s.personne_id), d = EQ.defis.find(x => x.id === Number(s.defi_id));
+  if(!await agConfirm(ok ? `Valider le défi de ${p ? eqFirst(p) : 'ce membre'} ?${d && d.recompense ? '\nRécompense : ' + d.recompense : ''}` : `Refuser le défi de ${p ? eqFirst(p) : 'ce membre'} ?\nIl pourra continuer et le renvoyer.`, { ok: ok ? 'Valider' : 'Refuser' })) return;
+  const r = await dbUpdate('equipe_defis_suivi', s.id, ok ? { statut: 'valide', valide_le: new Date().toISOString() } : { statut: 'refuse', valide_le: null });
+  if(!r) return;
+  Object.assign(s, r);
+  agToast(ok ? 'Défi validé' : 'Défi refusé');
+  if(document.getElementById('eqDefis')) eqDefis();
+  if(document.getElementById('eqAValider')) eqAValider();
+}
+function eqDefiPartager(id){
+  const d = EQ.defis.find(x => x.id === Number(id)); if(!d) return;
+  const t = `Défi du mois Henzo Photographie : ${d.titre}\n${d.detail ? d.detail + '\n' : ''}Objectif : ${Number(d.objectif) || 1}${d.fin ? ', avant le ' + eqDate(d.fin, { day: 'numeric', month: 'long' }) : ''}${d.recompense ? '\nRécompense : ' + d.recompense : ''}\n\nSuis tes progrès et dis-moi quand tu as fini dans ton espace personnel.`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
+}
+
+// ============================================================
+// BONUS DE PROMOTION
+// Un membre de l'equipe qui ramene un client (clients.parrain_id = membre) recoit un bonus
+// en argent (equipe_bonus) quand ce client a une seance payee : une seule fois par seance.
+// Les paliers de reduction du parrainage client (extras.js) restent pour les clients :
+// un membre de l'equipe n'en recoit pas en plus (voir eqHooks, exParGive).
+// ============================================================
+async function eqBonusCheck(){
+  const cfg = eqPromoCfg();
+  if(!EQ.portLoaded || !(Number(cfg.valeur) > 0) || cfg.on === false) return [];
+  if(EQ.bonusBusy) return [];
+  EQ.bonusBusy = true;
+  const out = [];
+  try {
+    const uid = await eqUid(); if(!uid) return [];
+    for(const m of eqPeople()){
+      const fs = eqClients().filter(f => f.parrain_id != null && Number(f.parrain_id) === m.id && f.id !== m.id);
+      for(const f of fs){
+        for(const s of eqShoots().filter(x => Number(x.client_id) === f.id && eqShootPaid(x) && (!cfg.depuis || String(x.date || '').slice(0, 10) >= cfg.depuis))){
+          if(EQ.bonus.some(b => Number(b.personne_id) === m.id && Number(b.shoot_id) === s.id)) continue;
+          const montant = cfg.bonus_type === 'pourcent' ? Math.round((Number(s.price) || 0) * Number(cfg.valeur) / 100) : Math.round(Number(cfg.valeur));
+          if(!(montant > 0)) continue;
+          const row = { user_id: uid, personne_id: m.id, client_id: f.id, shoot_id: s.id, montant, statut: 'du', motif: `${eqFirst(f)} : séance ${String(s.type || '').toLowerCase()} payée`.replace(/\s+/g, ' ').slice(0, 200) };
+          const { data, error } = await sb.from('equipe_bonus').insert(row).select().single();
+          if(!error && data){ EQ.bonus.unshift(data); out.push({ m, f, b: data }); }
+          else if(error) console.warn('equipe_bonus', error.message);
+        }
+      }
+    }
+  } catch(e){ console.warn('eqBonusCheck', e); }
+  finally { EQ.bonusBusy = false; }
+  if(out.length) agToast(out.length === 1 ? `Bonus de ${eqF(out[0].b.montant)} pour ${eqFirst(out[0].m)} : ${eqFirst(out[0].f)} a payé sa séance` : `${out.length} bonus de promotion à payer à ton équipe`);
+  return out;
+}
+// Securite : si un bon de parrainage client a ete cree pour un membre de l'equipe avant que
+// la regle ci-dessus soit en place (chargement tres rapide), on l'arrete s'il n'a pas servi.
+async function eqParRepair(){
+  try {
+    const promos = typeof CRM !== 'undefined' && Array.isArray(CRM.promos) ? CRM.promos : [];
+    for(const c of eqPeople()){
+      const ref = 'Réf. parrainage ' + c.id + '-';
+      for(const p of promos.filter(x => x.status === 'active' && String(x.notes || '').includes(ref) && !(x.uses || []).length)){
+        const notes = String(p.notes || '') + ' - Arrêté : membre de l\'équipe, il reçoit le bonus équipe à la place.';
+        const { error } = await sb.from('promos').update({ status: 'arrete', notes }).eq('id', p.id);
+        if(!error){ p.status = 'arrete'; p.notes = notes; }
+      }
+    }
+  } catch(e){ console.warn('eqParRepair', e); }
+}
+function eqBonusSoon(){ clearTimeout(EQ.bonusT); EQ.bonusT = setTimeout(() => { eqBonusCheck(); }, 1500); }
+function eqBonusDus(pid){ return EQ.bonus.filter(b => b.statut === 'du' && (!pid || Number(b.personne_id) === Number(pid))); }
+function eqBonusHtml(c){
+  const l = EQ.bonus.filter(b => Number(b.personne_id) === c.id);
+  if(!l.length) return '';
+  const du = l.filter(b => b.statut === 'du'), paye = l.filter(b => b.statut === 'paye');
+  return `<h4 class="crm-h4">Bonus de promotion</h4>
+    ${du.map(b => `<div class="eq-bonus"><div><b>${eqF(b.montant)}</b><span>${eqE(b.motif || 'Bonus')} · ${eqDate(b.created_at, { day: 'numeric', month: 'short' })}</span></div><button onclick="eqBonusPay(${b.id})">Payer le bonus</button></div>`).join('')}
+    ${paye.length ? `<div class="ag-hint">Déjà payé : ${eqF(paye.reduce((a, b) => a + (Number(b.montant) || 0), 0))} (${paye.length} bonus)</div>` : ''}`;
+}
+function eqBonusPay(id){
+  const b = EQ.bonus.find(x => x.id === Number(id)); if(!b || b.statut !== 'du') return;
+  const p = eqPerson(b.personne_id);
+  const accs = typeof agActiveAccounts === 'function' ? agActiveAccounts() : (typeof accounts !== 'undefined' ? accounts : []);
+  if(!accs.length){ agAlert("Crée d'abord un compte : une dépense part toujours d'un compte."); return; }
+  agSheet('eqPay', `<h3>Payer le bonus de ${eqE(p ? eqFirst(p) : '')}</h3>
+    <div class="ag-hint" style="margin-top:0">${eqE(b.motif || '')}</div>
+    <div class="eq-pay-amt">${eqF(b.montant)}</div>
+    <label>Depuis quel compte</label><select id="eqPayAcc">${accs.map(a => `<option value="${a.id}">${eqE(a.name)}${typeof agAccountBalance === 'function' ? ' · ' + eqF(agAccountBalance(a)) : ''}</option>`).join('')}</select>
+    <div class="ag-hint">Une dépense « Équipe » est créée dans ce compte.</div>
+    <button class="btn-primary" id="eqPayBtn" onclick="eqBonusPayGo(${b.id})">Payer ${eqF(b.montant)}</button>`);
+}
+async function eqBonusPayGo(id){
+  const b = EQ.bonus.find(x => x.id === Number(id)); if(!b || b.statut !== 'du') return;
+  const btn = document.getElementById('eqPayBtn'); if(btn){ if(btn.dataset.busy) return; btn.dataset.busy = '1'; btn.disabled = true; }
+  const acc = Number((document.getElementById('eqPayAcc') || {}).value);
+  const p = eqPerson(b.personne_id);
+  const note = `Bonus promotion ${p ? eqFirst(p) : ''} : ${b.motif || ''}`.slice(0, 200);
+  let d = null;
+  try {
+    // Deja paye depuis un autre appareil ?
+    const { data: cur } = await sb.from('equipe_bonus').select('*').eq('id', b.id).maybeSingle();
+    if(cur && cur.statut === 'paye'){ Object.assign(b, cur); agCloseSheet('eqPay'); agToast('Ce bonus est déjà payé'); eqAfterBonus(b); return; }
+    if(typeof bgPayer === 'function') d = await bgPayer({ src: { account_id: acc }, amount: b.montant, category: 'Équipe', note, details: 'eqbonus:' + b.id });
+    else {
+      const a = (typeof accounts !== 'undefined' ? accounts : []).find(x => x.id === acc);
+      d = await dbInsert('transactions', { type: 'depense', amount: Math.round(Number(b.montant)), category: 'Équipe', note, date: eqToday(), account_id: acc, payment_method: a ? a.name : null, details: 'eqbonus:' + b.id });
+      if(d && typeof txs !== 'undefined') txs.unshift(d);
+    }
+  } catch(e){ console.warn(e); }
+  if(!d){ if(btn){ btn.disabled = false; delete btn.dataset.busy; } return; }
+  const r = await dbUpdate('equipe_bonus', b.id, { statut: 'paye', tx_id: d.id, paye_le: new Date().toISOString() });
+  Object.assign(b, r || { statut: 'paye', tx_id: d.id });
+  agCloseSheet('eqPay');
+  agToast('Bonus payé : dépense créée');
+  if(typeof refreshAll === 'function') try { refreshAll(); } catch(e){}
+  eqAfterBonus(b);
+}
+function eqAfterBonus(b){
+  const el = document.getElementById('eqBonusBox'), p = eqPerson(b.personne_id);
+  if(el && p) el.innerHTML = eqBonusHtml(p);
+  if(document.getElementById('eqAValider')) eqAValider();
+}
+function eqPromoReglage(){
+  const c = eqPromoCfg();
+  agSheet('eqPromo', `<h3>Bonus de promotion</h3>
+    <div class="ag-hint" style="margin-top:0">Quand un client ramené par un membre de ton équipe (avec son lien ou son code) a une séance payée, l'app crée un bonus à lui payer. Une seule fois par séance.</div>
+    <label>Type de bonus</label><select id="eqPrType"><option value="montant" ${c.bonus_type !== 'pourcent' ? 'selected' : ''}>Montant fixe (F)</option><option value="pourcent" ${c.bonus_type === 'pourcent' ? 'selected' : ''}>Pourcentage de la séance (%)</option></select>
+    <label>Valeur</label><input id="eqPrVal" type="number" min="0" inputmode="decimal" value="${Number(c.valeur) || ''}" placeholder="Ex : 5000 ou 10">
+    <label>Message pour ton équipe (facultatif)</label><textarea id="eqPrMsg" rows="3" maxlength="600" placeholder="Ex : Chaque client que tu ramènes = 5 000 F pour toi !">${eqE(c.message || '')}</textarea>
+    <label class="eq-check"><input type="checkbox" id="eqPrCl" ${c.classement !== false ? 'checked' : ''}> Montrer le classement du mois à l'équipe</label>
+    <div class="ag-hint">Les membres de l'équipe ne reçoivent pas les réductions du parrainage client : ils reçoivent ce bonus en argent.${c.depuis ? ' Compte les séances depuis le ' + eqDate(c.depuis) + '.' : ''}</div>
+    <button class="btn-primary" id="eqPrBtn" onclick="eqPromoSave()">Enregistrer</button>`);
+}
+async function eqPromoSave(){
+  const v = k => (document.getElementById(k) || {}).value;
+  const old = eqPromoCfg();
+  const p = { bonus_type: v('eqPrType') === 'pourcent' ? 'pourcent' : 'montant', valeur: Math.max(0, Number(v('eqPrVal')) || 0), message: String(v('eqPrMsg') || '').trim().slice(0, 600), classement: !!(document.getElementById('eqPrCl') || {}).checked };
+  if(p.bonus_type === 'pourcent' && p.valeur > 100){ agAlert('Un pourcentage ne peut pas dépasser 100.'); return; }
+  // Les seances payees avant le premier reglage ne donnent pas de bonus
+  p.depuis = old.depuis || (p.valeur > 0 ? eqToday() : null);
+  const ok = typeof crmSavePrefs === 'function' ? await crmSavePrefs({ equipe_promo: p }) : false;
+  if(!ok) return;
+  EQ.promo = p;
+  agCloseSheet('eqPromo');
+  agToast('Réglage enregistré');
+  eqBonusCheck();
+}
+
+// ============================================================
+// ANALYSE DES MEMBRES
+// ============================================================
+function eqMois(d){ const n = new Date(); return d && String(d).slice(0, 7) === `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`; }
+function eqAna(c){
+  const now = Date.now();
+  const tt = EQ.taches.filter(t => Number(t.personne_id) === c.id);
+  const comptees = tt.filter(t => ['fait', 'valide', 'refuse'].includes(t.statut) || (t.echeance && new Date(t.echeance) < now));
+  const aTemps = comptees.filter(t => (t.statut === 'fait' || t.statut === 'valide') && (!t.echeance || !t.fait_le || new Date(t.fait_le) <= new Date(t.echeance)));
+  const sh = eqWorked(c.id).filter(s => s.date && new Date(s.date) > now - 90 * eqDay && new Date(s.date) < now + 2 * eqDay);
+  const conf = sh.filter(s => (eqTeam(s).find(e => Number(e.personne_id) === c.id) || {}).confirme);
+  const st = eqStats(c);
+  const fil = eqClients().filter(f => f.parrain_id != null && Number(f.parrain_id) === c.id && f.id !== c.id);
+  const filMois = fil.filter(f => eqMois(f.created_at));
+  const dv = EQ.suivi.filter(s => Number(s.personne_id) === c.id && s.statut === 'valide');
+  const dvMois = dv.filter(s => eqMois(s.valide_le));
+  const parts = [];
+  if(comptees.length) parts.push({ k: 'Tâches faites à temps', v: aTemps.length / comptees.length, w: 30, t: `${aTemps.length}/${comptees.length}` });
+  if(sh.length) parts.push({ k: 'Présence confirmée', v: conf.length / sh.length, w: 20, t: `${conf.length}/${sh.length} séances` });
+  if(st.avg != null) parts.push({ k: 'Notes', v: st.avg / 5, w: 30, t: eqNote(st.avg) + '/5' });
+  if(fil.length || eqPortOn(c)) parts.push({ k: 'Clients ramenés', v: Math.min(1, fil.length / 3), w: 10, t: `${fil.length}${filMois.length ? ' dont ' + filMois.length + ' ce mois' : ''}` });
+  if(dv.length || EQ.defis.some(eqDefiOuvert)) parts.push({ k: 'Défis validés', v: Math.min(1, dv.length / 2), w: 10, t: `${dv.length}${dvMois.length ? ' dont ' + dvMois.length + ' ce mois' : ''}` });
+  const W = parts.reduce((a, x) => a + x.w, 0);
+  const score = W ? Math.round(parts.reduce((a, x) => a + x.v * x.w, 0) / W * 100) : null;
+  return { tachesN: comptees.length, tachesOk: aTemps.length, tauxTaches: comptees.length ? aTemps.length / comptees.length : null,
+    seances: sh.length, conf: conf.length, tauxPresence: sh.length ? conf.length / sh.length : null, avg: st.avg,
+    clients: fil.length, clientsMois: filMois.length, defis: dv.length, defisMois: dvMois.length, parts, score,
+    enRetard: tt.filter(eqTacheLate).length, aValider: tt.filter(t => t.statut === 'fait').length };
+}
+function eqPct(x){ return x == null ? '-' : Math.round(x * 100) + ' %'; }
+function eqScoreCls(s){ return s == null ? '' : s >= 75 ? 'hi' : s >= 50 ? 'mid' : 'lo'; }
+function eqAnaHtml(c){
+  const a = eqAna(c);
+  if(!a.parts.length) return '';
+  return `<h4 class="crm-h4">Note équipe</h4>
+    <div class="eq-score"><div class="eq-score-n ${eqScoreCls(a.score)}"><b>${a.score}</b><span>/100</span></div>
+      <div class="eq-score-d">${a.parts.map(x => `<div><span>${eqE(x.k)}</span><b>${eqE(x.t)}</b><div class="eq-pbar"><i style="width:${Math.round(x.v * 100)}%"></i></div></div>`).join('')}</div></div>
+    <div class="ag-hint">Calcul : tâches à temps 30 %, notes 30 %, présence confirmée 20 %, clients ramenés 10 % (3 = plein), défis validés 10 % (2 = plein). Seulement ce qui existe compte.</div>`;
+}
+function eqMembresMois(){
+  return eqPeople().filter(eqActif).map(c => ({ c, a: eqAna(c) }))
+    .filter(x => eqPortOn(x.c) || x.a.tachesN || x.a.seances || x.a.clients || x.a.defis)
+    .sort((x, y) => (y.a.clientsMois + y.a.defisMois) - (x.a.clientsMois + x.a.defisMois) || (y.a.score || 0) - (x.a.score || 0) || x.c.name.localeCompare(y.c.name));
+}
+function eqEspaceHtml(){
+  const rows = eqMembresMois();
+  const aVal = EQ.taches.filter(t => t.statut === 'fait').length + EQ.suivi.filter(s => s.statut === 'a_valider').length;
+  const dus = eqBonusDus(), duTot = dus.reduce((a, b) => a + (Number(b.montant) || 0), 0);
+  const late = EQ.taches.filter(eqTacheLate).length;
+  const defisOn = EQ.defis.filter(eqDefiOuvert).length;
+  const cfg = eqPromoCfg();
+  const mois = new Date().toLocaleDateString('fr-FR', { month: 'long' });
+  return `<div class="ag-sec" style="margin-top:6px"><h3>Espace équipe</h3></div>
+    <div class="eq-tiles">
+      <button onclick="eqAValider()" class="${aVal ? 'hot' : ''}"><b>${aVal}</b><span>À valider</span></button>
+      <button onclick="eqAValider()" class="${late ? 'bad' : ''}"><b>${late}</b><span>Tâches en retard</span></button>
+      <button onclick="eqAValider()" class="${dus.length ? 'hot' : ''}"><b>${dus.length ? eqF(duTot) : '0'}</b><span>Bonus à payer</span></button>
+      <button onclick="eqDefis()"><b>${defisOn}</b><span>Défis en cours</span></button>
+    </div>
+    <div class="eq-port-b" style="margin:8px 0 4px">
+      <button onclick="eqDefis()">${eqI('target', 15)}Défis du mois</button>
+      <button onclick="eqPromoReglage()">${eqI('cash', 15)}Bonus promotion${Number(cfg.valeur) > 0 ? ' · ' + (cfg.bonus_type === 'pourcent' ? cfg.valeur + ' %' : eqF(cfg.valeur)) : ''}</button>
+      <button onclick="eqAnalyseEquipe()">${eqI('sparkles', 15)}Analyse IA</button>
+    </div>
+    <div class="ag-sec" style="margin-top:16px"><h3>Mon équipe ce mois</h3><span class="crm-count">${eqE(mois)}</span></div>
+    ${rows.length ? `<div class="eq-mois">${rows.map((x, i) => `<div class="eq-mois-r" onclick="eqOpen(${x.c.id})">
+        <div class="eq-rank">${i + 1}</div>
+        <div class="d"><b>${eqE(x.c.name)}</b><span>${eqE(eqRoleLabel(x.c))}${eqPortOn(x.c) ? ' · espace actif' : ''}</span>
+          <div class="eq-chips"><i>Tâches ${eqPct(x.a.tauxTaches)}</i><i>Présence ${eqPct(x.a.tauxPresence)}</i><i>Note ${eqNote(x.a.avg)}</i><i>${x.a.clientsMois} client${x.a.clientsMois > 1 ? 's' : ''} ce mois</i><i>${x.a.defisMois} défi${x.a.defisMois > 1 ? 's' : ''}</i>${x.a.enRetard ? `<i class="bad">${x.a.enRetard} en retard</i>` : ''}</div></div>
+        <div class="eq-score-n sm ${eqScoreCls(x.a.score)}"><b>${x.a.score == null ? '-' : x.a.score}</b></div></div>`).join('')}</div>
+      <div class="ag-hint">Classé par clients ramenés et défis validés ce mois, puis par note équipe (sur 100).</div>`
+      : '<div class="ag-list"><div class="ag-empty">Active l\'espace personnel d\'un membre (dans sa fiche) pour lui donner des tâches et des défis.</div></div>'}
+    <div id="eqTeamIa"></div>`;
+}
+function eqAValider(){
+  const ft = EQ.taches.filter(t => t.statut === 'fait');
+  const late = EQ.taches.filter(eqTacheLate);
+  const ds = EQ.suivi.filter(s => s.statut === 'a_valider');
+  const dus = eqBonusDus();
+  agSheet('eqAValider', `<h3>À faire pour ton équipe</h3>
+    <h4 class="crm-h4">Tâches faites à valider <span class="crm-count">${ft.length}</span></h4>
+    ${ft.length ? ft.map(t => eqTacheRow(t, true)).join('') : '<div class="ag-list"><div class="ag-empty">Rien à valider.</div></div>'}
+    ${late.length ? `<h4 class="crm-h4">En retard <span class="crm-count">${late.length}</span></h4>${late.map(t => eqTacheRow(t, true)).join('')}` : ''}
+    <h4 class="crm-h4">Défis à valider <span class="crm-count">${ds.length}</span></h4>
+    ${ds.length ? ds.map(s => { const p = eqPerson(s.personne_id), d = EQ.defis.find(x => x.id === Number(s.defi_id)) || {}; return `<div class="eq-task fait"><div class="eq-task-h"><b>${eqE(p ? eqFirst(p) : '')} · ${eqE(d.titre || 'Défi')}</b><i class="eq-st fait">${Number(s.progres) || 0}/${Number(d.objectif) || 1}</i></div>
+      ${s.preuve ? `<p class="eq-com">« ${eqE(s.preuve)} »</p>` : ''}${d.recompense ? `<span>Récompense : ${eqE(d.recompense)}</span>` : ''}
+      <div class="eq-task-b"><button class="ok" onclick="eqDefiValider(${s.id},true)">Valider</button><button class="ko" onclick="eqDefiValider(${s.id},false)">Refuser</button></div></div>`; }).join('') : '<div class="ag-list"><div class="ag-empty">Rien à valider.</div></div>'}
+    <h4 class="crm-h4">Bonus à payer <span class="crm-count">${dus.length}</span></h4>
+    ${dus.length ? dus.map(b => { const p = eqPerson(b.personne_id); return `<div class="eq-bonus"><div><b>${eqF(b.montant)} · ${eqE(p ? eqFirst(p) : '')}</b><span>${eqE(b.motif || '')}</span></div><button onclick="eqBonusPay(${b.id})">Payer</button></div>`; }).join('') : '<div class="ag-list"><div class="ag-empty">Aucun bonus à payer.</div></div>'}`);
+}
+async function eqAnalyseEquipe(){
+  const box = document.getElementById('eqTeamIa');
+  if(box) box.innerHTML = `<div class="eq-ia"><div class="eq-ia-h">${eqI('sparkles', 15)} Analyse en cours...</div></div>`;
+  const rows = eqMembresMois();
+  const cfg = eqPromoCfg();
+  const prompt = `Tu aides Henzo, photographe et vidéaste à Bouaké (Côte d'Ivoire), studio Henzo Photographie, à gérer son équipe (maquilleuses, assistants, modèles...).
+Voici son équipe ce mois-ci (chiffres réels, ne rien inventer) :
+${rows.length ? rows.map(x => `- ${eqFirst(x.c)} (${eqRoleLabel(x.c)}) : note équipe ${x.a.score == null ? 'inconnue' : x.a.score + '/100'}, tâches à temps ${eqPct(x.a.tauxTaches)} (${x.a.tachesOk}/${x.a.tachesN}), ${x.a.enRetard} tâche(s) en retard, présence confirmée ${eqPct(x.a.tauxPresence)} (${x.a.conf}/${x.a.seances}), note moyenne ${eqNote(x.a.avg)}/5, clients ramenés ${x.a.clients} (dont ${x.a.clientsMois} ce mois), défis validés ${x.a.defis} (dont ${x.a.defisMois} ce mois)`).join('\n') : '(personne pour le moment)'}
+Défis en cours : ${EQ.defis.filter(eqDefiOuvert).map(d => d.titre + ' (objectif ' + (d.objectif || 1) + ')').join(', ') || 'aucun'}.
+Bonus de promotion : ${Number(cfg.valeur) > 0 ? (cfg.bonus_type === 'pourcent' ? cfg.valeur + ' % de la séance' : Math.round(cfg.valeur) + ' F') + ' par client ramené' : 'pas encore réglé'}.
+Écris un conseil court en français simple, sans jargon, sans tirets longs, avec ces titres en gras : **Qui va bien**, **Qui aider**, **Idées pour motiver**, **À faire cette semaine**. 2 ou 3 phrases par titre, avec les prénoms.`;
+  try {
+    const raw = typeof callAI === 'function' ? await callAI(prompt) : (await window.iaRelais({ messages: [{ role: 'user', text: prompt }], maxTokens: 1500, tache: 'texte' })).text;
+    const t = String(raw || '').replace(/[\u2013\u2014]/g, '-').trim();
+    if(!t) throw new Error('vide');
+    const b = document.getElementById('eqTeamIa');
+    if(b) b.innerHTML = eqIaHtml({ texte: t, date: new Date().toISOString() });
+  } catch(e){
+    const b = document.getElementById('eqTeamIa');
+    if(b) b.innerHTML = `<div class="eq-ia"><div class="eq-ia-h">Analyse IA</div><p>L'IA n'a pas répondu (${eqE(e.message || e)}). Vérifie ta connexion et tes clés IA, puis réessaie.</p></div>`;
+  }
 }
 
 // ============================================================
@@ -902,6 +1479,25 @@ function eqDecorateShoots(){
       const all = eqClients();
       try { clients = all.filter(c => window.estClient(c)); return _o.apply(this, arguments); } finally { clients = all; }
     };
+  }
+  // Parrainage client (extras.js) : un membre de l'equipe ne recoit pas les bons de reduction
+  // des clients. Il recoit a la place un bonus en argent (equipe_bonus, voir eqBonusCheck).
+  // extras.js peut se charger apres equipe.js : on reessaie jusqu'a ce qu'il soit la
+  (function wrapPar(n){
+    if(typeof exParGive === 'function'){
+      if(exParGive.eqWrapped) return;
+      const _o = exParGive;
+      exParGive = async function(c){ if(c && !window.estClient(c)) return null; return _o.apply(this, arguments); };
+      exParGive.eqWrapped = true;
+      setTimeout(eqParRepair, 4000);
+      return;
+    }
+    if(n < 750) setTimeout(() => wrapPar(n + 1), 20);
+  })(0);
+  // Apres chaque changement d'argent ou de seance : bonus de promotion a creer ?
+  if(typeof refreshAll === 'function'){
+    const _o = refreshAll;
+    refreshAll = function(){ const r = _o.apply(this, arguments); try { if(EQ.portLoaded) eqBonusSoon(); } catch(e){} return r; };
   }
   new MutationObserver(() => { try { eqDecorateShoots(); } catch(e){} }).observe(document.body, { childList: true, subtree: true });
   setTimeout(() => { if(!EQ.loaded && typeof sb !== 'undefined') eqLoad(); }, 2500);
@@ -989,6 +1585,81 @@ function eqStyle(){
 .eq-link{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px}.eq-link span{flex:1;min-width:0}.eq-link select{flex:0 0 46%}
 .eq-collab-badge{background:var(--card3,#333) !important;color:var(--accent) !important;border:1px solid var(--accent)}
 .eq-teamline{font-size:12px;color:var(--muted);margin:4px 0 0}.eq-teamline a{color:var(--accent);cursor:pointer;font-weight:600}
+/* Espace equipe */
+.eq-msg{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 4px}
+.eq-port{margin:14px 0 4px;padding:14px;border-radius:18px;background:var(--card2);border:1px solid var(--border)}
+.eq-port.on{border-color:var(--accent)}
+.eq-port-h{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.eq-port-h b{display:block;font-size:14.5px}.eq-port-h span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.eq-port-st{font-style:normal;font-size:11px;font-weight:700;padding:4px 10px;border-radius:10px;background:var(--card3);color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.eq-port.on .eq-port-st{color:var(--green)}
+.eq-port-txt{font-size:13px;color:var(--text-2,var(--muted));line-height:1.5;margin:10px 0}
+.eq-port-url{display:flex;align-items:center;gap:8px;margin:12px 0 10px;padding:10px 12px;border-radius:12px;background:var(--card);border:1px dashed var(--accent);color:var(--accent);font-size:12px;cursor:pointer}
+.eq-port-url span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eq-port-b{display:flex;flex-wrap:wrap;gap:6px}
+.eq-port-b button{display:inline-flex;align-items:center;gap:6px;width:auto;margin:0;padding:8px 11px;border-radius:11px;border:1px solid var(--border);background:var(--card);color:var(--text);font:600 12.5px Inter,sans-serif;cursor:pointer}
+.eq-port-b button .ag-i{color:var(--accent)}
+.eq-port-b button.main{background:var(--accent);border-color:var(--accent);color:#fff}.eq-port-b button.main .ag-i{color:#fff}
+.eq-port-b button.danger{color:var(--red)}.eq-port-b button.danger .ag-i{color:var(--red)}
+.eq-sub{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 6px}
+.eq-voir{border-radius:14px;background:var(--card);border:1px solid var(--border);overflow:hidden}
+.eq-tg{display:flex !important;align-items:center;gap:12px;margin:0 !important;padding:10px 12px;border-top:1px solid var(--border);cursor:pointer;position:relative}
+.eq-tg:first-child{border-top:0}
+.eq-tg div{flex:1;min-width:0}.eq-tg b{display:block;font-size:13px;color:var(--text)}.eq-tg span{display:block;font-size:11.5px;color:var(--muted);font-weight:500;line-height:1.35}
+.eq-tg input{position:absolute;opacity:0;width:1px !important;height:1px;margin:0}
+.eq-tg i{flex-shrink:0;width:40px;height:23px;border-radius:12px;background:var(--card3,#333);position:relative;transition:background .15s}
+.eq-tg i:after{content:'';position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:#fff;transition:left .15s}
+.eq-tg input:checked+i{background:var(--accent)}.eq-tg input:checked+i:after{left:20px}
+.eq-tg input:focus-visible+i{outline:2px solid var(--accent);outline-offset:2px}
+.eq-port textarea{margin:0}
+.eq-mini{width:auto !important;margin:6px 0 0 !important;padding:7px 14px !important;border-radius:10px;border:0;background:var(--accent);color:#fff;font:700 12px Inter,sans-serif;cursor:pointer}
+.eq-cons{margin-top:8px;padding:10px;border-radius:12px;background:var(--card);border:1px solid var(--border)}
+.eq-cons-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}.eq-cons-h b{font-size:12.5px}
+.eq-ok,.eq-wait{font-style:normal;font-size:11px;font-weight:700}.eq-ok{color:var(--green)}.eq-wait{color:var(--yellow)}
+.eq-task,.eq-defi{margin:0 0 8px;padding:12px 14px;border-radius:16px;background:var(--card);border:1px solid var(--border)}
+.eq-task.fait{border-color:var(--accent)}.eq-task.valide{opacity:.75}
+.eq-task.late{border-color:var(--red);background:color-mix(in srgb,var(--red) 8%,var(--card))}
+.eq-task-h{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.eq-task-h b{font-size:13.5px;line-height:1.3}
+.eq-task>span,.eq-defi>span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+.eq-task p,.eq-defi p{font-size:12.5px;margin:6px 0 0;line-height:1.45;color:var(--text-2,var(--text))}
+.eq-task p.eq-com{font-style:italic;color:var(--text)}
+.eq-done{display:block;font-size:12px;color:var(--green);margin-top:4px;font-weight:600}
+.eq-photo{display:inline-block;margin-top:6px;font-size:12px;color:var(--accent);font-weight:600}
+.eq-st{font-style:normal;flex-shrink:0;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:8px;background:var(--card3,#333);color:var(--muted);white-space:nowrap}
+.eq-st.fait{color:var(--accent)}.eq-st.ok{color:var(--green)}.eq-st.ko,.eq-st.late{color:var(--red)}
+.eq-task-b{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.eq-task-b button{width:auto;margin:0;padding:7px 12px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-2,var(--text));font:600 12px Inter,sans-serif;cursor:pointer}
+.eq-task-b button.ok{background:var(--green);border-color:var(--green);color:#fff}
+.eq-task-b button.ko{border-color:var(--red);color:var(--red)}
+.eq-task-mini{display:flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 2px;color:var(--text-2,var(--text))}.eq-task-mini span{margin-left:auto;color:var(--muted);font-size:11.5px}
+.eq-ck{display:inline-block;width:8px;height:12px;border:solid var(--green);border-width:0 2px 2px 0;transform:rotate(45deg);margin:0 4px 2px 2px}
+.eq-defi.off{opacity:.6}
+.eq-defi-l{margin-top:10px;border-top:1px solid var(--border)}
+.eq-defi-r{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.eq-defi-r .eq-task-b{margin:0}
+.eq-defi-n{flex:1;min-width:0}.eq-defi-n b{font-size:13px}.eq-defi-n span{display:block;font-size:11.5px;color:var(--muted)}
+.eq-pbar{height:6px;border-radius:4px;background:var(--card3,#333);margin-top:5px;overflow:hidden}.eq-pbar i{display:block;height:100%;border-radius:4px;background:var(--accent)}
+.eq-bonus{display:flex;align-items:center;gap:10px;margin:0 0 8px;padding:12px 14px;border-radius:16px;background:var(--card);border:1px solid var(--yellow)}
+.eq-bonus div{flex:1;min-width:0}.eq-bonus b{display:block;font-size:14px}.eq-bonus span{display:block;font-size:12px;color:var(--muted)}
+.eq-bonus button{width:auto;margin:0;padding:8px 12px;border-radius:10px;border:0;background:var(--yellow);color:#111;font:700 12px Inter,sans-serif;cursor:pointer;white-space:nowrap}
+.eq-pay-amt{font-size:30px;font-weight:800;margin:10px 0 2px}
+.eq-score{display:flex;gap:14px;align-items:center;padding:14px;border-radius:18px;background:var(--card2);border:1px solid var(--border)}
+.eq-score-n{flex-shrink:0;width:74px;height:74px;border-radius:50%;display:grid;place-content:center;text-align:center;border:3px solid var(--muted)}
+.eq-score-n b{font-size:24px;font-weight:800;line-height:1}.eq-score-n span{font-size:11px;color:var(--muted)}
+.eq-score-n.hi{border-color:var(--green)}.eq-score-n.mid{border-color:var(--yellow)}.eq-score-n.lo{border-color:var(--red)}
+.eq-score-n.sm{width:44px;height:44px;border-width:2px}.eq-score-n.sm b{font-size:15px}
+.eq-score-d{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
+.eq-score-d>div{display:grid;grid-template-columns:1fr auto;font-size:12px;gap:0 8px}.eq-score-d span{color:var(--muted)}.eq-score-d .eq-pbar{grid-column:1/-1;margin-top:3px}
+.eq-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.eq-tiles button{width:auto;margin:0;padding:10px 4px;border-radius:14px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;text-align:center}
+.eq-tiles b{display:block;font-size:15px;font-weight:800}.eq-tiles span{display:block;font-size:10.5px;color:var(--muted);margin-top:2px;line-height:1.2}
+.eq-tiles button.hot{border-color:var(--accent)}.eq-tiles button.hot b{color:var(--accent)}
+.eq-tiles button.bad{border-color:var(--red)}.eq-tiles button.bad b{color:var(--red)}
+.eq-mois{display:flex;flex-direction:column;gap:6px}
+.eq-mois-r{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--card);border:1px solid var(--border);cursor:pointer}
+.eq-mois-r .d{flex:1;min-width:0}.eq-mois-r .d>b{display:block;font-size:13.5px}.eq-mois-r .d>span{display:block;font-size:11.5px;color:var(--muted)}
+.eq-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.eq-chips i{font-style:normal;font-size:10.5px;padding:2px 7px;border-radius:7px;background:var(--card3,#333);color:var(--text-2,var(--muted))}.eq-chips i.bad{color:var(--red)}
 `;
   document.head.appendChild(st);
 }

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Espace équipe - Henzo Photographie</title>
+<meta name="theme-color" content="#053931">
+<link rel="icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--deep:#00524D;--deeper:#053931;--accent:#48A89A;--light:#CBEFEB;--bg:#F3F7F6;--card:#fff;--line:#E1EAE8;--txt:#10201E;--muted:#5F7572;--soft:#EEF5F4;--ok:#1E9E6A;--warn:#C98A12;--bad:#D2463C;--shadow:0 1px 2px rgba(5,57,49,.06),0 8px 24px rgba(5,57,49,.06)}
+@media (prefers-color-scheme: dark){:root{--bg:#030b0a;--card:#0a1c1a;--line:#173b37;--txt:#fff;--muted:#9cbdb8;--soft:#0f2a27;--shadow:none}}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:Inter,system-ui,sans-serif;color:var(--txt);background:var(--bg);min-height:100vh;line-height:1.45;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
+button,input,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+.hero{background:radial-gradient(700px 300px at 90% -20%,rgba(72,168,154,.45),transparent 60%),linear-gradient(160deg,var(--deep),var(--deeper));color:#fff;padding:26px 16px 58px}
+.hero-in,.wrap{max-width:640px;margin:0 auto}
+.brand{font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--light);opacity:.9}
+.hero h1{font-size:28px;font-weight:800;margin:14px 0 4px;letter-spacing:-.01em}
+.hero p{color:var(--light);font-size:14px}
+.wrap{padding:0 16px;margin-top:-38px}
+.nav{position:sticky;top:0;z-index:10;display:flex;gap:6px;overflow-x:auto;padding:10px 0;margin:0 -16px 6px;padding-left:16px;padding-right:16px;scrollbar-width:none;background:linear-gradient(var(--bg) 70%,transparent)}
+.nav::-webkit-scrollbar{display:none}
+.nav a{flex:0 0 auto;text-decoration:none;font-size:12.5px;font-weight:600;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 13px}
+.nav a b{color:var(--accent);margin-left:3px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px 16px;margin-bottom:14px;box-shadow:var(--shadow);scroll-margin-top:60px}
+.card h2{font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.card h2 .n{font-size:12px;font-weight:700;color:var(--accent);background:var(--soft);border-radius:8px;padding:2px 8px}
+.card h3{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px}
+.ic{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:var(--soft);color:var(--accent);flex-shrink:0}
+.ic svg{width:17px;height:17px}
+.muted{color:var(--muted);font-size:13px}
+.empty{color:var(--muted);font-size:13.5px;padding:6px 0}
+.cons{background:linear-gradient(150deg,rgba(72,168,154,.14),rgba(72,168,154,.04));border-color:rgba(72,168,154,.4)}
+.cons p{font-size:14px;white-space:pre-line}
+.sh{display:flex;gap:12px;padding:14px 0;border-top:1px solid var(--line)}
+.sh:first-of-type{border-top:0;padding-top:4px}
+.day{flex-shrink:0;width:54px;border-radius:14px;background:var(--soft);text-align:center;padding:8px 0;height:max-content}
+.day b{display:block;font-size:21px;font-weight:800;line-height:1}
+.day span{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;margin-top:3px}
+.sh-d{flex:1;min-width:0}
+.sh-d>b{font-size:15px;display:block}
+.meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;color:var(--muted);margin-top:3px}
+.note{margin-top:8px;font-size:13.5px;background:var(--soft);border-radius:12px;padding:9px 11px;white-space:pre-line}
+.note b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin-bottom:2px}
+.row-b{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.btn{border:0;border-radius:12px;padding:11px 15px;font-weight:700;font-size:14px;cursor:pointer;background:var(--deep);color:#fff;display:inline-flex;align-items:center;gap:7px;text-decoration:none}
+.btn.sec{background:var(--soft);color:var(--deep)}
+@media (prefers-color-scheme: dark){.btn.sec{color:var(--light)}}
+.btn.ok{background:var(--ok)}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--muted)}
+.btn:disabled{opacity:.55;cursor:default}
+.btn svg{width:16px;height:16px}
+.chip{display:inline-block;font-size:11.5px;font-weight:700;border-radius:8px;padding:3px 9px;background:var(--soft);color:var(--muted)}
+.chip.ok{color:var(--ok);background:rgba(30,158,106,.12)}.chip.warn{color:var(--warn);background:rgba(201,138,18,.13)}.chip.bad{color:var(--bad);background:rgba(210,70,60,.12)}.chip.acc{color:var(--accent);background:rgba(72,168,154,.14)}
+.past{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:8px 0;border-top:1px solid var(--line)}
+.past span{color:var(--muted)}
+.task{border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:10px}
+.task.late{border-color:var(--bad)}
+.task.done{background:var(--soft)}
+.task-h{display:flex;gap:10px;align-items:flex-start}
+.ck{flex-shrink:0;width:26px;height:26px;border-radius:9px;border:2px solid var(--line);background:var(--card);cursor:pointer;display:grid;place-items:center;padding:0}
+.ck.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.ck svg{width:15px;height:15px}
+.task-t{flex:1;min-width:0}.task-t b{display:block;font-size:14.5px}
+.task-t .meta{font-size:12.5px}
+.task p{font-size:13.5px;margin-top:6px;white-space:pre-line}
+.henzo{margin-top:8px;font-size:13px;border-left:3px solid var(--bad);padding:4px 10px;background:rgba(210,70,60,.06);border-radius:0 10px 10px 0}
+textarea,input.f{width:100%;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 12px;font-size:14px;outline:none;resize:vertical}
+textarea:focus,input.f:focus{border-color:var(--accent)}
+.more{margin-top:8px}
+.more summary{font-size:13px;color:var(--accent);font-weight:600;cursor:pointer;list-style:none}
+.more summary::-webkit-details-marker{display:none}
+.more[open] summary{margin-bottom:8px}
+.more .f+.f,.more textarea+input{margin-top:8px}
+.big{display:flex;align-items:center;gap:16px}
+.score{width:86px;height:86px;border-radius:50%;display:grid;place-content:center;text-align:center;background:conic-gradient(var(--accent) calc(var(--p)*1%),var(--soft) 0);position:relative;flex-shrink:0}
+.score:before{content:'';position:absolute;inset:7px;border-radius:50%;background:var(--card)}
+.score b,.score span{position:relative}.score b{font-size:25px;font-weight:800;line-height:1}.score span{font-size:11px;color:var(--muted)}
+.crit{flex:1;display:flex;flex-direction:column;gap:8px}
+.crit div{display:grid;grid-template-columns:1fr auto;font-size:13px;gap:2px 8px}
+.crit span{color:var(--muted)}
+.bar{grid-column:1/-1;height:6px;border-radius:4px;background:var(--soft);overflow:hidden}.bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.curve{width:100%;height:110px;display:block;margin-top:14px}
+.quote{font-size:13.5px;padding:10px 12px;border-radius:12px;background:var(--soft);margin-bottom:8px}
+.quote span{display:block;font-size:11.5px;color:var(--muted);margin-top:3px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{border-radius:16px;padding:14px;background:var(--soft)}
+.tile b{display:block;font-size:21px;font-weight:800}.tile span{font-size:12px;color:var(--muted)}
+.tile.du b{color:var(--warn)}.tile.pa b{color:var(--ok)}
+.line{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:13.5px}
+.line:first-child{border-top:0}
+.line div{min-width:0}.line div span{display:block;font-size:12px;color:var(--muted)}
+.line .r{text-align:right;flex-shrink:0}.line .r b{display:block}
+.promo-b{border-radius:16px;padding:14px;background:linear-gradient(150deg,var(--deep),var(--deeper));color:#fff;margin-bottom:12px}
+.promo-b b{display:block;font-size:20px;font-weight:800}.promo-b span{font-size:13px;color:var(--light)}
+.promo-b p{font-size:13.5px;margin-top:8px;color:#fff;opacity:.92;white-space:pre-line}
+.code{display:flex;align-items:center;gap:10px;border:1px dashed var(--accent);border-radius:14px;padding:10px 12px;margin-bottom:8px}
+.code div{flex:1;min-width:0}.code b{display:block;font-size:17px;letter-spacing:.06em}.code span{display:block;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.code button{border:0;background:var(--soft);color:var(--accent);font-weight:700;font-size:12.5px;border-radius:10px;padding:8px 11px;cursor:pointer}
+.defi{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:10px}
+.defi-h{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.defi-h b{font-size:15px}
+.prog{display:flex;align-items:center;gap:10px;margin-top:10px}
+.prog .bar{flex:1;height:9px}
+.prog strong{font-size:14px}
+.rew{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--warn)}
+.rank{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.rank:first-child{border-top:0}
+.rank .pos{width:32px;height:32px;border-radius:11px;display:grid;place-items:center;font-weight:800;background:var(--soft);color:var(--accent);flex-shrink:0}
+.rank:nth-child(1) .pos{background:#E8B931;color:#3b2d00}
+.rank.me{background:var(--soft);border-radius:14px;padding:10px;border-top-color:transparent}
+.rank>div:not(.pos){flex:1}.rank>div span{display:block;font-size:12px;color:var(--muted)}
+.state{text-align:center;padding:40px 16px}
+.state .ic{width:56px;height:56px;border-radius:18px;margin:0 auto 14px}
+.state .ic svg{width:26px;height:26px}
+.state h2{justify-content:center;font-size:19px}
+.state p{color:var(--muted);font-size:14.5px;margin-top:6px}
+.sk{height:84px;border-radius:22px;margin-bottom:14px;background:linear-gradient(90deg,var(--card) 25%,var(--soft) 50%,var(--card) 75%);background-size:300% 100%;animation:sk 1.2s infinite}
+@keyframes sk{to{background-position:-150% 0}}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;background:var(--deeper);color:#fff;padding:11px 16px;border-radius:14px;font-size:14px;font-weight:600;transition:.2s;z-index:50;max-width:calc(100% - 32px);text-align:center;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.foot{text-align:center;font-size:12px;color:var(--muted);padding:12px 0 20px}
+</style>
+</head>
+<body>
+<header class="hero"><div class="hero-in">
+  <div class="brand">Henzo Photographie · Espace équipe</div>
+  <h1 id="hello">Bonjour</h1>
+  <p id="sub">Ton espace personnel</p>
+</div></header>
+<main class="wrap" id="app"><div class="sk"></div><div class="sk"></div><div class="sk"></div></main>
+<div class="toast" id="toast"></div>
+<script>
+var SUPABASE_URL = 'https://lzxvktkryxizclkdetaa.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_L4Udla2VCbZsNjdm9IRuJw_ExshPrPc';
+var sb = null, S = { tok: '', d: null, busy: {} };
+var ROLES = { maquilleuse: 'Maquilleuse', coiffeuse: 'Coiffeuse', assistant: 'Assistant', videaste: 'Vidéaste', modele: 'Modèle', decorateur: 'Décorateur', partenaire: 'Partenaire', ami: 'Ami' };
+var I = {
+  cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>',
+  list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>',
+  star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg>',
+  cash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="3"/><circle cx="12" cy="12" r="2.5"/></svg>',
+  share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>',
+  target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>',
+  trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg>',
+  pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="10" width="16" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
+  wa: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.7 14.9L2 22l5.3-1.3A10 10 0 1 0 12 2zm5.4 14.2c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.6-.3.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.2.5.1.6 0l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg>'
+};
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function F(n){ return Math.round(Number(n) || 0).toLocaleString('fr-FR').replace(/[  ]/g, ' ') + ' F'; }
+function D(d, o){ return d ? new Date(d).toLocaleDateString('fr-FR', o || { day: 'numeric', month: 'long' }) : ''; }
+function H(d){ if(!d) return ''; var x = new Date(d); return x.getHours() + ' h' + (x.getMinutes() ? ' ' + String(x.getMinutes()).padStart(2, '0') : ''); }
+function N1(n){ return n == null ? '-' : String(Math.round(Number(n) * 10) / 10).replace('.', ','); }
+function toast(m){ var t = document.getElementById('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(S.tt); S.tt = setTimeout(function(){ t.classList.remove('on'); }, 2600); }
+function notif(o){ try { fetch(SUPABASE_URL + '/functions/v1/notifier', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY }, body: JSON.stringify(o), keepalive: true }).catch(function(){}); } catch(e){} }
+function errMsg(e){ var m = String((e && (e.message || e.msg)) || e || ''); return /Trop de demandes|déjà validé|pas ouvert|passée|introuvable/i.test(m) ? m : 'Ça n\'a pas marché. Vérifie ta connexion et réessaie.'; }
+function state(icon, title, txt){
+  document.getElementById('hello').textContent = 'Espace équipe';
+  document.getElementById('sub').textContent = 'Henzo Photographie';
+  document.getElementById('app').innerHTML = '<div class="card state"><div class="ic">' + icon + '</div><h2>' + esc(title) + '</h2><p>' + esc(txt) + '</p></div>';
+}
+
+async function load(quiet){
+  try {
+    var r = await sb.rpc('equipe_portail', { p_token: S.tok });
+    if(r.error){ if(/Trop de demandes/i.test(r.error.message || '')) return state(I.lock, 'Un instant', 'Trop de visites en peu de temps. Réessaie dans quelques minutes.'); throw r.error; }
+    if(!r.data) return state(I.lock, 'Ce lien n\'est plus actif', 'Il a été coupé ou remplacé par un nouveau lien. Demande ton lien à Henzo.');
+    S.d = r.data;
+    render();
+  } catch(e){
+    if(!quiet) state(I.lock, 'Impossible de charger', 'Vérifie ta connexion internet, puis recharge la page.');
+  }
+}
+
+function render(){
+  var d = S.d, v = d.voir || {};
+  document.getElementById('hello').textContent = 'Bonjour ' + (d.prenom || '');
+  document.getElementById('sub').textContent = (ROLES[d.role] || 'Membre de l\'équipe') + ' · ton espace personnel';
+  var up = (d.seances || []).filter(function(s){ return s.statut === 'a_venir'; });
+  var past = (d.seances || []).filter(function(s){ return s.statut !== 'a_venir'; }).reverse();
+  var todo = (d.taches || []).filter(function(t){ return t.statut === 'a_faire' || t.statut === 'refuse'; });
+  var defisOuverts = (d.defis || []).filter(function(x){ return x.ouvert && x.statut !== 'valide'; });
+  var secs = [];
+  if(v.seances) secs.push(['seances', 'Séances', up.length]);
+  if(v.taches) secs.push(['taches', 'Tâches', todo.length]);
+  if(v.defis) secs.push(['defis', 'Défis', defisOuverts.length]);
+  if(v.promo) secs.push(['promo', 'Promotion', 0]);
+  if(v.paiements) secs.push(['paiements', 'Paiements', 0]);
+  if(v.notes) secs.push(['notes', 'Notes', 0]);
+  if(v.classement) secs.push(['classement', 'Classement', 0]);
+  var h = '';
+  if(secs.length > 2) h += '<nav class="nav">' + secs.map(function(x){ return '<a href="#' + x[0] + '">' + x[1] + (x[2] ? '<b>' + x[2] + '</b>' : '') + '</a>'; }).join('') + '</nav>';
+  else h += '<div style="height:14px"></div>';
+  if(d.consignes) h += '<section class="card cons"><h2><span class="ic">' + I.list + '</span>Les consignes de Henzo</h2><p>' + esc(d.consignes) + '</p></section>';
+  if(v.seances) h += secSeances(up, past);
+  if(v.taches) h += secTaches(d.taches || []);
+  if(v.defis) h += secDefis(d.defis || []);
+  if(v.promo && d.promo) h += secPromo(d.promo);
+  if(v.paiements && d.paiements) h += secPaiements(d.paiements);
+  if(v.notes && d.notes) h += secNotes(d.notes);
+  if(v.classement) h += secClassement(d.classement || []);
+  if(!secs.length && !d.consignes) h += '<div class="card state"><h2>Rien à afficher pour le moment</h2><p>Henzo va bientôt remplir ton espace.</p></div>';
+  h += '<div class="foot">Ce lien est personnel : ne le partage pas.<br>Henzo Photographie · Bouaké</div>';
+  document.getElementById('app').innerHTML = h;
+}
+
+// ---------- Seances ----------
+function secSeances(up, past){
+  var h = '<section class="card" id="seances"><h2><span class="ic">' + I.cal + '</span>Mes séances' + (up.length ? ' <span class="n">' + up.length + ' à venir</span>' : '') + '</h2>';
+  if(!up.length) h += '<div class="empty">Pas de séance prévue pour le moment.</div>';
+  up.forEach(function(s){
+    var dt = new Date(s.date);
+    h += '<div class="sh"><div class="day"><b>' + dt.getDate() + '</b><span>' + esc(dt.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')) + '</span></div><div class="sh-d">'
+      + '<b>' + esc(s.type || 'Séance') + (s.client ? ' · ' + esc(s.client) : '') + '</b>'
+      + '<div class="meta"><span>' + esc(D(s.date, { weekday: 'long', day: 'numeric', month: 'long' })) + ' à ' + esc(H(s.date)) + '</span>' + (s.lieu ? '<span>' + esc(s.lieu) + '</span>' : '') + '</div>'
+      + (s.role ? '<div class="meta"><span>Ton rôle : ' + esc(ROLES[s.role] || s.role) + '</span></div>' : '')
+      + (s.consignes ? '<div class="note"><b>Consignes</b>' + esc(s.consignes) + '</div>' : '')
+      + '<div class="row-b">'
+      + (s.confirme ? '<span class="chip ok">Présence confirmée</span> <button class="btn ghost" onclick="confirmer(' + s.id + ',false)">Annuler</button>'
+                    : '<button class="btn ok" onclick="confirmer(' + s.id + ',true)">' + I.check + 'Je confirme ma présence</button>')
+      + (s.mood ? '<a class="btn sec" href="mood.html?t=' + encodeURIComponent(s.mood) + '" target="_blank" rel="noopener">Voir le moodboard</a>' : '')
+      + '</div></div></div>';
+  });
+  if(past.length) h += '<h3>Passées récemment</h3>' + past.slice(0, 6).map(function(s){ return '<div class="past"><b>' + esc(s.type || 'Séance') + (s.client ? ' · ' + esc(s.client) : '') + '</b><span>' + esc(D(s.date, { day: 'numeric', month: 'short' })) + '</span></div>'; }).join('');
+  return h + '</section>';
+}
+async function confirmer(id, ok){
+  if(S.busy['c' + id]) return; S.busy['c' + id] = 1;
+  try {
+    var r = await sb.rpc('equipe_confirmer', { p_token: S.tok, p_shoot_id: id, p_ok: ok });
+    if(r.error) throw r.error;
+    (S.d.seances || []).forEach(function(s){ if(s.id === id){ s.confirme = ok; s.confirme_le = ok ? new Date().toISOString() : null; } });
+    render();
+    toast(ok ? 'Merci ! Henzo sait que tu seras là' : 'Confirmation annulée');
+    notif({ type: 'equipe_presence', token: S.tok, shoot_id: id, ok: ok });
+  } catch(e){ toast(errMsg(e)); }
+  delete S.busy['c' + id];
+}
+
+// ---------- Taches ----------
+function late(t){ return (t.statut === 'a_faire' || t.statut === 'refuse') && t.echeance && new Date(t.echeance) < new Date(); }
+function secTaches(l){
+  var ouv = l.filter(function(t){ return t.statut !== 'valide'; }), val = l.filter(function(t){ return t.statut === 'valide'; });
+  var h = '<section class="card" id="taches"><h2><span class="ic">' + I.list + '</span>Mes tâches' + (ouv.length ? ' <span class="n">' + ouv.length + '</span>' : '') + '</h2>';
+  if(!ouv.length) h += '<div class="empty">Aucune tâche en cours. Bravo !</div>';
+  ouv.forEach(function(t){
+    var done = t.statut === 'fait', lt = late(t);
+    var chip = done ? '<span class="chip acc">Envoyé à Henzo</span>' : t.statut === 'refuse' ? '<span class="chip bad">À refaire</span>' : lt ? '<span class="chip bad">En retard</span>' : '';
+    var henzo = t.statut === 'refuse' && /^Henzo :/.test(t.commentaire || '');
+    h += '<div class="task ' + (done ? 'done' : '') + (lt ? ' late' : '') + '"><div class="task-h">'
+      + '<button class="ck ' + (done ? 'on' : '') + '" aria-label="' + (done ? 'Remettre à faire' : 'Marquer comme fait') + '" onclick="tache(' + t.id + ',' + (done ? '\'a_faire\'' : '\'fait\'') + ')">' + (done ? I.check : '') + '</button>'
+      + '<div class="task-t"><b>' + esc(t.titre) + '</b><div class="meta">' + (t.echeance ? '<span>Pour le ' + esc(D(t.echeance, { weekday: 'short', day: 'numeric', month: 'short' })) + ' ' + esc(H(t.echeance)) + '</span>' : '') + (t.seance ? '<span>' + esc((t.seance.type || 'Séance') + ' du ' + D(t.seance.date, { day: 'numeric', month: 'short' })) + '</span>' : '') + '</div></div>' + chip + '</div>'
+      + (t.detail ? '<p>' + esc(t.detail) + '</p>' : '')
+      + (henzo ? '<div class="henzo">' + esc(t.commentaire) + '</div>' : '')
+      + '<details class="more" ' + (done || henzo ? '' : '') + '><summary>' + (done ? 'Modifier mon commentaire' : 'Ajouter un commentaire ou une photo') + '</summary>'
+      + '<textarea id="tc' + t.id + '" rows="2" maxlength="500" placeholder="Ex : tout est prêt, kit nettoyé">' + (henzo ? '' : esc(t.commentaire || '')) + '</textarea>'
+      + '<input class="f" id="tp' + t.id + '" type="url" maxlength="500" placeholder="Lien d\'une photo (facultatif, ex : Google Photos)" value="' + esc(t.photo_url || '') + '">'
+      + '<div class="row-b"><button class="btn" onclick="tache(' + t.id + ',\'fait\',true)">' + I.check + (done ? 'Mettre à jour' : 'C\'est fait') + '</button></div></details>'
+      + (done && t.commentaire ? '<p class="muted">« ' + esc(t.commentaire) + ' »</p>' : '')
+      + '</div>';
+  });
+  if(val.length) h += '<h3>Validées par Henzo</h3>' + val.slice(0, 5).map(function(t){ return '<div class="past"><b>' + esc(t.titre) + '</b><span class="chip ok">Validée</span></div>'; }).join('');
+  return h + '</section>';
+}
+async function tache(id, statut, withTxt){
+  if(S.busy['t' + id]) return; S.busy['t' + id] = 1;
+  var c = document.getElementById('tc' + id), p = document.getElementById('tp' + id);
+  var com = withTxt && c ? c.value.trim().slice(0, 500) : null;
+  var photo = withTxt && p ? p.value.trim() : null;
+  if(photo && !/^https:\/\/\S+$/i.test(photo)){ toast('Le lien de la photo doit commencer par https://'); delete S.busy['t' + id]; return; }
+  try {
+    var r = await sb.rpc('equipe_tache_maj', { p_token: S.tok, p_tache_id: id, p_statut: statut, p_commentaire: com, p_photo_url: photo });
+    if(r.error) throw r.error;
+    (S.d.taches || []).forEach(function(t){ if(t.id === id){ t.statut = statut; t.fait_le = statut === 'fait' ? new Date().toISOString() : null; if(com !== null) t.commentaire = com; if(photo !== null) t.photo_url = photo; } });
+    render();
+    toast(statut === 'fait' ? 'Bien joué ! Henzo va vérifier' : 'Tâche remise à faire');
+    if(statut === 'fait') notif({ type: 'equipe_tache', token: S.tok, tache_id: id });
+  } catch(e){ toast(errMsg(e)); }
+  delete S.busy['t' + id];
+}
+
+// ---------- Defis ----------
+function secDefis(l){
+  var h = '<section class="card" id="defis"><h2><span class="ic">' + I.target + '</span>Défis du mois</h2>';
+  if(!l.length) h += '<div class="empty">Pas de défi en ce moment.</div>';
+  l.forEach(function(x){
+    var obj = Math.max(1, Number(x.objectif) || 1), p = Number(x.progres) || 0, pc = Math.min(100, Math.round(p / obj * 100));
+    var chip = { valide: '<span class="chip ok">Validé</span>', a_valider: '<span class="chip acc">Envoyé à Henzo</span>', refuse: '<span class="chip bad">Pas validé, continue</span>' }[x.statut] || (x.ouvert ? '' : '<span class="chip">Terminé</span>');
+    var can = x.ouvert && x.statut !== 'valide';
+    h += '<div class="defi"><div class="defi-h"><b>' + esc(x.titre) + '</b>' + chip + '</div>'
+      + (x.detail ? '<p class="muted" style="margin-top:4px">' + esc(x.detail) + '</p>' : '')
+      + '<div class="prog"><div class="bar"><i style="width:' + pc + '%"></i></div><strong>' + p + '/' + obj + '</strong></div>'
+      + (x.fin ? '<div class="muted" style="margin-top:6px">Jusqu\'au ' + esc(D(x.fin, { day: 'numeric', month: 'long' })) + '</div>' : '')
+      + (x.recompense ? '<div class="rew">' + I.trophy.replace('<svg', '<svg width="15" height="15"') + esc(x.recompense) + '</div>' : '')
+      + (can ? '<div class="row-b"><button class="btn sec" onclick="defi(' + x.id + ',1)">+1</button>' + (p > 0 ? '<button class="btn ghost" onclick="defi(' + x.id + ',-1)">-1</button>' : '') + '<button class="btn" onclick="defi(' + x.id + ',0,true)">J\'ai fini</button></div>'
+        + '<details class="more"' + (x.preuve ? '' : '') + '><summary>' + (x.preuve ? 'Ma preuve : ' + esc(String(x.preuve).slice(0, 40)) : 'Ajouter une preuve (texte ou lien)') + '</summary><input class="f" id="dp' + x.id + '" maxlength="500" placeholder="Ex : prénoms des clients, lien de ta story" value="' + esc(x.preuve || '') + '"><div class="row-b"><button class="btn sec" onclick="defi(' + x.id + ',0)">Enregistrer</button></div></details>' : '')
+      + '</div>';
+  });
+  return h + '</section>';
+}
+async function defi(id, delta, fini){
+  if(S.busy['d' + id]) return; S.busy['d' + id] = 1;
+  var x = (S.d.defis || []).filter(function(y){ return y.id === id; })[0]; if(!x){ delete S.busy['d' + id]; return; }
+  var el = document.getElementById('dp' + id);
+  var preuve = el ? el.value.trim().slice(0, 500) : null;
+  var p = Math.max(0, (Number(x.progres) || 0) + (delta || 0));
+  try {
+    var r = await sb.rpc('equipe_defi_maj', { p_token: S.tok, p_defi_id: id, p_progres: p, p_preuve: preuve, p_fini: !!fini });
+    if(r.error) throw r.error;
+    x.progres = (r.data && r.data.progres != null) ? r.data.progres : p; x.statut = (r.data && r.data.statut) || x.statut; if(preuve !== null) x.preuve = preuve;
+    render();
+    toast(x.statut === 'a_valider' ? 'Envoyé à Henzo pour validation' : delta > 0 ? 'Bravo, continue !' : 'Enregistré');
+    if(x.statut === 'a_valider') notif({ type: 'equipe_defi', token: S.tok, defi_id: id });
+  } catch(e){ toast(errMsg(e)); }
+  delete S.busy['d' + id];
+}
+
+// ---------- Promotion ----------
+function promoLink(p){ return p.slug && p.code ? location.origin + '/reserver.html?s=' + encodeURIComponent(p.slug) + '&p=' + encodeURIComponent(p.code) : ''; }
+function promoTxt(p){
+  var l = promoLink(p);
+  return 'Tu cherches un photographe à Bouaké ? Je travaille avec Henzo Photographie : portraits, mariages, anniversaires, grossesse, événements...'
+    + (l ? '\nRéserve ta séance avec mon lien : ' + l : '') + (p.code ? '\n' + (l ? 'Ou d' : 'D') + 'onne mon code ' + p.code + ' quand tu réserves.' : '');
+}
+function secPromo(p){
+  var l = promoLink(p);
+  var bonus = Number(p.valeur) > 0 ? (p.bonus_type === 'pourcent' ? N1(p.valeur) + ' % de la séance' : F(p.valeur)) : '';
+  var st = { seance_payee: ['Séance payée', 'ok'], seance_prevue: ['Séance prévue', 'acc'], reservation: ['A réservé', 'warn'], inscrit: ['Inscrit', ''] };
+  var fil = p.filleuls || [];
+  var h = '<section class="card" id="promo"><h2><span class="ic">' + I.share + '</span>Ramène des clients</h2>';
+  h += '<div class="promo-b">' + (bonus ? '<span>Pour chaque client ramené qui paie sa séance</span><b>' + esc(bonus) + ' pour toi</b>' : '<b>Fais connaître le studio</b><span>Partage ton lien avec tes proches</span>') + (p.message ? '<p>' + esc(p.message) + '</p>' : '') + '</div>';
+  if(p.code) h += '<div class="code"><div><span>Ton code</span><b>' + esc(p.code) + '</b></div><button onclick="copier(\'' + esc(p.code) + '\')">Copier</button></div>';
+  if(l) h += '<div class="code"><div><span>Ton lien de réservation</span><span style="color:var(--txt);font-weight:600">' + esc(l.replace(/^https?:\/\//, '')) + '</span></div><button onclick="copier(\'' + esc(l) + '\')">Copier</button></div>';
+  if(!p.code) h += '<div class="empty">Henzo n\'a pas encore créé ton code. Demande-le lui.</div>';
+  else {
+    h += '<h3>Message prêt à partager</h3><textarea id="ptxt" rows="5">' + esc(promoTxt(p)) + '</textarea>';
+    h += '<div class="row-b"><button class="btn" onclick="partager()">' + I.share + 'Partager</button><button class="btn sec" onclick="wa()">' + I.wa + 'WhatsApp</button><button class="btn sec" onclick="fb()">Facebook</button></div>';
+  }
+  h += '<h3>Mes filleuls' + (fil.length ? ' (' + fil.length + ')' : '') + '</h3>';
+  h += fil.length ? fil.map(function(f){ var s = st[f.statut] || st.inscrit; return '<div class="line"><div><b>' + esc(f.prenom) + '</b><span>' + esc(D(f.date, { day: 'numeric', month: 'short' })) + '</span></div><span class="chip ' + s[1] + '">' + s[0] + '</span></div>'; }).join('')
+    : '<div class="empty">Personne pour le moment. Partage ton lien !</div>';
+  return h + '</section>';
+}
+function copier(t){
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function(){ toast('Copié'); }).catch(function(){ window.prompt('Copie :', t); });
+}
+function ptxt(){ var e = document.getElementById('ptxt'); return e ? e.value : promoTxt(S.d.promo || {}); }
+function partager(){
+  var t = ptxt();
+  if(navigator.share) navigator.share({ text: t }).catch(function(){});
+  else wa();
+}
+function wa(){ window.open('https://wa.me/?text=' + encodeURIComponent(ptxt()), '_blank'); }
+function fb(){
+  var l = promoLink(S.d.promo || {});
+  copier(ptxt());
+  window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(l || location.origin + '/reserver.html'), '_blank');
+}
+
+// ---------- Paiements ----------
+function secPaiements(p){
+  var h = '<section class="card" id="paiements"><h2><span class="ic">' + I.cash + '</span>Mes paiements</h2>';
+  h += '<div class="tiles"><div class="tile pa"><b>' + F(p.total_paye) + '</b><span>Déjà payé</span></div><div class="tile du"><b>' + F(p.total_du) + '</b><span>Reste à recevoir</span></div></div>';
+  var l = p.seances || [];
+  h += '<h3>Séances</h3>' + (l.length ? l.map(function(x){ var reste = Math.max(0, (Number(x.montant) || 0) - (Number(x.paye) || 0));
+    return '<div class="line"><div><b>' + esc(x.type || 'Séance') + '</b><span>' + esc(D(x.date, { day: 'numeric', month: 'short', year: 'numeric' })) + '</span></div><div class="r"><b>' + F(x.montant) + '</b>' + (reste ? '<span class="chip warn">Reste ' + F(reste) + '</span>' : '<span class="chip ok">Payé</span>') + '</div></div>'; }).join('')
+    : '<div class="empty">Rien pour le moment.</div>');
+  var b = p.bonus || [];
+  if(b.length) h += '<h3>Bonus</h3>' + b.map(function(x){ return '<div class="line"><div><b>' + esc(x.motif || 'Bonus') + '</b><span>' + esc(D(x.date, { day: 'numeric', month: 'short' })) + '</span></div><div class="r"><b>' + F(x.montant) + '</b>' + (x.statut === 'paye' ? '<span class="chip ok">Payé</span>' : '<span class="chip warn">À recevoir</span>') + '</div></div>'; }).join('');
+  return h + '</section>';
+}
+
+// ---------- Notes ----------
+function curve(serie){
+  if(serie.length < 2) return '';
+  var W = 320, Hh = 100, pad = 12, n = serie.length;
+  var pts = serie.map(function(s, i){ return [pad + i * (W - 2 * pad) / (n - 1), Hh - pad - (Number(s.note) - 1) / 4 * (Hh - 2 * pad)]; });
+  var path = pts.map(function(p, i){ return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+  var area = path + ' L' + pts[n - 1][0].toFixed(1) + ' ' + (Hh - pad) + ' L' + pts[0][0].toFixed(1) + ' ' + (Hh - pad) + ' Z';
+  return '<svg class="curve" viewBox="0 0 ' + W + ' ' + Hh + '" preserveAspectRatio="none" role="img" aria-label="Évolution de mes notes">'
+    + '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#48A89A" stop-opacity=".35"/><stop offset="1" stop-color="#48A89A" stop-opacity="0"/></linearGradient></defs>'
+    + [1, 3, 5].map(function(v){ var y = Hh - pad - (v - 1) / 4 * (Hh - 2 * pad); return '<line x1="' + pad + '" x2="' + (W - pad) + '" y1="' + y + '" y2="' + y + '" stroke="currentColor" stroke-opacity=".12"/>'; }).join('')
+    + '<path d="' + area + '" fill="url(#g)"/><path d="' + path + '" fill="none" stroke="#48A89A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>'
+    + pts.map(function(p, i){ return '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="3.5" fill="' + (serie[i].client ? '#E8B931' : '#00524D') + '" stroke="#fff" stroke-width="1.5" vector-effect="non-scaling-stroke"/>'; }).join('') + '</svg>';
+}
+function secNotes(n){
+  var h = '<section class="card" id="notes"><h2><span class="ic">' + I.star + '</span>Mes notes</h2>';
+  if(!n.nb){ return h + '<div class="empty">Pas encore de note. Après chaque séance, Henzo note ta ponctualité, ta qualité et ton attitude.</div></section>'; }
+  var c = function(k, l){ var v = n[k]; return '<div><span>' + l + '</span><b>' + N1(v) + '</b><div class="bar"><i style="width:' + (v ? v / 5 * 100 : 0) + '%"></i></div></div>'; };
+  h += '<div class="big"><div class="score" style="--p:' + Math.round((Number(n.moyenne) || 0) / 5 * 100) + '"><b>' + N1(n.moyenne) + '</b><span>sur 5</span></div><div class="crit">' + c('ponctualite', 'Ponctualité') + c('qualite', 'Qualité') + c('attitude', 'Attitude') + '</div></div>';
+  h += curve(n.serie || []);
+  if((n.serie || []).length > 1) h += '<div class="muted" style="margin-top:4px">' + n.nb + ' note' + (n.nb > 1 ? 's' : '') + ' · les points jaunes sont des retours de clients</div>';
+  if(n.commentaires && n.commentaires.length) h += '<h3>Derniers commentaires</h3>' + n.commentaires.map(function(k){ return '<div class="quote">' + esc(k.texte) + '<span>' + (k.client ? 'Un client' : 'Henzo') + ' · ' + esc(D(k.date, { day: 'numeric', month: 'short' })) + (k.note ? ' · ' + k.note + '/5' : '') + '</span></div>'; }).join('');
+  return h + '</section>';
+}
+
+// ---------- Classement ----------
+function secClassement(l){
+  var mois = new Date().toLocaleDateString('fr-FR', { month: 'long' });
+  var h = '<section class="card" id="classement"><h2><span class="ic">' + I.trophy + '</span>Classement de ' + esc(mois) + '</h2>';
+  h += l.length ? l.map(function(x, i){ return '<div class="rank ' + (x.moi ? 'me' : '') + '"><div class="pos">' + (i + 1) + '</div><div><b>' + esc(x.prenom) + (x.moi ? ' (toi)' : '') + '</b><span>' + x.clients + ' client' + (x.clients > 1 ? 's' : '') + ' ramené' + (x.clients > 1 ? 's' : '') + ' · ' + x.defis + ' défi' + (x.defis > 1 ? 's' : '') + ' validé' + (x.defis > 1 ? 's' : '') + '</span></div></div>'; }).join('')
+    : '<div class="empty">Le classement démarre avec le premier client ramené ce mois.</div>';
+  return h + '</section>';
+}
+
+(function init(){
+  S.tok = (new URLSearchParams(location.search).get('t') || '').trim();
+  if(S.tok.length < 32 || !/^[A-Za-z0-9]+$/.test(S.tok)) return state(I.lock, 'Lien incomplet', 'Ouvre le lien exact que Henzo t\'a envoyé sur WhatsApp.');
+  try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false } }); }
+  catch(e){ return state(I.lock, 'Impossible de charger', 'Vérifie ta connexion internet, puis recharge la page.'); }
+  load();
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible' && S.d) load(true); });
+})();
+</script>
+</body>
+</html>

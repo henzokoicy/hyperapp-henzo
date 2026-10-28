@@ -260,7 +260,8 @@ async function crmRender(){
   if(CRM.view === 'ambassadeurs' && typeof exRenderAmbassadeurs === 'function') return exRenderAmbassadeurs();
   if(CRM.view === 'equipe' && typeof eqRender === 'function') return eqRender(el);
   const all = crmAllStats(), vip = crmVipMin(all);
-  const sug = crmSuggestions();
+  // Les anniversaires ont leur carte en haut (messages.js, pour tout le monde)
+  const sug = crmSuggestions().filter(x => !(x.k === 'anniversaire' && typeof msBdays === 'function'));
   const fid = all.filter(x => x.s.count >= 2).length;
   // Chiffre total : tout l'argent des seances, meme si la personne n'est pas cliente (une seance payee compte toujours)
   const ids = new Set((clients || []).map(c => c.id));
@@ -327,7 +328,7 @@ function crmListHtml(list){
   return `<div class="ag-list">${list.map(({ c, s }) => `
     <div class="crm-row" onclick="crmOpenClient(${c.id})">
       <div class="crm-av">${agEsc(crmInitials(c))}</div>
-      <div class="d"><b>${agEsc(c.name)}${typeof svListBadge === 'function' ? svListBadge(c) : ''}</b><span>${c.source ? `<i class="crm-tag ex-srctag">${agEsc(crmSrcShort(c.source))}</i>` : ''}${s.count} séance${s.count > 1 ? 's' : ''} · ${s.upcoming.length ? 'prochaine ' + crmDate(s.upcoming[0].date, { day: 'numeric', month: 'short' }) : 'dernière ' + crmAgo(s.days)}</span></div>
+      <div class="d"><b>${agEsc(c.name)}${typeof svListBadge === 'function' ? svListBadge(c) : ''}${typeof msScoreBadge === 'function' ? msScoreBadge(c) : ''}</b><span>${c.source ? `<i class="crm-tag ex-srctag">${agEsc(crmSrcShort(c.source))}</i>` : ''}${s.count} séance${s.count > 1 ? 's' : ''} · ${s.upcoming.length ? 'prochaine ' + crmDate(s.upcoming[0].date, { day: 'numeric', month: 'short' }) : 'dernière ' + crmAgo(s.days)}</span></div>
       <div class="m">${agF(s.total)}</div>
     </div>`).join('')}</div>`;
 }
@@ -347,13 +348,15 @@ function crmOpenClient(id){
       <div class="ag-hint">${agEsc([c.phone, c.city].filter(Boolean).join(' · ') || 'Pas de numéro')}</div></div></div>
     ${tags.length ? `<div class="crm-tags">${tags.map(t => `<i>${agEsc(t)}</i>`).join('')}</div>` : ''}
     ${typeof svFicheHtml === 'function' ? svFicheHtml(c) : ''}
+    ${typeof msScoreFicheHtml === 'function' ? msScoreFicheHtml(c) : ''}
     <div class="crm-kpis">
       <div><b>${s.count}</b><span>séance${s.count > 1 ? 's' : ''}</span></div>
       <div><b>${agF(s.encaisse)} / ${agF(s.facture)}</b><span>Encaissé / Facturé</span></div>
       <div><b>${s.days == null ? '-' : crmAgo(s.days).replace('il y a ', '')}</b><span>dernière</span></div>
     </div>
-    <div class="ag-actions" style="margin:14px 0">
-      <button class="ag-act main" onclick="agCloseSheet('crmClient');crmCompose([${c.id}])"><span>${agIcon('sparkles')}</span>Message IA</button>
+    <div class="ag-actions" style="margin:14px 0${typeof msgEcrire === 'function' ? ';grid-template-columns:repeat(5,1fr);gap:6px' : ''}">
+      ${typeof msgEcrire === 'function' ? `<button class="ag-act main" onclick="agCloseSheet('crmClient');msgEcrire({ids:[${c.id}]})"><span>${agIcon('chat')}</span>Écrire un message</button>` : ''}
+      <button class="ag-act ${typeof msgEcrire === 'function' ? '' : 'main'}" onclick="agCloseSheet('crmClient');crmCompose([${c.id}])"><span>${agIcon('sparkles')}</span>Message IA</button>
       <button class="ag-act" onclick="crmWa(${c.id},'')"><span>${agIcon('chat')}</span>WhatsApp</button>
       <button class="ag-act" onclick="agCloseSheet('crmClient');crmPromoForm(null,{ids:[${c.id}]})"><span>${agIcon('star')}</span>Offrir un bon</button>
       <button class="ag-act" onclick="crmEditClient(${c.id})"><span>${agIcon('edit')}</span>Modifier</button>
@@ -371,11 +374,11 @@ function crmOpenClient(id){
     ${typeof exParFicheHtml === 'function' ? exParFicheHtml(c) : ''}
     <h4 class="crm-h4">Séances</h4>
     <div class="ag-list">${[...s.upcoming, ...s.done].length ? [...s.upcoming, ...s.done].sort((a, b) => String(b.date).localeCompare(String(a.date))).map(x => `
-      <div class="crm-line"><div><b>${agEsc(x.type || 'Séance')}</b><span>${crmDate(x.date)}${new Date(x.date) > crmNow() ? ' · à venir' : ''}</span></div><b>${agF(x.price)}</b></div>`).join('') : '<div class="ag-empty">Aucune séance</div>'}</div>
+      <div class="crm-line"><div><b>${agEsc(x.type || 'Séance')}</b><span>${crmDate(x.date)}${new Date(x.date) > crmNow() ? ' · à venir' : ''}</span>${typeof msPonctHtml === 'function' ? msPonctHtml(x, c.id) : ''}</div><b>${agF(x.price)}</b></div>`).join('') : '<div class="ag-empty">Aucune séance</div>'}</div>
     ${promos.length ? `<h4 class="crm-h4">Bons de réduction</h4><div class="ag-list">${promos.map(p => `<div class="crm-line"><div><b>${agEsc(p.title || p.code)}</b><span>Code ${agEsc(p.code)} · ${crmPromoValue(p)}</span></div><b>${(p.uses || []).some(u => u.client_id === c.id) ? 'Utilisé' : crmPromoState(p)}</b></div>`).join('')}</div>` : ''}
     ${avis.length ? `<h4 class="crm-h4">Ses avis</h4><div class="ag-list">${avis.map(a => `<div class="crm-line"><div><b>${'★'.repeat(a.note)}${'☆'.repeat(5 - a.note)}</b><span>${agEsc(a.texte || 'Sans commentaire')}</span></div></div>`).join('')}</div>` : ''}
     <h4 class="crm-h4">Messages envoyés</h4>
-    <div class="ag-list">${s.msgs.length ? s.msgs.slice(0, 10).map(m => `<div class="crm-line col"><span>${crmDate(m.created_at)} · ${agEsc((CRM_GOALS[m.kind] || {}).n || m.kind || '')}</span><p>${agEsc(m.text)}</p></div>`).join('') : '<div class="ag-empty">Aucun message pour le moment</div>'}</div>
+    <div class="ag-list">${s.msgs.length ? s.msgs.slice(0, 10).map(m => `<div class="crm-line col"><span>${crmDate(m.created_at)} · ${agEsc(typeof msKindLabel === 'function' ? msKindLabel(m.kind) : ((CRM_GOALS[m.kind] || {}).n || m.kind || ''))}</span><p>${agEsc(m.text)}</p></div>`).join('') : '<div class="ag-empty">Aucun message pour le moment</div>'}</div>
   `);
 }
 
@@ -478,7 +481,7 @@ function crmHistory(){
   agSheet('crmHist', `<h3>Messages envoyés</h3>
     <div class="ag-list">${rows.length ? rows.map(m => {
       const c = (clients || []).find(x => x.id === m.client_id);
-      return `<div class="crm-line col"><span><b>${agEsc(c ? c.name : 'Client')}</b> · ${crmDate(m.created_at)} · ${agEsc((CRM_GOALS[m.kind] || {}).n || '')}</span><p>${agEsc(m.text)}</p></div>`; }).join('') : '<div class="ag-empty">Aucun message envoyé pour le moment.</div>'}</div>`);
+      return `<div class="crm-line col"><span><b>${agEsc(c ? c.name : 'Client')}</b> · ${crmDate(m.created_at)} · ${agEsc(typeof msKindLabel === 'function' ? msKindLabel(m.kind) : ((CRM_GOALS[m.kind] || {}).n || ''))}</span><p>${agEsc(m.text)}</p></div>`; }).join('') : '<div class="ag-empty">Aucun message envoyé pour le moment.</div>'}</div>`);
 }
 
 // ============================================================
@@ -567,7 +570,7 @@ function crmPickDone(){
 
 function crmClientBrief(c){
   const s = crmStats(c), crm = c.crm || {};
-  return `- ${c.name} (appeler : ${crmFirst(c)}) : ${s.count} séance(s)${s.types.length ? ' [' + s.types.join(', ') + ']' : ''}, total ${Math.round(s.total)} F, dernière ${s.last ? crmDate(s.last) : 'aucune'}${s.upcoming.length ? ', séance prévue le ' + crmDate(s.upcoming[0].date) : ''}${c.city ? ', ' + c.city : ''}${(c.categories || []).length ? ', étiquettes : ' + c.categories.join(', ') : ''}${c.birthday ? ', anniversaire le ' + crmDate(c.birthday, { day: 'numeric', month: 'long' }) : ''}${crm.famille ? ', famille : ' + crm.famille : ''}${crm.aime ? ', aime : ' + crm.aime : ''}${c.notes ? ', notes : ' + c.notes : ''}${typeof svBrief === 'function' ? svBrief(c) : ''}`;
+  return `- ${c.name} (appeler : ${crmFirst(c)}) : ${s.count} séance(s)${s.types.length ? ' [' + s.types.join(', ') + ']' : ''}, total ${Math.round(s.total)} F, dernière ${s.last ? crmDate(s.last) : 'aucune'}${s.upcoming.length ? ', séance prévue le ' + crmDate(s.upcoming[0].date) : ''}${c.city ? ', ' + c.city : ''}${(c.categories || []).length ? ', étiquettes : ' + c.categories.join(', ') : ''}${c.birthday ? ', anniversaire le ' + crmDate(c.birthday, { day: 'numeric', month: 'long' }) : ''}${crm.famille ? ', famille : ' + crm.famille : ''}${crm.aime ? ', aime : ' + crm.aime : ''}${c.notes ? ', notes : ' + c.notes : ''}${typeof svBrief === 'function' ? svBrief(c) : ''}${typeof msScoreBrief === 'function' ? msScoreBrief(c) : ''}`;
 }
 function crmContext(){
   const k = CRM.comp, cs = crmCompClients();
@@ -927,4 +930,4 @@ if(typeof agSheet === 'function'){
 // Tarifs, devis, conseiller IA et page publique (fichier prix.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'prix.js?v=5'; document.body.appendChild(sc); })();
 // Selection multiple, mise a jour auto, sauvegardes, reservations (fichier outils.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'outils.js?v=11'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'outils.js?v=12'; document.body.appendChild(sc); })();
