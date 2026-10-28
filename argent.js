@@ -1327,10 +1327,12 @@ agSetupInstall();
 // Galerie clients integree (fichier galerie.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=6'; document.body.appendChild(sc); })();
 // Clients, relances, promos et tarifs (fichier crm.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=13'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=14'; document.body.appendChild(sc); })();
 // Moodboard : idees de seance (fichier mood.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'mood.js?v=4'; document.body.appendChild(sc); })();
-(function(){ const sc = document.createElement('script'); sc.src = 'marketing.js?v=3'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'marketing.js?v=4'; document.body.appendChild(sc); })();
+// Studio de publication et Ma marque (fichier studio.js)
+(function(){ const sc = document.createElement('script'); sc.src = 'studio.js?v=1'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'extras.js?v=5'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'budget.js?v=2'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'coach2.js?v=4'; document.body.appendChild(sc); })();

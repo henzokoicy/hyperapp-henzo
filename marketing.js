@@ -46,6 +46,7 @@ function mkNum(v){
   if(!m){ const n = Number(s); return isFinite(n) ? Math.round(n) : null; }
   return Math.round(Number(m[1]) * (m[2] === 'k' ? 1000 : m[2] === 'm' ? 1e6 : 1));
 }
+function mkSlug(s){ return mkNorm(s).replace(/ /g, '-') || 'photo'; }
 function mkRand(){ return Math.random().toString(36).slice(2, 8); }
 function mkIsMobile(){ try { return matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad/i.test(navigator.userAgent); } catch(e){ return false; } }
 function mkShoot(id){ return (typeof shoots !== 'undefined' ? shoots : []).find(s => s.id === Number(id)); }
@@ -232,6 +233,7 @@ function mkJson(t){
 .mk-intro{font-size:13px;color:var(--muted);line-height:1.5;margin:0 2px 12px}
 .mk-err{color:var(--red);font-size:13px;margin-top:8px}
 .mk-src{font-size:11.5px;color:var(--muted);margin-top:6px}
+.mk-studio-card{border-color:var(--accent)}
 .mk-plan-prev .mk-post{position:relative;padding-left:40px}
 .mk-plan-prev .mk-post input[type=checkbox]{position:absolute;left:12px;top:14px;width:18px;height:18px;margin:0;accent-color:var(--accent)}
 `;
@@ -256,6 +258,11 @@ async function mkLoad(force){
     MK.mem = (mem && mem.data) || []; MK.posts = (p && p.data) || []; MK.media = (med && med.data) || [];
     MK.tarifs = (t && t.data) || []; MK.promos = (pr && pr.data) || [];
   } catch(e){ console.warn('marketing load', e); }
+  // Nom de la marque (page tarifs), si prix.js ne l'a pas deja charge
+  if(!(typeof PX !== 'undefined' && PX.page)){
+    try { const { data } = await sb.from('tarif_page').select('marque').maybeSingle(); MK.marquePage = (data && data.marque) || null; } catch(e){}
+  }
+  if(typeof window.stChargerMarque === 'function') try { await window.stChargerMarque(); } catch(e){}
   MK.loaded = true; MK.loadedAt = Date.now();
   mkLoadAvis();
 }
@@ -500,8 +507,25 @@ function mkContext(){
   if(plan.length) L.push('DÉJÀ PRÉVU : ' + plan.map(p => `${p.date} ${p.heure || ''} ${p.network} "${(p.title || '').slice(0, 40)}"`).join(' ; '));
   return L.join('\n');
 }
+// Nom de la marque : kit "Ma marque", sinon page tarifs (tarif_page.marque), sinon "Henzo Photographie"
+function mkMarque(){
+  const k = window.ST_MARQUE && window.ST_MARQUE.nom;
+  const p = (typeof PX !== 'undefined' && PX.page && PX.page.marque) || MK.marquePage;
+  const n = String(k || p || '').trim() || 'Henzo Photographie';
+  return /^henzo\s*studio$/i.test(n) ? 'Henzo Photographie' : n;
+}
+function mkMarqueCtx(){
+  const m = window.ST_MARQUE; if(!m) return '';
+  const L = [];
+  if(m.slogan) L.push(`Slogan : "${m.slogan}".`);
+  if((m.tons || []).length) L.push(`Ton des textes : ${m.tons.join(', ')}.`);
+  if(m.emojis) L.push(`Emojis : ${m.emojis}.`);
+  if((m.style || []).length) L.push(`Son style d'écriture : ${m.style.slice(0, 8).join(' ; ')}.`);
+  return L.length ? '\nSA MARQUE : ' + L.join(' ') : '';
+}
 function mkSystem(){
-  return `Tu es l'agent marketing personnel de Henzo (KONAN Cédric), photographe et vidéaste, studio Henzo Studio au quartier Ahougnansou à Bouaké (Côte d'Ivoire), en face du restaurant Le Rosier. Ton but : l'aider à avoir plus de clients à Bouaké et dans toute la Côte d'Ivoire, et à se faire un nom.
+  const marque = mkMarque();
+  return `Tu es l'agent marketing personnel de Henzo (KONAN Cédric), photographe et vidéaste. Sa marque s'appelle "${marque}" (écris toujours ce nom exact, jamais un autre nom de studio). Son studio est au quartier Ahougnansou à Bouaké (Côte d'Ivoire), en face du restaurant Le Rosier. Ton but : l'aider à avoir plus de clients à Bouaké et dans toute la Côte d'Ivoire, et à se faire un nom.${mkMarqueCtx()}
 
 TU ES UN EXPERT du marketing pour photographes et tu connais bien le marché ivoirien :
 - Facebook est très fort : page pro, groupes de quartier et de Bouaké, groupes de mamans, de mariages, de ventes. Les gens commentent et écrivent en privé.
@@ -514,12 +538,14 @@ COMMENT TU RÉPONDS :
 - Conseils PRÉCIS et faisables tout de suite : quoi publier, sur quel réseau, quel jour et à quelle heure, le texte prêt à copier, les hashtags (locaux comme #Bouaké #CôteDIvoire #PhotographeBouaké, et du métier).
 - Honnête et direct. Tu pousses Henzo à agir, sans le flatter. Si une photo n'est pas assez bonne pour être publiée, dis-le et explique pourquoi.
 - Textes à publier : ton pro et chaleureux, avec une touche ivoirienne quand ça colle (sans exagérer), et toujours un appel à l'action clair (écrire sur WhatsApp, réserver).
-- Français simple, phrases courtes, pas de jargon. Réponses courtes, va à l'essentiel.
+- Français simple, phrases courtes, réponses claires. Pas de mots techniques ou anglais (pas de "engagement", "reach", "CTA", "feed", "insights", "algorithme"...) : dis "les gens qui réagissent", "les gens qui voient", "l'appel à réserver". Va à l'essentiel.
 - N'utilise jamais de tiret long. Seulement le tiret simple "-".
+- Tu ne peux PAS publier à la place de Henzo (ni Facebook, ni WhatsApp, ni ailleurs) et tu ne vois pas ses pages. Ne dis jamais "je publie" ni "publie dès maintenant" comme si c'était fait. Donne le texte et dis : "Voici ton texte, touche Copier puis publie."
+- Quand il y a plusieurs photos, c'est TOI qui décides laquelle mettre en premier et dans quel ordre, et tu expliques pourquoi en une phrase (sourire, regard, lumière, netteté). Ne demande jamais "laquelle tu préfères ?".
 - Tu n'inventes pas de chiffres sur ses résultats : utilise le contexte ci-dessous.
 - Pour apprendre à le connaître : au maximum 1 ou 2 questions par réponse, à la fin, seulement si c'est utile.
 
-BLOCS SPÉCIAUX (à la toute fin de ta réponse) :
+BLOCS SPÉCIAUX (à la toute fin de ta réponse). Format exact : trois accents graves suivis du nom du bloc, le JSON sur la ligne suivante, puis trois accents graves. Jamais de crochets autour ("[post {...}]" est interdit), jamais de JSON au milieu du texte.
 1) Si tu apprends un fait NOUVEAU et durable sur Henzo, ajoute :
 \`\`\`memo
 [{"kind":"style","text":"phrase courte"}]
@@ -529,34 +555,133 @@ kind parmi : profil, style, prix, clients, difficulte, objectif, resultat, prefe
 \`\`\`post
 {"network":"Facebook","kind":"Séance client","date":"AAAA-MM-JJ","heure":"19:00","title":"titre court","caption":"texte prêt à publier","hashtags":"#Bouaké ...","shoot_id":null,"photos":[1]}
 \`\`\`
-network parmi : ${MK_NETS.join(', ')}. kind parmi : ${MK_KINDS.join(', ')}. shoot_id = numéro de la séance liée ou null. photos = numéros des photos jointes à mon dernier message à utiliser (sinon []). Ne recopie pas la légende au-dessus du bloc.
+network parmi : ${MK_NETS.join(', ')}. kind parmi : ${MK_KINDS.join(', ')}. shoot_id = numéro de la séance liée ou null. photos = numéros des photos jointes à mon dernier message à utiliser, dans l'ordre que tu conseilles (sinon []). Ne recopie pas la légende au-dessus du bloc.
+3) Quand Henzo veut publier une séance précise (ex : "publier le shooting de Destinée"), ajoute :
+\`\`\`studio
+{"shoot_id":30,"nom":"Destinée"}
+\`\`\`
+L'app lui proposera d'ouvrir le studio de publication (photos de la galerie, textes pour chaque réseau, image avec titre, plan de diffusion). shoot_id = numéro de la séance si tu le connais, sinon null.
 
 CONTEXTE :
 ${mkContext()}`;
 }
 // Historique court : les 20 derniers messages, blocs remplaces par un resume
 function mkHistory(list){
-  return (list || MK.msgs).slice(-20).map(m => ({
-    role: m.role,
-    text: String(m.text || '').replace(/```\s*post\s*([\s\S]*?)```/g, (x, j) => { try { const p = JSON.parse(j); return `[publication proposée : ${p.title || ''} (${p.network || ''}, ${p.date || ''})]`; } catch(e){ return '[publication proposée]'; } })
-      + ((m.images || []).length ? `\n[${m.images.length} photo(s) jointe(s)]` : '')
-  }));
+  return (list || MK.msgs).slice(-20).map(m => {
+    const P = mkParse(m.text);
+    return { role: m.role,
+      text: P.clean + P.posts.map(p => `\n(publication proposée : ${p.title || ''}, ${p.network || ''}, ${p.date || ''})`).join('')
+        + P.studios.map(x => `\n(studio de publication proposé pour ${x.nom || 'la séance'})`).join('')
+        + ((m.images || []).length ? `\n(${m.images.length} photo(s) jointe(s))` : '') };
+  });
 }
 
-// ---------- Blocs memo / post ----------
+// ---------- Blocs memo / post / studio ----------
+// L'IA ne respecte pas toujours le format : on reconnait toutes les variantes
+//   ```post {...}```, ```json {...}```, [post {...}], post {...}, {"network":...} seul,
+//   pareil pour memo et studio, plusieurs blocs, JSON mal ferme (petite reparation).
+// Ces blocs sont TOUJOURS retires du texte affiche.
+const MK_BLOCKS = ['post', 'memo', 'studio'];
+function mkKindOf(j){
+  const one = Array.isArray(j) ? j[0] : j;
+  if(!one || typeof one !== 'object') return null;
+  if(['network', 'caption', 'reseau', 'legende'].some(k => k in one)) return 'post';
+  if('studio' in one || ('shoot_id' in one && 'nom' in one)) return 'studio';
+  if('text' in one && 'kind' in one) return 'memo';
+  return null;
+}
+function mkGuessKind(raw){
+  const s = String(raw || '');
+  if(/"(network|caption|reseau|legende)"\s*:/.test(s)) return 'post';
+  if(/"studio"\s*:/.test(s)) return 'studio';
+  if(/"kind"\s*:/.test(s) && /"text"\s*:/.test(s)) return 'memo';
+  return null;
+}
+// Fin d'une valeur JSON qui commence a i (en tenant compte des chaines). -1 si pas fermee.
+function mkJsonEnd(s, i){
+  let depth = 0, inS = false, esc = false;
+  for(let k = i; k < s.length; k++){
+    const ch = s[k];
+    if(inS){ if(esc) esc = false; else if(ch === '\\') esc = true; else if(ch === '"') inS = false; continue; }
+    if(ch === '"') inS = true;
+    else if(ch === '{' || ch === '[') depth++;
+    else if(ch === '}' || ch === ']'){ depth--; if(depth <= 0) return k + 1; }
+  }
+  return -1;
+}
+// JSON.parse, puis petite reparation (guillemets courbes, virgules en trop, accolades pas fermees)
+function mkRepair(raw){
+  let t = String(raw || '').trim();
+  if(!t) return undefined;
+  try { return JSON.parse(t); } catch(e){}
+  t = t.replace(/[“”]/g, '"').replace(/,\s*([}\]])/g, '$1');
+  try { return JSON.parse(t); } catch(e){}
+  const stack = []; let inS = false, esc = false;
+  for(const ch of t){
+    if(inS){ if(esc) esc = false; else if(ch === '\\') esc = true; else if(ch === '"') inS = false; continue; }
+    if(ch === '"') inS = true;
+    else if(ch === '{' || ch === '[') stack.push(ch === '{' ? '}' : ']');
+    else if(ch === '}' || ch === ']') stack.pop();
+  }
+  let u = t + (inS ? '"' : '');
+  u = u.replace(/,\s*$/, '').replace(/,?\s*"[^"]*"\s*:\s*$/, '') + stack.reverse().join('');
+  try { return JSON.parse(u.replace(/,\s*([}\]])/g, '$1')); } catch(e){}
+  return undefined;
+}
 function mkParse(text){
-  const posts = [], memos = [];
-  const clean = String(text || '').replace(/```\s*(memo|post)\s*([\s\S]*?)(```|$)/g, (x, kind, body) => {
-    try {
-      const j = JSON.parse(body.trim());
-      if(kind === 'memo') (Array.isArray(j) ? j : [j]).forEach(m => { if(m && m.text) memos.push(m); });
-      else posts.push(j);
-    } catch(e){ try { const j = mkJson(body); if(kind === 'memo') (Array.isArray(j) ? j : [j]).forEach(m => m && m.text && memos.push(m)); else posts.push(j); } catch(er){} }
-    return '';
-  }).trim();
-  return { clean, posts, memos };
+  const posts = [], memos = [], studios = [];
+  const take = (kind, j) => {
+    if(j == null || typeof j !== 'object') return;
+    (Array.isArray(j) ? j : [j]).forEach(x => {
+      if(!x || typeof x !== 'object') return;
+      if(kind === 'memo'){ if(x.text) memos.push(x); }
+      else if(kind === 'post') posts.push(x);
+      else if(kind === 'studio') studios.push(x);
+    });
+  };
+  let s = String(text || '');
+  // 1. Blocs entre ``` (post, memo, studio, json, ou sans nom)
+  s = s.replace(/```[ \t]*([a-zA-Z]*)[ \t]*\n?([\s\S]*?)(?:```|$)/g, (all, lang, body) => {
+    lang = String(lang || '').toLowerCase();
+    const b = body.trim();
+    if(MK_BLOCKS.includes(lang)){ take(lang, mkRepair(b)); return '\n'; }
+    if(lang && lang !== 'json') return all;
+    const lab = b.match(/^\[?\s*(post|memo|studio)\s*:?\s*([\[{][\s\S]*?)\]?$/i);
+    if(lab){ take(lab[1].toLowerCase(), mkRepair(lab[2])); return '\n'; }
+    if(!/^[\[{]/.test(b)) return all;
+    const j = mkRepair(b), k = j !== undefined ? mkKindOf(j) : mkGuessKind(b);
+    if(k){ take(k, j); return '\n'; }
+    return all;
+  });
+  // 2. Variantes dans le texte : [post {...}], post {...}, {"network":...} seul
+  let out = '', pos = 0;
+  const re = /(\[[ \t]*)?\b(post|memo|studio)\b[ \t]*:?[ \t]*(?=[\[{])|\{\s*"|\[\s*\{\s*"/gi;
+  while(pos < s.length){
+    re.lastIndex = pos;
+    const m = re.exec(s);
+    if(!m){ out += s.slice(pos); break; }
+    const start = m.index, label = m[2] ? m[2].toLowerCase() : null, jStart = label ? start + m[0].length : start;
+    let end = mkJsonEnd(s, jStart);
+    if(end < 0){ const para = s.indexOf('\n\n', jStart); end = para < 0 ? s.length : para; }
+    const raw = s.slice(jStart, end);
+    const j = mkRepair(raw);
+    const kind = label || (j !== undefined ? mkKindOf(j) : mkGuessKind(raw));
+    if(!kind){ out += s.slice(pos, start + 1); pos = start + 1; continue; }
+    let after = end;
+    if(m[1]){ const mm = /^[ \t]*\]/.exec(s.slice(after)); if(mm) after += mm[0].length; }
+    take(kind, j);
+    out += s.slice(pos, start);
+    pos = after;
+  }
+  const clean = out.replace(/([^\s])[ \t]{2,}(?=[^\s])/g, '$1 ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  return { clean, posts, memos, studios };
 }
 function mkPostBlock(p){ return '```post\n' + JSON.stringify(p) + '\n```'; }
+function mkStudioBlock(x){ return '```studio\n' + JSON.stringify(x) + '\n```'; }
+// Remet un message au format propre : texte, puis les blocs
+function mkBuild(clean, posts, studios){
+  return [String(clean || '').trim(), ...(posts || []).map(mkPostBlock), ...(studios || []).map(mkStudioBlock)].filter(Boolean).join('\n\n');
+}
 function mkSim(a, b){
   const A = new Set(mkNorm(a).split(' ').filter(w => w.length > 2)), B = new Set(mkNorm(b).split(' ').filter(w => w.length > 2));
   if(!A.size || !B.size) return 0;
@@ -623,7 +748,11 @@ async function mkRender(){
 }
 function mkRenderTab(){
   const el = mkBody(); if(!el) return;
-  const bar = `<div class="mk-tabs">${MK_TABS.map(([k, l]) => { const n = mkBadge(k); return `<button class="${MK.tab === k ? 'on' : ''}" onclick="mkGo('${k}')">${l}${n ? `<i>${n}</i>` : ''}</button>`; }).join('')}</div>`;
+  // Studio de publication et Ma marque (studio.js) : ecrans plein onglet
+  if((MK.tab === 'studio' || MK.tab === 'marque') && typeof window.stRender === 'function'){ window.stRender(el); return; }
+  if(MK.tab === 'studio' || MK.tab === 'marque') MK.tab = 'chat';
+  const top = typeof window.stTopHtml === 'function' ? window.stTopHtml() : '';
+  const bar = top + `<div class="mk-tabs">${MK_TABS.map(([k, l]) => { const n = mkBadge(k); return `<button class="${MK.tab === k ? 'on' : ''}" onclick="mkGo('${k}')">${l}${n ? `<i>${n}</i>` : ''}</button>`; }).join('')}</div>`;
   let h = '';
   if(MK.tab === 'jour') h = mkJourHtml();
   else if(MK.tab === 'plan') h = mkPlanHtml();
@@ -645,7 +774,7 @@ const MK_QUICK = [
 ];
 function mkChatHtml(){
   const msgs = MK.msgs;
-  const empty = !msgs.length ? `<div class="mk-msg agent"><p>Salut Henzo ! Je suis ton agent marketing. Mon travail : t'aider à avoir plus de clients et à faire connaître Henzo Studio partout en Côte d'Ivoire.</p><p>Envoie-moi des photos, pose-moi une question, ou touche un des boutons en bas. Plus on parle, mieux je te connais.</p></div>` : '';
+  const empty = !msgs.length ? `<div class="mk-msg agent"><p>Salut Henzo ! Je suis ton agent marketing. Mon travail : t'aider à avoir plus de clients et à faire connaître ${agEsc(mkMarque())} partout en Côte d'Ivoire.</p><p>Envoie-moi des photos, pose-moi une question, ou touche un des boutons en bas. Plus on parle, mieux je te connais.</p></div>` : '';
   return `<div class="mk-chat" id="mkChat">${empty}${msgs.map(mkMsgHtml).join('')}${MK.busy === 'chat' ? mkTyping() : ''}</div>
     <div class="mk-compose">
       <div class="mk-quick">${MK_QUICK.map(([k, l]) => `<button onclick="mkQuick('${k}')" ${MK.busy ? 'disabled' : ''}>${agEsc(l)}</button>`).join('')}</div>
@@ -672,7 +801,7 @@ function mkAfterChat(){
   MK.scroll = true;
 }
 function mkMsgHtml(m){
-  const { clean, posts } = mkParse(m.text);
+  const { clean, posts, studios } = mkParse(m.text);
   const imgs = m.images || [];
   const open = MK.openMsg === m.id;
   const t = new Date(m.created_at || Date.now()).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -680,6 +809,7 @@ function mkMsgHtml(m){
     ${imgs.length ? `<div class="mk-imgs">${imgs.map(im => mkImgTag(im)).join('')}</div>` : ''}
     ${m.role === 'user' ? agEsc(mkClean(clean)).replace(/\n/g, '<br>') : mkMd(clean)}
     ${posts.map((p, i) => mkPostCard(p, { msg: m.id, i })).join('')}
+    ${studios.map(mkStudioCard).join('')}
     <span class="mk-time">${t}</span>
     ${open ? `<div class="mk-mact"><button onclick="event.stopPropagation();mkCopy(${agEsc(JSON.stringify(mkClean(clean)))})">Copier</button><button class="danger" onclick="event.stopPropagation();mkDelMsg(${m.id})">Supprimer</button></div>` : ''}
   </div>`;
@@ -705,6 +835,17 @@ function mkPostCard(p, ref){
     </div>
   </div>`;
 }
+// Carte "Ouvrir le studio de publication" (bloc studio de l'IA, ou intention detectee)
+function mkStudioCard(x){
+  const s = x && x.shoot_id ? mkShoot(x.shoot_id) : null;
+  const nom = mkClean((x && x.nom) || (s ? mkFirst(mkClient(s.client_id)) : '') || 'cette séance');
+  const arg = agEsc(JSON.stringify({ shoot_id: s ? s.id : null, nom }));
+  return `<div class="mk-post mk-studio-card">
+    <div class="mk-post-h"><b>${agIcon('sparkles', 15)} Studio de publication</b></div>
+    <div class="mk-cap" style="margin:2px 0 0">Photos, textes pour chaque réseau, image avec titre et plan de diffusion${s ? ' pour ' + agEsc(mkShootLabel(s)) : ''}.</div>
+    <div class="mk-btns"><button class="main" onclick="event.stopPropagation();window.stCreer && stCreer(${arg})">${agIcon('sparkles', 14)} Ouvrir le studio de publication pour ${agEsc(nom)}</button></div>
+  </div>`;
+}
 function mkPropGet(a, b){
   if(a === 'prop') return MK.proposal;
   const m = MK.msgs.find(x => x.id === a); if(!m) return null;
@@ -717,8 +858,8 @@ async function mkPropAdd(a, b){
   p.plan_id = row.id;
   if(a !== 'prop'){
     const m = MK.msgs.find(x => x.id === a);
-    let k = -1;
-    const text = String(m.text).replace(/```\s*post\s*([\s\S]*?)(```|$)/g, (x, body) => { k++; if(k !== b) return x; return mkPostBlock(p); });
+    const P = mkParse(m.text); P.posts[b] = p;
+    const text = mkBuild(P.clean, P.posts, P.studios);
     m.text = text;
     await sb.from('mk_messages').update({ text }).eq('id', m.id);
   }
@@ -869,6 +1010,9 @@ async function mkSend(text, opt){
     agAlert("Message non envoyé : " + (e.message || e)); return;
   }
   const recherche = opt.search != null ? opt.search : (MK.search || MK_SEARCH_RE.test(text));
+  // "publier le shooting de Destinée" : on proposera d'ouvrir le studio de publication
+  const intent = mkStudioIntent(text);
+  if(intent) opt.hidden = [opt.hidden, `Henzo veut publier une séance${intent.shoot_id ? ' (séance n°' + intent.shoot_id + ')' : ''} : réponds en 2 ou 3 phrases et ajoute le bloc studio. L'app lui proposera d'ouvrir le studio de publication.`].filter(Boolean).join('\n');
   let reply;
   try {
     const res = await mkAI({ system: mkSystem(), messages: [...mkHistory(hist), { role: 'user', text: text + (opt.hidden ? '\n\n' + opt.hidden : '') + (st.b64.length ? `\n\n(${st.b64.length} photo(s) jointe(s), numérotées de 1 à ${st.b64.length})` : '') }], images: st.b64, recherche });
@@ -877,19 +1021,36 @@ async function mkSend(text, opt){
     MK.busy = false; mkRenderTab();
     agAlert(e.message || String(e)); return;
   }
-  const out = await mkSaveReply(reply, { images: st.images, shoot: opt.shoot, media: st.media, source: 'discussion' });
+  const out = await mkSaveReply(reply, { images: st.images, shoot: opt.shoot, media: st.media, source: 'discussion', studio: intent });
   MK.busy = false;
   if(opt.after) opt.after(out);
   mkRenderTab();
 }
+// Intention "publier la seance / le shooting de X" -> {shoot_id, nom} ou null
+function mkStudioIntent(text){
+  const t = String(text || '');
+  if(!/publi|poster|partag|mettre en ligne/i.test(t)) return null;
+  const re = /(?:shooting|s[ée]ance|photos?|anniversaire|mariage|dot|grossesse|bapt[eê]me)\s+(?:de|d'|d’|du|avec|pour)\s*([A-Za-zÀ-ÿ’-]{2,})/gi;
+  let m, nom = '';
+  while((m = re.exec(t))){ if(!/^(la|le|les|ma|mon|mes|cette|ce|hier|aujourd|demain|samedi|dimanche|ma[dm]ame|monsieur)$/i.test(m[1])){ nom = m[1]; break; } }
+  if(!nom) return null;
+  const n = mkNorm(nom);
+  const list = (typeof shoots !== 'undefined' ? shoots : []).filter(s => !mkCancelled(s)).filter(s => { const c = mkClient(s.client_id); return c && mkNorm(c.name).split(' ').includes(n); })
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const past = list.filter(s => new Date(s.date).getTime() <= Date.now());
+  const s = past[0] || list[0];
+  return { shoot_id: s ? s.id : null, nom: nom.charAt(0).toUpperCase() + nom.slice(1) };
+}
 // Enregistre la reponse : retient les memos, normalise les blocs post, garde le message
 async function mkSaveReply(reply, o){
   o = o || {};
-  const { memos, posts } = mkParse(reply.text);
-  let body = mkClean(String(reply.text).replace(/```\s*memo\s*([\s\S]*?)(```|$)/g, '').trim());
-  let k = -1;
-  body = body.replace(/```\s*post\s*([\s\S]*?)(```|$)/g, () => { k++; const p = mkFixPost(posts[k], o.images); if(o.shoot && !p.shoot_id) p.shoot_id = o.shoot; return mkPostBlock(p); });
-  if(reply.sources && reply.sources.length) body += '\n\nSources : ' + reply.sources.map(s => `[${String(s.title).replace(/[\[\]]/g, '')}](${s.uri})`).join(', ');
+  const P = mkParse(reply.text), memos = P.memos;
+  const posts = P.posts.map(x => { const p = mkFixPost(x, o.images); if(o.shoot && !p.shoot_id) p.shoot_id = o.shoot; return p; });
+  const studios = P.studios.slice();
+  if(o.studio && !studios.some(x => Number(x.shoot_id) === Number(o.studio.shoot_id))) studios.push(o.studio);
+  let txt = mkClean(P.clean).replace(/Henzo Studio/g, mkMarque());
+  if(reply.sources && reply.sources.length) txt += '\n\nSources : ' + reply.sources.map(s => `[${String(s.title).replace(/[\[\]]/g, '')}](${s.uri})`).join(', ');
+  const body = mkBuild(txt, posts, studios);
   if(memos.length) await mkSaveMemos(memos, o.source);
   let row = null;
   try {
@@ -925,10 +1086,10 @@ async function mkShare(p){
       const files = [];
       for(const [i, im] of imgs.slice(0, 10).entries()){
         let url = im.path ? (await mkSign([im.path]))[0] : (im.url || im.thumb);
-        try { const b = await mkUrlBlob(url); files.push(new File([b], `henzo-studio-${i + 1}.jpg`, { type: b.type || 'image/jpeg' })); } catch(e){}
+        try { const b = await mkUrlBlob(url); files.push(new File([b], `${mkSlug(mkMarque())}-${i + 1}.jpg`, { type: b.type || 'image/jpeg' })); } catch(e){}
       }
       if(files.length && navigator.canShare({ files })){
-        await navigator.share({ files, text, title: p.title || 'Henzo Studio' });
+        await navigator.share({ files, text, title: p.title || mkMarque() });
         agToast('Texte copié aussi : colle-le si WhatsApp ne le reprend pas');
         return;
       }
@@ -956,7 +1117,7 @@ function mkJourHtml(){
         <button class="btn-primary" style="width:100%" ${MK.busy ? 'disabled' : ''} onclick="mkPropose()">${MK.busy === 'prop' ? "L'agent réfléchit..." : MK.proposal ? 'Autre proposition' : 'Me proposer quelque chose'}</button>`}
     </div>
     <div class="mk-card"><h3>${agIcon('camera', 18)} Séances pas encore publiées${unpub.length ? `<span class="crm-count">${unpub.length}</span>` : ''}</h3>
-      ${unpub.length ? unpub.slice(0, 8).map(s => `<div class="mk-line"><div class="d"><b>${agEsc(s.type || 'Séance')}${mkClient(s.client_id) ? ' · ' + agEsc(mkClient(s.client_id).name) : ''}</b><span>${agEsc(mkDateTxt(s.date, { day: 'numeric', month: 'long' }))}</span></div><button onclick="mkPreparerSeance(${s.id})">Préparer une publication</button></div>`).join('')
+      ${unpub.length ? unpub.slice(0, 8).map(s => `<div class="mk-line"><div class="d"><b>${agEsc(s.type || 'Séance')}${mkClient(s.client_id) ? ' · ' + agEsc(mkClient(s.client_id).name) : ''}</b><span>${agEsc(mkDateTxt(s.date, { day: 'numeric', month: 'long' }))}</span></div><button onclick="${typeof window.stCreer === 'function' ? `stCreer({shoot_id:${s.id}})` : `mkPreparerSeance(${s.id})`}">Préparer une publication</button></div>`).join('')
         : '<div class="ag-hint" style="margin:0">Toutes tes séances récentes ont une publication. Bravo.</div>'}
     </div>
     <div class="mk-card"><h3>${agIcon('target', 18)} Résultats à donner${noStats.length ? `<span class="crm-count">${noStats.length}</span>` : ''}</h3>
@@ -982,6 +1143,8 @@ function mkPlanCard(p){
     </div>
   </div>`;
 }
+// Notes d'une publication faite avec le studio : JSON {"studio":1, versions, plan, lien...}
+function mkStudioNotes(n){ if(!n || !/^\s*\{\s*"studio"/.test(String(n))) return null; try { return JSON.parse(n); } catch(e){ return null; } }
 function mkCopyPost(id){ const p = MK.posts.find(x => x.id === id); if(p) mkCopy(mkPostText(p)); }
 function mkSharePost(id){ const p = MK.posts.find(x => x.id === id); if(p) mkShare(p); }
 async function mkUpdatePost(id, patch){
@@ -1122,7 +1285,8 @@ function mkEditPost(id, date, pre){
     <div class="mk-thumbs" id="mkPImgs"></div>
     <div class="mk-tools"><button onclick="mkPickFiles('post')">${agIcon('image', 15)} Téléphone / ordi</button><button onclick="mkPickGalerie('post')">${agIcon('users', 15)} Galeries</button><button onclick="mkPickMood('post')">${agIcon('palette', 15)} Moodboards</button></div>
     ${p ? `<label>État</label><div class="ag-pills" id="mkPSt">${[['prevu', 'Prévu'], ['publie', 'Publié'], ['annule', 'Annulé']].map(([k, l]) => `<button data-s="${k}" class="${v.status === k ? 'on' : ''}" onclick="document.querySelectorAll('#mkPSt button').forEach(b=>b.classList.toggle('on', b===this))">${l}</button>`).join('')}</div>` : ''}
-    <label>Notes</label><input id="mkPNotes" value="${agEsc(v.notes || '')}" placeholder="Facultatif">
+    ${mkStudioNotes(v.notes) ? `<label>Studio de publication</label><div class="ag-hint" style="margin:2px 0 6px">Les textes des autres réseaux, le plan de diffusion et le lien sont gardés par le studio.</div>${typeof window.stOuvrirPost === 'function' && p ? `<button class="btn-secondary mk-ib" onclick="agCloseSheet('mkEdit');stOuvrirPost(${p.id})">${agIcon('sparkles', 15)} Ouvrir dans le studio</button>` : ''}`
+      : `<label>Notes</label><input id="mkPNotes" value="${agEsc(v.notes || '')}" placeholder="Facultatif">`}
     <button class="btn-primary" id="mkPSave" style="margin-top:12px" onclick="mkSavePost()">${p ? 'Enregistrer' : 'Ajouter au plan'}</button>
     ${p ? `<div class="crm-2" style="margin-top:8px"><button class="btn-secondary" onclick="mkCopyPost(${p.id})">Copier le texte</button><button class="btn-danger" style="padding:12px" onclick="mkDelPost(${p.id})">Supprimer</button></div>` : ''}`);
   mkEditImgs();
@@ -1144,7 +1308,8 @@ async function mkSavePost(){
   const stBtn = document.querySelector('#mkPSt button.on');
   const data = { network: g('mkPNet'), kind: g('mkPKind').trim() || null, date: g('mkPDate') || mkDay(), heure: g('mkPHeure') || null,
     shoot_id: g('mkPShoot') ? Number(g('mkPShoot')) : null, title: g('mkPTitle').trim() || null, caption: mkClean(g('mkPCap').trim()) || null,
-    hashtags: mkClean(g('mkPHash').trim()) || null, notes: g('mkPNotes').trim() || null, images: imgs };
+    hashtags: mkClean(g('mkPHash').trim()) || null, images: imgs };
+  if(document.getElementById('mkPNotes')) data.notes = g('mkPNotes').trim() || null;
   if(stBtn){ data.status = stBtn.dataset.s; const p = MK.posts.find(x => x.id === e.id); if(data.status === 'publie' && p && !p.published_at) data.published_at = new Date().toISOString(); }
   let ok;
   if(e.id) ok = await mkUpdatePost(e.id, data);
@@ -1246,7 +1411,11 @@ async function mkStatsSave(id){
   const stats = {};
   MK_STATS.forEach(([k]) => { const v = mkNum((document.getElementById('mkS_' + k) || {}).value); if(v != null) stats[k] = Math.max(0, v); });
   if(!Object.keys(stats).length){ agToast('Mets au moins un chiffre', 'error'); return; }
-  if(await mkUpdatePost(id, { stats })){ agCloseSheet('mkStats'); agToast('Chiffres enregistrés'); mkRenderTab(); }
+  if(await mkUpdatePost(id, { stats })){
+    agCloseSheet('mkStats'); agToast('Chiffres enregistrés'); mkRenderTab();
+    // Apprentissage : une lecon courte dans "Ce qu'il sait" (studio.js)
+    if(typeof window.stLeconResultat === 'function') try { window.stLeconResultat(MK.posts.find(x => x.id === id)); } catch(e){}
+  }
 }
 async function mkStatsIgnore(id){ if(await mkUpdatePost(id, { stats: { ignore: true } })){ agCloseSheet('mkStats'); mkRenderTab(); } }
 async function mkBilan(){
