@@ -11,15 +11,17 @@ const IA_ST = 'iaRelais';            // pauses, compteurs du jour, liste des mod
 const IA_PROV = {
   gemini:    { nom: 'Gemini (Google)', court: 'Gemini' },
   groq:      { nom: 'Groq', court: 'Groq' },
+  mistral:   { nom: 'Mistral (gratuit)', court: 'Mistral' },
   deepseek:  { nom: 'DeepSeek', court: 'DeepSeek' },
   anthropic: { nom: 'Claude (Anthropic)', court: 'Claude' },
   openai:    { nom: 'OpenAI (GPT)', court: 'OpenAI' },
   custom:    { nom: 'Autre (compatible OpenAI)', court: 'Autre' }
 };
-const IA_ORDRE = ['gemini', 'groq', 'deepseek', 'anthropic', 'openai', 'custom'];
+const IA_ORDRE = ['gemini', 'groq', 'mistral', 'deepseek', 'anthropic', 'openai', 'custom'];
 const GEM = 'https://generativelanguage.googleapis.com/v1beta';
 const GROQ = 'https://api.groq.com/openai/v1';
 const DEEPSEEK = 'https://api.deepseek.com';
+const MISTRAL = 'https://api.mistral.ai/v1';
 const MIN = 60000, HEURE = 3600000;
 const AIM = () => (typeof AI_MODELS !== 'undefined' && AI_MODELS) || {};
 
@@ -32,7 +34,10 @@ function iaCfg(){
   // Ancien format : une seule cle pour un seul fournisseur
   if(!c.keys && c.key){ const p = IA_PROV[c.provider] ? c.provider : 'openai'; keys[p] = String(c.key).trim(); }
   const ordre = (Array.isArray(c.ordre) ? c.ordre : []).filter((p, i, a) => IA_PROV[p] && a.indexOf(p) === i);
-  IA_ORDRE.forEach(p => { if(!ordre.includes(p)) ordre.push(p); });
+  // Mistral (ajouté plus tard) se place juste après Groq
+  const sansMistral = !ordre.includes('mistral');
+  IA_ORDRE.forEach(p => { if(!ordre.includes(p) && p !== 'mistral') ordre.push(p); });
+  if(sansMistral) ordre.splice(ordre.indexOf('groq') + 1, 0, 'mistral');
   return { raw: c, keys, ordre, url: c.url || '' };
 }
 function iaHasKey(){ const k = iaCfg().keys; return Object.keys(k).some(p => k[p] && (p !== 'custom' || iaCfg().url)); }
@@ -65,7 +70,7 @@ function iaCompter(label){
   try { iaMajJauges(); } catch(e){}
 }
 // Limites gratuites estimees par jour (null = payant, pas de limite fixe)
-const IA_LIMITES = { 'Gemini Flash-Lite': 500, 'Gemini Flash': 20, 'Groq': 1000, 'Groq Whisper': 2000, 'DeepSeek': null, 'Claude': null, 'OpenAI': null, 'Autre IA': null };
+const IA_LIMITES = { 'Gemini Flash-Lite': 500, 'Gemini Flash': 20, 'Groq': 1000, 'Groq Whisper': 2000, 'Mistral': 1000, 'DeepSeek': null, 'Claude': null, 'OpenAI': null, 'Autre IA': null };
 const IA_AUDIO = { 'Groq Whisper': true };   // dictee vocale : comptee a part (pas dans la jauge des demandes texte)
 
 // ---------- Limite apprise ----------
@@ -94,7 +99,7 @@ function iaLimite(label){ const a = iaAppris(label); return a ? a.limite : IA_LI
 function iaUsage(){
   const cfg = iaCfg(), n = iaComptes(), l = [];
   if(cfg.keys.gemini){ l.push('Gemini Flash-Lite'); l.push('Gemini Flash'); }
-  [['groq', 'Groq'], ['deepseek', 'DeepSeek'], ['anthropic', 'Claude'], ['openai', 'OpenAI'], ['custom', 'Autre IA']].forEach(([p, lb]) => { if(cfg.keys[p] || n[lb]) l.push(lb); });
+  [['groq', 'Groq'], ['mistral', 'Mistral'], ['deepseek', 'DeepSeek'], ['anthropic', 'Claude'], ['openai', 'OpenAI'], ['custom', 'Autre IA']].forEach(([p, lb]) => { if(cfg.keys[p] || n[lb]) l.push(lb); });
   if(n['Groq Whisper'] || (cfg.keys.groq && iaAppris('Groq Whisper'))) l.push('Groq Whisper');
   const items = l.map(lb => ({ label: lb, utilise: n[lb] || 0, limite: iaLimite(lb), constatee: !!(IA_LIMITES[lb] !== undefined && iaAppris(lb)), audio: !!IA_AUDIO[lb] }));
   const gratuits = items.filter(x => x.limite && !x.audio);
@@ -155,15 +160,19 @@ function gemDefaut(){
   const flash = /flash/.test(cfgM) && !/lite/.test(cfgM) ? [cfgM] : [];
   return { lite: ['gemini-flash-lite-latest'], flash: [...flash, 'gemini-flash-latest'].filter((x, i, a) => a.indexOf(x) === i) };
 }
-const GROQ_TEXTE = ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'openai/gpt-oss-20b', 'llama-3.1-8b-instant'];
+// Depuis le 16 août 2026, Groq ne sert plus les modèles Llama aux clés gratuites : gpt-oss et Qwen seulement
+const GROQ_TEXTE = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
+const GROQ_PAYANT = /llama-3\.3-70b-versatile|llama-3\.1-8b-instant/;
 function groqRang(ids){
   const ok = ids.filter(id => !/guard|whisper|tts|playai|orpheus|compound|safeguard|distil/.test(id));
   const pref = GROQ_TEXTE.filter(id => ok.includes(id));
-  const autres = ok.filter(id => !pref.includes(id) && /gpt-oss|llama/.test(id) && !/scout|maverick|vision/.test(id));
+  const qwen = ok.filter(id => /qwen/.test(id) && !pref.includes(id));
+  const autres = ok.filter(id => !pref.includes(id) && !qwen.includes(id) && /gpt-oss/.test(id));
+  pref.splice(1, 0, ...qwen);
   const vision = ok.filter(id => /llama-4-scout|llama-4-maverick|vision/.test(id)).sort((a, b) => (/scout/.test(b) - /scout/.test(a)));
-  return { texte: [...pref, ...autres], vision };
+  return { texte: [...pref, ...autres].filter(id => !GROQ_PAYANT.test(id)), vision };
 }
-function groqDefaut(){ return { texte: ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile'], vision: ['meta-llama/llama-4-scout-17b-16e-instruct'] }; }
+function groqDefaut(){ return { texte: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'], vision: ['meta-llama/llama-4-scout-17b-16e-instruct'] }; }
 
 async function iaGet(url, headers, ms){
   const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), ms || 12000);
@@ -187,14 +196,14 @@ async function groqListe(key){
 // Une fois par jour au maximum (10 min si la liste n'a pas pu etre lue)
 async function iaModeles(p, key, force){
   const s = stGet(), c = s.modeles[p], fp = iaFp(key);
-  if(!force && c && c.fp === fp && c.jusqua > Date.now()) return c.m;
+  if(!force && c && c.fp === fp && c.jusqua > Date.now() && c.v === 2) return c.m;
   let m, ok = true;
   try {
     m = p === 'gemini' ? await gemListe(key) : await groqListe(key);
     const def = p === 'gemini' ? gemDefaut() : groqDefaut();
     Object.keys(def).forEach(k => { if(!m[k] || !m[k].length) m[k] = def[k]; });
   } catch(e){ ok = false; m = p === 'gemini' ? gemDefaut() : groqDefaut(); if(force) throw e; }
-  const s2 = stGet(); s2.modeles[p] = { fp, m, jusqua: Date.now() + (ok ? 24 * HEURE : 10 * MIN), t: Date.now() };
+  const s2 = stGet(); s2.modeles[p] = { fp, m, jusqua: Date.now() + (ok ? 24 * HEURE : 10 * MIN), t: Date.now(), v: 2 };
   stPut(s2);
   return m;
 }
@@ -216,6 +225,9 @@ function iaClasser(p, status, j, headers){
   const msg = iaMsg(j), raw = (() => { try { return JSON.stringify(j || {}).slice(0, 4000); } catch(e){ return msg; } })();
   const now = Date.now();
   const ra = headers && headers.get ? Number(headers.get('retry-after')) : 0;
+  // Demande trop grosse pour la limite par minute (Groq gratuit : 8 000 jetons) : ce n'est PAS un quota atteint
+  if(status === 413 || /request too large|reduce your message size|context.?length|maximum context|too many tokens|prompt is too long/i.test(raw))
+    return { type: 'trop_long', raison: 'demande trop longue pour cette IA' };
   if(status === 402 || /insufficient[_ ]balance|insufficient_quota|credit balance is too low/i.test(raw))
     return { type: 'quota', jusqua: now + 6 * HEURE, raison: 'plus de crédit sur le compte' };
   if(status === 429 || /RESOURCE_EXHAUSTED|rate.?limit|quota|too many requests/i.test(raw)){
@@ -229,11 +241,14 @@ function iaClasser(p, status, j, headers){
     if(/per day|RPD|TPD|daily/i.test(raw)) return { type: 'quota', jusqua: now + Math.max(d, 10 * MIN), raison: 'quota du jour atteint' };
     return { type: 'quota', jusqua: now + Math.max(d || 2 * MIN, 20000), raison: 'limite atteinte' };
   }
+  // Modèle qui n'existe plus ou réservé aux comptes payants (avant le test "clé refusée")
+  if(/model/i.test(raw) && /does not exist|do not have access|not available (?:for|on|to)|decommissioned|model_not_found|no longer (?:available|served)/i.test(raw))
+    return { type: 'indispo', jusqua: now + 24 * HEURE, raison: 'modèle plus disponible' };
   if(status === 503 || status === 529 || /overloaded|unavailable|high demand/i.test(raw))
     return { type: 'surcharge', jusqua: now + MIN, raison: 'surchargée' };
   if(status === 401 || status === 403 || /api.?key|API_KEY_INVALID|invalid.*key|unauthori[sz]ed|authentication|PERMISSION_DENIED/i.test(raw))
     return { type: 'cle', raison: 'clé refusée' };
-  if(status === 404 || /not found|no longer available|not supported for generateContent|decommissioned|does not exist|model_not_found/i.test(raw))
+  if(status === 404 || /not found|no longer available|not supported for generateContent|decommissioned|does not exist|model_not_found|do not have access|not available (?:for|on|to) (?:your|this|free)/i.test(raw))
     return { type: 'indispo', jusqua: now + 24 * HEURE, raison: 'modèle plus disponible' };
   return { type: 'autre', raison: (msg || 'erreur ' + status).slice(0, 160) };
 }
@@ -250,6 +265,39 @@ async function iaPost(p, url, headers, body, ms){
   if(!r.ok || (j && j.error)) throw iaErr(iaClasser(p, r.status, j, r.headers));
   return j;
 }
+
+// ---------- Taille des demandes ----------
+// Environ 1 jeton pour 3,2 caractères en français
+function iaJetons(t){ return Math.ceil(String(t || '').length / 3.2); }
+function iaTailleEntree(o){ return iaJetons(o.system) + o.tours.reduce((a, t) => a + iaJetons(t.text), 0); }
+function iaCouper(t, nbJetons){
+  t = String(t || ''); const n = Math.max(400, Math.floor(nbJetons * 3.2));
+  if(t.length <= n) return t;
+  return t.slice(0, Math.floor(n * 0.65)) + '\n[...]\n' + t.slice(-Math.floor(n * 0.35));
+}
+// Raccourcit la demande pour qu'elle tienne dans "max" jetons : d'abord les vieux
+// messages de la discussion, puis le milieu des longues consignes, puis le dernier message.
+function iaReduire(o, max){
+  if(iaTailleEntree(o) <= max) return o;
+  const o2 = { ...o, tours: o.tours.map(t => ({ ...t })) };
+  while(o2.tours.length > 3 && iaTailleEntree(o2) > max){ o2.tours.splice(0, 2); }
+  while(o2.tours.length && o2.tours[0].role !== 'user') o2.tours.shift();
+  if(!o2.tours.length) o2.tours = [o.tours[o.tours.length - 1]];
+  if(iaTailleEntree(o2) > max){
+    const dernier = iaJetons(o2.tours[o2.tours.length - 1].text);
+    const pourSysteme = Math.max(600, max - Math.min(dernier, Math.floor(max * 0.45)) - o2.tours.slice(0, -1).reduce((a, t) => a + iaJetons(t.text), 0));
+    o2.system = iaCouper(o2.system, pourSysteme);
+  }
+  if(iaTailleEntree(o2) > max){
+    const reste = Math.max(600, max - iaJetons(o2.system));
+    const part = Math.floor(reste / o2.tours.length);
+    o2.tours = o2.tours.map(t => ({ ...t, text: iaCouper(t.text, part) }));
+  }
+  o2.reduit = true;
+  return o2;
+}
+// Groq gratuit : 8 000 jetons par minute, en comptant la question ET la réponse demandée
+const IA_GROQ_TPM = 8000;
 
 // ---------- Formats ----------
 function iaTours(messages){
@@ -308,12 +356,14 @@ async function appelGemini(c, model, o, key, recherche){
 async function appelOpenAI(c, model, o, key, url){
   const last = o.tours.length - 1;
   const messages = [...(o.system ? [{ role: 'system', content: o.system }] : []), ...o.tours.map((t, i) => ({ role: t.role,
-    content: i === last && o.imgs.length ? [{ type: 'text', text: t.text }, ...o.imgs.map(im => ({ type: 'image_url', image_url: { url: `data:${im.mime};base64,${im.data}` } }))] : t.text }))];
-  const body = { model, messages, temperature: o.temperature, max_tokens: o.maxTokens };
-  if(/gpt-oss/.test(model)){ body.reasoning_effort = 'low'; body.max_tokens = o.maxTokens + 1500; }
+    content: i === last && o.imgs.length ? [{ type: 'text', text: t.text }, ...o.imgs.map(im => ({ type: 'image_url', image_url: c.p === 'mistral' ? `data:${im.mime};base64,${im.data}` : { url: `data:${im.mime};base64,${im.data}` } }))] : t.text }))];
+  const body = { model, messages, temperature: o.temperature, max_tokens: o.maxSortie || o.maxTokens };
+  if(/gpt-oss/.test(model)){ body.reasoning_effort = 'low'; if(!o.maxSortie) body.max_tokens = o.maxTokens + 1500; }
+  if(c.p === 'groq' && /qwen/.test(model)) body.reasoning_format = 'hidden';
   const j = await iaPost(c.p, url, { Authorization: 'Bearer ' + key }, body, o.delai);
   const m = ((j.choices || [])[0] || {}).message || {};
-  const text = Array.isArray(m.content) ? m.content.map(x => x.text || '').join('') : String(m.content || '');
+  let text = Array.isArray(m.content) ? m.content.map(x => x.text || '').join('') : String(m.content || '');
+  text = text.replace(/<think>[\s\S]*?<\/think>\s*/g, '');
   if(!text.trim()) throw iaErr({ type: 'vide', raison: 'réponse vide' });
   return { text, sources: [] };
 }
@@ -346,7 +396,11 @@ function iaCandidats(o, cfg, mod){
       out.push(...(devant ? [F, L] : [L, F]));
     } else if(p === 'groq'){
       if(photos){ if(mod.groq.vision.length) out.push({ p, key, liste: mod.groq.vision, label: 'Groq', vision: true }); }
-      else mod.groq.texte.slice(0, 2).forEach(m => out.push({ p, key, liste: [m], label: 'Groq' }));
+      else mod.groq.texte.filter(m => !GROQ_PAYANT.test(m)).slice(0, 3).forEach(m => out.push({ p, key, liste: [m], label: 'Groq' }));
+    }
+    else if(p === 'mistral'){
+      // Gratuit (plan Experiment), lent (environ 2 demandes par minute) mais voit les photos
+      out.push({ p, key, liste: photos ? ['mistral-small-latest', 'pixtral-12b-2409'] : ['mistral-small-latest', 'mistral-large-latest'], label: 'Mistral', vision: true });
     }
     else if(p === 'deepseek'){ if(!photos) out.push({ p, key, liste: ['deepseek-chat'], label: 'DeepSeek' }); }
     else if(p === 'anthropic') out.push({ p, key, liste: [AIM().anthropic || 'claude-sonnet-4-20250514'], label: 'Claude', vision: true });
@@ -355,10 +409,19 @@ function iaCandidats(o, cfg, mod){
   });
   return out;
 }
-async function iaAppel(c, model, o, recherche){
+async function iaAppel(c, model, o, recherche, serrer){
   if(c.p === 'gemini') return appelGemini(c, model, o, c.key, recherche);
   if(c.p === 'anthropic') return appelAnthropic(c, model, o, c.key);
-  const url = c.p === 'groq' ? `${GROQ}/chat/completions` : c.p === 'deepseek' ? `${DEEPSEEK}/chat/completions`
+  if(c.p === 'groq'){
+    // Réponse demandée + question doivent tenir dans 8 000 jetons
+    const sortie = Math.min(o.maxTokens, serrer ? 1500 : 2500);
+    const reserve = /gpt-oss/.test(model) ? 700 : 300;   // gpt-oss réfléchit un peu avant de répondre
+    const entree = Math.floor((IA_GROQ_TPM - sortie - reserve - 300) * (serrer ? 0.7 : 1));
+    const o2 = iaReduire({ ...o, maxTokens: sortie }, entree);
+    o2.maxSortie = sortie + reserve;
+    return appelOpenAI(c, model, o2, c.key, `${GROQ}/chat/completions`);
+  }
+  const url = c.p === 'deepseek' ? `${DEEPSEEK}/chat/completions` : c.p === 'mistral' ? `${MISTRAL}/chat/completions`
     : c.p === 'openai' ? 'https://api.openai.com/v1/chat/completions' : c.url;
   return appelOpenAI(c, model, o, c.key, url);
 }
@@ -401,6 +464,8 @@ async function iaRelais(opts){
         catch(e){
           // Recherche refusee pour une autre raison qu'un quota : on reessaie sans recherche
           if(cherche && e.ia && (e.ia.type === 'autre' || e.ia.type === 'vide')) res = await iaAppel(c, model, o, false);
+          // Demande trop longue : on la raccourcit et on reessaie une fois
+          else if(e.ia && e.ia.type === 'trop_long') res = await iaAppel(c, model, o, false, true);
           else throw e;
         }
         iaCompter(c.label);
@@ -429,10 +494,20 @@ function iaEchecFinal(o, cfg, cands, echecs){
     msg = "Les photos demandent Gemini : ajoute ta clé Gemini dans Réglages IA (les autres IA ne voient pas les photos)."; bandeau = true;
   } else if(o.imgs.length && echecs.some(x => limite(x.type))){
     msg = `Les photos demandent Gemini, qui est à la limite pour le moment. Réessaie plus tard${prochain ? ' (vers ' + iaHeure(prochain) + ')' : ''}.`; bandeau = true;
-  } else if(echecs.length && echecs.some(x => limite(x.type)) && echecs.every(x => limite(x.type) || ['cle', 'autre', 'vide', 'reseau', 'delai'].includes(x.type))){
-    msg = cfg.keys.groq
-      ? "Toutes tes IA sont à la limite pour le moment. Réessaie dans quelques minutes, ou ajoute une clé DeepSeek dans Réglages IA pour ne plus être bloqué."
-      : "Toutes tes IA sont à la limite pour le moment. Ajoute une clé Groq gratuite dans Réglages IA pour ne plus être bloqué.";
+  } else if(echecs.length && echecs.some(x => limite(x.type) || x.type === 'trop_long') && echecs.every(x => limite(x.type) || ['cle', 'autre', 'vide', 'reseau', 'delai', 'trop_long'].includes(x.type))){
+    // On dit ce qui bloque, IA par IA (et quand elle revient)
+    const vu = {}, lignes = [];
+    echecs.forEach(x => {
+      const nom = x.c ? (x.c.p === 'gemini' ? x.c.label : IA_PROV[x.c.p].court) : 'IA';
+      if(vu[nom]) return; vu[nom] = 1;
+      const quand = x.jusqua && x.jusqua - Date.now() < 20 * HEURE ? ` (revient vers ${iaHeure(x.jusqua)})` : '';
+      lignes.push(`- ${nom} : ${x.raison || 'indisponible'}${quand}`);
+    });
+    const conseil = !cfg.keys.mistral
+      ? "Ajoute une clé Mistral gratuite dans Réglages IA : elle prend le relais quand les autres sont bloquées."
+      : !cfg.keys.groq ? "Ajoute une clé Groq gratuite dans Réglages IA pour ne plus être bloqué."
+      : "Réessaie dans quelques minutes.";
+    msg = "Aucune IA n'a pu répondre pour le moment :\n" + lignes.join('\n') + '\n\n' + conseil;
     bandeau = true;
   } else if(echecs.length && echecs.every(x => x.type === 'cle')){
     const noms = [...new Set(echecs.map(x => IA_PROV[x.c.p].court))].join(', ');
@@ -454,9 +529,9 @@ function iaCss(){
   const s = document.createElement('style'); s.id = 'iaCss';
   s.textContent = `
 #iaBandeau{position:fixed;left:12px;right:12px;top:12px;z-index:100000;max-width:520px;margin:0 auto;background:var(--card2,#262626);color:var(--text,#fff);border:1px solid var(--border-2,rgba(255,255,255,.15));border-radius:14px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);font:500 13px/1.45 Inter,system-ui,sans-serif;display:flex;gap:10px;align-items:flex-start}
-#iaBandeau p{margin:0;flex:1}
-#iaBandeau .ia-b-go{display:block;margin-top:8px;background:var(--accent,#48A89A);color:#fff;border:0;border-radius:10px;padding:8px 12px;font:700 13px Inter,system-ui,sans-serif;cursor:pointer}
-#iaBandeau .ia-b-x{background:none;border:0;color:var(--muted,#999);font-size:20px;line-height:1;cursor:pointer;padding:0 2px}
+#iaBandeau p{margin:0;flex:1;min-width:0;white-space:pre-line}
+#iaBandeau .ia-b-go{display:block;width:auto;margin-top:8px;background:var(--accent,#48A89A);color:#fff;border:0;border-radius:10px;padding:8px 12px;font:700 13px Inter,system-ui,sans-serif;cursor:pointer}
+#iaBandeau .ia-b-x{width:auto;flex:none;background:none;border:0;color:var(--muted,#999);font-size:20px;line-height:1;cursor:pointer;padding:0 2px}
 .ia-set{display:flex;flex-direction:column;gap:2px}
 .ia-set .ia-intro{font-size:13px;color:var(--text-2,#ddd);line-height:1.5;margin:0 0 6px}
 .ia-set .ia-lien{font-size:12px;color:var(--muted,#999);margin:4px 0 6px}
@@ -509,6 +584,24 @@ function iaBandeau(msg){
     d.querySelector('.ia-b-x').onclick = () => d.remove();
     document.body.appendChild(d);
     clearTimeout(iaBandeau.t); iaBandeau.t = setTimeout(() => d.remove(), 15000);
+    // Si l'écran affiche déjà ce message dans une fenêtre, on n'en montre qu'un :
+    // la fenêtre reçoit le bouton "Ouvrir Réglages IA" et le bandeau disparaît
+    const debut = String(msg).slice(0, 40);
+    let n = 0;
+    const iv = setInterval(() => {
+      n++;
+      const dlg = [...document.querySelectorAll('.ag-dlg-bg .ag-dlg, .modal-bg.show')].find(x => (x.textContent || '').includes(debut));
+      if(dlg){
+        clearInterval(iv); d.remove();
+        const zone = dlg.querySelector('.ag-dlg-b');
+        if(zone && !zone.querySelector('.ia-dlg-go')){
+          const b = document.createElement('button'); b.className = 'ag-dlg-no ia-dlg-go'; b.textContent = 'Ouvrir Réglages IA';
+          b.onclick = () => { const bg = dlg.closest('.ag-dlg-bg'); if(bg) bg.remove(); iaOuvrirReglages(); };
+          zone.insertBefore(b, zone.firstChild);
+        }
+      }
+      if(n > 12) clearInterval(iv);
+    }, 150);
   } catch(e){}
 }
 function iaOuvrirReglages(){
@@ -527,13 +620,15 @@ const IA_UI = { ordre: null };
 const IA_CHAMPS = [
   ['gemini', 'Clé Gemini (Google)', 'AIza...', 'Gratuite : <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Voit les photos et cherche sur internet.'],
   ['groq', 'Clé Groq (facultative)', 'gsk_...', 'Créer une clé gratuite : <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>. Environ 1 000 demandes par jour.'],
+  ['mistral', 'Clé Mistral (facultative, gratuite)', 'clé Mistral', 'Gratuite avec le plan "Experiment" (vérification par téléphone, pas de carte) : <a href="https://console.mistral.ai/api-keys" target="_blank" rel="noopener">console.mistral.ai</a>. Plus lente (environ 2 demandes par minute) mais très rarement bloquée. Voit les photos.'],
   ['deepseek', 'Clé DeepSeek (facultative)', 'sk-...', 'Très peu chère, à recharger : <a href="https://platform.deepseek.com" target="_blank" rel="noopener">platform.deepseek.com</a>. Texte seulement.']
 ];
 const IA_AUTRES = [['anthropic', 'Clé Claude (Anthropic)', 'sk-ant-...'], ['openai', 'Clé OpenAI (GPT)', 'sk-...'], ['custom', 'Clé d\'une autre IA (compatible OpenAI)', 'clé']];
 function iaDesc(p){
   return {
     gemini: "Flash-Lite d'abord, puis Flash. Pour les photos et la recherche : Flash d'abord.",
-    groq: (((stGet().modeles.groq || {}).m || {}).vision || []).length ? 'Gratuit, environ 1 000 par jour. Voit aussi les photos' : 'Gratuit, environ 1 000 par jour, texte seulement',
+    groq: 'Gratuit, environ 1 000 par jour (demandes courtes : les longues sont raccourcies)',
+    mistral: 'Gratuit, plus lent, voit les photos',
     deepseek: 'Très peu cher, texte seulement',
     anthropic: 'Payant, voit les photos', openai: 'Payant, voit les photos', custom: 'Ton adresse personnalisée'
   }[p] || '';
@@ -588,7 +683,7 @@ function iaRenderCompteurs(){
   const st = stGet(), now = Date.now(), u = iaUsage();
   const pauseDe = pref => Object.keys(st.pause).filter(k => k.startsWith(pref) && st.pause[k].jusqua > now && st.pause[k].raison !== 'modèle plus disponible').map(k => st.pause[k]).sort((a, b) => b.jusqua - a.jusqua)[0];
   const gm = (st.modeles.gemini || {}).m || gemDefaut();
-  const pref = { 'Gemini Flash-Lite': 'gemini:' + (gm.lite[0] || ''), 'Gemini Flash': 'gemini:' + (gm.flash[0] || ''), 'Groq': 'groq:', 'Groq Whisper': 'groqw:', 'DeepSeek': 'deepseek:', 'Claude': 'anthropic:', 'OpenAI': 'openai:', 'Autre IA': 'custom:' };
+  const pref = { 'Gemini Flash-Lite': 'gemini:' + (gm.lite[0] || ''), 'Gemini Flash': 'gemini:' + (gm.flash[0] || ''), 'Groq': 'groq:', 'Groq Whisper': 'groqw:', 'Mistral': 'mistral:', 'DeepSeek': 'deepseek:', 'Claude': 'anthropic:', 'OpenAI': 'openai:', 'Autre IA': 'custom:' };
   const N = x => new Intl.NumberFormat('fr-FR').format(x);
   const lignes = u.items.map(x => {
     const pz = pauseDe(pref[x.label] || x.label);
@@ -650,6 +745,10 @@ async function iaTest1(p, key, url){
     try { await iaModeles('groq', key, true); } catch(e){}
     const m = (stGet().modeles.groq || {}).m || groqDefaut();
     return [true, `clé valide. Texte : ${m.texte[0] || '?'}${m.vision.length ? ', photos : ' + m.vision[0] : ', pas de modèle photo'}`];
+  }
+  if(p === 'mistral'){
+    const r = await iaGet(`${MISTRAL}/models`, { Authorization: 'Bearer ' + key });
+    return r.ok ? [true, 'clé valide'] : [false, iaRaison(r)];
   }
   if(p === 'deepseek'){
     const r = await iaGet(`${DEEPSEEK}/user/balance`, { Authorization: 'Bearer ' + key });

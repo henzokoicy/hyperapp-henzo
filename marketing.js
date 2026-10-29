@@ -65,7 +65,12 @@ function mkNet(n){
 }
 function mkNetChip(n){ return `<span class="mk-net"><i style="background:${MK_NET_COL[n] || 'var(--accent)'}"></i>${agEsc(n || 'Réseau')}</span>`; }
 function mkHasStats(p){ const s = p && p.stats; return !!(s && (s.ignore || MK_STATS.some(([k]) => s[k] != null && s[k] !== ''))); }
-function mkPostText(p){ return [mkClean(p.caption), mkClean(p.hashtags)].filter(Boolean).join('\n\n'); }
+// Texte prêt à publier : toujours la même mise en forme (Ma marque : titre gras, mentions, copyright)
+function mkCanal(net){ return /whatsapp|statut/i.test(net || '') ? 'whatsapp' : /tiktok/i.test(net || '') ? 'tiktok' : 'page'; }
+function mkPostText(p){
+  const brut = [mkClean(p.caption), mkClean(p.hashtags)].filter(Boolean).join('\n\n');
+  return typeof window.txtMiseEnForme === 'function' ? window.txtMiseEnForme(brut, { canal: mkCanal(p.network) }) : brut;
+}
 function mkCopy(t){
   const done = () => agToast('Copié');
   if(navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(t).then(done).catch(() => mkCopyOld(t));
@@ -162,6 +167,11 @@ function mkJson(t){
 .mk-net i{width:8px;height:8px;border-radius:50%;display:inline-block}
 .mk-st{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:8px;background:var(--card3);color:var(--muted);text-transform:uppercase}
 .mk-st.publie{color:var(--green)}.mk-st.annule{color:var(--red)}.mk-st.retard{color:var(--yellow)}
+.mk-suivis{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}
+.mk-suivis button{width:auto;margin:0;padding:7px 11px;border-radius:14px;font:500 12.5px Inter,sans-serif;background:var(--card3,var(--card2));border:1px solid var(--border);color:var(--text);cursor:pointer;text-align:left}
+.mk-avis{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.mk-avis button{width:auto;margin:0;padding:6px 10px;border-radius:10px;font:600 12px Inter,sans-serif;background:var(--card2);border:1px solid var(--border);color:var(--text-2);cursor:pointer;display:inline-flex;gap:5px;align-items:center}
+.mk-avis span{font-size:12px;color:var(--green,#3ecf8e);font-weight:600}
 .mk-cap{white-space:pre-wrap;font-size:13.5px;line-height:1.5;margin:6px 0}
 .mk-hash{font-size:12.5px;color:var(--accent);margin:4px 0 2px;word-break:break-word}
 .mk-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
@@ -540,6 +550,8 @@ COMMENT TU RÉPONDS :
 - Textes à publier : ton pro et chaleureux, avec une touche ivoirienne quand ça colle (sans exagérer), et toujours un appel à l'action clair (écrire sur WhatsApp, réserver).
 - Français simple, phrases courtes, réponses claires. Pas de mots techniques ou anglais (pas de "engagement", "reach", "CTA", "feed", "insights", "algorithme"...) : dis "les gens qui réagissent", "les gens qui voient", "l'appel à réserver". Va à l'essentiel.
 - N'utilise jamais de tiret long. Seulement le tiret simple "-".
+- MISE EN FORME DES LÉGENDES : écris en lettres normales, jamais de lettres spéciales, de gras ou d'italique (l'app fait la mise en forme, toujours la même : 1re ligne = titre en gras, personnes créditées et copyright en lettres fines). La 1re ligne d'une légende est un titre court. Les personnes ou pages à créditer : "Maquillage : [[Nom]]" (crochets doubles). N'ajoute jamais de ligne ©, l'app la met.
+- Ce que Henzo a VALIDÉ ou AIMÉ (dans le contexte, "preference") est la règle : reprends ces choix, ne propose pas autre chose sauf s'il le demande.
 - Tu ne peux PAS publier à la place de Henzo (ni Facebook, ni WhatsApp, ni ailleurs) et tu ne vois pas ses pages. Ne dis jamais "je publie" ni "publie dès maintenant" comme si c'était fait. Donne le texte et dis : "Voici ton texte, touche Copier puis publie."
 - Quand il y a plusieurs photos, c'est TOI qui décides laquelle mettre en premier et dans quel ordre, et tu expliques pourquoi en une phrase (sourire, regard, lumière, netteté). Ne demande jamais "laquelle tu préfères ?".
 - Tu n'inventes pas de chiffres sur ses résultats : utilise le contexte ci-dessous.
@@ -561,6 +573,10 @@ network parmi : ${MK_NETS.join(', ')}. kind parmi : ${MK_KINDS.join(', ')}. shoo
 {"shoot_id":30,"nom":"Destinée"}
 \`\`\`
 L'app lui proposera d'ouvrir le studio de publication (photos de la galerie, textes pour chaque réseau, image avec titre, plan de diffusion). shoot_id = numéro de la séance si tu le connais, sinon null.
+4) À la fin de chaque réponse, propose 2 ou 3 suites que Henzo pourrait te demander ensuite, écrites comme s'il parlait (courtes, moins de 70 caractères), adaptées à ce qu'il aime, à ce qu'il a validé et à sa situation :
+\`\`\`suivi
+["Fais-moi l'affiche promo de la fête des mères","Quel jour publier la séance de Destinée ?"]
+\`\`\`
 
 CONTEXTE :
 ${mkContext()}`;
@@ -581,7 +597,7 @@ function mkHistory(list){
 //   ```post {...}```, ```json {...}```, [post {...}], post {...}, {"network":...} seul,
 //   pareil pour memo et studio, plusieurs blocs, JSON mal ferme (petite reparation).
 // Ces blocs sont TOUJOURS retires du texte affiche.
-const MK_BLOCKS = ['post', 'memo', 'studio'];
+const MK_BLOCKS = ['post', 'memo', 'studio', 'suivi'];
 function mkKindOf(j){
   const one = Array.isArray(j) ? j[0] : j;
   if(!one || typeof one !== 'object') return null;
@@ -629,8 +645,9 @@ function mkRepair(raw){
   return undefined;
 }
 function mkParse(text){
-  const posts = [], memos = [], studios = [];
+  const posts = [], memos = [], studios = [], suivis = [];
   const take = (kind, j) => {
+    if(kind === 'suivi'){ (Array.isArray(j) ? j : (j && j.questions) || []).forEach(q => { if(typeof q === 'string' && q.trim()) suivis.push(mkClean(q.trim()).slice(0, 120)); }); return; }
     if(j == null || typeof j !== 'object') return;
     (Array.isArray(j) ? j : [j]).forEach(x => {
       if(!x || typeof x !== 'object') return;
@@ -674,7 +691,7 @@ function mkParse(text){
     pos = after;
   }
   const clean = out.replace(/([^\s])[ \t]{2,}(?=[^\s])/g, '$1 ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-  return { clean, posts, memos, studios };
+  return { clean, posts, memos, studios, suivis: suivis.slice(0, 3) };
 }
 function mkPostBlock(p){ return '```post\n' + JSON.stringify(p) + '\n```'; }
 function mkStudioBlock(x){ return '```studio\n' + JSON.stringify(x) + '\n```'; }
@@ -801,8 +818,9 @@ function mkAfterChat(){
   MK.scroll = true;
 }
 function mkMsgHtml(m){
-  const { clean, posts, studios } = mkParse(m.text);
+  const { clean, posts, studios, suivis } = mkParse(m.text);
   const imgs = m.images || [];
+  const dernier = m.role !== 'user' && MK.msgs.length && MK.msgs[MK.msgs.length - 1].id === m.id;
   const open = MK.openMsg === m.id;
   const t = new Date(m.created_at || Date.now()).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   return `<div class="mk-msg ${m.role === 'user' ? 'user' : 'agent'}" onclick="mkMsgTap(event, ${m.id})">
@@ -810,6 +828,7 @@ function mkMsgHtml(m){
     ${m.role === 'user' ? agEsc(mkClean(clean)).replace(/\n/g, '<br>') : mkMd(clean)}
     ${posts.map((p, i) => mkPostCard(p, { msg: m.id, i })).join('')}
     ${studios.map(mkStudioCard).join('')}
+    ${dernier && suivis.length ? `<div class="mk-suivis">${suivis.map(q => `<button onclick="event.stopPropagation();mkSend(${agEsc(JSON.stringify(q))})">${agEsc(q)}</button>`).join('')}</div>` : ''}
     <span class="mk-time">${t}</span>
     ${open ? `<div class="mk-mact"><button onclick="event.stopPropagation();mkCopy(${agEsc(JSON.stringify(mkClean(clean)))})">Copier</button><button class="danger" onclick="event.stopPropagation();mkDelMsg(${m.id})">Supprimer</button></div>` : ''}
   </div>`;
@@ -826,13 +845,13 @@ function mkPostCard(p, ref){
   return `<div class="mk-post">
     <div class="mk-post-h">${mkNetChip(p.network)}<span>${agEsc(p.kind || '')}</span><span>· ${agEsc(mkDayName(p.date || mkDay()))} ${agEsc(p.heure || '')}</span>${p.shoot_id && mkShoot(p.shoot_id) ? `<span>· ${agEsc(mkShootLabel(mkShoot(p.shoot_id)))}</span>` : ''}<b>${agEsc(p.title || '')}</b></div>
     ${imgs.length ? `<div class="mk-imgs">${imgs.map(im => mkImgTag(im)).join('')}</div>` : ''}
-    <div class="mk-cap">${agEsc(mkClean(p.caption || ''))}</div>
-    ${p.hashtags ? `<div class="mk-hash">${agEsc(mkClean(p.hashtags))}</div>` : ''}
+    <div class="mk-cap">${agEsc(mkPostText(p))}</div>
     <div class="mk-btns">
       ${added ? `<button class="ok" onclick="mkGo('plan')">${agIcon('check', 14)} Dans le plan</button>` : `<button class="main" onclick="mkPropAdd(${r})">${agIcon('calendar', 14)} Ajouter au plan</button>`}
       <button onclick="mkPropCopy(${r})">${agIcon('copy', 14)} Copier le texte</button>
       <button onclick="mkPropShare(${r})">${agIcon('chat', 14)} Partager sur WhatsApp</button>
     </div>
+    ${r ? (() => { const av = (MK.avisMap || {})[r.replace(/'/g, '')]; return `<div class="mk-avis">${av ? `<span>${av === 'oui' ? 'Retenu : tu aimes' : 'Retenu : pas ton style'}</span>` : `<button onclick="mkPostAvis(${r},'oui')">${agIcon('check', 13)} J'aime</button><button onclick="mkPostAvis(${r},'non')">Pas mon style</button>`}${typeof crOuvrir === 'function' ? `<button onclick="crDepuisPost(${r})">${agIcon('image', 13)} Créer un visuel</button>` : ''}</div>`; })() : ''}
   </div>`;
 }
 // Carte "Ouvrir le studio de publication" (bloc studio de l'IA, ou intention detectee)
@@ -865,6 +884,14 @@ async function mkPropAdd(a, b){
   }
   agToast(`Ajouté au plan : ${mkDayName(row.date)} ${row.heure || ''}`);
   mkRenderTab();
+}
+// J'aime / Pas mon style sur une publication proposée : gardé comme préférence
+async function mkPostAvis(a, b, avis){
+  const p = mkPropGet(a, b); if(!p) return;
+  MK.avisMap = MK.avisMap || {}; MK.avisMap[a + ',' + b] = avis;
+  mkRenderTab();
+  const extrait = mkClean(typeof window.txtDefancy === 'function' ? window.txtDefancy(p.caption || '') : p.caption || '').replace(/\s+/g, ' ').slice(0, 110);
+  await mkSaveMemos([{ kind: 'preference', text: `${avis === 'oui' ? 'Aime' : "N'aime pas"} ce genre de publication (${p.network || 'réseau'}, ${p.kind || 'publication'}) : «${extrait}»` }], 'avis sur une publication');
 }
 function mkPropCopy(a, b){ const p = mkPropGet(a, b); if(p) mkCopy(mkPostText(p)); }
 function mkPropShare(a, b){ const p = mkPropGet(a, b); if(p) mkShare(p); }
@@ -1130,10 +1157,10 @@ function mkPlanCard(p){
   return `<div class="mk-post">
     <div class="mk-post-h">${mkNetChip(p.network)}<span>${agEsc(p.kind || '')}</span><span>· ${agEsc(p.heure || '')}</span>${late ? `<span class="mk-st retard">prévu ${agEsc(mkDayName(p.date).toLowerCase())}</span>` : ''}${p.shoot_id && mkShoot(p.shoot_id) ? `<span>· ${agEsc(mkShootLabel(mkShoot(p.shoot_id)))}</span>` : ''}<b>${agEsc(p.title || '')}</b></div>
     ${(p.images || []).length ? `<div class="mk-imgs">${p.images.map(im => mkImgTag(im)).join('')}</div>` : ''}
-    <div class="mk-cap">${agEsc(mkClean(p.caption || ''))}</div>
-    ${p.hashtags ? `<div class="mk-hash">${agEsc(mkClean(p.hashtags))}</div>` : ''}
+    <div class="mk-cap">${agEsc(mkPostText(p))}</div>
     <div class="mk-btns">
       <button onclick="mkCopyPost(${p.id})">${agIcon('copy', 14)} Copier</button>
+      ${typeof crDepuisPlan === 'function' && (p.images || []).length ? `<button onclick="crDepuisPlan(${p.id})">${agIcon('image', 14)} Créer un visuel</button>` : ''}
       <button onclick="mkSharePost(${p.id})">${agIcon('chat', 14)} Partager</button>
       <button class="main" onclick="mkPublished(${p.id})">${agIcon('check', 14)} Je l'ai publié</button>
     </div>

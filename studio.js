@@ -80,6 +80,8 @@ function stMarqueDefaut(){
       famille: '#PhotoDeFamille #FamilleBouaké', portrait: '#PortraitStudio #Portrait', studio: '#ShootingStudio #StudioPhotoBouaké'
     },
     max: Object.assign({}, ST_MAX_DEF), gras: true, accents: 'colles',
+    // Mise en forme fixe des textes (choisie par Henzo) : titre gras, mentions et copyright en lettres fines
+    mentions: 'leger', copyright: { on: true, texte: '© Henzo Photographie', style: 'leger' },
     exemples: ['', '', ''], style: [], police: 'montserrat',
     couleurs: { fond: '', texte: '#ffffff', accent: '' }, logo: null
   };
@@ -90,6 +92,8 @@ function stMarqueFusion(m){
   o.hashtags_types = Object.assign({}, d.hashtags_types, m.hashtags_types || {});
   o.max = Object.assign({}, d.max, m.max || {});
   o.couleurs = Object.assign({}, d.couleurs, m.couleurs || {});
+  o.copyright = Object.assign({}, d.copyright, m.copyright || {});
+  if(!ST_STYLES_TXT[o.mentions]) o.mentions = d.mentions;
   if(!Array.isArray(o.structure) || !o.structure.length) o.structure = d.structure;
   Object.keys(ST_BLOCS).forEach(k => { if(!o.structure.some(b => b.k === k)) o.structure.push({ k, on: false }); });
   if(!Array.isArray(o.tons)) o.tons = d.tons;
@@ -107,7 +111,9 @@ function stCouleurs(m){ const c = (m || stM()).couleurs || {}; return { fond: c.
 // ---------- Petits outils ----------
 const stE = s => agEsc(s);
 function stJ(o){ return stE(JSON.stringify(o)); }
-function stClean(s){ return String(s == null ? '' : s).replace(/[\u2014\u2013]/g, '-'); }
+// Nettoie un texte de l'IA : tirets simples, et plus aucune lettre "spéciale" mise par l'IA
+// (c'est l'app qui met en forme, toujours de la même façon)
+function stClean(s){ return stDefancy(String(s == null ? '' : s)).replace(/[\u2014\u2013]/g, '-'); }
 function stNorm(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim(); }
 function stShoot(){ return ST.shoot ? mkShoot(ST.shoot) : null; }
 function stClient(s){ return s ? mkClient(s.client_id) : null; }
@@ -146,6 +152,85 @@ function stGras(s, mode){
   }
   return out;
 }
+// ---------- Mise en forme fixe des textes ----------
+// Les réseaux n'ont ni gras ni tailles : on utilise des lettres spéciales, toujours SANS empattement.
+//   titre    -> gras (𝗧𝗶𝘁𝗿𝗲)
+//   mentions -> au choix : léger (𝖠𝗐𝖺), italique (𝘈𝘸𝘢), gras italique (𝘼𝙬𝙖), petites capitales (ᴀᴡᴀ), normal
+//   copyright-> même choix
+const ST_PETITES = { a: 'ᴀ', b: 'ʙ', c: 'ᴄ', d: 'ᴅ', e: 'ᴇ', f: 'ꜰ', g: 'ɢ', h: 'ʜ', i: 'ɪ', j: 'ᴊ', k: 'ᴋ', l: 'ʟ', m: 'ᴍ', n: 'ɴ', o: 'ᴏ', p: 'ᴘ', q: 'ǫ', r: 'ʀ', s: 's', t: 'ᴛ', u: 'ᴜ', v: 'ᴠ', w: 'ᴡ', x: 'x', y: 'ʏ', z: 'ᴢ' };
+const ST_PETITES_INV = Object.fromEntries(Object.entries(ST_PETITES).filter(([k, v]) => k !== v).map(([k, v]) => [v, k]));
+const ST_STYLES_TXT = {
+  leger: { nom: 'Fin léger', A: 0x1D5A0, a: 0x1D5BA, d: 0x1D7E2 },
+  italique: { nom: 'Italique fin', A: 0x1D608, a: 0x1D622, d: null },
+  grasitalique: { nom: 'Gras italique', A: 0x1D63C, a: 0x1D656, d: 0x1D7EC },
+  petites: { nom: 'Petites capitales' },
+  normal: { nom: 'Normal' }
+};
+function stStyleTxt(s, style, mode){
+  const st = ST_STYLES_TXT[style] || ST_STYLES_TXT.normal;
+  if(style === 'normal') return String(s || '');
+  mode = mode || stM().accents || 'colles';
+  let out = '';
+  for(const ch of String(s || '')){
+    const d = ch.normalize('NFD'), base = d[0], marks = d.slice(1), k = base.charCodeAt(0);
+    let b = null;
+    if(style === 'petites'){ const l = base.toLowerCase(); b = ST_PETITES[l] && /[a-z]/i.test(base) ? (base === l ? ST_PETITES[l] : ST_PETITES[l]) : null; }
+    else if(k >= 65 && k <= 90) b = String.fromCodePoint(st.A + k - 65);
+    else if(k >= 97 && k <= 122) b = String.fromCodePoint(st.a + k - 97);
+    else if(k >= 48 && k <= 57 && st.d) b = String.fromCodePoint(st.d + k - 48);
+    if(!b){ out += ch; continue; }
+    out += !marks ? b : (mode === 'colles' ? b + marks : ch);
+  }
+  return out;
+}
+// Ramène toutes les lettres "spéciales" (gras, italique, petites capitales...) à des lettres normales
+function stDefancy(s){
+  return String(s || '').replace(/[\u{1D400}-\u{1D7FF}]/gu, c => c.normalize('NFKC'))
+    .replace(/[ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀᴛᴜᴠᴡʏᴢ]/g, c => ST_PETITES_INV[c] || c);
+}
+// Mots qui annoncent une personne ou une page à créditer : "Maquillage : Awa Makeup"
+const ST_CREDITS = /^(\s*(?:[^\p{L}\n]{0,3}\s*)?)(maquillage|make-?up|mua|coiffure|coiffeuse|hair|tenue|robe|tenues|styliste|stylisme|d[ée]co(?:ration)?|d[ée]cor|mod[eè]le|model|assistant(?:e)?|photo(?:graphe)?|vid[ée]o(?:graphe)?|retouche|accessoires|bijoux|ongles|nails|g[aâ]teau|fleurs|organisation|wedding planner|cr[ée]dits?)(\s*:\s*)(.+)$/gimu;
+function stMentionsCopyright(t, canal, m){
+  m = m || stM();
+  const sty = m.mentions || 'leger';
+  t = String(t || '');
+  // [[Nom]] -> mention
+  t = t.replace(/\[\[([^\]\n]{1,60})\]\]/g, (x, n) => stStyleTxt(n.trim(), sty));
+  // Lignes de crédits
+  t = t.replace(ST_CREDITS, (all, pre, lab, sep, val) => pre + lab + sep + stStyleTxt(stDefancy(val).replace(/\*\*/g, '').trim(), sty));
+  // Les @pseudo restent en lettres normales : sinon Facebook et Instagram ne les reconnaissent plus comme tags
+  // Copyright : une seule ligne, toujours la même
+  t = t.replace(/^\s*(?:©|\(c\)|copyright)[^\n]*\n?/gim, '').replace(/\n{3,}/g, '\n\n').trim();
+  const c = m.copyright || {};
+  if(c.on !== false && canal !== 'whatsapp' && canal !== 'tiktok'){
+    const ligne = String(c.texte || ('© ' + stNom())).trim();
+    if(ligne){
+      // Avant le paragraphe de hashtags s'il y en a un à la fin
+      const paras = t.split('\n\n'), der = paras[paras.length - 1] || '';
+      const ligneC = stStyleTxt(ligne, c.style || 'leger');
+      if(paras.length > 1 && /^(\s*#[^\s#]+)+\s*$/u.test(der)) paras.splice(paras.length - 1, 0, ligneC);
+      else paras.push(ligneC);
+      t = paras.join('\n\n');
+    }
+  }
+  return t;
+}
+// Pour tous les textes écrits par l'IA ailleurs (agent marketing...) :
+// 1re ligne = titre en gras, mentions et copyright selon Ma marque, le reste en lettres normales.
+window.txtMiseEnForme = function(texte, opts){
+  opts = opts || {};
+  const m = stM();
+  let t = stClean(texte).replace(/\r/g, '');
+  const L = t.split('\n'); const i = L.findIndex(x => x.trim());
+  if(i >= 0 && opts.titre !== false){
+    const brut = L[i].trim().replace(/^#+\s*/, '').replace(/^\*{1,2}(.+?)\*{1,2}$/, '$1').trim();
+    if(brut.length <= 90) L[i] = stTitreReseau(brut, opts.canal === 'whatsapp' ? 'whatsapp' : 'page');
+  }
+  t = L.join('\n').replace(/\*\*([^*\n]+)\*\*/g, '$1');
+  return stMentionsCopyright(t, opts.canal, m);
+};
+window.txtDefancy = stDefancy;
+
 function stTitreReseau(t, canal){
   t = stClean(t).trim(); if(!t) return '';
   const m = stM();
@@ -285,6 +370,11 @@ async function stFontsReady(p){
 .st-tx-h .st-tag{font-weight:600}
 .st-tx-b{padding:0 12px 12px}
 .st-tx textarea{width:100%;margin:0;min-height:120px;font-size:14px;line-height:1.5;border-radius:13px;resize:vertical}
+.st-avis{display:flex;gap:6px;margin:8px 0 0;flex-wrap:wrap}
+.st-avis button{width:auto;margin:0;padding:6px 11px;border-radius:10px;font:600 12px Inter,sans-serif;background:var(--card2);border:1px solid var(--border);color:var(--text-2);cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.st-sugg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.st-sugg small{width:100%;font-size:11px;color:var(--muted)}
+.st-sugg button{width:auto;margin:0;padding:6px 10px;border-radius:10px;font:500 12.5px Inter,sans-serif;background:var(--card2);border:1px dashed var(--border);color:var(--text);cursor:pointer;text-align:left}
 .st-tx .st-tones{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:8px 0 0}
 .st-tx .st-tones::-webkit-scrollbar{display:none}
 .st-tx .st-tones button{flex:0 0 auto;width:auto;margin:0;padding:6px 10px;border-radius:999px;background:var(--card2);border:1px solid var(--border-2);color:var(--text-2);font:600 11.5px Inter,sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
@@ -748,6 +838,8 @@ function stContexte(){
   const style = (m.style || []).slice(0, 10);
   const memo = (MK.mem || []).filter(x => x.kind === 'style').slice(-8).map(x => x.text);
   if(style.length || memo.length) L.push('STYLE APPRIS (à respecter) :\n' + style.concat(memo).map(x => '- ' + x).join('\n'));
+  const pref = (MK.mem || []).filter(x => x.kind === 'preference').slice(-12).map(x => x.text);
+  if(pref.length) L.push("CE QUE HENZO A VALIDÉ OU AIMÉ (c'est la règle, reprends ces choix) :\n" + pref.map(x => '- ' + x).join('\n'));
   const res = (MK.mem || []).filter(x => x.kind === 'resultat').slice(-4).map(x => x.text);
   if(res.length) L.push('CE QUI A MARCHÉ :\n' + res.map(x => '- ' + x).join('\n'));
   const pub = (MK.posts || []).filter(p => p.status === 'publie').sort((a, b) => String(b.published_at || b.date).localeCompare(String(a.published_at || a.date))).slice(0, 5);
@@ -875,10 +967,27 @@ function stStepInfos(){
     ${qs.map((q, i) => { const tag = /pr[ée]nom|tagg|citer/i.test(q);
       return `<div class="st-qa ${ST.skip[i] ? 'skipped' : ''}"><b>${stE(q)}</b>
         ${tag ? `<div class="ag-pills">${['Oui, son prénom', 'Oui, je la tague', 'Non, pas de nom'].map(x => `<button type="button" onclick="stRep(${i}, ${stJ(x)})">${x}</button>`).join('')}</div>` : ''}
+        ${(() => { const sg = stSuggestions(q, i); return sg.length ? `<div class="st-sugg"><small>Tes réponses habituelles</small>${sg.map(x => `<button type="button" onclick="stRep(${i}, ${stJ(x)})">${stE(x.length > 60 ? x.slice(0, 58) + '...' : x)}</button>`).join('')}</div>` : ''; })()}
         <textarea rows="2" data-st-qa="${i}" placeholder="Ta réponse" oninput="ST.answers[${i}]=this.value;ST.skip[${i}]=false">${stE(ST.answers[i] || '')}</textarea>
         <button class="st-skip" onclick="ST.skip[${i}]=!ST.skip[${i}];stSyncFields();stRefresh()">${ST.skip[i] ? 'Répondre' : 'Passer'}</button></div>`; }).join('')}
   </div>
   ${stFoot(`${agIcon('sparkles', 16)} Écrire mes textes`, { action: 'stInfosOk()', skip: 'stInfosOk(true)' })}`;
+}
+// Réponses déjà données à des questions qui se ressemblent, sur les autres séances (les plus fréquentes d'abord)
+function stSuggestions(q, i){
+  const cpt = {};
+  (typeof shoots !== 'undefined' ? shoots : []).forEach(s => {
+    if(ST.shoot && s.id === ST.shoot) return;
+    const line = String(s.notes || '').split('\n').find(l => l.startsWith(ST_NOTE_TAG)); if(!line) return;
+    line.slice(ST_NOTE_TAG.length).split(' | ').forEach(part => {
+      const m = part.match(/^(.*\?)\s*(.*)$/); if(!m || !m[2].trim()) return;
+      if(stSim(q, m[1]) < 0.55) return;
+      const a = m[2].trim(); const k = stNorm(a); if(!k) return;
+      cpt[k] = cpt[k] || { a, n: 0 }; cpt[k].n++;
+    });
+  });
+  const deja = stNorm(ST.answers[i] || '');
+  return Object.values(cpt).filter(x => stNorm(x.a) !== deja).sort((a, b) => b.n - a.n).slice(0, 4).map(x => x.a);
 }
 function stRep(i, v){ stSyncFields(); ST.answers[i] = v; ST.skip[i] = false; stRefresh(); }
 async function stInfosOk(passer){
@@ -960,7 +1069,7 @@ function stCompose(canal){
   } else if(canal === 'tiktok'){
     t = [stClean(x.legende || x.accroche), stTags('tiktok', J.hashtags)].filter(Boolean).join('\n\n');
   }
-  return t.replace(/[\u2014\u2013]/g, '-');
+  return stMentionsCopyright(t.replace(/[\u2014\u2013]/g, '-'), canal, m);
 }
 function stTextesPrompt(seul, ton){
   const m = stM(), s = stShoot();
@@ -977,7 +1086,7 @@ function stTextesPrompt(seul, ton){
   const keys = seul ? [seul] : Object.keys(shapes);
   return `${seul ? 'REFAIRE UNE VERSION. ' : ''}TEXTES DE PUBLICATION pour la séance ${s ? (s.type || '') + ' de ' + (stPrenom(s) || 'la cliente') : ''}${ST.analyse && ST.analyse.resume ? ' (' + ST.analyse.resume + ')' : ''}.
 ${seul ? `Réécris seulement la version "${ST_CANAUX.find(c => c[0] === seul)[1]}"${tonTxt ? ', ' + tonTxt : ''}. Le texte actuel : """${(ST.textes[seul] || {}).texte || ''}"""` : 'Écris une version différente pour chaque réseau.'}
-Structure de la page Facebook voulue par Henzo : ${struct || 'libre'}. Le titre est mis en gras par l'app : ne le répète pas dans les autres champs. Ne mets pas de hashtags dans les textes, ils vont dans "hashtags". Respecte son style appris. Utilise ce que Henzo a dit sur la séance. Pas de nom de famille.
+Structure de la page Facebook voulue par Henzo : ${struct || 'libre'}. Le titre est mis en gras par l'app : ne le répète pas dans les autres champs. Écris en lettres normales, jamais de lettres spéciales, de gras ou d'italique : l'app fait la mise en forme. Les personnes ou pages à créditer : écris "Maquillage : [[Nom]]" (crochets doubles). N'ajoute pas de ligne ©, l'app la met. Ne mets pas de hashtags dans les textes, ils vont dans "hashtags". Respecte son style appris. Utilise ce que Henzo a dit sur la séance. Pas de nom de famille.
 Réponds UNIQUEMENT en JSON :
 {"titre":"titre court, ex : Destinée - 25 ans",${keys.map(k => shapes[k]).join(',')}${seul ? '' : ',"hashtags":["5 à 8 hashtags propres à cette séance"],"conseils":["2 ou 3 conseils de diffusion adaptés à ce type de séance (groupes Facebook à viser, moment)"]'}}`;
 }
@@ -1032,8 +1141,25 @@ function stStepTextes(){
           <textarea data-st-tx="${c}" oninput="ST.textes['${c}'].texte=this.value;stGrow(this)">${stE(T.texte)}</textarea>
           <div class="st-tones"><button onclick="stRefaire('${c}')">${agIcon('redo', 12)} Refaire</button><button onclick="stRefaire('${c}','court')">Plus court</button><button onclick="stRefaire('${c}','emotion')">Plus d'émotion</button><button onclick="stRefaire('${c}','pro')">Plus pro</button></div>
           <div class="mk-btns"><button class="main" onclick="stCopier('${c}')">${agIcon('copy', 14)} Copier</button><button onclick="stOuvrir('${c}')">${agIcon(c === 'whatsapp' ? 'chat' : 'share', 14)} ${stOuvrirLabel(c)}</button></div>
+          <div class="st-avis">${T.avis ? `<span class="st-tag ok">${T.avis === 'oui' ? 'Retenu : tu aimes ce style' : 'Retenu : pas ton style'}</span>` : `<button onclick="stAvisTexte('${c}','oui')">${agIcon('check', 13)} J'aime ce style</button><button onclick="stAvisTexte('${c}','non')">Pas mon style</button>`}</div>
         </div></div>`; }).join('')}
     ${stFoot('Continuer')}`;
+}
+// "J'aime ce style" / "Pas mon style" : l'IA en tire une règle courte, gardée dans sa mémoire (préférence)
+async function stAvisTexte(c, avis){
+  stSyncFields();
+  const T = ST.textes[c]; if(!T || !T.texte) return;
+  T.avis = avis; stRefresh();
+  const nom = (ST_CANAUX.find(x => x[0] === c) || [, c])[1];
+  const extrait = stDefancy(T.texte).replace(/\s+/g, ' ').slice(0, 120);
+  let regle = '';
+  try {
+    const q = 'Henzo ' + (avis === 'oui' ? 'AIME et valide' : "N'AIME PAS") + ' ce texte pour "' + nom + '". Déduis UNE règle courte et générale (moins de 18 mots) sur ce qu\'il ' + (avis === 'oui' ? 'veut garder' : 'veut éviter') + ' (longueur, ton, structure, emojis, formules). Pas de prénom de cliente.\nTexte : «' + stDefancy(T.texte).slice(0, 900) + '»\nRéponds UNIQUEMENT en JSON : {"regle":"..."}';
+    const r = await mkAI({ messages: [{ role: 'user', text: q }], maxTokens: 300 });
+    regle = stClean((mkJson(r.text) || {}).regle || '');
+  } catch(e){}
+  if(!regle) regle = (avis === 'oui' ? 'Aime' : "N'aime pas") + ' ce genre de texte pour ' + nom + ' : «' + extrait + '»';
+  if(typeof mkSaveMemos === 'function') await mkSaveMemos([{ kind: 'preference', text: (avis === 'oui' ? '' : 'À éviter : ') + regle }], 'studio (avis sur un texte)');
 }
 function stCopier(c){
   stSyncFields();
@@ -1111,7 +1237,8 @@ function stStepImage(){
   const intro = `<div class="st-card"><h3>${agIcon('type', 18)} Image avec titre <span class="st-tag" style="margin-left:4px">facultatif</span></h3>
     <p style="margin-bottom:${C.open ? 0 : 10}px">C'est la première image que les gens voient, avec ton titre dessus, comme une affiche.</p>
     ${C.open ? '' : `<div class="st-demo"><canvas id="stCvDemo" width="216" height="270"></canvas><p>Exemple avec ta 1re photo : le titre <b style="color:var(--text)">"${stE(C.titre || stTitre())}"</b>, le nom <b style="color:var(--text)">${stE(stNom())}</b>${stM().logo ? ' et ton logo' : ''}. Tu peux la télécharger ou l'ajouter en 1re photo de ta publication.</p></div>
-      <button class="btn-primary" style="width:100%;margin-top:12px" ${src ? '' : 'disabled'} onclick="ST.cover.open=true;stRefresh()">Créer une image avec titre (facultatif)</button>`}</div>`;
+      <button class="btn-primary" style="width:100%;margin-top:12px" ${src ? '' : 'disabled'} onclick="ST.cover.open=true;stRefresh()">Créer une image avec titre (facultatif)</button>`}
+    ${typeof crOuvrir === 'function' && stSel().length ? `<button class="btn-ghost" style="width:100%;margin-top:8px" onclick="stVersCreations()">${agIcon('palette', 15)} Plus de visuels : affiche, story, mosaïque, cadre...</button>` : ''}</div>`;
   if(!C.open) return intro + stFoot('Passer cette étape', { action: 'stGoStep(6)' });
   return intro + `<div class="st-card">
       <div class="st-cvwrap"><canvas id="stCv" class="st-cv"></canvas><span class="st-cvhint">Glisse pour placer la photo</span></div>
@@ -1122,6 +1249,11 @@ function stStepImage(){
       <div class="mk-btns"><button class="main" onclick="stCoverAjouter()">${C.added ? agIcon('check', 14) + ' Ajoutée en 1re photo' : agIcon('plus', 14) + ' Ajouter à la publication'}</button><button onclick="stCoverTelecharger()">${agIcon('download', 14)} Télécharger (JPEG)</button></div>
     </div>
     ${stFoot('Continuer')}`;
+}
+// Ouvre l'atelier Créations avec les photos choisies pour cette publication
+function stVersCreations(){
+  const ph = stSel().map(p => p.src === 'galerie' ? { src: 'galerie', dossier: p.dossier, f: p.f } : p.path ? { path: p.path } : p.file ? { file: p.file } : p.url ? { url: p.url, thumb: p.thumb } : null).filter(Boolean);
+  crOuvrir({ photos: ph, titre: stTitre(), shoot_id: ST.shoot || null, occasion: (stShoot() || {}).type || '' });
 }
 async function stCoverMount(){
   const C = ST.cover;
@@ -1501,6 +1633,17 @@ function stMarqueHtml(){
       <div class="st-prev"><small>Aperçu Facebook</small>${stE(m.gras !== false ? stGras(ex + ' - Destinée, 25 ans', m.accents) : ex + ' - Destinée, 25 ans')}</div>
       <div class="st-prev"><small>Aperçu WhatsApp</small><b>${stE(ex)} - Destinée, 25 ans</b></div>
     </div>
+    <div class="st-card"><h3>${agIcon('type', 18)} Mentions et copyright</h3>
+      <p>Toujours la même mise en forme, sans empattement : le titre en gras, le texte normal, les personnes créditées et le copyright en lettres spéciales. L'app l'applique à tous les textes, même ceux de l'agent marketing.</p>
+      <label>Personnes créditées (Maquillage : ..., Tenue : ...)</label>
+      <div class="ag-pills">${Object.entries(ST_STYLES_TXT).map(([k, v]) => `<button type="button" class="${(m.mentions || 'leger') === k ? 'on' : ''}" onclick="ST.m.mentions='${k}';stRefresh()">${v.nom}</button>`).join('')}</div>
+      <label class="ag-check" style="margin-top:10px"><input type="checkbox" ${m.copyright.on !== false ? 'checked' : ''} onchange="ST.m.copyright.on=this.checked;stRefresh()"> Ligne de copyright en bas des textes</label>
+      ${m.copyright.on !== false ? `<label>Texte du copyright</label><input value="${stE(m.copyright.texte || '')}" oninput="ST.m.copyright.texte=this.value;stMApercu()" placeholder="© Henzo Photographie">
+      <label>Style du copyright</label>
+      <div class="ag-pills">${Object.entries(ST_STYLES_TXT).map(([k, v]) => `<button type="button" class="${(m.copyright.style || 'leger') === k ? 'on' : ''}" onclick="ST.m.copyright.style='${k}';stRefresh()">${v.nom}</button>`).join('')}</div>` : ''}
+      <div class="st-prev" id="stMApercu" style="white-space:pre-line">${stE(stMApercuTxt(m))}</div>
+      <div class="ag-hint">Les @pseudos restent en lettres normales, sinon Facebook et Instagram ne les reconnaissent plus. Les tailles et épaisseurs différentes, c'est sur les visuels (onglet Créations).</div>
+    </div>
     <div class="st-card"><h3>${agIcon('search', 18)} Mes hashtags</h3>
       <label>Toujours mis (dans cet ordre)</label><textarea rows="2" oninput="ST.m.hashtags_fixes=this.value">${stE(m.hashtags_fixes)}</textarea>
       <label>Par type de séance</label>
@@ -1541,6 +1684,12 @@ function stMPill(key, k, multi){
   stRefresh();
 }
 function stMGras(on){ ST.m.gras = !!on; stRefresh(); }
+function stMApercuTxt(m){
+  const garde = window.ST_MARQUE; window.ST_MARQUE = m;
+  try { return window.txtMiseEnForme('Élégance en noir - Destinée, 25 ans\nUne séance pleine de lumière au studio.\nMaquillage : [[Awa Makeup]]\n\n#HenzoPhotographie #Bouaké'); }
+  finally { window.ST_MARQUE = garde; }
+}
+function stMApercu(){ const el = document.getElementById('stMApercu'); if(el) el.textContent = stMApercuTxt(ST.m); }
 function stMBloc(i, d){ const s = ST.m.structure, j = i + d; if(j < 0 || j >= s.length) return; const x = s.splice(i, 1)[0]; s.splice(j, 0, x); stRefresh(); }
 async function stMarqueAfter(){
   stFonts();

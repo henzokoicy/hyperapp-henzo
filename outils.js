@@ -215,7 +215,7 @@ async function otRefresh(force){
   OT.busy = false;
 }
 // Nouvelle version du site publiee ? On recharge tout seul.
-const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'ia.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'coach2.js', 'marketing.js', 'suivi.js', 'budget.js', 'voix.js', 'equipe.js', 'patron.js', 'studio.js', 'messages.js', 'frais.js', 'theme.css'];
+const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'ia.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'coach2.js', 'marketing.js', 'suivi.js', 'budget.js', 'voix.js', 'equipe.js', 'patron.js', 'studio.js', 'messages.js', 'frais.js', 'creations.js', 'theme.css'];
 async function otCheckVersion(){
   let changed = false;
   for(const f of OT_FILES){
@@ -261,11 +261,12 @@ const OT_GROUPS = [
   { k: 'tarifs', n: 'Tarifs, devis, page de tarifs', t: ['devis', 'tarifs', 'tarif_collections', 'tarif_page'] },
   { k: 'mood', n: 'Moodboards', t: ['mood_feedback', 'mood_images', 'mood_boards'], d: 'Tableaux, images et choix des clients' },
   { k: 'materiel', n: 'Matériel', t: ['materiel'], d: 'Ton matériel et son usure' },
+  { k: 'creations', n: 'Créations', t: ['creations'], d: 'Tes styles de visuels gardés et tes dernières créations' },
   { k: 'budgets', n: 'Budgets et charges fixes', t: ['charges_paiements', 'charges_fixes', 'budgets'], d: 'Calculs de budget, charges fixes et leurs paiements' },
   { k: 'coach', n: 'Coach', t: ['ecole_progres', 'negociations', 'coach_journal', 'coach_plans'], d: 'Plans d\'action, journal, négociations, école de la vente' },
   { k: 'reglages', n: 'Réglages', t: ['user_settings'], d: 'Notifications, préférences, thème, messages' }
 ];
-const OT_ORDER = ['accounts', 'goals', 'goal_reminders', 'clients', 'shoots', 'client_suivi', 'transactions', 'manquants', 'budgets', 'charges_fixes', 'charges_paiements', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'client_messages', 'promos', 'tarifs', 'tarif_collections', 'devis', 'tarif_page', 'reservations', 'equipe_evals', 'messages_programmes', 'equipe_taches', 'equipe_defis', 'equipe_defis_suivi', 'equipe_bonus', 'coach_plans', 'coach_journal', 'negociations', 'ecole_progres', 'mood_boards', 'mood_images', 'mood_feedback', 'materiel', 'user_settings'];
+const OT_ORDER = ['accounts', 'goals', 'goal_reminders', 'clients', 'shoots', 'client_suivi', 'transactions', 'manquants', 'budgets', 'charges_fixes', 'charges_paiements', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'client_messages', 'promos', 'tarifs', 'tarif_collections', 'devis', 'tarif_page', 'reservations', 'equipe_evals', 'messages_programmes', 'equipe_taches', 'equipe_defis', 'equipe_defis_suivi', 'equipe_bonus', 'coach_plans', 'coach_journal', 'negociations', 'ecole_progres', 'mood_boards', 'mood_images', 'mood_feedback', 'materiel', 'creations', 'user_settings'];
 
 // La cle IA et le mot de passe galerie ne partent jamais dans une sauvegarde
 const OT_SECRETS = ['ai_config', 'galerie_admin_pwd'];
@@ -428,7 +429,7 @@ async function otImportRun(){
     // 2. Mode Remplacer : on enleve seulement ce qui n'existait pas dans la sauvegarde
     //    (les plus "dependants" d'abord). Les clients ne sont jamais effaces.
     if(mode === 'replace'){
-      const order = ['manquants', 'equipe_bonus', 'equipe_defis_suivi', 'equipe_defis', 'equipe_taches', 'messages_programmes', 'equipe_evals', 'charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'charges_fixes', 'budgets', 'goals', 'accounts'];
+      const order = ['manquants', 'equipe_bonus', 'equipe_defis_suivi', 'equipe_defis', 'equipe_taches', 'messages_programmes', 'equipe_evals', 'charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'creations', 'charges_fixes', 'budgets', 'goals', 'accounts'];
       for(const t of order.filter(x => tables.includes(x))){
         const ids = (snap.tables[t] || []).map(r => r.id).filter(v => v != null);
         let q = sb.from(t).delete().eq('user_id', uid);
@@ -463,7 +464,7 @@ async function otAutoBackup(){
 setTimeout(otAutoBackup, 20000);
 
 async function otWipe(tables, uid){
-  const order = ['manquants', 'equipe_bonus', 'equipe_defis_suivi', 'equipe_defis', 'equipe_taches', 'messages_programmes', 'equipe_evals', 'charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'tarif_page', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'charges_fixes', 'budgets', 'clients', 'goals', 'accounts'];
+  const order = ['manquants', 'equipe_bonus', 'equipe_defis_suivi', 'equipe_defis', 'equipe_taches', 'messages_programmes', 'equipe_evals', 'charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'tarif_page', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'creations', 'charges_fixes', 'budgets', 'clients', 'goals', 'accounts'];
   for(const t of order.filter(x => tables.includes(x))){
     const { error } = await sb.from(t).delete().eq('user_id', uid);
     if(error) throw new Error(t + ' : ' + error.message);
