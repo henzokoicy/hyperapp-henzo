@@ -61,6 +61,10 @@ const CR_MODELES = [
   ['affiche', 'Affiche promo', 'Une photo, un titre, une offre, un prix', 1, 1, CR_TOUS],
   ['editorial', 'Affiche éditoriale', 'Bords flous, grain, grand texte au pinceau, crédits', 1, 1, CR_TOUS],
   ['minigalerie', 'Mini-galerie', 'Une carte épurée avec 3 à 6 photos', 3, 6, CR_VERT],
+  ['magazine', 'Couverture magazine', 'Grand titre en haut, comme un magazine', 1, 1, CR_VERT],
+  ['phototexte', 'Photo dans le texte', 'Ta photo à l\'intérieur d\'un grand mot', 1, 1, CR_TOUS],
+  ['triptyque', 'Triptyque', '3 photos en bandes verticales', 3, 3, CR_TOUS],
+  ['bandeau', 'Bande de couleur', 'Photo et une bande de ta couleur avec le texte', 1, 1, CR_TOUS],
   ['epure', 'Affiche épurée', 'Photo encadrée, texte sur une bande claire', 1, 1, CR_VERT],
   ['story', 'Story avec texte', 'Pour le statut WhatsApp et les stories', 1, 1, ['story', 'photo23', 'a4']],
   ['mosaique', 'Mosaïque', '2 à 9 photos en grille', 2, 9, CR_TOUS],
@@ -160,6 +164,10 @@ function crMini(k){
     case 'avantapres': return svg(R(0, 0, 19, 50, .35) + R(21, 0, 19, 50, .2) + R(19, 0, 2, 50, 1));
     case 'carrousel': return svg(R(0, 6, 12, 38, .2) + R(14, 4, 12, 42, .4) + R(28, 6, 12, 38, .2));
     case 'editorial': return svg(R(0, 0, 40, 50, .3) + R(8, 2, 24, 3, .8) + `<text x="20" y="30" font-size="11" text-anchor="middle" fill="currentColor" font-weight="700" opacity=".9">ABC</text>` + R(13, 44, 14, 2, .7));
+    case 'magazine': return svg(R(0, 0, 40, 50, .3) + R(4, 3, 32, 8, 1) + R(4, 20, 2, 5, 1) + R(8, 21, 12, 3, .8) + R(4, 40, 26, 5, 1));
+    case 'phototexte': return svg(R(0, 0, 40, 50, .08) + `<text x="20" y="31" font-size="15" font-weight="900" text-anchor="middle" fill="currentColor">ABC</text>` + R(10, 38, 20, 2, .6));
+    case 'triptyque': return svg(R(1, 1, 12, 40, .35) + R(14, 1, 12, 40, .25) + R(27, 1, 12, 40, .35) + R(8, 44, 24, 3, .8));
+    case 'bandeau': return svg(R(0, 0, 40, 32, .3) + R(0, 32, 40, 18, 1) + R(4, 36, 20, 3, .3) + R(4, 42, 12, 4, .5, 2));
     case 'minigalerie': return svg(R(0, 0, 40, 50, .08) + R(4, 4, 18, 3, .9) + R(4, 10, 15, 15, .35) + R(21, 10, 15, 15, .25) + R(4, 27, 15, 15, .25) + R(21, 27, 15, 15, .35) + R(4, 45, 20, 2, .6));
     case 'storyboard': return svg(R(8, 0, 24, 15, .35) + R(8, 17, 24, 15, .25) + R(8, 34, 24, 16, .35));
   }
@@ -373,6 +381,10 @@ function crVueEdit(){
     avantapres: `<div class="cr-2">${champ('avant', 'Mot 1', 'Avant')}${champ('apres', 'Mot 2', 'Après')}</div>` + champ('titre', 'Titre (facultatif)', 'Ex : La magie de la retouche'),
     carrousel: champ('titre', 'Titre (1re image)', 'Ex : Le mariage de Awa et Yao') + champ('sous', 'Phrase (1re image)', '') + champ('appel', 'Dernière image : appel', 'Réserve ta séance') + champ('contact', 'Contact', ''),
     editorial: champ('mot', 'Grand texte (une ligne par retour)', 'Ex : EXPLOSE\nTOUT', true) + champ('credits', 'Crédits en bas (une ligne par personne)', 'Ex : PHOTO : Henzo Photographie\nMAQUILLAGE : Awa Makeup', true) + champ('partenaire', 'Partenaire à côté du logo (facultatif)', 'Ex : MAISON NAYA'),
+    magazine: champ('mot', 'Nom du magazine (en haut)', 'Ex : HENZO') + champ('titre', 'Gros titre', 'Ex : Destinée, 25 ans') + champ('sous', 'Petites lignes (une par retour)', 'Ex : Séance studio\nLumière douce', true) + champ('eyebrow', 'Numéro / date', 'Ex : N°12 · Octobre 2026'),
+    phototexte: champ('mot', 'Le mot (une ligne par retour)', 'Ex : LOVE') + champ('titre', 'Petit texte dessous', 'Ex : Awa & Yao · 12.10.2026') + champ('contact', 'Contact (facultatif)', ''),
+    triptyque: champ('titre', 'Titre', 'Ex : Trois regards') + champ('sous', 'Petite phrase', ''),
+    bandeau: champ('eyebrow', 'Petit texte', 'Ex : NOUVEAU') + champ('titre', 'Titre', 'Ex : Séance grossesse') + champ('sous', 'Phrase', '') + champ('appel', 'Appel', 'Réserve ta séance') + champ('contact', 'Contact', ''),
     minigalerie: champ('eyebrow', 'Petit texte au-dessus', 'Ex : SÉANCE FAMILLE') + champ('titre', 'Titre', 'Ex : Les Kouassi') + champ('sous', 'Petite phrase', 'Ex : Studio, Bouaké · octobre'),
     storyboard: champ('titre', 'Titre', 'Ex : Une journée avec Destinée') + [0, 1, 2].map(i => `<label>Moment ${i + 1}</label><input value="${crE((c.legendes || [])[i] || '')}" oninput="crSetLeg(${i},this.value)" placeholder="${['Les préparatifs', 'Le moment fort', 'Le souvenir'][i]}">`).join('')
   }[M.k] || '';
@@ -433,6 +445,8 @@ function crEffetsHtml(M){
     ${curseur('grain', 'Grain de film', 0, 1, 0.05, e.grain || 0)}
     ${curseur('vignette', 'Bords sombres', 0, 1, 0.05, e.vignette || 0)}
     ${curseur('lumiere', 'Lumière colorée', 0, 1, 0.05, e.lumiere || 0)}
+    ${curseur('poussiere', 'Poussières de film', 0, 1, 0.05, e.poussiere || 0)}
+    ${curseur('brulure', 'Bords brûlés (pellicule)', 0, 1, 0.05, e.brulure || 0)}
     ${M.k === 'editorial' ? curseur('flouBords', 'Bords flous (centre net)', 0, 1, 0.05, c.flouBords || 0, 'crSetNum') : ''}
     <div class="cr-sep">Grand texte créatif</div>
     ${M.k !== 'editorial' ? `<textarea rows="2" placeholder="Ex : PHOTOGRAPHIE (facultatif)" oninput="crSetTxt('mot',this.value)">${crE(c.mot || '')}</textarea>` : '<div class="ag-hint" style="margin:0">Le texte se tape dans « Textes ».</div>'}
@@ -798,6 +812,77 @@ async function crDessiner(cv, slide, k){
     }
     if(c.copyright && !cr.length){ g.font = crFont(P.x, 400, 18 * s); g.fillStyle = 'rgba(255,255,255,.7)'; g.textAlign = 'center'; g.fillText('© ' + crNom(), W / 2, H - 30 * s); g.textAlign = 'left'; }
   }
+  else if(M.k === 'magazine'){
+    crPhoto(g, imgs[0], 0, 0, 0, W, H, 0);
+    const gr = g.createLinearGradient(0, 0, 0, H * 0.32); gr.addColorStop(0, 'rgba(0,0,0,.45)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H * 0.32);
+    const gr2 = g.createLinearGradient(0, H, 0, H * 0.55); gr2.addColorStop(0, 'rgba(0,0,0,.65)'); gr2.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr2; g.fillRect(0, H * 0.55, W, H * 0.45);
+    // Le nom du magazine, très grand, en police condensée
+    crPolicesCreaLien();
+    try { await Promise.race([document.fonts.load('400 100px "Bebas Neue"'), new Promise(r => setTimeout(r, 2000))]); } catch(e){}
+    const mast = String(c.mot || crNom()).toUpperCase();
+    g.font = '400 100px "Bebas Neue", "Anton", sans-serif';
+    const mw = g.measureText(mast).width || 1, mpx = Math.min(100 * (W - 80 * s) / mw, H * 0.2);
+    g.save(); g.fillStyle = c.motCouleur || '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'top'; g.font = `400 ${mpx}px "Bebas Neue", "Anton", sans-serif`;
+    g.fillText(mast, W / 2, 40 * s); g.restore();
+    if(c.eyebrow){ g.font = crFont(P.x, 600, 22 * s); g.fillStyle = 'rgba(255,255,255,.9)'; g.textAlign = 'right'; g.letterSpacing = (3 * s) + 'px'; g.fillText(c.eyebrow.toUpperCase(), W - 50 * s, 40 * s + mpx * 0.98); g.letterSpacing = '0px'; g.textAlign = 'left'; }
+    // Lignes à gauche + gros titre en bas
+    const lignes = String(c.sous || '').split('\n').map(x => x.trim()).filter(Boolean);
+    let yl = H * 0.42;
+    lignes.slice(0, 4).forEach(l => { g.fillStyle = c.accent; g.fillRect(50 * s, yl, 6 * s, 40 * s); crTexte(g, l, { fam: P.t, poids: 700, px: 30 * s, x: 70 * s, maxW: W * 0.5, y: yl - 2 * s, couleur: '#fff', maxL: 2, ombre: true }); yl += 80 * s; });
+    crTexte(g, c.titre, { fam: P.t, poids: P.tw, px: 92 * s * T, x: 50 * s, maxW: W - 100 * s, y: H - 260 * s, couleur: '#fff', maxL: 2, lh: 1.02, ombre: true });
+    if(c.copyright){ g.font = crFont(P.x, 400, 18 * s); g.fillStyle = 'rgba(255,255,255,.7)'; g.textAlign = 'right'; g.fillText('© ' + crNom(), W - 40 * s, H - 30 * s); g.textAlign = 'left'; }
+  }
+  else if(M.k === 'phototexte'){
+    // Fond uni, le mot géant découpé dans la photo
+    g.fillStyle = c.clair; g.fillRect(0, 0, W, H);
+    const mot = String(c.mot || 'PHOTO').toUpperCase().split('\n').map(x => x.trim()).filter(Boolean);
+    crPolicesCreaLien();
+    const pc = CR_POLICES_CREA[c.motPolice] || CR_POLICES_CREA.grasse, fam = pc.f || P.t, poids = pc.f ? 400 : 900;
+    try { await Promise.race([document.fonts.load(`${poids} 100px "${fam}"`), new Promise(r => setTimeout(r, 2000))]); } catch(e){}
+    const off = document.createElement('canvas'); off.width = W; off.height = H;
+    const o = off.getContext('2d');
+    o.font = `${poids} 100px "${fam}", "Anton", sans-serif`;
+    const plus = Math.max(...mot.map(l => o.measureText(l).width)) || 1;
+    const px = Math.min(100 * (W * 0.9) / plus, H * 0.75 / (mot.length * 0.95)) * (c.motTaille || 1);
+    const lh = px * 0.92, tot = mot.length * lh, y0 = (H - tot) / 2 - 40 * s;
+    o.font = `${poids} ${Math.round(px)}px "${fam}", "Anton", sans-serif`; o.textAlign = 'center'; o.textBaseline = 'top'; o.fillStyle = '#000';
+    mot.forEach((l, i) => o.fillText(l, W / 2, y0 + i * lh));
+    o.globalCompositeOperation = 'source-in';
+    const img = imgs[0];
+    if(img){ const cc = CR.crop[0] || { x: 0, y: 0, z: 1 }; const k2 = Math.max(W / img.width, tot / img.height) * (cc.z || 1); const dw = img.width * k2, dh = img.height * k2;
+      const fil = crFiltre(c); if(fil) o.filter = fil;
+      o.drawImage(img, (W - dw) / 2 - cc.x * Math.max(0, (dw - W) / 2), y0 + (tot - dh) / 2 - cc.y * Math.max(0, (dh - tot) / 2), dw, dh); }
+    g.drawImage(off, 0, 0);
+    CR.rects.push({ i: 0, x: 0, y: y0, w: W, h: tot, libreX: 200 * s, libreY: 200 * s });
+    const yb = y0 + tot + 30 * s;
+    if(c.titre) crTexte(g, c.titre, { fam: P.x, poids: 500, px: 34 * s, x: 60 * s, maxW: W - 120 * s, y: yb, couleur: c.encre, align: 'centre', maxL: 1, espace: 3 * s });
+    if(c.contact) crTexte(g, c.contact, { fam: P.x, poids: 400, px: 24 * s, x: 60 * s, maxW: W - 120 * s, y: yb + 60 * s, couleur: 'rgba(27,27,27,.6)', align: 'centre', maxL: 1 });
+    g.font = crFont(P.t, 700, 20 * s); g.fillStyle = 'rgba(27,27,27,.5)'; g.letterSpacing = (4 * s) + 'px'; g.textAlign = 'center';
+    g.fillText(crNom().toUpperCase(), W / 2, H - 40 * s); g.textAlign = 'left'; g.letterSpacing = '0px';
+  }
+  else if(M.k === 'triptyque'){
+    g.fillStyle = c.bordCouleur; g.fillRect(0, 0, W, H);
+    const gap = Math.max(6 * s, (c.gap || 0) * s), titreH = c.titre || c.sous ? 140 * s : 0, m = B;
+    const w = (W - 2 * m - 2 * gap) / 3, h = H - 2 * m - titreH;
+    for(let i = 0; i < 3; i++) crPhoto(g, imgs[i], i, m + i * (w + gap), m, w, h, 0);
+    if(titreH){ const coul = crLisible(c.bordCouleur); let y = H - m - titreH + 26 * s;
+      if(c.titre) y += crTexte(g, c.titre, { fam: P.t, poids: P.tw, px: 52 * s * T, x: 50 * s, maxW: W - 100 * s, y, couleur: coul, align: 'centre', maxL: 1 }) + 6 * s;
+      if(c.sous) crTexte(g, c.sous, { fam: P.x, poids: 400, px: 26 * s, x: 50 * s, maxW: W - 100 * s, y, couleur: coul === '#ffffff' ? 'rgba(255,255,255,.75)' : 'rgba(0,0,0,.6)', align: 'centre', maxL: 1 }); }
+  }
+  else if(M.k === 'bandeau'){
+    const large = W > H, bw = large ? W * 0.38 : W, bh = large ? H : H * 0.36;
+    if(large) crPhoto(g, imgs[0], 0, 0, 0, W - bw, H, 0); else crPhoto(g, imgs[0], 0, 0, 0, W, H - bh, 0);
+    g.fillStyle = c.fond; if(large) g.fillRect(W - bw, 0, bw, H); else g.fillRect(0, H - bh, W, bh);
+    const x = large ? W - bw + 50 * s : 60 * s, mw = (large ? bw : W) - 110 * s;
+    let y = large ? H * 0.3 : H - bh + 50 * s;
+    const coul = crLisible(c.fond);
+    if(c.eyebrow) y += crTexte(g, c.eyebrow, { fam: P.x, poids: 600, px: 24 * s, x, maxW: mw, y, couleur: c.accent, maj: true, espace: 5 * s, maxL: 1 }) + 10 * s;
+    y += crTexte(g, c.titre, { fam: P.t, poids: P.tw, px: 66 * s * T, x, maxW: mw, y, couleur: coul, maxL: 2, lh: 1.04 }) + 14 * s;
+    if(c.sous) y += crTexte(g, c.sous, { fam: P.x, poids: 400, px: 28 * s, x, maxW: mw, y, couleur: coul, maxL: 2, lh: 1.3 }) + 18 * s;
+    if(c.appel){ crPilule(g, c.appel, { fam: P.t, poids: 700, px: 28 * s, x, maxW: mw, y, fond: c.accent, couleur: crLisible(c.accent), align: 'gauche' }); y += 84 * s; }
+    if(c.contact) crTexte(g, c.contact, { fam: P.x, poids: 500, px: 24 * s, x, maxW: mw, y, couleur: coul, maxL: 1 });
+    crSignature(g, W, H, c, P, s, false, logo, 'haut');
+  }
   else if(M.k === 'minigalerie'){
     g.fillStyle = c.clair; g.fillRect(0, 0, W, H);
     const m = 70 * s;
@@ -823,7 +908,9 @@ const CR_FILTRES = {
   aucun: ['Aucun', ''], nb: ['Noir et blanc', 'grayscale(1) contrast(1.08)'], sepia: ['Sépia', 'sepia(.55) contrast(1.05)'],
   contraste: ['Contrasté', 'contrast(1.22) saturate(1.12)'], chaud: ['Chaud', 'sepia(.2) saturate(1.25) hue-rotate(-6deg)'],
   froid: ['Froid', 'saturate(.85) hue-rotate(12deg) brightness(1.03)'], pastel: ['Pastel', 'saturate(.7) brightness(1.08) contrast(.9)'],
-  cinema: ['Cinéma', 'contrast(1.15) saturate(.78) brightness(.95)'], fane: ['Délavé', 'contrast(.85) saturate(.75) brightness(1.06)']
+  cinema: ['Cinéma', 'contrast(1.15) saturate(.78) brightness(.95)'], fane: ['Délavé', 'contrast(.85) saturate(.75) brightness(1.06)'],
+  vintage: ['Vintage', 'sepia(.35) contrast(1.1) saturate(.8) hue-rotate(-8deg)'], noirfort: ['Noir intense', 'grayscale(1) contrast(1.45) brightness(.95)'],
+  dore: ['Doré', 'sepia(.3) saturate(1.4) hue-rotate(-12deg) brightness(1.05)'], vif: ['Éclatant', 'saturate(1.45) contrast(1.08)']
 };
 function crFiltre(c){ const e = (c && c.effets) || {}; return (CR_FILTRES[e.filtre] || CR_FILTRES.aucun)[1]; }
 // Grain de film : quelques plaques de bruit, changées à chaque image d'une vidéo
@@ -868,6 +955,22 @@ async function crEffetsApres(g, W, H, s, c, t){
       gr.addColorStop(0, `rgba(${rgb},${0.55 * a})`); gr.addColorStop(1, `rgba(${rgb},0)`);
       g.fillStyle = gr; g.fillRect(0, 0, W, H);
     });
+    g.restore();
+  }
+  if(e.brulure > 0){
+    // Bords brûlés de pellicule (orange sombre)
+    g.save(); g.globalCompositeOperation = 'screen';
+    const gr = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.4, W / 2, H / 2, Math.max(W, H) * 0.72);
+    gr.addColorStop(0, 'rgba(255,90,0,0)'); gr.addColorStop(1, `rgba(255,${90 + 40 * Math.sin((t || 0) * 2)},0,${0.7 * e.brulure})`);
+    g.fillStyle = gr; g.fillRect(0, 0, W, H); g.restore();
+  }
+  if(e.poussiere > 0){
+    // Poussières et petites rayures (toujours les mêmes sur une image, qui bougent en vidéo)
+    g.save(); g.fillStyle = `rgba(255,255,255,${0.7 * e.poussiere})`; g.strokeStyle = `rgba(255,255,255,${0.35 * e.poussiere})`; g.lineWidth = Math.max(1, s);
+    const graine = Math.floor((t || 0) * 12);
+    for(let i = 0; i < 70; i++){ const a = Math.sin((i + 1) * 12.9898 + graine * 78.233) * 43758.5453, b = Math.sin((i + 1) * 39.346 + graine * 11.135) * 24634.6345;
+      const x = (a - Math.floor(a)) * W, y = (b - Math.floor(b)) * H, r = (0.6 + (i % 4) * 0.6) * s;
+      if(i % 9 === 0){ g.beginPath(); g.moveTo(x, y); g.lineTo(x + 3 * s, y + 40 * s); g.stroke(); } else { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); } }
     g.restore();
   }
   if(e.vignette > 0){

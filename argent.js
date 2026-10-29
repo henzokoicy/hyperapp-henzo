@@ -1481,7 +1481,7 @@ agSetupInstall();
 // Galerie clients integree (fichier galerie.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=7'; document.body.appendChild(sc); })();
 // Clients, relances, promos et tarifs (fichier crm.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=18'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=19'; document.body.appendChild(sc); })();
 // Moodboard : idees de seance (fichier mood.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'mood.js?v=4'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'marketing.js?v=6'; document.body.appendChild(sc); })();
@@ -1498,7 +1498,7 @@ agSetupInstall();
 // Frais des opérateurs (Wave, Orange Money, MTN, Moov...) (fichier frais.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'frais.js?v=1'; document.body.appendChild(sc); })();
 // Créations : affiches, stories, mosaïques, cadres, carrousels (fichier creations.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'creations.js?v=3'; sc.onload = () => { const a = document.createElement('script'); a.src = 'animations.js?v=1'; document.body.appendChild(a); }; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'creations.js?v=4'; sc.onload = () => { const a = document.createElement('script'); a.src = 'animations.js?v=1'; document.body.appendChild(a); }; document.body.appendChild(sc); })();
 
 (function agDesignInit(){
   document.body.classList.add('ag-ui');

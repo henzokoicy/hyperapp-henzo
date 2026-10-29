@@ -1123,8 +1123,36 @@ showTab = function(name, btn){
   const go = () => { if(document.getElementById('page-' + tab) && !document.body.classList.contains('logged-out')){ agGoTab(tab); if(tab === 'mood' && typeof mbRender === 'function'){ if(window.__mbDeep && typeof MB !== 'undefined'){ MB.cur = window.__mbDeep; window.__mbDeep = null; } mbRender(); } } else setTimeout(go, 400); };
   setTimeout(go, 300);
 })();
+// Carte "Nouvelle réservation" sur l'Accueil (tant qu'une demande n'est pas traitée)
+(function otResaAccueil(){
+  if(typeof agRenderDashMini !== 'function') return;
+  const avant = agRenderDashMini;
+  agRenderDashMini = function(){
+    const r = avant.apply(this, arguments);
+    try {
+      const el = document.getElementById('agDashMini'); if(!el) return r;
+      const old = document.getElementById('otResaDash'); if(old) old.remove();
+      const nouv = (OT.resas || []).filter(x => x.status === 'nouvelle');
+      if(!nouv.length) return r;
+      const x = nouv[0];
+      const d = document.createElement('div');
+      d.id = 'otResaDash'; d.className = 'crm-fete ot-resa-dash';
+      d.onclick = () => { if(nouv.length === 1) otOpenResa(x.id); else agGoTab('clients'); };
+      d.innerHTML = `<div class="ic">${agIcon('calendar')}</div><div class="d"><b>${nouv.length === 1 ? 'Nouvelle réservation' : nouv.length + ' nouvelles réservations'}</b><span>${agEsc(x.nom || 'Un client')} · ${agEsc(x.formule || 'Séance')} · ${agEsc(x.date_souhaitee ? (/T|:/.test(String(x.date_souhaitee)) ? otFmtDate(x.date_souhaitee) : new Date(x.date_souhaitee + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })) : 'date à fixer')}${nouv.length > 1 ? ' · et ' + (nouv.length - 1) + ' autre' + (nouv.length > 2 ? 's' : '') : ''}</span></div>${agIcon('chev', 16)}`;
+      const hello = el.querySelector('.ag-hello');
+      if(hello && hello.nextSibling) el.insertBefore(d, hello.nextSibling); else el.insertBefore(d, el.firstChild);
+    } catch(e){}
+    return r;
+  };
+  if(!document.getElementById('otResaDashCss')){
+    const st = document.createElement('style'); st.id = 'otResaDashCss';
+    st.textContent = '.ot-resa-dash{border:1.5px solid var(--accent) !important;animation:otPulse 2.4s ease-in-out 2}.ot-resa-dash .ic{background:var(--accent) !important;color:#fff !important}@keyframes otPulse{50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--accent) 25%,transparent)}}';
+    document.head.appendChild(st);
+  }
+})();
 (async function otInit(){
   await otLoadResas();
+  try { agRenderDashMini(); } catch(e){}
   await otLoadRappels(); otRappelsCard(); otShootBells(true); otMotivHeures();
   let n = 0; const iv = setInterval(() => { otAddMenus(); otTopButtons(); if(++n > 20) clearInterval(iv); }, 500);
   if(otActivePage() === 'clients' && typeof crmRender === 'function') crmRender();
