@@ -780,10 +780,37 @@ function renderInspirations(){
 // ============================================================
 function isNotifEnabled(){ return localStorage.getItem('notif_enabled') === '1'; }
 
+// Notifications bloquées par le téléphone ou le navigateur : l'app ne peut plus
+// redemander, il faut les autoriser à la main. On explique comment, selon l'appareil.
+function notifAideRefus(){
+  const ua = navigator.userAgent || '';
+  const ios = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const android = /Android/i.test(ua);
+  const installee = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone;
+  const dansAppli = /FBAN|FBAV|Instagram|WhatsApp|Line\/|wv\)/i.test(ua);
+  let etapes;
+  if(dansAppli) etapes = ["Tu as ouvert l'app depuis Facebook, WhatsApp ou Instagram : là, les notifications ne marchent pas.", "Touche les 3 points en haut, puis « Ouvrir dans Chrome » (ou Safari).", "Installe l'app sur ton écran d'accueil, puis active les notifications depuis l'icône."];
+  else if(ios && !installee) etapes = ["Sur iPhone, les notifications ne marchent que si l'app est installée.", "Dans Safari, touche Partager puis « Sur l'écran d'accueil ».", "Ouvre l'app depuis cette nouvelle icône, puis touche « Activer les notifications »."];
+  else if(ios) etapes = ["Ouvre les Réglages de l'iPhone, puis Notifications.", "Choisis la Super App dans la liste et active « Autoriser les notifications ».", "Reviens ici et touche « Réessayer »."];
+  else if(android && installee) etapes = ["Appuie longtemps sur l'icône de la Super App, puis « Infos sur l'appli » (ou le petit i).", "Touche Notifications et active-les.", "Reviens ici et touche « Réessayer »."];
+  else if(android) etapes = ["Touche le petit cadenas (ou l'icône de réglages) à gauche de l'adresse du site.", "Touche Autorisations puis Notifications, et choisis « Autoriser ».", "Si c'est encore bloqué : Paramètres du téléphone > Applications > Chrome > Notifications : activer.", "Recharge la page, puis touche « Réessayer »."];
+  else etapes = ["Clique sur le cadenas à gauche de l'adresse du site.", "À côté de Notifications, choisis « Autoriser ».", "Recharge la page, puis clique sur « Réessayer »."];
+  return `<div style="text-align:left;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-top:6px;color:var(--text);font-size:13px;line-height:1.5">
+    <b>Les notifications sont bloquées sur cet appareil.</b> L'app ne peut plus te les redemander : il faut les autoriser une fois à la main.
+    <ol style="margin:6px 0 4px 18px;padding:0">${etapes.map(e => `<li>${e}</li>`).join('')}</ol>
+    <button class="btn-ghost" style="margin:6px 0 0;width:100%" onclick="toggleNotifications()">Réessayer</button></div>`;
+}
 function updateNotifButton(){
   const btn = document.getElementById('notifBtn');
   const status = document.getElementById('notifStatus');
   if(!btn) return;
+  const perm = ('Notification' in window) ? Notification.permission : 'non';
+  if(perm === 'denied'){
+    btn.classList.remove('active');
+    btn.textContent = '🔕 Notifications bloquées';
+    if(status) status.innerHTML = notifAideRefus();
+    return;
+  }
 
   if(isNotifEnabled()){
     btn.classList.add('active');
@@ -4552,6 +4579,8 @@ function getNotificationMessage(type){
 }
 
 async function toggleNotifications(){
+  // Bloquées par l'appareil : on explique comment les autoriser (le navigateur ne redemande plus)
+  if(('Notification' in window) && Notification.permission === 'denied'){ updateNotifButton(); return; }
   // Déjà activées : on ouvre les réglages des notifications (heures, catégories) au lieu de tout couper
   if(isNotifEnabled()){
     if(typeof otNotifs === 'function'){ otNotifs('motivation'); return; }
@@ -4560,14 +4589,15 @@ async function toggleNotifications(){
 
   if(!('Notification' in window)){ 
     const st = document.getElementById('notifStatus');
-    if(st) st.textContent = '❌ Non supporté'; 
+    if(st) st.innerHTML = notifAideRefus().replace('Les notifications sont bloquées sur cet appareil.', "Ce navigateur ne gère pas les notifications.");
     return; 
   }
 
   const permission = await Notification.requestPermission();
   if(permission !== 'granted'){ 
     const st = document.getElementById('notifStatus');
-    if(st) st.textContent = '❌ Permission refusée.'; 
+    if(st) st.innerHTML = permission === 'denied' ? notifAideRefus() : "Tu n'as pas encore répondu. Touche à nouveau le bouton et choisis « Autoriser ».";
+    if(permission === 'denied') updateNotifButton();
     return; 
   }
 
