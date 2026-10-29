@@ -59,6 +59,8 @@ const CR_MAX_PIX = 36e6;   // au-delà, beaucoup de téléphones refusent de cr�
 // [cle, nom, description, photos min, photos max, formats possibles]
 const CR_MODELES = [
   ['affiche', 'Affiche promo', 'Une photo, un titre, une offre, un prix', 1, 1, CR_TOUS],
+  ['editorial', 'Affiche éditoriale', 'Bords flous, grain, grand texte au pinceau, crédits', 1, 1, CR_TOUS],
+  ['minigalerie', 'Mini-galerie', 'Une carte épurée avec 3 à 6 photos', 3, 6, CR_VERT],
   ['epure', 'Affiche épurée', 'Photo encadrée, texte sur une bande claire', 1, 1, CR_VERT],
   ['story', 'Story avec texte', 'Pour le statut WhatsApp et les stories', 1, 1, ['story', 'photo23', 'a4']],
   ['mosaique', 'Mosaïque', '2 à 9 photos en grille', 2, 9, CR_TOUS],
@@ -71,7 +73,11 @@ const CR_MODELES = [
 const CR_CADRES = [['polaroid', 'Polaroid'], ['pellicule', 'Pellicule'], ['fine', 'Bordure fine'], ['passe', 'Passe-partout']];
 const CR_POS = [['haut', 'En haut'], ['centre', 'Au centre'], ['bas', 'En bas']];
 
-function crModele(k){ const m = CR_MODELES.find(x => x[0] === (k || CR.modele)); return m ? { k: m[0], nom: m[1], desc: m[2], min: m[3], max: m[4], fmts: m[5] } : null; }
+function crModele(k){
+  const m = CR_MODELES.find(x => x[0] === (k || CR.modele));
+  if(!m && typeof anModele === 'function') return anModele(k || CR.modele);
+  return m ? { k: m[0], nom: m[1], desc: m[2], min: m[3], max: m[4], fmts: m[5] } : null;
+}
 function crM(){ return typeof stM === 'function' ? stM() : {}; }
 function crPolice(){ const P = typeof ST_POLICES !== 'undefined' ? ST_POLICES : null; const k = (CR.cfg && CR.cfg.police) || crM().police || 'montserrat'; return P ? (P[k] || P.montserrat) : { titre: 'Montserrat', tw: 800, texte: 'Inter', xw: 600 }; }
 function crCouleurs(){ return typeof stCouleurs === 'function' ? stCouleurs() : { fond: '#00524D', texte: '#ffffff', accent: '#48A89A' }; }
@@ -85,7 +91,12 @@ function crCfgDefaut(){
     eyebrow: '', titre: '', sous: '', offre: '', prix: '', appel: 'Réserve ta séance', contact: m.contact || '',
     citation: '', auteur: '', legendes: ['', '', ''], avant: 'Avant', apres: 'Après',
     logo: true, copyright: true, voile: 0.55, pos: 'bas', align: 'centre', taille: 1,
-    gap: 14, bord: 0, bordCouleur: '#ffffff', cadre: 'polaroid', sens: 'auto'
+    gap: 14, bord: 0, bordCouleur: '#ffffff', cadre: 'polaroid', sens: 'auto',
+    // Mot géant (texte créatif par-dessus la photo) et affiche éditoriale
+    mot: '', motPolice: 'pinceau', motCouleur: '', motOpacite: 0.85, motFlou: 1, motTaille: 1, motPos: 'centre', motMaj: true,
+    credits: '', partenaire: '', flouBords: 0.7,
+    // Effets : filtre, grain, vignette, lumière, effet perso (image ajoutée)
+    effets: { filtre: 'aucun', grain: 0, vignette: 0, lumiere: 0, perso: null, persoBlend: 'screen', persoOpac: 0.6 }
   };
 }
 
@@ -98,6 +109,7 @@ async function crCharger(force){
     const { data, error } = await sb.from('creations').select('id,kind,nom,modele,config,apercu,media_path,shoot_id,created_at').order('created_at', { ascending: false }).limit(80);
     if(error) throw error;
     CR.styles = (data || []).filter(x => x.kind === 'style');
+    CR.effets = (data || []).filter(x => x.kind === 'effet');
     CR.recents = (data || []).filter(x => x.kind === 'creation').slice(0, 30);
   } catch(e){ console.warn('creations', e); CR.styles = CR.styles || []; CR.recents = CR.recents || []; }
   CR.charge = true;
@@ -114,7 +126,8 @@ async function crRender(){
   if(!CR.charge){ el.innerHTML = '<div class="ag-empty">Chargement...</div>'; await crCharger(); }
   if(!CR.cfg) CR.cfg = crCfgDefaut();
   if(CR.vue === 'photos') el.innerHTML = crVuePhotos();
-  else if(CR.vue === 'edit') { el.innerHTML = crVueEdit(); crDessinerApercu(); crBrancherApercu(); }
+  else if(CR.vue === 'edit' && typeof anEst === 'function' && anEst(CR.modele)) { el.innerHTML = anVueEdit(); anDemarrerApercu(); if(typeof mkHydrate === 'function') mkHydrate(el); }
+  else if(CR.vue === 'edit') { el.innerHTML = crVueEdit(); crDessinerApercu(); crBrancherApercu(); if(typeof mkHydrate === 'function') mkHydrate(el); }
   else el.innerHTML = crVueAccueil();
   if(CR.vue === 'photos') crHydrater();
   if(CR.vue === 'accueil' && typeof mkHydrate === 'function') mkHydrate(el);
@@ -124,6 +137,8 @@ function crVueAccueil(){
   return `<div class="cr-top"><h2>Créations</h2><p>Affiches, stories, mosaïques et cadres avec tes photos. Toujours ta police, tes couleurs et ton logo. Garde un style qui te plaît et refais-le sur d'autres photos.</p></div>
     <div class="cr-sec">Nouvelle création</div>
     <div class="cr-modeles">${CR_MODELES.map(([k, nom, desc]) => `<button class="cr-mod" onclick="crChoisirModele('${k}')"><span class="cr-mini">${crMini(k)}</span><b>${crE(nom)}</b><small>${crE(desc)}</small></button>`).join('')}</div>
+    ${typeof CR_VIDEOS !== 'undefined' ? `<div class="cr-sec">Vidéos et GIF animés <i>avec musique</i></div>
+    <div class="cr-modeles">${CR_VIDEOS.map(([k, nom, desc]) => `<button class="cr-mod" onclick="crChoisirModele('${k}')"><span class="cr-mini">${crMini(k)}</span><b>${crE(nom)}</b><small>${crE(desc)}</small></button>`).join('')}</div>` : ''}
     <div class="cr-sec">Mes styles ${CR.styles.length ? `<i>${CR.styles.length}</i>` : ''}</div>
     ${CR.styles.length ? `<div class="cr-styles">${CR.styles.map(s => `<div class="cr-style"><button class="cr-st-img" onclick="crAppliquerStyle(${s.id})">${s.apercu ? `<img src="${crE(s.apercu)}" alt="">` : crMini(s.modele)}</button>
         <div class="cr-st-d"><b>${crE(s.nom || 'Mon style')}</b><small>${crE((crModele(s.modele) || {}).nom || '')}</small>
@@ -144,8 +159,11 @@ function crMini(k){
     case 'citation': return svg(R(0, 0, 40, 50, .35) + `<text x="8" y="20" font-size="14" fill="currentColor">"</text>` + R(8, 24, 24, 3, 1) + R(11, 30, 18, 3, .8));
     case 'avantapres': return svg(R(0, 0, 19, 50, .35) + R(21, 0, 19, 50, .2) + R(19, 0, 2, 50, 1));
     case 'carrousel': return svg(R(0, 6, 12, 38, .2) + R(14, 4, 12, 42, .4) + R(28, 6, 12, 38, .2));
+    case 'editorial': return svg(R(0, 0, 40, 50, .3) + R(8, 2, 24, 3, .8) + `<text x="20" y="30" font-size="11" text-anchor="middle" fill="currentColor" font-weight="700" opacity=".9">ABC</text>` + R(13, 44, 14, 2, .7));
+    case 'minigalerie': return svg(R(0, 0, 40, 50, .08) + R(4, 4, 18, 3, .9) + R(4, 10, 15, 15, .35) + R(21, 10, 15, 15, .25) + R(4, 27, 15, 15, .25) + R(21, 27, 15, 15, .35) + R(4, 45, 20, 2, .6));
     case 'storyboard': return svg(R(8, 0, 24, 15, .35) + R(8, 17, 24, 15, .25) + R(8, 34, 24, 16, .35));
   }
+  if(/^v-/.test(k)) return svg(R(4, 2, 32, 46, .25, 4) + `<path d="M16 17l11 8-11 8z" fill="currentColor"/>` + R(8, 42, 24, 2, .7));
   return svg(R(0, 0, 40, 50, .3));
 }
 
@@ -155,6 +173,7 @@ function crChoisirModele(k){
   CR.modele = k; CR.styleId = null;
   if(!M.fmts.includes(CR.fmt)) CR.fmt = M.fmts[0];
   if(k === 'story' || k === 'storyboard') CR.fmt = 'story';
+  if(/^v-/.test(k) && !CR.fmtVideo){ CR.fmt = 'story'; CR.fmtVideo = true; }
   CR.slide = 0;
   if(CR.photos.length >= M.min){ CR.photos = CR.photos.slice(0, M.max); CR.vue = 'edit'; }
   else CR.vue = 'photos';
@@ -353,6 +372,8 @@ function crVueEdit(){
     citation: champ('citation', 'Citation', 'Ex : Chaque sourire raconte une histoire', true) + champ('auteur', 'Signature', 'Ex : Henzo Photographie'),
     avantapres: `<div class="cr-2">${champ('avant', 'Mot 1', 'Avant')}${champ('apres', 'Mot 2', 'Après')}</div>` + champ('titre', 'Titre (facultatif)', 'Ex : La magie de la retouche'),
     carrousel: champ('titre', 'Titre (1re image)', 'Ex : Le mariage de Awa et Yao') + champ('sous', 'Phrase (1re image)', '') + champ('appel', 'Dernière image : appel', 'Réserve ta séance') + champ('contact', 'Contact', ''),
+    editorial: champ('mot', 'Grand texte (une ligne par retour)', 'Ex : EXPLOSE\nTOUT', true) + champ('credits', 'Crédits en bas (une ligne par personne)', 'Ex : PHOTO : Henzo Photographie\nMAQUILLAGE : Awa Makeup', true) + champ('partenaire', 'Partenaire à côté du logo (facultatif)', 'Ex : MAISON NAYA'),
+    minigalerie: champ('eyebrow', 'Petit texte au-dessus', 'Ex : SÉANCE FAMILLE') + champ('titre', 'Titre', 'Ex : Les Kouassi') + champ('sous', 'Petite phrase', 'Ex : Studio, Bouaké · octobre'),
     storyboard: champ('titre', 'Titre', 'Ex : Une journée avec Destinée') + [0, 1, 2].map(i => `<label>Moment ${i + 1}</label><input value="${crE((c.legendes || [])[i] || '')}" oninput="crSetLeg(${i},this.value)" placeholder="${['Les préparatifs', 'Le moment fort', 'Le souvenir'][i]}">`).join('')
   }[M.k] || '';
   return `<button class="ag-back" onclick="CR.vue='accueil';crRender()">${agIcon('chev', 16)} Créations</button>
@@ -390,6 +411,7 @@ function crVueEdit(){
           ${['affiche', 'story', 'citation', 'carrousel'].includes(M.k) ? `<label>Voile sombre sur la photo</label><input type="range" min="0" max="0.9" step="0.05" value="${c.voile}" oninput="crSetNum('voile',this.value)">` : ''}
           <label>Taille du titre</label><input type="range" min="0.7" max="1.4" step="0.05" value="${c.taille}" oninput="crSetNum('taille',this.value)">
         </details>
+        <details class="cr-bloc" ${M.k === 'editorial' ? 'open' : ''}><summary>Effets créatifs</summary>${crEffetsHtml(M)}</details>
         <details class="cr-bloc"><summary>Police et couleurs</summary>
           <label>Police (sans empattement)</label>
           <div class="ag-pills">${Object.entries(P).map(([k, p]) => `<button type="button" class="${c.police === k ? 'on' : ''}" style="font-family:'${p.titre}',sans-serif" onclick="crSet('police','${k}')">${crE(p.titre)}</button>`).join('')}</div>
@@ -402,11 +424,58 @@ function crVueEdit(){
       </div>
     </div>`;
 }
+// Bloc "Effets créatifs" : filtre, grain, vignette, lumière, bords flous, mot géant, mes effets
+function crEffetsHtml(M){
+  const c = CR.cfg, e = c.effets || (c.effets = crCfgDefaut().effets);
+  const curseur = (cle, label, min, max, pas, val, fn) => `<label>${label}</label><input type="range" min="${min}" max="${max}" step="${pas}" value="${val}" oninput="${fn || 'crSetFx'}('${cle}',this.value)">`;
+  const unePhoto = M.min === 1 && M.max === 1;
+  return `<label>Filtre</label><div class="ag-pills">${Object.entries(CR_FILTRES).map(([k, v]) => `<button type="button" class="${(e.filtre || 'aucun') === k ? 'on' : ''}" onclick="crSetFx('filtre','${k}',1)">${v[0]}</button>`).join('')}</div>
+    ${curseur('grain', 'Grain de film', 0, 1, 0.05, e.grain || 0)}
+    ${curseur('vignette', 'Bords sombres', 0, 1, 0.05, e.vignette || 0)}
+    ${curseur('lumiere', 'Lumière colorée', 0, 1, 0.05, e.lumiere || 0)}
+    ${M.k === 'editorial' ? curseur('flouBords', 'Bords flous (centre net)', 0, 1, 0.05, c.flouBords || 0, 'crSetNum') : ''}
+    <div class="cr-sep">Grand texte créatif</div>
+    ${M.k !== 'editorial' ? `<textarea rows="2" placeholder="Ex : PHOTOGRAPHIE (facultatif)" oninput="crSetTxt('mot',this.value)">${crE(c.mot || '')}</textarea>` : '<div class="ag-hint" style="margin:0">Le texte se tape dans « Textes ».</div>'}
+    <label>Style d'écriture</label><div class="ag-pills">${Object.entries(CR_POLICES_CREA).map(([k, v]) => `<button type="button" class="${(c.motPolice || 'pinceau') === k ? 'on' : ''}" ${v.f ? `style="font-family:'${v.f}',sans-serif"` : ''} onclick="crSet('motPolice','${k}')">${v.nom}</button>`).join('')}</div>
+    <div class="cr-cols" style="grid-template-columns:repeat(2,1fr)"><label>Couleur du texte<input type="color" value="${crE(c.motCouleur || c.accent)}" oninput="crSetCol('motCouleur',this.value)"></label>
+      <label>Place<select onchange="crSet('motPos',this.value)">${[['centre', 'Au centre'], ['haut', 'En haut'], ['bas', 'En bas']].map(([k, l]) => `<option value="${k}" ${c.motPos === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+    ${curseur('motOpacite', 'Transparence du texte', 0.2, 1, 0.05, c.motOpacite == null ? 0.85 : c.motOpacite, 'crSetNum')}
+    ${curseur('motFlou', 'Texte un peu flou', 0, 4, 0.25, c.motFlou || 0, 'crSetNum')}
+    ${curseur('motTaille', 'Taille du texte', 0.4, 1.2, 0.05, c.motTaille || 1, 'crSetNum')}
+    <div class="cr-sep">Mes effets (images ajoutées)</div>
+    <div class="ag-hint" style="margin:0 0 8px">Ajoute des textures, poussières, lumières, cadres (PNG ou JPG) : par exemple des « overlays » trouvés sur internet. Ils restent dans ta liste.</div>
+    <div class="cr-effets">${(CR.effets || []).map(x => `<button type="button" class="${e.perso && e.perso.path === x.media_path ? 'on' : ''}" onclick="crChoisirEffet(${x.id})"><img data-mkp="${crE(x.media_path)}" src="" alt=""><small>${crE(x.nom || 'Effet')}</small></button>`).join('')}
+      <button type="button" class="cr-eff-plus" onclick="document.getElementById('crFxFile').click()">+<small>Ajouter</small></button></div>
+    <input type="file" id="crFxFile" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="crAjouterEffet(this.files)">
+    ${e.perso ? `<label>Mélange</label><div class="ag-pills">${[['screen', 'Éclaircir (lumières)'], ['overlay', 'Superposer (textures)'], ['multiply', 'Assombrir (poussière)'], ['source-over', 'Normal (cadres PNG)']].map(([k, l]) => `<button type="button" class="${e.persoBlend === k ? 'on' : ''}" onclick="crSetFx('persoBlend','${k}',1)">${l}</button>`).join('')}</div>
+      ${curseur('persoOpac', 'Force de l\'effet', 0.1, 1, 0.05, e.persoOpac == null ? 0.6 : e.persoOpac)}
+      <button class="st-link" onclick="CR.cfg.effets.perso=null;crRender()">Retirer l'effet</button>` : ''}`;
+}
+function crSetFx(k, v, rendu){ const e = CR.cfg.effets || (CR.cfg.effets = {}); e[k] = isNaN(Number(v)) || k === 'filtre' || k === 'persoBlend' ? v : Number(v); if(rendu) crRender(); else crDessinerApercuVite(); }
+function crChoisirEffet(id){ const x = (CR.effets || []).find(y => y.id === id); if(!x) return; CR.cfg.effets.perso = { id: x.id, path: x.media_path }; crRender(); }
+async function crAjouterEffet(files){
+  const f = files && files[0]; if(!f) return;
+  try {
+    const uid = typeof mkUid === 'function' ? await mkUid() : null; if(!uid) throw new Error('Pas connecté');
+    const ext = (f.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+    const path = `${uid}/effet-${Date.now()}.${ext}`;
+    const { error } = await sb.storage.from('marketing').upload(path, f, { contentType: f.type, upsert: false });
+    if(error) throw new Error(error.message);
+    const nom = (f.name || 'Effet').replace(/\.[^.]+$/, '').slice(0, 30);
+    const { data, error: e2 } = await sb.from('creations').insert({ kind: 'effet', nom, media_path: path }).select().single();
+    if(e2) throw e2;
+    CR.effets = [data].concat(CR.effets || []);
+    CR.cfg.effets.perso = { id: data.id, path }; CR.cfg.effets.persoBlend = f.type === 'image/png' ? 'source-over' : 'screen';
+    agToast('Effet ajouté à ta liste');
+  } catch(e){ agAlert('Effet non ajouté : ' + (e.message || e)); }
+  const inp = document.getElementById('crFxFile'); if(inp) inp.value = '';
+  crRender();
+}
 function crMajSlides(){ document.querySelectorAll('.cr-slides button').forEach((b, i) => b.classList.toggle('on', i === CR.slide)); }
 function crSet(k, v){
   if(k === 'fmt'){ CR.fmt = v; crRender(); return; }
   CR.cfg[k] = v;
-  if(['pos', 'align', 'cadre', 'sens', 'police'].includes(k)) crRender(); else crDessinerApercu();
+  if(['pos', 'align', 'cadre', 'sens', 'police', 'motPolice', 'motPos'].includes(k)) crRender(); else crDessinerApercu();
 }
 function crSetTxt(k, v){ CR.cfg[k] = v; crDessinerApercuVite(); }
 function crSetLeg(i, v){ CR.cfg.legendes = (CR.cfg.legendes || ['', '', '']).slice(); CR.cfg.legendes[i] = v; crDessinerApercuVite(); }
@@ -416,8 +485,9 @@ function crCouleursMarque(){ const c = crCouleurs(); Object.assign(CR.cfg, { fon
 function crSel(i){ CR.sel = i; document.querySelectorAll('.cr-phsel button').forEach((b, j) => b.classList.toggle('on', j === i)); const z = document.querySelector('.cr-zoom input'); if(z) z.value = (CR.crop[i] || {}).z || 1; }
 function crZoom(v){ const c = CR.crop[CR.sel]; if(!c) return; c.z = Number(v); crDessinerApercuVite(); }
 let crRaf = 0;
-function crDessinerApercuVite(){ if(crRaf) return; crRaf = requestAnimationFrame(() => { crRaf = 0; crDessinerApercu(); }); }
+function crDessinerApercuVite(){ if(document.getElementById('anCanvas') && typeof anApercuUneFois === 'function'){ anApercuUneFois(); return; } if(crRaf) return; crRaf = requestAnimationFrame(() => { crRaf = 0; crDessinerApercu(); }); }
 async function crDessinerApercu(){
+  if(document.getElementById('anCanvas') && typeof anApercuUneFois === 'function'){ anApercuUneFois(); return; }
   const cv = document.getElementById('crCanvas'); if(!cv) return;
   try { await crDessiner(cv, CR.slide); } catch(e){ console.warn('dessin', e); }
 }
@@ -466,6 +536,7 @@ function crPhoto(g, img, i, x, y, w, h, rayon){
   if(s > 1.3 && CR.flous && !CR.flous.includes(i + 1)) CR.flous.push(i + 1);
   g.save();
   if(rayon){ crRond(g, x, y, w, h, rayon); g.clip(); } else { g.beginPath(); g.rect(x, y, w, h); g.clip(); }
+  const fil = crFiltre(CR.cfg); if(fil) g.filter = fil;
   g.drawImage(img, dx, dy, dw, dh);
   g.restore();
   CR.rects.push({ i, x, y, w, h, libreX: libreX || 1, libreY: libreY || 1 });
@@ -700,7 +771,168 @@ async function crDessiner(cv, slide, k){
     }
     if(c.copyright){ g.font = crFont(P.x, 400, 18 * s); g.fillStyle = coul === '#ffffff' ? 'rgba(255,255,255,.6)' : 'rgba(0,0,0,.45)'; g.textAlign = 'center'; g.fillText('© ' + crNom(), W / 2, H - 26 * s); g.textAlign = 'left'; }
   }
+  else if(M.k === 'editorial'){
+    crPhoto(g, imgs[0], 0, 0, 0, W, H, 0);
+    crFlouBords(g, W, H, s, c.flouBords);
+    await crMotGeant(g, W, H, s, c);
+    // En-tête : logo (ou nom) + partenaire
+    const coulH = '#ffffff';
+    let lw = 0;
+    if(c.logo && logo){ const lh = 64 * s; lw = logo.width * lh / logo.height; }
+    g.font = crFont(P.x, 300, 30 * s); g.letterSpacing = (6 * s) + 'px';
+    const part = (c.partenaire || '').toUpperCase(), pw = part ? g.measureText(part).width : 0;
+    const nomW = !lw && c.logo ? (g.font = crFont(P.t, 700, 30 * s), g.measureText(crNom().toUpperCase()).width) : 0;
+    const gapH = part ? 34 * s : 0, total = (lw || nomW) + gapH + pw;
+    let x0 = (W - total) / 2, yH = 60 * s;
+    if(c.logo && logo){ g.drawImage(logo, x0, yH, lw, 64 * s); x0 += lw; }
+    else if(c.logo){ g.font = crFont(P.t, 700, 30 * s); g.fillStyle = coulH; g.textAlign = 'left'; g.fillText(crNom().toUpperCase(), x0, yH + 44 * s); x0 += nomW; }
+    if(part){ g.font = crFont(P.x, 300, 30 * s); g.fillStyle = coulH; g.textAlign = 'left'; g.fillText(part, x0 + gapH, yH + 44 * s); }
+    g.letterSpacing = '0px';
+    // Crédits en bas, centrés
+    const cr = String(c.credits || '').split('\n').map(x => x.trim()).filter(Boolean);
+    if(cr.length){
+      g.font = crFont(P.x, 400, 26 * s); g.fillStyle = 'rgba(255,255,255,.92)'; g.textAlign = 'center';
+      g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 8 * s;
+      cr.forEach((l, i) => g.fillText(l, W / 2, H - 70 * s - (cr.length - 1 - i) * 34 * s));
+      g.shadowBlur = 0; g.shadowColor = 'transparent'; g.textAlign = 'left';
+    }
+    if(c.copyright && !cr.length){ g.font = crFont(P.x, 400, 18 * s); g.fillStyle = 'rgba(255,255,255,.7)'; g.textAlign = 'center'; g.fillText('© ' + crNom(), W / 2, H - 30 * s); g.textAlign = 'left'; }
+  }
+  else if(M.k === 'minigalerie'){
+    g.fillStyle = c.clair; g.fillRect(0, 0, W, H);
+    const m = 70 * s;
+    let y = m;
+    if(c.eyebrow){ y += crTexte(g, c.eyebrow, { fam: P.x, poids: 600, px: 24 * s, x: m, maxW: W - 2 * m, y, couleur: c.accent, maj: true, espace: 5 * s, maxL: 1 }) + 8 * s; }
+    y += crTexte(g, c.titre || '', { fam: P.t, poids: P.tw, px: 58 * s * T, x: m, maxW: W - 2 * m, y, couleur: c.encre, maxL: 2, lh: 1.05 }) + 26 * s;
+    const basH = (c.sous ? 70 : 40) * s + 40 * s;
+    const cases = crGrille(CR.photos.length, { x: m, y, w: W - 2 * m, h: H - y - basH - m * 0.5 }, 12 * s);
+    cases.forEach((r, i) => crPhoto(g, imgs[i], i, r.x, r.y, r.w, r.h, 14 * s));
+    const yb = H - basH;
+    if(c.sous) crTexte(g, c.sous, { fam: P.x, poids: 400, px: 26 * s, x: m, maxW: W - 2 * m, y: yb, couleur: 'rgba(27,27,27,.7)', maxL: 2, lh: 1.3 });
+    g.font = crFont(P.t, 700, 20 * s); g.fillStyle = 'rgba(27,27,27,.55)'; g.letterSpacing = (4 * s) + 'px'; g.textAlign = 'right';
+    g.fillText(crNom().toUpperCase(), W - m, H - m * 0.6); g.textAlign = 'left'; g.letterSpacing = '0px';
+  }
+  // Mot géant sur les autres modèles (s'il est rempli), puis les effets sur toute l'image
+  if(M.k !== 'editorial' && c.mot) await crMotGeant(g, W, H, s, c);
+  await crEffetsApres(g, W, H, s, c, 0);
 }
+// ============================================================
+// EFFETS (images et vidéos)
+// ============================================================
+const CR_FILTRES = {
+  aucun: ['Aucun', ''], nb: ['Noir et blanc', 'grayscale(1) contrast(1.08)'], sepia: ['Sépia', 'sepia(.55) contrast(1.05)'],
+  contraste: ['Contrasté', 'contrast(1.22) saturate(1.12)'], chaud: ['Chaud', 'sepia(.2) saturate(1.25) hue-rotate(-6deg)'],
+  froid: ['Froid', 'saturate(.85) hue-rotate(12deg) brightness(1.03)'], pastel: ['Pastel', 'saturate(.7) brightness(1.08) contrast(.9)'],
+  cinema: ['Cinéma', 'contrast(1.15) saturate(.78) brightness(.95)'], fane: ['Délavé', 'contrast(.85) saturate(.75) brightness(1.06)']
+};
+function crFiltre(c){ const e = (c && c.effets) || {}; return (CR_FILTRES[e.filtre] || CR_FILTRES.aucun)[1]; }
+// Grain de film : quelques plaques de bruit, changées à chaque image d'une vidéo
+const CR_GRAINS = [];
+function crGrain(n){
+  if(!CR_GRAINS.length){
+    for(let k = 0; k < 4; k++){
+      const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+      const g = cv.getContext('2d'), d = g.createImageData(256, 256);
+      for(let i = 0; i < d.data.length; i += 4){ const v = Math.random() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+      g.putImageData(d, 0, 0); CR_GRAINS.push(cv);
+    }
+  }
+  return CR_GRAINS[(n || 0) % CR_GRAINS.length];
+}
+const CR_FX_IMG = {};
+async function crEffetImage(e){
+  if(!e || !e.path) return null;
+  if(CR_FX_IMG[e.path]) return CR_FX_IMG[e.path];
+  try {
+    const [u] = await mkSign([e.path]); const b = await mkUrlBlob(u); const url = URL.createObjectURL(b);
+    CR_FX_IMG[e.path] = await new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = url; });
+  } catch(er){ CR_FX_IMG[e.path] = null; }
+  return CR_FX_IMG[e.path];
+}
+// Effets posés sur toute l'image : effet perso, lumière, vignette, grain. t = temps (vidéo)
+async function crEffetsApres(g, W, H, s, c, t){
+  const e = (c && c.effets) || {};
+  if(e.perso && e.perso.path){
+    const im = await crEffetImage(e.perso);
+    if(im){
+      const k = Math.max(W / im.width, H / im.height), dw = im.width * k, dh = im.height * k;
+      g.save(); g.globalAlpha = e.persoOpac == null ? 0.6 : e.persoOpac; g.globalCompositeOperation = e.persoBlend || 'screen';
+      g.drawImage(im, (W - dw) / 2, (H - dh) / 2, dw, dh); g.restore();
+    }
+  }
+  if(e.lumiere > 0){
+    const a = e.lumiere, ph = (t || 0) * 0.35;
+    g.save(); g.globalCompositeOperation = 'screen';
+    [[0.15 + 0.1 * Math.sin(ph), 0.1, '255,140,60'], [0.9, 0.85 + 0.08 * Math.cos(ph * 1.3), '255,70,110']].forEach(([fx, fy, rgb]) => {
+      const gr = g.createRadialGradient(W * fx, H * fy, 0, W * fx, H * fy, Math.max(W, H) * 0.55);
+      gr.addColorStop(0, `rgba(${rgb},${0.55 * a})`); gr.addColorStop(1, `rgba(${rgb},0)`);
+      g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    });
+    g.restore();
+  }
+  if(e.vignette > 0){
+    const gr = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+    gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, `rgba(0,0,0,${0.75 * e.vignette})`);
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  }
+  if(e.grain > 0){
+    g.save(); g.globalAlpha = 0.22 * e.grain; g.globalCompositeOperation = 'overlay';
+    const pat = g.createPattern(crGrain(Math.floor((t || 0) * 24)), 'repeat');
+    const sc = Math.max(1, s * 1.2);
+    g.scale(sc, sc); g.fillStyle = pat; g.fillRect(0, 0, W / sc, H / sc); g.restore();
+  }
+}
+// Bords flous : la photo reste nette au centre et se floute vers les bords
+function crFlouBords(g, W, H, s, force){
+  if(!(force > 0)) return;
+  try {
+    const off = document.createElement('canvas'); off.width = W; off.height = H;
+    const o = off.getContext('2d');
+    o.filter = `blur(${Math.round(26 * s * force)}px)`;
+    o.drawImage(g.canvas, 0, 0);
+    o.filter = 'none';
+    o.globalCompositeOperation = 'destination-in';
+    const gr = o.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.22, W / 2, H * 0.45, Math.max(W, H) * 0.62);
+    gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
+    o.fillStyle = gr; o.fillRect(0, 0, W, H);
+    g.drawImage(off, 0, 0);
+  } catch(e){ console.warn('flou', e); }
+}
+// Polices créatives pour le mot géant (pinceau, feutre, condensée...)
+const CR_POLICES_CREA = {
+  marque: { nom: 'Ma police', f: null }, pinceau: { nom: 'Pinceau', f: 'Permanent Marker' }, feutre: { nom: 'Feutre', f: 'Caveat Brush' },
+  condensee: { nom: 'Condensée', f: 'Bebas Neue' }, grasse: { nom: 'Grasse', f: 'Anton' }, machine: { nom: 'Machine à écrire', f: 'Special Elite' }
+};
+function crPolicesCreaLien(){
+  if(document.getElementById('crCreaFonts')) return;
+  const l = document.createElement('link'); l.id = 'crCreaFonts'; l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Caveat+Brush&family=Bebas+Neue&family=Anton&family=Special+Elite&display=swap';
+  document.head.appendChild(l);
+}
+async function crMotGeant(g, W, H, s, c){
+  const txt = String(c.mot || '').trim(); if(!txt) return;
+  crPolicesCreaLien();
+  const pc = CR_POLICES_CREA[c.motPolice] || CR_POLICES_CREA.pinceau;
+  const P = crPolices(), fam = pc.f || P.t, poids = pc.f ? 400 : 800;
+  try { await Promise.race([document.fonts.load(`${poids} 100px "${fam}"`), new Promise(r => setTimeout(r, 2500))]); } catch(e){}
+  const lignes = (c.motMaj === false ? txt : txt.toUpperCase()).split('\n').map(x => x.trim()).filter(Boolean);
+  // Taille : la ligne la plus longue prend ~86 % de la largeur
+  g.font = `${poids} 100px "${fam}", sans-serif`;
+  const plus = Math.max(...lignes.map(l => g.measureText(l).width)) || 1;
+  let px = Math.min(100 * (W * 0.86) / plus, H * 0.9 / (lignes.length * 1.02)) * (c.motTaille || 1);
+  const lh = px * (pc.f === 'Bebas Neue' || pc.f === 'Anton' ? 0.92 : 1.0);
+  const total = lignes.length * lh;
+  const y0 = c.motPos === 'haut' ? H * 0.12 : c.motPos === 'bas' ? H * 0.88 - total : (H - total) / 2;
+  g.save();
+  g.globalAlpha = c.motOpacite == null ? 0.85 : c.motOpacite;
+  if(c.motFlou > 0) g.filter = `blur(${(c.motFlou * 1.6 * s).toFixed(1)}px)`;
+  g.fillStyle = c.motCouleur || c.accent || '#c0141b';
+  g.textAlign = 'center'; g.textBaseline = 'top';
+  g.font = `${poids} ${Math.round(px)}px "${fam}", sans-serif`;
+  lignes.forEach((l, i) => g.fillText(l, W / 2, y0 + i * lh));
+  g.restore();
+}
+
 // Cases d'une mosaïque selon le nombre de photos et la forme
 function crGrille(n, z, gap){
   const out = [], large = z.w >= z.h;
@@ -899,7 +1131,7 @@ async function crGarder(){
 // Ce qu'on garde : le style (et, pour une création, les photos qui peuvent être retrouvées)
 function crConfigPour(avecPhotos, avecTextes){
   const c = Object.assign({}, CR.cfg);
-  if(!avecTextes && !avecPhotos){ ['titre', 'sous', 'offre', 'prix', 'citation', 'eyebrow'].forEach(k => { c[k] = ''; }); c.legendes = ['', '', '']; }
+  if(!avecTextes && !avecPhotos){ ['titre', 'sous', 'offre', 'prix', 'citation', 'eyebrow', 'mot', 'credits', 'partenaire'].forEach(k => { c[k] = ''; }); c.legendes = ['', '', '']; }
   const o = { cfg: c, fmt: CR.fmt };
   if(avecPhotos){
     o.photos = CR.photos.map(p => p.src === 'galerie' ? { src: 'galerie', dossier: p.dossier, f: p.f } : p.path ? { src: 'media', path: p.path } : null);
@@ -1057,6 +1289,13 @@ function crCss(){
 .cr-cols label{font-size:11px;color:var(--muted);text-align:center}
 .cr-cols input{height:38px;padding:2px;margin-top:4px}
 .cr-drop{margin:4px 0}
+.cr-sep{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:16px 0 6px;padding-top:12px;border-top:1px solid var(--border)}
+.cr-effets{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+.cr-effets button{flex:none;width:68px;margin:0;padding:0;border-radius:10px;overflow:hidden;border:2px solid transparent;background:var(--card2);cursor:pointer;display:flex;flex-direction:column;align-items:center;color:var(--text)}
+.cr-effets button.on{border-color:var(--accent)}
+.cr-effets img{width:68px;height:68px;object-fit:cover;display:block;background:#222}
+.cr-effets small{font-size:10px;padding:3px 2px;max-width:66px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.cr-eff-plus{height:90px;justify-content:center;font-size:24px;font-weight:300;border:1px dashed var(--border-2) !important}
 .cr-fmtnom{text-align:center;font-size:12px;color:var(--muted);margin-top:8px}
 .cr-fmts{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:4px 0 6px}
 .cr-fmts button{display:grid;grid-template-columns:30px 1fr;grid-template-rows:auto auto;column-gap:8px;align-items:center;text-align:left;margin:0;padding:8px 10px;border-radius:12px;background:var(--card2);border:1px solid var(--border);color:var(--text);cursor:pointer;width:auto}
