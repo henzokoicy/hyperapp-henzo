@@ -65,8 +65,8 @@
 body{
   font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   background:
-    radial-gradient(900px 500px at 110% -10%, rgba(72,168,154,.10), transparent 60%),
-    radial-gradient(700px 400px at -10% 110%, rgba(0,82,77,.12), transparent 60%),
+    radial-gradient(900px 500px at 110% -10%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%),
+    radial-gradient(700px 400px at -10% 110%, color-mix(in srgb, var(--deep) 14%, transparent), transparent 60%),
     var(--bg);
   padding-bottom:96px;
 }
@@ -708,15 +708,70 @@ body:has(.ag-sheet) .ot-selbar,body:has(.modal-bg.show) .ot-selbar,body:has(.ag-
 .ag-share-row.off{opacity:.55}
 @media (max-width:380px){.px-shrow{flex-wrap:wrap}.px-shb{width:100%;justify-content:flex-end}}
 /* Theme clair */
-[data-theme="ivoire"] .px-warn{background:#fff8e6;border-color:#ecd28c}
-[data-theme="ivoire"] .px-warn b,[data-theme="ivoire"] .px-warn-n{color:#9a6b06}
-[data-theme="ivoire"] .px-warn-n{background:#fbefcc}
-[data-theme="ivoire"] .px-pack-h .m{color:var(--accent-dk)}
-[data-theme="ivoire"] .ag-ibtn.on{color:#b9861d !important;border-color:#e3c77a !important}
-[data-theme="ivoire"] .px-tri button.on{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-[data-theme="ivoire"] .px-tri button.on[data-v="no"],[data-theme="ivoire"] .px-ok.no{color:#c94848}
-[data-theme="ivoire"] .px-card{border-color:#cfdedb}
-[data-theme="ivoire"] .px-prev-w{background:#eef3f2}
+[data-clair="1"] .px-warn{background:#fff8e6;border-color:#ecd28c}
+[data-clair="1"] .px-warn b,[data-clair="1"] .px-warn-n{color:#9a6b06}
+[data-clair="1"] .px-warn-n{background:#fbefcc}
+[data-clair="1"] .px-pack-h .m{color:var(--accent-dk)}
+[data-clair="1"] .ag-ibtn.on{color:#b9861d !important;border-color:#e3c77a !important}
+[data-clair="1"] .px-tri button.on{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+[data-clair="1"] .px-tri button.on[data-v="no"],[data-clair="1"] .px-ok.no{color:#c94848}
+[data-clair="1"] .px-card{border-color:#cfdedb}
+[data-clair="1"] .px-prev-w{background:#eef3f2}
 .px-card li s{display:inline-flex;align-items:center;height:1.45em}
 .px-tri button svg{vertical-align:-1px;margin-right:2px}
 .px-ok{display:inline-grid;place-items:center}
+
+
+/* ============================================================
+   APPARENCE : effets, passage entre les pages, police
+   (choisis dans Thème ; rien ne change de place)
+   ============================================================ */
+.ag-app-sec{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:18px 2px 8px}
+.ag-themes-g{display:grid !important;grid-template-columns:1fr 1fr;gap:8px !important;margin-top:0 !important}
+.ag-themes-g .ag-theme{padding:10px !important;gap:10px !important}
+.ag-themes-g .ag-theme .sw i{width:10px;height:30px}
+.ag-themes-g .ag-theme .tx b{font-size:13px}.ag-themes-g .ag-theme .tx small{font-size:11px;line-height:1.3}
+.ag-app-pills{display:grid !important;grid-template-columns:1fr 1fr;gap:8px}
+.ag-app-pills button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:10px 12px !important}
+.ag-app-pills button b{font-size:13.5px}.ag-app-pills button small{font-size:11px;color:var(--muted);line-height:1.3;margin-top:2px}
+
+/* ---------- Effets ---------- */
+[data-style="verre"] body{background:radial-gradient(900px 650px at 0% 0%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 62%),radial-gradient(800px 600px at 100% 100%, color-mix(in srgb, var(--deep) 45%, transparent), transparent 62%),radial-gradient(600px 400px at 100% 10%, color-mix(in srgb, var(--light) 10%, transparent), transparent 60%),var(--bg) !important;background-attachment:fixed !important}
+[data-style="verre"] :is(.card,.item-card,.ag-coffre,.ag-list,.ag-total,.ag-act,.st-card,.mk-post,.cr-bloc,.cr-mod,.cr-style,.ag-theme,.modal-bg .modal,.ms-card,.crm-fete,.bg-zone .bg-tools,.ag-share,[class*="-card"]:not(.px-card):not(.cd)){background:color-mix(in srgb, var(--card) 52%, transparent) !important;-webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%);border:1px solid color-mix(in srgb, var(--light) 16%, transparent) !important}
+[data-style="verre"] .ag-total{background:linear-gradient(150deg, color-mix(in srgb, var(--hero-1) 70%, transparent), color-mix(in srgb, var(--hero-2) 55%, transparent)) !important}
+[data-style="doux"] :is(.card,.item-card,.ag-coffre,.ag-list,.ag-total,.ag-act,.st-card,.mk-post,.cr-bloc,.cr-mod,.cr-style,.ag-theme,.modal-bg .modal,.ms-card,.crm-fete,.bg-zone .bg-tools,.ag-share,[class*="-card"]:not(.px-card):not(.cd)){border-radius:26px !important;box-shadow:0 14px 36px rgba(0,0,0,.22) !important;border-color:transparent !important}
+[data-style="doux"] :is(input,select,textarea){border-radius:16px !important}
+[data-style="doux"] :is(.btn-primary,.btn-secondary,.btn-ghost,.btn-danger){border-radius:18px !important}
+[data-style="plat"] :is(.card,.item-card,.ag-coffre,.ag-list,.ag-total,.ag-act,.st-card,.mk-post,.cr-bloc,.cr-mod,.cr-style,.ag-theme,.modal-bg .modal,.ms-card,.crm-fete,.bg-zone .bg-tools,.ag-share,[class*="-card"]:not(.px-card):not(.cd)){box-shadow:none !important;border-radius:10px !important;border:1px solid var(--border-2) !important}
+[data-style="plat"] .ag-total{background:var(--deep) !important}
+[data-style="plat"] body{background:var(--bg) !important}
+[data-style="plat"] :is(.btn-primary,.btn-secondary,.btn-ghost){box-shadow:none !important;border-radius:10px !important}
+[data-style="neon"] :is(.card,.item-card,.ag-coffre,.ag-list,.ag-total,.ag-act,.st-card,.mk-post,.cr-bloc,.cr-mod,.cr-style,.ag-theme,.modal-bg .modal,.ms-card,.crm-fete,.bg-zone .bg-tools,.ag-share,[class*="-card"]:not(.px-card):not(.cd)){border:1px solid color-mix(in srgb, var(--accent) 45%, transparent) !important;box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent),0 0 24px color-mix(in srgb, var(--accent) 16%, transparent) !important}
+[data-style="neon"] .btn-primary{box-shadow:0 0 20px color-mix(in srgb, var(--accent) 55%, transparent) !important}
+[data-style="neon"] .ag-total .amt{text-shadow:0 0 18px color-mix(in srgb, var(--accent) 60%, transparent)}
+[data-style="editorial"] :is(.card,.item-card,.ag-coffre,.ag-list,.ag-total,.ag-act,.st-card,.mk-post,.cr-bloc,.cr-mod,.cr-style,.ag-theme,.modal-bg .modal,.ms-card,.crm-fete,.bg-zone .bg-tools,.ag-share,[class*="-card"]:not(.px-card):not(.cd)){border-radius:6px !important;box-shadow:none !important;border:1px solid var(--border-2) !important}
+[data-style="editorial"] :is(input,select,textarea,.btn-primary,.btn-secondary,.btn-ghost,.btn-danger){border-radius:6px !important}
+[data-style="editorial"] body{background:var(--bg) !important}
+[data-style="editorial"] :is(h1,h2,h3){letter-spacing:-.02em}
+
+/* ---------- Passage d'une page à l'autre ---------- */
+@keyframes agFondu{from{opacity:0}to{opacity:1}}
+@keyframes agGlisse{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes agMonte{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes agZoom{from{opacity:0;transform:scale(.965)}to{opacity:1;transform:none}}
+[data-anim="fondu"] .page.active.ag-anim{animation:agFondu .32s ease both}
+[data-anim="glisse"] .page.active.ag-anim{animation:agGlisse .36s cubic-bezier(.16,1,.3,1) both}
+[data-anim="monte"] .page.active.ag-anim{animation:agMonte .38s cubic-bezier(.16,1,.3,1) both}
+[data-anim="zoom"] .page.active.ag-anim{animation:agZoom .34s cubic-bezier(.16,1,.3,1) both}
+[data-anim]:not([data-anim="aucune"]) .modal-bg.show .modal{animation:agMonte .3s cubic-bezier(.16,1,.3,1) both}
+[data-anim="aucune"] *{animation-duration:0s !important;transition-duration:0s !important}
+@media (prefers-reduced-motion:reduce){.page.active.ag-anim{animation:none !important}}
+:is(.btn-primary,.btn-secondary,.ag-act,.ag-theme,.cr-mod):active{transform:scale(.98)}
+
+/* ---------- Police de l'application ---------- */
+[data-police="poppins"]{--app-font:'Poppins'}
+[data-police="outfit"]{--app-font:'Outfit'}
+[data-police="manrope"]{--app-font:'Manrope'}
+[data-police="montserrat"]{--app-font:'Montserrat'}
+[data-police="dmsans"]{--app-font:'DM Sans'}
+[data-police]:not([data-police="inter"]) body,[data-police]:not([data-police="inter"]) body :is(button,input,select,textarea,h1,h2,h3,h4,h5,p,span,b,strong,em,small,label,a,li,td,th,div,summary,i){font-family:var(--app-font),Inter,system-ui,sans-serif !important}

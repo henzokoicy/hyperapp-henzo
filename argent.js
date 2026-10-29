@@ -1056,17 +1056,114 @@ const AG_TAB_ICONS = { dash: 'home', argent: 'wallet', coffres: 'lock', objectif
   photo: 'camera', clients: 'users', mood: 'palette', tarifs: 'briefcase', galerie: 'image', creations: 'palette', notes: 'note', business: 'bulb', inspiration: 'star', motiv: 'flame', ia: 'sparkles' };
 
 // ---------- Themes ----------
+// ------------------------------------------------------------
+// THEMES : couleurs + effets + passage entre les pages + police
+// ------------------------------------------------------------
+// Couleurs : les 5 premiers sont écrits dans theme.css ; les autres sont
+// calculés ici à partir de 5 couleurs (fond, cartes, accent, clair, foncé).
 const AG_THEMES = {
-  aurora:   { label: 'Aurora',   desc: 'Vert profond et blanc', sw: ['#030b0a', '#00524D', '#48A89A', '#CBEFEB'] },
-  graphite: { label: 'Graphite', desc: 'Gris anthracite et vert citron', sw: ['#141414', '#262626', '#b6f23a', '#e9e9e9'] },
-  minuit:   { label: 'Minuit',   desc: 'Bleu nuit et bleu clair', sw: ['#070a14', '#1d2a5c', '#6b8eff', '#c9d4ff'] },
-  or:       { label: 'Or noir',  desc: 'Noir chaud et doré', sw: ['#0b0a08', '#3a2c12', '#d4a64a', '#f1dfb4'] },
-  ivoire:   { label: 'Ivoire',   desc: 'Clair, pour la journée', sw: ['#f4f2ee', '#ffffff', '#1f6f63', '#1b1b1b'] }
+  aurora:     { label: 'Aurora',      desc: 'Vert profond et blanc', sw: ['#030b0a', '#00524D', '#48A89A', '#CBEFEB'] },
+  graphite:   { label: 'Graphite',    desc: 'Gris anthracite et vert citron', sw: ['#141414', '#262626', '#b6f23a', '#e9e9e9'] },
+  minuit:     { label: 'Minuit',      desc: 'Bleu nuit et bleu clair', sw: ['#070a14', '#1d2a5c', '#6b8eff', '#c9d4ff'] },
+  or:         { label: 'Or noir',     desc: 'Noir chaud et doré', sw: ['#0b0a08', '#3a2c12', '#d4a64a', '#f1dfb4'] },
+  ivoire:     { label: 'Ivoire',      desc: 'Clair, pour la journée', sw: ['#f4f2ee', '#ffffff', '#1f6f63', '#1b1b1b'], clair: true },
+  noir:       { label: 'Noir pur',    desc: 'Noir et blanc, très épuré', gen: { bg: '#000000', card: '#0e0e0e', accent: '#ffffff', light: '#f2f2f2', deep: '#262626', priBg: '#ffffff', priFg: '#000000' } },
+  bordeaux:   { label: 'Bordeaux',    desc: 'Vin profond et rose poudré', gen: { bg: '#0f0709', card: '#1a0d11', accent: '#c2546f', light: '#f3c9d3', deep: '#5a1426' } },
+  ocean:      { label: 'Océan',       desc: 'Bleu canard et turquoise', gen: { bg: '#04101a', card: '#0a1b29', accent: '#2fb3c9', light: '#c4eef6', deep: '#0b4a63' } },
+  lavande:    { label: 'Lavande',     desc: 'Violet nuit et lilas', gen: { bg: '#0d0a16', card: '#171226', accent: '#9b7cf0', light: '#ddd2ff', deep: '#3b2a7a' } },
+  terracotta: { label: 'Terracotta',  desc: 'Brun chaud et argile', gen: { bg: '#120b08', card: '#1d130e', accent: '#d9774a', light: '#f6d2bf', deep: '#6b2e14' } },
+  corail:     { label: 'Corail',      desc: 'Noir doux et corail', gen: { bg: '#0c0c10', card: '#16161c', accent: '#ff7a6b', light: '#ffd6cf', deep: '#5c2620' } },
+  emeraude:   { label: 'Émeraude',    desc: 'Vert vif et lumineux', gen: { bg: '#03100a', card: '#0a1d14', accent: '#2ecc8a', light: '#c7f5df', deep: '#0d5a3a' } },
+  moka:       { label: 'Moka',        desc: 'Café et crème', gen: { bg: '#120e0b', card: '#1d1713', accent: '#c49a6c', light: '#eedfcd', deep: '#4a3424' } },
+  sable:      { label: 'Sable',       desc: 'Clair, beige et doré', clair: true, gen: { bg: '#f6f0e6', card: '#fffaf2', accent: '#9a7231', text: '#2b2216', deep: '#6e5021' } },
+  rose:       { label: 'Rose poudré', desc: 'Clair, rose et framboise', clair: true, gen: { bg: '#fbf2f3', card: '#ffffff', accent: '#b4536b', text: '#3a1f27', deep: '#83384b' } },
+  menthe:     { label: 'Menthe',      desc: 'Clair, vert d\'eau', clair: true, gen: { bg: '#eef6f4', card: '#fbfffe', accent: '#00796b', text: '#0f2e2b', deep: '#00524D' } },
+  ciel:       { label: 'Ciel',        desc: 'Clair, bleu franc', clair: true, gen: { bg: '#eef3fb', card: '#ffffff', accent: '#2f6fdb', text: '#14213d', deep: '#1d4ea8' } },
+  blanc:      { label: 'Blanc pur',   desc: 'Clair, noir et blanc', clair: true, gen: { bg: '#f7f7f7', card: '#ffffff', accent: '#111111', text: '#111111', deep: '#111111' } }
 };
+function agHex(h){ h = String(h || '').replace('#', ''); if(h.length === 3) h = h.split('').map(c => c + c).join(''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) || 0); }
+function agMix(a, b, t){ const A = agHex(a), B = agHex(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join(''); }
+function agVarsTheme(g, clair){
+  if(!clair){
+    const a2 = agMix(g.accent, '#ffffff', .25);
+    return { bg: g.bg, 'bg-2': agMix(g.bg, g.light, .03), card: g.card, card2: agMix(g.card, g.light, .045), card3: agMix(g.card, g.light, .09),
+      text: '#ffffff', 'text-2': agMix(g.light, '#ffffff', .45), muted: agMix(g.light, g.bg, .42),
+      accent: g.accent, 'accent-2': a2, 'accent-dk': g.deep, light: g.light, deep: g.deep, forest: agMix(g.deep, g.bg, .55),
+      green: '#6fe0c7', red: '#ff7b7b', yellow: '#f5c542', border: g.light + '12', 'border-2': g.light + '22',
+      'hero-1': g.deep, 'hero-2': agMix(g.deep, g.bg, .5), 'hero-3': agMix(g.deep, g.bg, .85), 'hero-border': agMix(g.deep, g.light, .18), glow: a2,
+      'pri-bg': g.priBg || '#ffffff', 'pri-fg': g.priFg || g.deep, 'nav-bg': g.bg + 'f2', 'head-bg': g.bg + 'd9', 'shadow-glow': 'none' };
+  }
+  return { bg: g.bg, 'bg-2': agMix(g.bg, '#000000', .03), card: g.card, card2: agMix(g.card, g.bg, .6), card3: agMix(g.bg, '#000000', .06),
+    text: g.text, 'text-2': agMix(g.text, g.bg, .2), muted: agMix(g.text, g.bg, .5),
+    accent: g.accent, 'accent-2': agMix(g.accent, '#ffffff', .2), 'accent-dk': g.deep, light: g.accent, deep: g.deep, forest: agMix(g.deep, '#000000', .2),
+    green: '#1f8a5b', red: '#c94848', yellow: '#b9861d', border: '#00000012', 'border-2': '#0000001f',
+    'hero-1': agMix(g.accent, g.deep, .5), 'hero-2': g.deep, 'hero-3': agMix(g.deep, '#000000', .3), 'hero-border': g.accent, glow: agMix(g.accent, '#ffffff', .5),
+    'pri-bg': g.text, 'pri-fg': '#ffffff', 'nav-bg': '#fffffff5', 'head-bg': g.bg + 'e6', 'shadow-glow': 'none' };
+}
+// Les thèmes calculés : écrits une fois dans une feuille de style
+(function agThemesCss(){
+  let css = '';
+  Object.entries(AG_THEMES).forEach(([k, t]) => {
+    if(!t.gen) return;
+    const v = agVarsTheme(t.gen, t.clair);
+    t.sw = t.clair ? [t.gen.bg, t.gen.card, t.gen.accent, t.gen.text] : [t.gen.bg, t.gen.deep, t.gen.accent, t.gen.light];
+    css += `[data-theme="${k}"]{${Object.entries(v).map(([n, x]) => `--${n}:${x}`).join(';')}}\n`;
+  });
+  const st = document.createElement('style'); st.id = 'agThemesGen'; st.textContent = css;
+  document.head.appendChild(st);
+})();
+
+// Effets, passage entre les pages, police
+const AG_STYLES = {
+  classique: { label: 'Classique', desc: 'Comme maintenant' },
+  verre: { label: 'Verre', desc: 'Cartes transparentes, flou derrière' },
+  doux: { label: 'Doux', desc: 'Coins très ronds, ombres légères' },
+  plat: { label: 'Plat', desc: 'Net, sans ombre ni dégradé' },
+  neon: { label: 'Néon', desc: 'Bords lumineux de ta couleur' },
+  editorial: { label: 'Magazine', desc: 'Lignes fines, coins discrets' }
+};
+const AG_ANIMS = {
+  fondu: { label: 'Fondu', desc: 'La page apparaît doucement' },
+  glisse: { label: 'Glisse', desc: 'Arrive de côté' },
+  monte: { label: 'Monte', desc: 'Arrive par le bas' },
+  zoom: { label: 'Zoom', desc: 'S\'agrandit légèrement' },
+  aucune: { label: 'Aucune', desc: 'Change tout de suite' }
+};
+const AG_POLICES = {
+  inter: { label: 'Inter', f: 'Inter' },
+  poppins: { label: 'Poppins', f: 'Poppins' },
+  outfit: { label: 'Outfit', f: 'Outfit' },
+  manrope: { label: 'Manrope', f: 'Manrope' },
+  montserrat: { label: 'Montserrat', f: 'Montserrat' },
+  dmsans: { label: 'DM Sans', f: 'DM Sans' }
+};
+function agApparence(){
+  let a = null; try { a = JSON.parse(localStorage.getItem('ag_apparence') || 'null'); } catch(e){}
+  a = Object.assign({ style: 'classique', anim: 'fondu', police: 'inter', pages: { suivre: true, theme: '' } }, a || {});
+  if(!AG_STYLES[a.style]) a.style = 'classique';
+  if(!AG_ANIMS[a.anim]) a.anim = 'fondu';
+  if(!AG_POLICES[a.police]) a.police = 'inter';
+  a.pages = Object.assign({ suivre: true, theme: '' }, a.pages || {});
+  return a;
+}
+function agAppliquerApparence(a){
+  a = a || agApparence();
+  const h = document.documentElement;
+  h.setAttribute('data-style', a.style); h.setAttribute('data-anim', a.anim); h.setAttribute('data-police', a.police);
+  if(a.police !== 'inter' && !document.getElementById('agPoliceLien')){
+    const l = document.createElement('link'); l.id = 'agPoliceLien'; l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap';
+    document.head.appendChild(l);
+  }
+  try { localStorage.setItem('ag_apparence', JSON.stringify(a)); } catch(e){}
+}
+agAppliquerApparence();
+
 function agGetTheme(){ try { return localStorage.getItem('ag_theme') || 'aurora'; } catch(e){ return 'aurora'; } }
 function agApplyTheme(t){
   if(!AG_THEMES[t]) t = 'aurora';
   document.documentElement.setAttribute('data-theme', t);
+  document.documentElement.setAttribute('data-clair', AG_THEMES[t].clair ? '1' : '0');
   try { localStorage.setItem('ag_theme', t); } catch(e){}
   const m = document.querySelector('meta[name="theme-color"]');
   if(m) m.setAttribute('content', AG_THEMES[t].sw[0]);
@@ -1076,35 +1173,80 @@ async function agSaveThemeRemote(t){
     const { data: u } = await sb.auth.getUser();
     if(!u || !u.user) return;
     const { data } = await sb.from('user_settings').select('id,user_preferences').eq('user_id', u.user.id).maybeSingle();
-    if(!data) return;
-    const prefs = Object.assign({}, data.user_preferences || {}, { theme: t });
-    await sb.from('user_settings').update({ user_preferences: prefs }).eq('id', data.id);
+    if(data){
+      const prefs = Object.assign({}, data.user_preferences || {}, { theme: t || agGetTheme(), apparence: agApparence() });
+      await sb.from('user_settings').update({ user_preferences: prefs }).eq('id', data.id);
+    }
   } catch(e){}
+  agPousserPages();
 }
 async function agLoadThemeRemote(){
   try {
-    if(localStorage.getItem('ag_theme')) return;
     const { data: u } = await sb.auth.getUser();
     if(!u || !u.user) return;
     const { data } = await sb.from('user_settings').select('user_preferences').eq('user_id', u.user.id).maybeSingle();
-    const t = data && data.user_preferences && data.user_preferences.theme;
-    if(t) agApplyTheme(t);
+    const p = (data && data.user_preferences) || {};
+    if(!localStorage.getItem('ag_theme') && p.theme) agApplyTheme(p.theme);
+    if(!localStorage.getItem('ag_apparence') && p.apparence) agAppliquerApparence(Object.assign(agApparence(), p.apparence));
   } catch(e){}
+  // Les pages clients suivent le thème (une fois par ouverture de l'app)
+  setTimeout(agPousserPages, 4000);
+}
+// Les couleurs d'un thème, lues telles que l'écran les calcule
+function agCouleursDe(t){
+  const d = document.createElement('div'); d.setAttribute('data-theme', t); d.style.display = 'none'; document.body.appendChild(d);
+  const cs = getComputedStyle(d), g = n => cs.getPropertyValue('--' + n).trim();
+  const v = { bg: g('bg'), card: g('card'), card2: g('card2'), line: g('card3'), txt: g('text'), muted: g('muted'), accent: g('accent'), light: g('light'), deep: g('deep'), forest: g('forest'), pri_bg: g('pri-bg'), pri_fg: g('pri-fg') };
+  d.remove();
+  return v;
+}
+// Mes pages clients (tarifs, réservation) prennent le thème choisi
+async function agPousserPages(){
+  try {
+    const a = agApparence();
+    const t = a.pages.suivre || !AG_THEMES[a.pages.theme] ? agGetTheme() : a.pages.theme;
+    const apparence = { theme: t, clair: !!AG_THEMES[t].clair, vars: agCouleursDe(t), style: a.style, police: a.police, anim: a.anim };
+    const { data: u } = await sb.auth.getUser(); if(!u || !u.user) return;
+    await sb.from('tarif_page').update({ apparence }).eq('user_id', u.user.id);
+  } catch(e){ console.warn('pages clients', e); }
 }
 function agOpenThemes(){
-  const cur = agGetTheme();
-  agSheet('agThemes', `
-    <h3>Thème de l'application</h3>
-    <div class="ag-hint" style="margin-top:0">Le thème est gardé sur cet appareil et dans ton compte.</div>
-    <div class="ag-themes">${Object.entries(AG_THEMES).map(([k, v]) => `
-      <button class="ag-theme ${k === cur ? 'on' : ''}" onclick="agPickTheme('${k}')">
+  const cur = agGetTheme(), a = agApparence();
+  const tuile = (k, v, on, fn) => `<button class="ag-theme ${on ? 'on' : ''}" onclick="${fn}('${k}')">
         <span class="sw">${v.sw.map(c => `<i style="background:${c}"></i>`).join('')}</span>
         <span class="tx"><b>${v.label}</b><small>${v.desc}</small></span>
-        <span class="ok">${k === cur ? agIcon('check', 18) : ''}</span>
-      </button>`).join('')}</div>
+        <span class="ok">${on ? agIcon('check', 18) : ''}</span></button>`;
+  const pills = (obj, cle, val) => `<div class="ag-pills ag-app-pills">${Object.entries(obj).map(([k, v]) => `<button type="button" class="${val === k ? 'on' : ''}" ${cle === 'police' ? `style="font-family:'${v.f}',sans-serif"` : ''} onclick="agChoisirApparence('${cle}','${k}')"><b>${v.label}</b>${v.desc ? `<small>${v.desc}</small>` : ''}</button>`).join('')}</div>`;
+  const sombres = Object.entries(AG_THEMES).filter(([, v]) => !v.clair), clairs = Object.entries(AG_THEMES).filter(([, v]) => v.clair);
+  agSheet('agThemes', `
+    <h3>Thème de l'application</h3>
+    <div class="ag-hint" style="margin-top:0">Couleurs, effets, passage entre les pages et police. Rien ne change de place. Gardé sur cet appareil et dans ton compte.</div>
+    <div class="ag-app-sec">Couleurs sombres</div>
+    <div class="ag-themes ag-themes-g">${sombres.map(([k, v]) => tuile(k, v, k === cur, 'agPickTheme')).join('')}</div>
+    <div class="ag-app-sec">Couleurs claires</div>
+    <div class="ag-themes ag-themes-g">${clairs.map(([k, v]) => tuile(k, v, k === cur, 'agPickTheme')).join('')}</div>
+    <div class="ag-app-sec">Effets</div>${pills(AG_STYLES, 'style', a.style)}
+    <div class="ag-app-sec">Passage d'une page à l'autre</div>${pills(AG_ANIMS, 'anim', a.anim)}
+    <div class="ag-app-sec">Police</div>${pills(AG_POLICES, 'police', a.police)}
+    <div class="ag-app-sec">Mes pages clients (tarifs, réservation)</div>
+    <label class="ag-check"><input type="checkbox" ${a.pages.suivre ? 'checked' : ''} onchange="agChoisirApparence('pages', this.checked)"> Mêmes couleurs que l'application</label>
+    ${a.pages.suivre ? '' : `<div class="ag-themes ag-themes-g">${Object.entries(AG_THEMES).map(([k, v]) => tuile(k, v, k === (a.pages.theme || cur), 'agPickThemePages')).join('')}</div>`}
+    <div class="ag-hint">Tes clients voient ces couleurs, cet effet et cette police sur ta page de tarifs et de réservation.</div>
   `);
 }
 function agPickTheme(t){ agApplyTheme(t); agSaveThemeRemote(t); agOpenThemes(); }
+function agPickThemePages(t){ const a = agApparence(); a.pages.theme = t; agAppliquerApparence(a); agSaveThemeRemote(); agOpenThemes(); agToast('Tes pages clients ont changé de couleurs'); }
+function agChoisirApparence(cle, v){
+  const a = agApparence();
+  if(cle === 'pages'){ a.pages.suivre = !!v; if(!v && !a.pages.theme) a.pages.theme = agGetTheme(); }
+  else a[cle] = v;
+  agAppliquerApparence(a);
+  agSaveThemeRemote();
+  const box = document.querySelector('#agThemes .modal'); const y = box ? box.scrollTop : 0;
+  agOpenThemes();
+  const box2 = document.querySelector('#agThemes .modal'); if(box2) box2.scrollTop = y;
+  if(cle === 'anim'){ const p = document.querySelector('.page.active'); if(p){ p.classList.remove('ag-anim'); void p.offsetWidth; p.classList.add('ag-anim'); } }
+}
 
 // ---------- Retirer les emojis de l'affichage (look epure) ----------
 const AG_EMOJI = /(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|‍|\p{Extended_Pictographic}|\p{Emoji_Modifier})*️?\s?/gu;
@@ -1259,6 +1401,8 @@ function agHeaderIcons(){
 const _agShowTab2 = showTab;
 showTab = function(name, btn){
   _agShowTab2(name, btn);
+  // Effet de passage d'une page à l'autre (choisi dans Thème)
+  try { const pg = document.getElementById('page-' + name); if(pg){ pg.classList.remove('ag-anim'); void pg.offsetWidth; pg.classList.add('ag-anim'); } } catch(e){}
   let cur = name;
   try { cur = localStorage.getItem('active_tab') || name; } catch(e){}
   agSyncSide(document.getElementById('page-' + cur) ? cur : name);

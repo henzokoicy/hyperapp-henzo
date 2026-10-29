@@ -11,7 +11,7 @@
 <style>
 :root{--bg:#030b0a;--card:#0a1c1a;--card2:#0f2a27;--line:#173b37;--txt:#fff;--muted:#9cbdb8;--accent:#48A89A;--light:#CBEFEB;--deep:#00524D;--forest:#053931;--gold:#ffd166}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Inter,system-ui,sans-serif;color:var(--txt);background:radial-gradient(1000px 500px at 85% -10%,rgba(72,168,154,.25),transparent 60%),var(--bg);min-height:100vh;padding-bottom:40px}
+body{font-family:Inter,system-ui,sans-serif;color:var(--txt);background:radial-gradient(1000px 500px at 85% -10%,color-mix(in srgb,var(--accent) 25%,transparent),transparent 60%),var(--bg);min-height:100vh;padding-bottom:40px}
 .wrap{max-width:600px;margin:0 auto;padding:28px 16px}
 .brand{font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--light);opacity:.8}
 h1{font-size:28px;font-weight:800;line-height:1.15;margin:8px 0 10px}
@@ -23,7 +23,7 @@ h1{font-size:28px;font-weight:800;line-height:1.15;margin:8px 0 10px}
 .promo.bad{background:var(--card);border-color:#5a2a2a}
 h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--light);margin:26px 0 12px;opacity:.85}
 .f{display:flex;gap:12px;width:100%;text-align:left;font:inherit;color:inherit;background:var(--card);border:1.5px solid var(--line);border-radius:18px;padding:16px;margin-bottom:10px;cursor:pointer}
-.f.on{border-color:var(--accent);background:linear-gradient(160deg,rgba(0,82,77,.55),var(--card))}
+.f.on{border-color:var(--accent);background:linear-gradient(160deg,color-mix(in srgb,var(--deep) 55%,transparent),var(--card))}
 .f .d{flex:1;min-width:0}.f b{display:block;font-size:16px}.f span{font-size:13px;color:var(--muted)}
 .f .p{font-weight:800;font-size:17px;white-space:nowrap}
 .chk{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;flex-shrink:0;margin-top:2px}
@@ -40,25 +40,25 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .sum .l{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);padding:4px 0}
 .sum .t{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;padding-top:10px;border-top:1px solid var(--line)}
 .sum .t b{font-size:26px}
-.btn{width:100%;margin-top:16px;border:0;border-radius:14px;padding:16px;font:700 16px Inter,sans-serif;cursor:pointer;background:#fff;color:var(--deep)}
+.btn{width:100%;margin-top:16px;border:0;border-radius:14px;padding:16px;font:700 16px Inter,sans-serif;cursor:pointer;background:var(--pri-bg,#fff);color:var(--pri-fg,var(--deep))}
 .btn:disabled{opacity:.6}
 .btn2{background:transparent;border:1px solid var(--line);color:var(--txt);margin-top:10px}
 .err{color:#ff8b8b;font-size:14px;margin-top:10px;text-align:center;min-height:18px}
 .ok{text-align:center;padding:30px 10px}
 .ok .ic{width:70px;height:70px;border-radius:50%;margin:0 auto 18px;display:grid;place-items:center;background:linear-gradient(150deg,var(--accent),var(--deep))}
 .ok p{color:var(--muted);line-height:1.55;margin-top:10px}
-.foot{text-align:center;color:#5f8580;font-size:12px;margin-top:30px;line-height:1.6}
+.foot{text-align:center;color:var(--muted);opacity:.75;font-size:12px;margin-top:30px;line-height:1.6}
 .empty{text-align:center;color:var(--muted);padding:60px 10px}
 .par{margin:18px 0 6px;padding:14px 16px;border-radius:18px;background:var(--card);border:1px solid var(--accent);display:flex;gap:12px;align-items:center}
 .par .ic{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(150deg,var(--accent),var(--deep));flex-shrink:0}
 .par b{display:block;font-size:15px}.par span{font-size:13px;color:var(--muted)}
 .src{display:flex;flex-wrap:wrap;gap:8px}
 .src button{border:1px solid var(--line);background:var(--card);color:var(--txt);border-radius:12px;padding:9px 12px;font:500 13px Inter,sans-serif;cursor:pointer}
-.src button.on{border-color:var(--accent);background:linear-gradient(160deg,rgba(0,82,77,.55),var(--card))}
+.src button.on{border-color:var(--accent);background:linear-gradient(160deg,color-mix(in srgb,var(--deep) 55%,transparent),var(--card))}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .cols button{text-align:left;border:1.5px solid var(--line);background:var(--card);color:var(--txt);border-radius:16px;padding:12px 14px;font:inherit;cursor:pointer}
 .cols button b{display:block;font-size:14px}.cols button span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
-.cols button.on{border-color:var(--accent);background:linear-gradient(160deg,rgba(0,82,77,.55),var(--card))}
+.cols button.on{border-color:var(--accent);background:linear-gradient(160deg,color-mix(in srgb,var(--deep) 55%,transparent),var(--card))}
 .tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--accent);color:#fff;margin-left:6px;vertical-align:2px}
 .f .d span.x{display:block;margin-top:3px}
 .rdv{margin-top:28px;padding:18px 16px;border-radius:20px;background:var(--card);border:1px solid var(--line)}
@@ -102,6 +102,7 @@ async function init(){
     var p = await sb.from('tarif_page').select('*').eq('slug', slug).maybeSingle();
     if(!p.data){ app.innerHTML = '<div class="empty">Cette page de réservation n\'est pas encore disponible.</div>'; return; }
     S.page = p.data;
+    if(window.appliquerApparencePage) try { appliquerApparencePage(p.data.apparence); } catch(e){}
     // Seulement les tarifs proposes en ce moment et visibles sur la page (vide = oui, comme dans l'app)
     var t = await sb.from('tarifs').select('*').eq('user_id', p.data.user_id).not('public', 'is', false).not('active', 'is', false).order('position', { ascending: true });
     var rows = (t.data || []).filter(function(x){ return x.public !== false && x.active !== false; }).sort(byPos);
@@ -221,7 +222,7 @@ function parHtml(){
 }
 function srcHtml(){
   var fm = S.form;
-  return '<label>Comment nous avez-vous connu ? (facultatif)</label><div class="src">' + SOURCES.map(function(x){
+  return '<label>Comment nous avez-vous connu ? (facultatif)</label><div class="src" data-g="src">' + SOURCES.map(function(x){
     return '<button type="button" class="' + (fm.source === x[0] ? 'on' : '') + '" onclick="setSrc(\'' + x[0].replace(/'/g, "\\'") + '\')">' + esc(x[1]) + '</button>'; }).join('') + '</div>' +
     (fm.source === 'Autre' ? '<input id="autre" value="' + esc(fm.autre) + '" oninput="S.form.autre=this.value" placeholder="Dites-nous où (radio, salon, site...)" style="margin-top:8px" maxlength="50">' : '');
 }
@@ -233,23 +234,25 @@ function render(){
   var h = '<div class="brand">' + esc(P.marque || 'Henzo Studio') + '</div><h1>Réserver ma séance</h1>' + (P.intro ? '<p class="intro">' + esc(P.intro) + '</p>' : '') + parHtml() + promoHtml();
   var col = curCol(), k = 1;
   if(S.cols.length > 1){
-    h += '<h2>' + (k++) + '. Votre séance</h2><div class="cols">' + S.cols.map(function(x){
+    h += '<h2>' + (k++) + '. Votre séance</h2><div class="cols" data-g="cols">' + S.cols.map(function(x){
       var pr = S.all.filter(function(t){ return t.collection_id === x.id; }).map(function(t){ return Number(t.price) || 0; });
       return '<button class="' + (S.col === x.id ? 'on' : '') + '" onclick="pickCol(' + x.id + ')"><b>' + esc(x.nom) + '</b><span>' + (pr.length ? 'À partir de ' + F(Math.min.apply(null, pr)) : '') + '</span></button>';
     }).join('') + '</div>';
   }
   if(S.f.length){
-    h += '<h2>' + (k++) + '. Votre ' + (S.cols.length ? 'pack' : 'formule') + (col && S.cols.length === 1 ? ' - ' + esc(col.nom) : '') + '</h2>';
+    h += '<h2>' + (k++) + '. Votre ' + (S.cols.length ? 'pack' : 'formule') + (col && S.cols.length === 1 ? ' - ' + esc(col.nom) : '') + '</h2><div data-g="packs">';
     S.f.forEach(function(x){
       var d = detLines(x).join(' · '), star = col && col.vedette_id === x.id;
       h += '<button class="f' + (S.sel === x.id ? ' on' : '') + '" onclick="pick(' + x.id + ')"><span class="chk">' + (S.sel === x.id ? tick : '') + '</span><div class="d"><b>' + esc(x.name) + (star ? '<i class="tag">Le plus choisi</i>' : '') + '</b>' + (d ? '<span class="x">' + esc(d) + '</span>' : '') + '</div><span class="p">' + F(x.price) + '</span></button>';
     });
+    h += '</div>';
   } else if(S.cols.length > 1) h += '<p class="intro" style="margin-top:12px;font-size:14px">Choisissez d\'abord le type de séance.</p>';
   if(S.o.length){
-    h += '<h2>Options (facultatif)</h2>';
+    h += '<h2>Options (facultatif)</h2><div data-g="opts">';
     S.o.forEach(function(x){
       h += '<div class="o"><div class="d"><b>' + esc(x.name) + '</b><span>+' + F(x.price) + (UNITS[x.unit] ? ' ' + UNITS[x.unit] : '') + '</span></div><div class="st"><button onclick="qty(' + x.id + ',-1)">-</button><b>' + (S.qty[x.id] || 0) + '</b><button onclick="qty(' + x.id + ',1)">+</button></div></div>';
     });
+    h += '</div>';
   }
   h += '<h2>' + (S.f.length || S.cols.length > 1 ? k + '. ' : '') + 'Vos informations</h2>' +
     '<label>Votre nom</label><input id="nom" value="' + esc(fm.nom) + '" oninput="S.form.nom=this.value" autocomplete="name">' +
@@ -295,5 +298,7 @@ function renderOk(){
 }
 init();
 </script>
+<script src="pages-theme.js?v=1"></script>
+<script src="guide-resa.js?v=2"></script>
 </body>
 </html>
