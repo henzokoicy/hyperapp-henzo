@@ -15,7 +15,8 @@ let galAvis = [], galAvisNonLus = 0;
 
 function galApiBase(){ return (typeof GALERIE_ORIGIN !== 'undefined' ? GALERIE_ORIGIN : 'https://galerie-clients.onrender.com'); }
 function galPhotoUrl(dossier, fichier, v){ return `${galApiBase()}/photo/${encodeURIComponent(dossier)}/${encodeURIComponent(fichier)}${v ? '?v=' + v : ''}`; }
-function galClientLink(code){ return `${galApiBase()}/`; }
+// Lien direct : le code se remplit tout seul (le client n'a rien à taper)
+function galClientLink(code){ return `${galApiBase()}/?code=${encodeURIComponent(code)}`; }
 function galPreviewLink(code){ return `${galApiBase()}/?code=${encodeURIComponent(code)}&auto=1`; }
 
 async function galApi(path, opts){
@@ -106,7 +107,7 @@ function galRenderList(){
   const totPhotos = galList.reduce((s, g) => s + (g.nbPhotos || 0), 0);
   const actives = galList.filter(g => (galDaysLeft(g) ?? 1) > 0).length;
   const q = galSearch.toLowerCase();
-  const list = galList.filter(g => !q || (g.nomClient + ' ' + g.code).toLowerCase().includes(q))
+  const list = galList.filter(g => !q || (galTitre(g) + ' ' + g.nomClient + ' ' + g.code).toLowerCase().includes(q))
     .sort((a, b) => String(b.dateCreation).localeCompare(String(a.dateCreation)));
   galBody().innerHTML = `
     <div class="ag-total">
@@ -134,40 +135,79 @@ function galListHtml(list){
   return list.map(g => {
     const d = galDaysLeft(g);
     const etat = d === null ? '' : d > 0 ? `${d} jour${d > 1 ? 's' : ''} restant${d > 1 ? 's' : ''}` : 'Expirée';
+    const libre = (g.options || {}).type === 'libre';
     return `<div class="ag-coffre" onclick="galOpen('${agEsc(g.code)}')">
-      <div class="h"><div class="t"><div class="e">${agIcon('image')}</div>
-        <div style="min-width:0"><div class="nm">${agEsc(g.nomClient)}</div><div class="tag">Code ${agEsc(g.code)}${g.protege ? ' · protégée' : ''}${etat ? ' · ' + etat : ''}</div></div></div>
+      <div class="h"><div class="t"><div class="e">${agIcon(libre ? 'sparkles' : 'image')}</div>
+        <div style="min-width:0"><div class="nm">${agEsc(galTitre(g))}${libre ? ' <span class="gal-badge">Libre</span>' : ''}</div><div class="tag">Code ${agEsc(g.code)}${g.protege ? ' · protégée' : ''}${etat ? ' · ' + etat : (!g.dateExpiration ? ' · sans limite' : '')}</div></div></div>
       <div><div class="v">${g.nbPhotos || 0}</div><div class="goal">photos</div></div></div>
     </div>`;
   }).join('');
 }
 
 // ---------- Creation ----------
+function galTitre(g){ return ((g.options || {}).titre) || g.nomClient || ''; }
+function galContact(){ try { return localStorage.getItem('gal_contact') || ''; } catch(e){ return ''; } }
+function galGenMdp(){
+  const mots = ['soleil', 'photo', 'sourire', 'lumiere', 'etoile', 'bonheur', 'souvenir', 'joie', 'fleur', 'cadeau'];
+  return mots[Math.floor(Math.random() * mots.length)] + (23 + Math.floor(Math.random() * 76));
+}
 function galOpenCreate(prefill){
   prefill = prefill || {};
   const opts = (typeof clients !== 'undefined' ? clients : []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name)))
     .map(c => `<option value="${c.id}" ${prefill.clientId === c.id ? 'selected' : ''}>${agEsc(c.name)}</option>`).join('');
+  const libre = prefill.type === 'libre';
   agSheet('galCreate', `
     <h3>Nouvelle galerie</h3>
-    <label>Client de la Super App</label>
-    <select id="galCli" onchange="galFillClient()"><option value="">Choisir un client (ou taper un nom en dessous)</option>${opts}</select>
-    <label>Nom affiché au client</label>
-    <input id="galNom" value="${agEsc(prefill.nom || '')}" placeholder="Ex : Mme Koffi">
-    <label>Téléphone (pour WhatsApp)</label>
-    <input id="galTel" value="${agEsc(prefill.tel || '')}" placeholder="+225 ...">
+    <div class="ag-pills" id="galType">
+      <button type="button" data-v="client" class="${libre ? '' : 'on'}" onclick="agPick(this);galTypeMaj()">Pour un client</button>
+      <button type="button" data-v="libre" class="${libre ? 'on' : ''}" onclick="agPick(this);galTypeMaj()">Galerie libre</button>
+    </div>
+    <div class="ag-hint" id="galTypeHint"></div>
+    <div id="galBlocClient">
+      <label>Client de la Super App</label>
+      <select id="galCli" onchange="galFillClient()"><option value="">Choisir un client (ou taper un nom en dessous)</option>${opts}</select>
+      <label>Nom affiché au client</label>
+      <input id="galNom" value="${agEsc(prefill.nom || '')}" placeholder="Ex : Mme Koffi">
+      <label>Type de séance</label>
+      <input id="galCat" value="${agEsc(prefill.cat || '')}" placeholder="Ex : Shooting Studio, Mariage">
+    </div>
+    <div id="galBlocLibre">
+      <label>Titre de la galerie</label>
+      <input id="galTitre" placeholder="Ex : Mes 30 ans, Anniversaire de Léa, Soirée du 12">
+      <label>Petite phrase sous le titre (optionnel)</label>
+      <input id="galSous" placeholder="Ex : Merci d'être venus !">
+      <div class="gal-2col"><div><label>Événement</label><input id="galEvt" placeholder="Ex : Anniversaire"></div>
+      <div><label>Date</label><input id="galDate" type="date"></div></div>
+      <label>Lieu (optionnel)</label><input id="galLieu" placeholder="Ex : Bouaké">
+    </div>
+    <label>Téléphone (pour WhatsApp, optionnel)</label>
+    <input id="galTel" value="${agEsc(prefill.tel || '')}" placeholder="+225 ..." inputmode="tel">
     <label>Email (optionnel, pour le prévenir quand c'est prêt)</label>
-    <input id="galMail" value="${agEsc(prefill.mail || '')}" placeholder="client@email.com">
-    <label>Type de séance</label>
-    <input id="galCat" value="${agEsc(prefill.cat || '')}" placeholder="Ex : Shooting Studio, Mariage">
+    <input id="galMail" value="${agEsc(prefill.mail || '')}" placeholder="client@email.com" autocapitalize="off">
     <label>Disponible pendant</label>
-    <div class="ag-pills" id="galDur">${[15, 30, 60, 90].map(n => `<button type="button" data-v="${n}" class="${n === 30 ? 'on' : ''}" onclick="agPick(this)">${n} jours</button>`).join('')}</div>
+    <div class="ag-pills" id="galDur">${[15, 30, 60, 90, 365].map(n => `<button type="button" data-v="${n}" class="${n === 30 && !libre ? 'on' : ''}" onclick="agPick(this)">${n === 365 ? '1 an' : n + ' jours'}</button>`).join('')}<button type="button" data-v="0" class="${libre ? 'on' : ''}" onclick="agPick(this)">Sans limite</button></div>
     <label>Mot de passe pour le client (optionnel)</label>
-    <input id="galMdp" placeholder="Laisse vide si pas de mot de passe">
+    <div class="gal-row"><input id="galMdp" placeholder="Laisse vide si pas de mot de passe" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <button type="button" class="btn-ghost" onclick="document.getElementById('galMdp').value=galGenMdp()">Générer</button></div>
+    <div class="ag-hint">Les majuscules et les espaces en trop ne posent plus de problème au client.</div>
+    <label>Code d'accès (optionnel)</label>
+    <input id="galCode" placeholder="Laisse vide : code automatique (ex : AWA-4821)" autocapitalize="characters">
     <label>Petit mot pour le client (optionnel)</label>
     <input id="galMsg" placeholder="Ex : Merci pour ta confiance !">
+    <details class="gal-plus"><summary>Apparence et autorisations</summary>${galOptsHtml('gc', libre ? { type: 'libre', couvertureVisible: true } : {})}</details>
     <button class="btn-primary" id="galCreateBtn" style="width:100%" onclick="galCreate()">Créer la galerie</button>
   `);
+  galTypeMaj();
   if(prefill.clientId) galFillClient();
+}
+function galTypeMaj(){
+  const libre = document.querySelector('#galType button.on')?.dataset.v === 'libre';
+  document.getElementById('galBlocClient').style.display = libre ? 'none' : '';
+  document.getElementById('galBlocLibre').style.display = libre ? '' : 'none';
+  document.getElementById('galTypeHint').textContent = libre
+    ? "Pour n'importe qui : ton anniversaire, un événement, quelques photos à montrer... Pas besoin de client."
+    : 'Galerie liée à un client et à sa séance.';
+  const cv = document.getElementById('gc_couv'); if(cv && libre && !cv.dataset.touche) cv.checked = true;
 }
 function galFillClient(){
   const id = Number(document.getElementById('galCli').value);
@@ -179,29 +219,98 @@ function galFillClient(){
   const s = (shoots || []).filter(x => x.client_id === id).sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
   if(s && !document.getElementById('galCat').value) document.getElementById('galCat').value = s.type || '';
 }
+
+// ---------- Apparence et autorisations (création et modification) ----------
+const GAL_THEMES = [['sombre', 'Vert nuit', '#030b0a', '#CBEFEB'], ['nuit', 'Noir et or', '#07070a', '#e8c77a'], ['clair', 'Blanc', '#fafafa', '#151515'],
+  ['creme', 'Crème', '#f6f0e6', '#9a7231'], ['rose', 'Rose poudré', '#fbf3f3', '#b4536b'], ['vert', 'Menthe', '#eef6f4', '#00524D']];
+const GAL_AFF = [['mosaique', 'Mosaïque', 'Photos à leur taille, en colonnes'], ['grille', 'Grille', 'Carrés réguliers, comme Instagram'],
+  ['grand', 'Grand', 'Une photo par ligne'], ['histoire', 'Histoire', 'Une par une, avec de l\'espace, comme un album']];
+function galOptsHtml(p, o){
+  o = o || {};
+  const th = o.theme || 'sombre', af = o.affichage || 'mosaique';
+  const dl = o.telechargement !== false;
+  const q = o.qualites && o.qualites.length ? o.qualites : ['original', 'web1200'];
+  const ck = (id, on, txt) => `<label class="ag-check"><input type="checkbox" id="${p}_${id}" ${on ? 'checked' : ''} onchange="this.dataset.touche=1"> ${txt}</label>`;
+  return `
+    <label>Couleurs de la page</label>
+    <div class="gal-themes" id="${p}_theme">${GAL_THEMES.map(t => `<button type="button" data-v="${t[0]}" class="${t[0] === th ? 'on' : ''}" onclick="agPick(this)"><span style="background:${t[2]};color:${t[3]}">Aa</span>${t[1]}</button>`).join('')}</div>
+    <label>Affichage des photos</label>
+    <div class="ag-pills" id="${p}_aff">${GAL_AFF.map(a => `<button type="button" data-v="${a[0]}" class="${a[0] === af ? 'on' : ''}" title="${agEsc(a[2])}" onclick="agPick(this);document.getElementById('${p}_affh').textContent=this.title">${a[1]}</button>`).join('')}</div>
+    <div class="ag-hint" id="${p}_affh">${agEsc((GAL_AFF.find(a => a[0] === af) || GAL_AFF[0])[2])}</div>
+    ${ck('couv', o.couvertureVisible === true || (o.type === 'libre' && o.couvertureVisible !== false), 'Grande photo de couverture avec le titre en haut')}
+    <label>Téléchargement</label>
+    <div class="ag-pills" id="${p}_dl">
+      <button type="button" data-v="oui" class="${dl ? 'on' : ''}" onclick="agPick(this)">Autorisé</button>
+      <button type="button" data-v="non" class="${dl ? '' : 'on'}" onclick="agPick(this)">Regarder seulement</button>
+    </div>
+    ${ck('qo', q.includes('original'), 'Qualité originale (impression)')}
+    ${ck('qm', q.includes('web1200'), 'Qualité moyenne (réseaux sociaux)')}
+    ${ck('fil', o.filigrane === true, 'Mettre mon nom (filigrane) sur les photos téléchargées')}
+    <label>Ce que les visiteurs peuvent faire</label>
+    ${ck('avis', o.avis !== false, 'Donner un avis')}
+    ${ck('sel', o.selection !== false, 'Envoyer leurs photos préférées au studio')}
+    ${ck('tir', o.tirages !== false, 'Commander des tirages papier')}
+    ${ck('cpt', o.compteur !== false, 'Voir la date limite')}
+    <label>Message d'accueil (optionnel)</label>
+    <textarea id="${p}_acc" rows="2" placeholder="Ex : Bienvenue ! Voici les plus beaux moments de la soirée.">${agEsc(o.accueil || '')}</textarea>
+    <label>Message de fin, en bas de la page (optionnel)</label>
+    <textarea id="${p}_fin" rows="2" placeholder="Ex : Merci à tous, à très vite !">${agEsc(o.fin || '')}</textarea>
+    <label>Ton numéro WhatsApp (bouton d'aide pour les clients)</label>
+    <input id="${p}_contact" value="${agEsc(o.contact || galContact())}" placeholder="+225 07 ..." inputmode="tel">`;
+}
+function galOptsLire(p){
+  const v = id => document.getElementById(p + '_' + id);
+  const on = id => !!(v(id) && v(id).checked);
+  const qualites = [on('qo') ? 'original' : null, on('qm') ? 'web1200' : null].filter(Boolean);
+  const contact = (v('contact')?.value || '').trim();
+  try { if(contact) localStorage.setItem('gal_contact', contact); } catch(e){}
+  return {
+    theme: document.querySelector(`#${p}_theme button.on`)?.dataset.v || 'sombre',
+    affichage: document.querySelector(`#${p}_aff button.on`)?.dataset.v || 'mosaique',
+    couvertureVisible: on('couv'),
+    telechargement: document.querySelector(`#${p}_dl button.on`)?.dataset.v !== 'non',
+    qualites: qualites.length ? qualites : ['original', 'web1200'],
+    filigrane: on('fil'), avis: on('avis'), selection: on('sel'), tirages: on('tir'), compteur: on('cpt'),
+    accueil: (v('acc')?.value || '').trim(), fin: (v('fin')?.value || '').trim(),
+    contact: typeof crmPhone === 'function' && contact ? crmPhone(contact) : contact.replace(/[^0-9+]/g, '')
+  };
+}
+
 async function galCreate(){
   const btn = document.getElementById('galCreateBtn');
-  const nom = document.getElementById('galNom').value.trim();
-  if(!nom){ alert('Mets le nom du client.'); return; }
-  const cat = document.getElementById('galCat').value.trim();
+  const libre = document.querySelector('#galType button.on')?.dataset.v === 'libre';
+  const titre = (document.getElementById('galTitre')?.value || '').trim();
+  const nom = libre ? titre : document.getElementById('galNom').value.trim();
+  if(!nom){ agAlert(libre ? 'Donne un titre à la galerie.' : 'Mets le nom du client.'); return; }
+  const cat = libre ? (document.getElementById('galEvt').value.trim()) : document.getElementById('galCat').value.trim();
   const mdp = document.getElementById('galMdp').value.trim();
+  const options = galOptsLire('gc');
+  options.type = libre ? 'libre' : 'client';
+  if(libre){
+    Object.assign(options, { titre, sousTitre: document.getElementById('galSous').value.trim(), evenement: document.getElementById('galEvt').value.trim(),
+      dateEvenement: document.getElementById('galDate').value || '', lieu: document.getElementById('galLieu').value.trim() });
+  }
   const body = {
     nomClient: nom,
     telephone: document.getElementById('galTel').value.trim(),
     email: document.getElementById('galMail').value.trim(),
     message: document.getElementById('galMsg').value.trim(),
     categories: cat ? ['Tout', ...cat.split(',').map(x => x.trim()).filter(Boolean)] : ['Tout'],
-    dureeJours: Number(document.querySelector('#galDur button.on')?.dataset.v || 30),
-    protege: !!mdp, motDePasse: mdp
+    dureeJours: Number(document.querySelector('#galDur button.on')?.dataset.v ?? 30),
+    protege: !!mdp, motDePasse: mdp,
+    codeChoisi: document.getElementById('galCode').value.trim(),
+    options
   };
   btn.disabled = true; btn.textContent = 'Création...';
   try {
     const g = await galApi('/api/admin/galeries', { method: 'POST', json: body });
+    if(!g.options) g.options = options;
+    if(mdp && !g.mdpClair) g.mdpClair = mdp;
     galList.unshift(Object.assign({ nbPhotos: 0 }, g));
     agCloseSheet('galCreate');
     agToast('Galerie créée · code ' + g.code);
     galOpen(g.code);
-  } catch(e){ alert(e.message); btn.disabled = false; btn.textContent = 'Créer la galerie'; }
+  } catch(e){ agAlert(e.message); btn.disabled = false; btn.textContent = 'Créer la galerie'; }
 }
 
 // ---------- Detail d'une galerie ----------
@@ -214,9 +323,9 @@ async function galOpen(code){
   el.innerHTML = `
     <button class="ag-back" onclick="galCurrent=null;galRenderList()">${agIcon('chev', 16)} Toutes les galeries</button>
     <div class="ag-total">
-      <div class="lbl">Galerie de</div>
-      <div class="amt" style="font-size:28px">${agEsc(g.nomClient)}</div>
-      <div class="split"><div>Code<b>${agEsc(g.code)}</b></div><div>Photos<b id="galNb">${g.nbPhotos || 0}</b></div><div>Disponible<b>${d === null ? '-' : d > 0 ? d + ' j' : 'Expirée'}</b></div></div>
+      <div class="lbl">${(g.options || {}).type === 'libre' ? 'Galerie libre' : 'Galerie de'}</div>
+      <div class="amt" style="font-size:28px">${agEsc(galTitre(g))}</div>
+      <div class="split"><div>Code<b>${agEsc(g.code)}</b></div><div>Photos<b id="galNb">${g.nbPhotos || 0}</b></div><div>Disponible<b>${d === null ? 'Sans limite' : d > 0 ? d + ' j' : 'Expirée'}</b></div></div>
     </div>
     <div class="ag-actions">
       <button class="ag-act main" onclick="document.getElementById('galFiles').click()"><span>${agIcon('plus')}</span>Photos</button>
@@ -224,9 +333,17 @@ async function galOpen(code){
       <button class="ag-act" onclick="galCopy('${agEsc(code)}')"><span>${agIcon('copy')}</span>Message</button>
       <button class="ag-act" onclick="window.open(galPreviewLink('${agEsc(code)}'),'_blank')"><span>${agIcon('eye')}</span>Voir</button>
     </div>
+    <div class="ag-btns" style="margin:-2px 0 10px">
+      <button class="btn-ghost" onclick="galEnvoyerCode('${agEsc(code)}')">${agIcon('chat', 15)} Envoyer juste le code</button>
+      <button class="btn-ghost" onclick="galApparence('${agEsc(code)}')">${agIcon('sparkles', 15)} Apparence</button>
+    </div>
     <div class="ag-list ag-share">
       <div class="ag-share-row"><div><span>Code d'accès</span><b>${agEsc(g.code)}</b></div>
-        <button class="ag-ibtn" title="Copier le code" onclick="galCopyText('${agEsc(g.code)}','Code copié')">${agIcon('copy', 17)}</button></div>
+        <div class="gal-ibtns"><button class="ag-ibtn" title="Copier le code" onclick="galCopyText('${agEsc(g.code)}','Code copié')">${agIcon('copy', 17)}</button>
+        <button class="ag-ibtn" title="Nouveau code (si le client n'arrive pas à entrer)" onclick="galNouveauCode('${agEsc(g.code)}')">${agIcon('refresh', 17)}</button></div></div>
+      <div class="ag-share-row"><div style="min-width:0"><span>Mot de passe</span><b>${g.protege ? (g.mdpClair ? agEsc(g.mdpClair) : 'Protégée (mot de passe caché)') : 'Aucun'}</b></div>
+        <div class="gal-ibtns">${g.mdpClair ? `<button class="ag-ibtn" title="Copier le mot de passe" onclick="galCopyText('${agEsc(g.mdpClair)}','Mot de passe copié')">${agIcon('copy', 17)}</button>` : ''}
+        <button class="ag-ibtn" title="${g.protege ? 'Nouveau mot de passe' : 'Ajouter un mot de passe'}" onclick="galNouveauMdp('${agEsc(g.code)}')">${agIcon('refresh', 17)}</button></div></div>
       <div class="ag-share-row"><div style="min-width:0"><span>Lien de la galerie</span><b class="ag-link">${agEsc(galClientLink(g.code))}</b></div>
         <button class="ag-ibtn" title="Copier le lien" onclick="galCopyText(galClientLink('${agEsc(g.code)}'),'Lien copié')">${agIcon('link', 17)}</button></div>
       <div class="ag-share-row"><div style="min-width:0"><span>Infos client</span><b>${agEsc([g.telephone, g.email].filter(Boolean).join(' · ') || 'Aucune')}${g.protege ? ' · protégée par mot de passe' : ''}</b></div>
@@ -303,14 +420,14 @@ function galOpenEdit(code){
     <label>Type de séance</label><input id="geCat" value="${agEsc(cats)}" placeholder="Ex : Shooting Studio">
     <label>Petit mot pour le client</label><input id="geMsg" value="${agEsc(g.message || '')}">
     <label>Disponibilité ${d !== null ? `(actuellement ${d > 0 ? d + ' jours restants' : 'expirée'})` : ''}</label>
-    <div class="ag-pills" id="geDur"><button type="button" data-v="" class="on" onclick="agPick(this)">Ne pas changer</button>${[15, 30, 60, 90].map(n => `<button type="button" data-v="${n}" onclick="agPick(this)">${n} jours à partir d'aujourd'hui</button>`).join('')}</div>
+    <div class="ag-pills" id="geDur"><button type="button" data-v="" class="on" onclick="agPick(this)">Ne pas changer</button>${[15, 30, 60, 90, 365].map(n => `<button type="button" data-v="${n}" onclick="agPick(this)">${n === 365 ? '1 an' : n + ' jours'} à partir d'aujourd'hui</button>`).join('')}<button type="button" data-v="0" onclick="agPick(this)">Sans limite</button></div>
     <label>Mot de passe pour le client</label>
     <div class="ag-pills" id="geProt">
       <button type="button" data-v="keep" class="on" onclick="agPick(this);galEditProt()">${g.protege ? 'Garder le mot de passe' : 'Pas de mot de passe'}</button>
       <button type="button" data-v="new" onclick="agPick(this);galEditProt()">${g.protege ? 'Changer le mot de passe' : 'Ajouter un mot de passe'}</button>
       ${g.protege ? '<button type="button" data-v="off" onclick="agPick(this);galEditProt()">Retirer le mot de passe</button>' : ''}
     </div>
-    <input id="geMdp" placeholder="Nouveau mot de passe" style="display:none">
+    <input id="geMdp" placeholder="Nouveau mot de passe" style="display:none" autocapitalize="off" autocorrect="off" spellcheck="false">
     <button class="btn-primary" id="geBtn" style="width:100%" onclick="galSaveEdit('${agEsc(code)}')">Enregistrer</button>
   `);
 }
@@ -425,11 +542,20 @@ function galMessage(code){
   const cats = (g.categories || []).filter(c => c && c !== 'Tout');
   const d = galDaysLeft(g);
   const exp = g.dateExpiration ? new Date(g.dateExpiration).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const o = g.options || {};
+  if(o.type === 'libre'){
+    return `Bonjour !\n\nLes photos de "${galTitre(g)}" sont en ligne 📸\n\nTouche ce lien pour les voir : ${galPreviewLink(code)}` +
+      `\n(Si on te demande un code : ${code}${g.protege ? (g.mdpClair ? `, mot de passe : ${g.mdpClair}` : '') : ''})` +
+      `${o.telechargement !== false ? '\n\nTu peux aussi les télécharger. Le bouton "? Aide" en bas de la page explique tout.' : ''}` +
+      `${d > 0 ? `\nDisponible jusqu'au ${exp}.` : ''}${g.message ? '\n\n' + g.message : ''}\n\nHenzo Photographie`;
+  }
   return `Bonjour ${(g.nomClient || '').trim() || 'vous'},\n\nTes photos sont prêtes !${cats.length ? '\nSéance : ' + cats.join(', ') : ''}\n\n` +
-    `Pour les voir et les télécharger :\n1. Ouvre ce lien : ${galClientLink(code)}\n2. Touche "Voir mes photos" et entre ton code d'accès : ${code}` +
-    `${g.protege ? '\nN\'oublie pas le mot de passe que je t\'ai communiqué.' : ''}` +
-    `\n3. Télécharge tes photos${d > 0 ? `\nDisponible encore ${d} jour${d > 1 ? 's' : ''} (jusqu'au ${exp}).` : ''}` +
-    `${g.message ? '\n\n' + g.message : ''}\n\nN'hésite pas à laisser tes réactions et tes photos préférées directement dans la galerie !\n\nÀ bientôt,\nStudio Henzo`;
+    `Pour les voir et les télécharger :\n1. Touche ce lien : ${galClientLink(code)}\n2. Ton code d'accès se remplit tout seul (sinon tape : ${code})` +
+    `${g.protege ? (g.mdpClair ? `\n3. Mot de passe : ${g.mdpClair}` : '\n3. Entre le mot de passe que je t\'ai communiqué') : ''}` +
+    `\n${g.protege ? '4' : '3'}. Touche "Télécharger les photos" et choisis la qualité` +
+    `\n\nLe bouton "? Aide" en bas de la page explique tout, étape par étape.` +
+    `${d > 0 ? `\nDisponible encore ${d} jour${d > 1 ? 's' : ''} (jusqu'au ${exp}).` : ''}` +
+    `${g.message ? '\n\n' + g.message : ''}\n\nN'hésite pas à laisser ton avis et tes photos préférées directement dans la galerie !\n\nÀ bientôt,\nHenzo Photographie`;
 }
 function galWhatsApp(code){
   const g = galList.find(x => x.code === code);
@@ -440,6 +566,120 @@ function galWhatsApp(code){
 async function galCopy(code){
   try { await navigator.clipboard.writeText(galMessage(code)); agToast('Message copié'); }
   catch(e){ prompt('Copie ce message :', galMessage(code)); }
+}
+
+// ---------- Envoyer juste le code (court) ----------
+function galMessageCode(code){
+  const g = galList.find(x => x.code === code); if(!g) return '';
+  return `Voici ton accès à la galerie photo :\n\nLien direct : ${galPreviewLink(code)}\nCode : ${code}` +
+    `${g.protege && g.mdpClair ? `\nMot de passe : ${g.mdpClair}` : ''}\n\nHenzo Photographie`;
+}
+function galEnvoyerCode(code){
+  const g = galList.find(x => x.code === code); if(!g) return;
+  const n = typeof crmPhone === 'function' ? crmPhone(g.telephone) : String(g.telephone || '').replace(/[^0-9]/g, '');
+  window.open(`https://wa.me/${n || ''}?text=${encodeURIComponent(galMessageCode(code))}`, '_blank');
+}
+
+// ---------- Nouveau code d'accès ----------
+function galNouveauCode(code){
+  const g = galList.find(x => x.code === code); if(!g) return;
+  agSheet('galNC', `
+    <h3>Nouveau code d'accès</h3>
+    <div class="ag-hint" style="margin-top:0">Si le client n'arrive pas à entrer, donne-lui un nouveau code. Les photos, ses choix et ses avis restent en place. <b>L'ancien code (${agEsc(code)}) ne marchera plus.</b></div>
+    <label>Nouveau code</label>
+    <input id="galNCv" placeholder="Laisse vide : code automatique (prénom + 4 chiffres)" autocapitalize="characters">
+    <div class="ag-hint">Tu peux aussi choisir un code facile, ex : AWA2026 ou MARIAGE-KONE.</div>
+    <button class="btn-primary" id="galNCb" style="width:100%" onclick="galNouveauCodeOk('${agEsc(code)}')">Créer le nouveau code</button>`);
+}
+async function galNouveauCodeOk(code){
+  const b = document.getElementById('galNCb'); b.disabled = true; b.textContent = 'Un instant...';
+  try {
+    const r = await galApi('/api/admin/galeries/' + encodeURIComponent(code) + '/nouveau-code', { method: 'POST', json: { code: document.getElementById('galNCv').value.trim() } });
+    const g = galList.find(x => x.code === code);
+    if(g && r && r.code){ Object.assign(g, r, { nbPhotos: g.nbPhotos }); }
+    agCloseSheet('galNC');
+    galCurrent = r.code; galOpen(r.code);
+    const envoyer = await agConfirm(`Nouveau code : ${r.code}\n\nL'envoyer au client sur WhatsApp maintenant ?`, { ok: 'Envoyer', no: 'Plus tard' });
+    if(envoyer) galEnvoyerCode(r.code);
+  } catch(e){ agAlert(e.message); b.disabled = false; b.textContent = 'Créer le nouveau code'; }
+}
+
+// ---------- Nouveau mot de passe ----------
+function galNouveauMdp(code){
+  const g = galList.find(x => x.code === code); if(!g) return;
+  agSheet('galNM', `
+    <h3>${g.protege ? 'Nouveau mot de passe' : 'Ajouter un mot de passe'}</h3>
+    <div class="ag-hint" style="margin-top:0">Un mot de passe simple à lire est proposé. Tu peux le changer.</div>
+    <label>Mot de passe</label>
+    <div class="gal-row"><input id="galNMv" value="${agEsc(galGenMdp())}" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <button type="button" class="btn-ghost" onclick="document.getElementById('galNMv').value=galGenMdp()">Autre</button></div>
+    <button class="btn-primary" id="galNMb" style="width:100%" onclick="galNouveauMdpOk('${agEsc(code)}')">Enregistrer</button>
+    ${g.protege ? `<button class="btn-ghost" style="width:100%;margin-top:8px" onclick="galRetirerMdp('${agEsc(code)}')">Retirer le mot de passe</button>` : ''}`);
+}
+async function galNouveauMdpOk(code){
+  const v = document.getElementById('galNMv').value.trim();
+  if(!v){ agAlert('Tape un mot de passe.'); return; }
+  const b = document.getElementById('galNMb'); b.disabled = true;
+  try {
+    const r = await galApi('/api/admin/galeries/' + encodeURIComponent(code) + '/nouveau-mdp', { method: 'POST', json: { motDePasse: v } });
+    const g = galList.find(x => x.code === code);
+    if(g){ g.protege = true; g.mdpClair = r.motDePasse || v; }
+    agCloseSheet('galNM'); galOpen(code);
+    if(await agConfirm(`Mot de passe : ${r.motDePasse || v}\n\nEnvoyer le code et le mot de passe au client sur WhatsApp ?`, { ok: 'Envoyer', no: 'Plus tard' })) galEnvoyerCode(code);
+  } catch(e){ agAlert(e.message); b.disabled = false; }
+}
+async function galRetirerMdp(code){
+  try {
+    await galApi('/api/admin/galeries/' + encodeURIComponent(code), { method: 'PUT', json: { protege: false } });
+    const g = galList.find(x => x.code === code); if(g){ g.protege = false; g.mdpClair = null; }
+    agCloseSheet('galNM'); galOpen(code); agToast('Mot de passe retiré');
+  } catch(e){ agAlert(e.message); }
+}
+
+// ---------- Apparence d'une galerie existante ----------
+async function galApparence(code){
+  const g = galList.find(x => x.code === code); if(!g) return;
+  const o = g.options || {};
+  const libre = o.type === 'libre';
+  agSheet('galApp', `
+    <h3>Apparence de la galerie</h3>
+    ${libre ? `<label>Titre</label><input id="gaTitre" value="${agEsc(o.titre || g.nomClient || '')}">
+      <label>Petite phrase sous le titre</label><input id="gaSous" value="${agEsc(o.sousTitre || '')}">
+      <div class="gal-2col"><div><label>Événement</label><input id="gaEvt" value="${agEsc(o.evenement || '')}"></div><div><label>Date</label><input id="gaDate" type="date" value="${agEsc(o.dateEvenement || '')}"></div></div>
+      <label>Lieu</label><input id="gaLieu" value="${agEsc(o.lieu || '')}">` : ''}
+    <label>Photo de couverture</label>
+    <div class="gal-couv-choix" id="gaCouv"><div class="ag-hint">Chargement des photos...</div></div>
+    ${galOptsHtml('ga', o)}
+    <button class="btn-primary" id="gaBtn" style="width:100%" onclick="galApparenceOk('${agEsc(code)}')">Enregistrer</button>
+    <button class="btn-ghost" style="width:100%;margin-top:8px" onclick="window.open(galPreviewLink('${agEsc(code)}'),'_blank')">Voir le résultat</button>`);
+  try {
+    const r = await galApi('/api/admin/galeries/' + encodeURIComponent(code) + '/photos');
+    const ph = r.photos || [];
+    const box = document.getElementById('gaCouv'); if(!box) return;
+    box.dataset.v = o.couverture || '';
+    box.innerHTML = ph.length ? ph.slice(0, 60).map((f, i) => `<button type="button" data-v="${agEsc(f)}" class="${(o.couverture ? o.couverture === f : i === 0) ? 'on' : ''}" onclick="agPick(this);this.parentElement.dataset.v=this.dataset.v"><img loading="lazy" src="${galPhotoUrl(r.dossier, f, 'thumb')}" alt=""></button>`).join('')
+      : '<div class="ag-hint">Ajoute des photos d\'abord. Sinon, la 1re photo sera la couverture.</div>';
+  } catch(e){ const box = document.getElementById('gaCouv'); if(box) box.innerHTML = `<div class="ag-hint">${agEsc(e.message)}</div>`; }
+}
+async function galApparenceOk(code){
+  const g = galList.find(x => x.code === code); if(!g) return;
+  const options = galOptsLire('ga');
+  const couv = document.getElementById('gaCouv')?.dataset.v; if(couv) options.couverture = couv;
+  const body = { options };
+  if((g.options || {}).type === 'libre'){
+    const titre = document.getElementById('gaTitre').value.trim();
+    if(!titre){ agAlert('Donne un titre à la galerie.'); return; }
+    Object.assign(options, { titre, sousTitre: document.getElementById('gaSous').value.trim(), evenement: document.getElementById('gaEvt').value.trim(),
+      dateEvenement: document.getElementById('gaDate').value || '', lieu: document.getElementById('gaLieu').value.trim() });
+    body.nomClient = titre;
+  }
+  const b = document.getElementById('gaBtn'); b.disabled = true; b.textContent = 'Enregistrement...';
+  try {
+    const r = await galApi('/api/admin/galeries/' + encodeURIComponent(code), { method: 'PUT', json: body });
+    g.options = (r && r.options) || Object.assign({}, g.options, options);
+    if(body.nomClient) g.nomClient = body.nomClient;
+    agCloseSheet('galApp'); agToast('Apparence enregistrée'); galOpen(code);
+  } catch(e){ agAlert(e.message); b.disabled = false; b.textContent = 'Enregistrer'; }
 }
 
 // ---------- Depuis une seance : bouton "Galerie" ----------
@@ -533,6 +773,23 @@ try { if(new URLSearchParams(location.search).get('avis')) window.__galAvisDeep 
 .gal-prev.sombre{background:#0e0f11}
 .gal-prev-l{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 2px 6px}
 .gal-av-mini{border:1px solid var(--border);border-radius:14px;padding:12px;margin:10px 0;background:var(--card2)}
+.gal-badge{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:8px;background:var(--card3);color:var(--accent);vertical-align:2px;margin-left:4px}
+.gal-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gal-row{display:flex;gap:8px;align-items:center}
+.gal-row input{flex:1;margin:0}
+.gal-row button{width:auto;margin:0;flex:none;padding:11px 14px}
+.gal-ibtns{display:flex;gap:6px;flex:none}
+.gal-themes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 8px}
+.gal-themes button{display:flex;flex-direction:column;align-items:center;gap:6px;margin:0;padding:10px 6px;border-radius:14px;background:var(--card2);border:1px solid var(--border);color:var(--text-2);font:500 12px Inter,sans-serif;cursor:pointer}
+.gal-themes button span{width:100%;height:34px;border-radius:9px;display:grid;place-items:center;font:600 15px Inter,sans-serif;border:1px solid rgba(128,128,128,.25)}
+.gal-themes button.on{border-color:var(--accent);color:var(--text);background:var(--card3)}
+.gal-couv-choix{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:thin}
+.gal-couv-choix button{flex:none;width:72px;height:72px;padding:0;margin:0;border-radius:12px;overflow:hidden;border:2px solid transparent;background:var(--card2);cursor:pointer}
+.gal-couv-choix button.on{border-color:var(--accent)}
+.gal-couv-choix img{width:100%;height:100%;object-fit:cover;display:block}
+.gal-plus{margin:14px 0 6px;border:1px solid var(--border);border-radius:14px;padding:10px 12px;background:var(--card)}
+.gal-plus summary{cursor:pointer;font-weight:600;color:var(--text)}
+
 `;
   document.head.appendChild(st);
 })();

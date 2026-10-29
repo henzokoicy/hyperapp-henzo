@@ -215,7 +215,7 @@ async function otRefresh(force){
   OT.busy = false;
 }
 // Nouvelle version du site publiee ? On recharge tout seul.
-const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'ia.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'coach2.js', 'marketing.js', 'suivi.js', 'budget.js', 'voix.js', 'equipe.js', 'patron.js', 'studio.js', 'messages.js', 'theme.css'];
+const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'ia.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'coach2.js', 'marketing.js', 'suivi.js', 'budget.js', 'voix.js', 'equipe.js', 'patron.js', 'studio.js', 'messages.js', 'frais.js', 'theme.css'];
 async function otCheckVersion(){
   let changed = false;
   for(const f of OT_FILES){

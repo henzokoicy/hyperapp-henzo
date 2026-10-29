@@ -167,9 +167,11 @@ function agGoalCheck(pairs){
   }
   return null;
 }
-// Les mouvements liés à une entrée (sa répartition) qui changeront d'état avec elle
+// Un mouvement lié à un autre : sa répartition (rep:) ou ses frais d'opérateur (frais:)
+function agLiee(x, id){ return x.details === 'rep:' + id || x.details === 'frais:' + id; }
+// Les mouvements liés à une entrée (sa répartition, ses frais) qui changeront d'état avec elle
 function agLinkedChanges(id, cancelled){
-  return txs.filter(x => x.details === 'rep:' + id && !!x.cancelled !== !!cancelled).map(x => [x, { ...x, cancelled: !!cancelled }]);
+  return txs.filter(x => agLiee(x, id) && !!x.cancelled !== !!cancelled).map(x => [x, { ...x, cancelled: !!cancelled }]);
 }
 
 // Un paiement de séance (revenu avec shoot_id) annulé, restauré ou supprimé à la main :
@@ -252,7 +254,7 @@ dbUpdate = async function(table, id, data){
     await agSyncGoals(before, res);
     // Annuler / restaurer une entree annule / restaure aussi sa repartition dans les coffres
     if(!!before.cancelled !== !!res.cancelled){
-      const liees = txs.filter(x => x.details === 'rep:' + id && !!x.cancelled !== !!res.cancelled);
+      const liees = txs.filter(x => agLiee(x, id) && !!x.cancelled !== !!res.cancelled);
       const changees = [];
       for(const x of liees){
         const r = await dbUpdate('transactions', x.id, { cancelled: !!res.cancelled, cancelled_at: res.cancelled ? new Date().toISOString() : null });
@@ -284,7 +286,7 @@ dbDelete = async function(table, id){
   const ok = await _agDbDelete(table, id);
   if(ok && table === 'transactions' && before){
     await agSyncGoals(before, null);
-    const liees = txs.filter(x => x.details === 'rep:' + id && !x.cancelled);
+    const liees = txs.filter(x => agLiee(x, id) && !x.cancelled);
     const changees = [];
     for(const x of liees){
       const r = await dbUpdate('transactions', x.id, { cancelled: true, cancelled_at: new Date().toISOString() });
@@ -385,6 +387,7 @@ function agOpenAccountForm(id){
     <label>Solde de départ (FCFA)</label>
     <input id="agAccInit" type="number" inputmode="decimal" value="${a ? Number(a.initial_balance) : ''}" placeholder="0">
     <div class="ag-hint">Le solde de départ, c'est ce que tu avais sur ce compte au moment de commencer. Ensuite, l'app calcule tout seule.</div>
+    ${typeof frFormHtml === 'function' ? frFormHtml(a) : ''}
     <button class="btn-primary" onclick="agSaveAccount(${a ? a.id : 'null'})">${a ? 'Enregistrer' : 'Créer le compte'}</button>
     ${a ? `<button class="btn-danger" style="margin-top:8px;width:100%;padding:12px" onclick="agArchiveAccount(${a.id})">Masquer ce compte</button>` : ''}
   `);
@@ -403,6 +406,7 @@ async function agSaveAccount(id){
   const init = parseFloat(document.getElementById('agAccInit').value) || 0;
   if(!name){ alert('Donne un nom au compte'); return; }
   const data = { name, kind, emoji: AG_KINDS[kind].icon, initial_balance: init };
+  if(typeof frFormLire === 'function'){ const f = frFormLire(); if(f) data.frais = f; }
   if(id){
     const r = await _agDbUpdate('accounts', id, data);
     if(!r) return;
@@ -703,10 +707,16 @@ function agOpenTx(id){
     t.cancelled ? ['État', 'Annulé'] : null
   ].filter(Boolean);
   const liees = txs.filter(x => x.details === 'rep:' + id);
+  const frais = txs.filter(x => x.details === 'frais:' + id && !x.cancelled);
+  const totFrais = frais.reduce((a, x) => a + (Number(x.amount) || 0), 0);
+  const peutFrais = !t.cancelled && (t.type === 'revenu' || (t.type === 'transfert' && t.account_id && t.to_account_id && t.category !== 'Ajustement'));
   agSheet('agTxView', `
     <h3>${agEsc(v.title)}</h3>
     <div style="text-align:center;font-size:32px;font-weight:800;margin:4px 0 12px" class="ag-tx"><span class="m ${v.cls}" style="font-size:32px;width:100%;text-align:center">${v.amt} F</span></div>
     ${rows.map(r => `<div class="ag-detail-row"><span>${agEsc(r[0])}</span><span>${agEsc(r[1])}</span></div>`).join('')}
+    ${totFrais ? `<div class="ag-detail-row"><span>Frais de l'opérateur</span><span>−${agF(totFrais)}</span></div>
+      <div class="ag-detail-row"><span>${t.type === 'revenu' ? 'Vraiment arrivé sur le compte' : 'Vraiment sorti du compte'}</span><span><b>${agF(t.type === 'revenu' ? Number(t.amount) - totFrais : Number(t.amount) + totFrais)}</b></span></div>` : ''}
+    ${peutFrais && typeof frOuvrir === 'function' ? `<button class="btn-ghost" style="width:100%;margin:8px 0 2px" onclick="agCloseSheet('agTxView');frOuvrir(${id})">${totFrais ? 'Modifier les frais' : '+ Ajouter des frais (Wave, Orange Money...)'}</button>` : ''}
     ${liees.length ? `<div class="ag-hint">Cette entrée a été répartie dans tes coffres (${liees.length} mouvement${liees.length > 1 ? 's' : ''}). Si tu l'annules, la répartition est annulée aussi et l'argent sort des coffres.</div>` : ''}
     <div class="ag-btns">
       ${t.cancelled
@@ -1325,9 +1335,9 @@ async function agInstall(){
 agSetupInstall();
 
 // Galerie clients integree (fichier galerie.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=6'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=7'; document.body.appendChild(sc); })();
 // Clients, relances, promos et tarifs (fichier crm.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=15'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=16'; document.body.appendChild(sc); })();
 // Moodboard : idees de seance (fichier mood.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'mood.js?v=4'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'marketing.js?v=5'; document.body.appendChild(sc); })();
@@ -1341,6 +1351,8 @@ agSetupInstall();
 (function(){ const sc = document.createElement('script'); sc.src = 'patron.js?v=3'; document.body.appendChild(sc); })();
 // Suivi client : impressions et dettes (fichier suivi.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'suivi.js?v=1'; document.body.appendChild(sc); })();
+// Frais des opérateurs (Wave, Orange Money, MTN, Moov...) (fichier frais.js)
+(function(){ const sc = document.createElement('script'); sc.src = 'frais.js?v=1'; document.body.appendChild(sc); })();
 
 (function agDesignInit(){
   document.body.classList.add('ag-ui');
