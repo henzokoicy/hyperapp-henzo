@@ -292,7 +292,7 @@ function anVueEdit(){
   return `<button class="ag-back" onclick="anStop();CR.vue='accueil';crRender()">${agIcon('chev', 16)} Créations</button>
     <div class="cr-edit">
       <div class="cr-prev-zone">
-        <div class="cr-prev" style="aspect-ratio:${F.w}/${F.h}"><canvas id="anCanvas" width="${F.w}" height="${F.h}"></canvas></div>
+        <div class="cr-prev" style="aspect-ratio:${F.w}/${F.h};max-width:min(100%,calc(62vh * ${F.w} / ${F.h}));margin-left:auto;margin-right:auto"><canvas id="anCanvas" width="${F.w}" height="${F.h}"></canvas></div>
         <div class="an-lect"><button type="button" class="an-play" onclick="anLecture()" id="anPlay">${AN.lecture ? '❚❚' : '▶'}</button>
           <input type="range" id="anScrub" min="0" max="${plan.D}" step="0.05" value="${AN.t}" oninput="anAller(this.value)"><span id="anTemps">0,0 / ${plan.D.toFixed(0)} s</span></div>
         <div class="cr-fmtnom">${crE(M.nom)} · ${CR.photos.length} photos · ${parPhoto}</div>
@@ -367,6 +367,8 @@ async function anPreparer(hd){
 async function anDemarrerApercu(){
   await anPreparer(false);
   AN.plan = anPlan();
+  // Mini-galerie, polaroids, pellicule : on montre un moment où les photos sont déjà là
+  if(AN.t === 0 && !AN.lecture && ['v-galerie', 'v-polaroid', 'v-pellicule'].includes(CR.modele)) AN.t = Math.min(AN.plan.Dp * 0.6, 2.5);
   anDessinerOnde();
   anApercuUneFois();
 }

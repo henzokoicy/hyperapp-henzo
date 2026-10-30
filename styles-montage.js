@@ -102,7 +102,15 @@ function mtsHasard(graine){ let s = graine * 9301 + 49297; return () => { s = (s
 function mtsMelange(a, r){ a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 window.mtsAppliquer = function(id, silencieux){
   const st = MTS_STYLES.find(x => x.id === id); if(!st) return;
-  const M = anModele(CR.modele); if(!M || !mtEstSeq(M.k) || !CR.photos.length) return;
+  let M = anModele(CR.modele); if(!M || !CR.photos.length) return;
+  // Mini-galerie, polaroids, pellicule : on passe sur un modèle avec table de montage
+  if(!mtEstSeq(M.k)){
+    if(typeof anStop === 'function') anStop();
+    CR.modele = st.temps <= 1 || st.id === 'clip' ? 'v-dyn' : 'v-diapo'; M = anModele(CR.modele);
+    if(!M.fmts.includes(CR.fmt)) CR.fmt = M.fmts[0];
+    anVid().clips = null;
+    if(!silencieux) agToast('Passé en « ' + M.nom + ' » pour le montage automatique');
+  }
   if(!silencieux && typeof MT !== 'undefined'){ MT.undo.push({ clips: JSON.parse(JSON.stringify(anVid().clips || null)), photos: CR.photos.slice(), crop: CR.crop.map(c => Object.assign({}, c)) }); MT.redo = []; }
   const V = anVid(); V.style = id; V.styleGraine = V.styleGraine || 1;
   const r = mtsHasard(V.styleGraine + id.length * 17);
@@ -172,6 +180,7 @@ window.mtsAppliquer = function(id, silencieux){
 };
 // Le style est-il encore tel qu'il a été posé (rien retouché à la main) ?
 function mtsIntact(){ const V = anVid(); return !!(V.style && V.clips && V.styleSig === JSON.stringify(V.clips)); }
+window.mtsVers = function(k){ if(typeof anStop === 'function') anStop(); CR.modele = k; const M = anModele(k); if(!M.fmts.includes(CR.fmt)) CR.fmt = M.fmts[0]; anVid().clips = null; AN.t = 0; crRender(); };
 window.mtsAutreVersion = function(){ const V = anVid(); V.styleGraine = (V.styleGraine || 1) + 1; mtsAppliquer(V.style || 'mariage'); };
 window.mtsRythme = function(v){ anVid().rythme = v; if(anVid().style) mtsAppliquer(anVid().style); else crRender(); };
 window.mtsRemplir = function(v){ anVid().remplir = v === 'tout'; if(anVid().style) mtsAppliquer(anVid().style); else crRender(); };
@@ -196,6 +205,12 @@ anVueEdit = function(){
   if(M && mtEstSeq(M.k)){
     const i = h.indexOf('<div class="mt" id="mtZone">');
     if(i > 0) h = h.slice(0, i) + `<div class="mts" id="mtsZone">${mtsHtml()}</div>` + h.slice(i);
+  } else if(M){
+    // Les autres modèles : les styles aussi, et le chemin vers la table de montage
+    const i = h.indexOf('\n      </div>\n      <div class="cr-panneau">');
+    const info = `<div class="mts-info">${agIcon('info', 15)}<div><b>Cuts, durées et transitions photo par photo :</b> ils se règlent dans la table de montage des modèles Diaporama doux, Rythmé, Glisse et Titre animé. Choisis un style ci-dessus (l'app passe en Diaporama ou Rythmé et monte tout sur la musique), ou :
+      <div class="mt-act"><button type="button" onclick="mtsVers('v-diapo')">Passer en Diaporama doux</button><button type="button" onclick="mtsVers('v-dyn')">Passer en Rythmé</button></div></div></div>`;
+    if(i > 0) h = h.slice(0, i) + `<div class="mts" id="mtsZone">${mtsHtml()}${info}</div>` + h.slice(i);
   }
   return h;
 };
@@ -216,6 +231,17 @@ anDebut = function(v){
   return r;
 };
 
+// Sur l'accueil des Créations : le chemin vers le montage automatique
+const crRenderS = crRender;
+crRender = async function(){
+  const r = await crRenderS.apply(this, arguments);
+  if(CR.vue === 'accueil'){
+    const el = crBody(), secs = el ? [...el.querySelectorAll('.cr-sec')] : [];
+    const sv = secs.find(x => /Vidéos et GIF/.test(x.textContent));
+    if(sv && !el.querySelector('.cr-sec-astuce')) sv.insertAdjacentHTML('afterend', `<div class="cr-sec-astuce" onclick="crChoisirModele('v-diapo')">${agIcon('sparkles', 20)}<div><b>Montage automatique sur la musique</b>Touche « Diaporama doux » ou « Rythmé », ajoute ta musique, puis choisis un style (Mariage, TikTok, Clip...) : cuts, transitions et effets sont posés tout seuls. Tout se retouche dans la table de montage.</div></div>`);
+  }
+  return r;
+};
 (function mtsCss(){
   if(document.getElementById('mtsCss')) return;
   const st = document.createElement('style'); st.id = 'mtsCss';
@@ -231,6 +257,9 @@ anDebut = function(v){
 .mts-c small{display:block;padding:2px 8px 0;font-size:10.5px;color:var(--muted);line-height:1.25}
 .mts-opts{display:grid;gap:4px;margin-top:6px}
 .mts-opts label{display:block;margin:4px 0 4px;font-size:12px;color:var(--muted)}
+.mts-info{display:flex;gap:8px;margin-top:10px;padding:10px;border-radius:12px;background:var(--card2);font-size:12.5px;color:var(--muted);line-height:1.4}.mts-info b{color:var(--text)}.mts-info svg{flex:none;margin-top:2px;color:var(--accent)}
+.cr-sec-astuce{display:flex;gap:10px;align-items:center;margin:4px 0 10px;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--accent) 12%,var(--card));border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);font-size:12.5px;color:var(--text);cursor:pointer}
+.cr-sec-astuce b{display:block;font-size:13.5px}
 .mts-retouche{align-self:center;font-size:11.5px;color:var(--muted)}`;
   document.head.appendChild(st);
 })();
