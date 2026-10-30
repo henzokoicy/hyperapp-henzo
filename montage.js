@@ -268,6 +268,7 @@ function mtAvant(){ mtSnap(); mtManuel(); }
 // Rafraîchit la piste, l'aperçu, la barre de lecture
 function mtMaj(images){
   const z = document.getElementById('mtZone'); if(z){ z.innerHTML = mtInner(); if(typeof mkHydrate === 'function') mkHydrate(z); mtBrancher(); }
+  if(typeof window.mtsMaj === 'function') window.mtsMaj();
   const plan = anPlan(); AN.plan = plan;
   const sc = document.getElementById('anScrub'); if(sc) sc.max = plan.D;
   const dt = document.getElementById('anDureeTxt'); if(dt) dt.textContent = anMinSec(plan.D);
@@ -492,6 +493,7 @@ crChoisirModele = function(k){ if(CR.vue === 'accueil' && typeof AN !== 'undefin
   if(document.getElementById('mtCss')) return;
   const st = document.createElement('style'); st.id = 'mtCss';
   st.textContent = `
+.cr-edit>*,.cr-prev-zone{min-width:0}.mt,.mts{max-width:100%;box-sizing:border-box}
 .mt{margin-top:12px;padding:10px;border-radius:16px;background:var(--card);border:1px solid var(--border)}
 .mt-tete{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .mt-tete b{color:var(--text);font-size:14px}.mt-tete span{flex:1;color:var(--muted);font-size:12px}
