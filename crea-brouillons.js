@@ -48,7 +48,7 @@ CR.brouillons = CR.brouillons || [];
 let brSigAvant = '', brEnCours = false;
 const brFichiersGardes = new Set();
 function brVid(){ return typeof AN !== 'undefined' && AN.vid ? Object.assign({}, AN.vid, { musique: AN.vid.musique ? { nom: AN.vid.musique.nom, duree: AN.vid.musique.duree } : null }) : null; }
-function brPhotos(){ return CR.photos.map(p => p.src === 'fichier' ? { k: p.k, src: 'fichier' } : p.src === 'galerie' ? { k: p.k, src: 'galerie', dossier: p.dossier, f: p.f } : p.path ? { k: p.k, src: 'media', path: p.path } : p.url ? { k: p.k, src: 'url', url: p.url, thumb: p.thumb } : null).filter(Boolean); }
+function brPhotos(){ return CR.photos.map(p => p.src === 'fichier' ? Object.assign({ k: p.k, src: 'fichier' }, p.video ? { video: true, vdur: p.vdur, thumb: p.thumb && p.thumb.length < 60000 ? p.thumb : '' } : {}) : p.src === 'galerie' ? { k: p.k, src: 'galerie', dossier: p.dossier, f: p.f } : p.path ? { k: p.k, src: 'media', path: p.path } : p.url ? { k: p.k, src: 'url', url: p.url, thumb: p.thumb } : null).filter(Boolean); }
 function brSignature(){ return JSON.stringify([CR.modele, CR.fmt, CR.cfg, brVid(), CR.photos.map(p => p.k), CR.crop]); }
 function brApercu(){
   const cv = document.getElementById('anCanvas') || document.getElementById('crCanvas'); if(!cv || !cv.width) return null;
@@ -122,7 +122,8 @@ async function brPhotosDepuis(list){
     if(p.src === 'fichier'){
       const b = await brGet('fichiers', 'ph:' + p.k).catch(() => null); if(!b) continue;
       const url = URL.createObjectURL(b); brFichiersGardes.add(p.k);
-      out.push({ k: p.k, src: 'fichier', file: b, url, thumb: url });
+      if(p.video){ const pv = { k: p.k, src: 'fichier', file: b, url, thumb: p.thumb || '', video: true, vdur: p.vdur }; if(!pv.thumb && typeof rvNouveau === 'function') rvNouveau(pv); out.push(pv); }
+      else out.push({ k: p.k, src: 'fichier', file: b, url, thumb: url });
     } else if(p.src === 'galerie') out.push({ k: p.k, src: 'galerie', dossier: p.dossier, f: p.f, thumb: typeof galPhotoUrl === 'function' ? galPhotoUrl(p.dossier, p.f, 'thumb') : '', url: typeof galPhotoUrl === 'function' ? galPhotoUrl(p.dossier, p.f, 'medium') : '' });
     else if(p.src === 'media') out.push({ k: p.k, src: 'media', path: p.path });
     else if(p.src === 'url') out.push({ k: p.k, src: 'url', url: p.url, thumb: p.thumb || p.url });
@@ -178,7 +179,7 @@ function brListeHtml(){
   if(!L.length) return '';
   return `<div class="cr-sec">Mes brouillons <i>${L.length}</i>${L.length > 3 ? `<button class="st-link br-tout" onclick="brToutSupprimer()">Tout supprimer</button>` : ''}</div>
     <div class="br-liste">${L.map(b => `<div class="br-c">
-      <button class="br-img" onclick="brReprendre('${b.id}')">${b.apercu ? `<img src="${crE(b.apercu)}" alt="">` : crMini(b.modele)}${/^v-/.test(b.modele || '') ? '<em>▶</em>' : ''}</button>
+      <button class="br-img" onclick="brReprendre('${b.id}')">${b.apercu ? `<img src="${crE(b.apercu)}" alt="">` : crMini(b.modele)}${/^v-/.test(b.modele || '') ? '<em>' + agIcon('play', 9) + '</em>' : ''}</button>
       <div class="br-d"><b>${crE(b.nom)}</b><small>${crE(b.modeleNom || '')} · ${(b.photos || []).length} photo${(b.photos || []).length > 1 ? 's' : ''}${b.musique ? ' · avec musique' : ''} · ${brQuand(b.maj)}</small>
         <div class="br-b"><button class="on" onclick="brReprendre('${b.id}')">Reprendre</button><button onclick="brReprendre('${b.id}', true)">Dupliquer</button><button class="no" onclick="brSupprimer('${b.id}')" aria-label="Supprimer">${agIcon('trash', 14)}</button></div></div></div>`).join('')}</div>`;
 }
@@ -289,7 +290,7 @@ crRender = async function(){
     const back = el.querySelector('.ag-back');
     const ex = CR.photos.some(p => p.exemple);
     const html = `<div class="br-exemple"><div><b>Aperçu</b> avec ${ex ? 'des images d\'exemple' : 'des photos prises au hasard dans tes galeries'}.</div>
-      <div class="br-ex-b"><button onclick="brAutresHasard()">🎲 Autres photos</button><button class="on" onclick="brChoisirMesPhotos()">Choisir mes photos</button>${ex ? '' : '<button onclick="brGarderExemple()">Garder celles-ci</button>'}</div></div>`;
+      <div class="br-ex-b"><button onclick="brAutresHasard()">${agIcon('dice', 13)} Autres photos</button><button class="on" onclick="brChoisirMesPhotos()">Choisir mes photos</button>${ex ? '' : '<button onclick="brGarderExemple()">Garder celles-ci</button>'}</div></div>`;
     if(back) back.insertAdjacentHTML('afterend', html); else el.insertAdjacentHTML('afterbegin', html);
   }
   // Lecture automatique de l'aperçu vidéo

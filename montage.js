@@ -69,9 +69,9 @@ function mtPlanManuel(){
   // Les plans dont la photo a disparu sont retirés ; les nouvelles photos sont ajoutées à la fin
   V.clips = V.clips.filter(c => c.k in idx);
   const pris = new Set(V.clips.map(c => c.k));
-  CR.photos.forEach(p => { if(!pris.has(p.k)){ V.clips.push(Object.assign({ k: p.k, d: 2.5 }, mtPreset(CR.modele, V.clips.length))); pris.add(p.k); } });
+  CR.photos.forEach(p => { if(!pris.has(p.k)){ V.clips.push(Object.assign({ k: p.k, d: p.video ? Math.max(0.5, Math.min(p.vdur || 4, 4)) : 2.5 }, mtPreset(CR.modele, V.clips.length), p.video ? { mvt: 'aucun' } : {})); pris.add(p.k); } });
   let t = 0;
-  const segs = V.clips.map((c, n) => { const sg = { i: idx[c.k], k: c.k, t0: t, t1: t + c.d, mvt: c.mvt, tr: c.tr, trD: c.trD, filtre: c.filtre || null, n }; t += c.d; return sg; });
+  const segs = V.clips.map((c, n) => { const sg = { i: idx[c.k], k: c.k, t0: t, t1: t + c.d, mvt: c.mvt, tr: c.tr, trD: c.trD, filtre: c.filtre || null, vin: c.vin, vit: c.vit, n }; t += c.d; return sg; });
   const finD = anFinD(), Dp = Math.max(0.5, t), D = Dp + finD;
   V.duree = Math.round(D * 10) / 10;
   return { D, Dp, finD, segs, n: CR.photos.length, mt: true, manuel: true };
@@ -81,7 +81,7 @@ function mtEstManuel(){ const V = anVid(); return !!(V.clips && V.clips.length);
 function mtManuel(){
   const V = anVid(); if(V.clips && V.clips.length) return;
   const p = anPlan();
-  V.clips = p.segs.map(sg => ({ k: sg.k, d: Math.round((sg.t1 - sg.t0) * 100) / 100, mvt: sg.mvt, tr: sg.tr, trD: sg.trD }));
+  V.clips = p.segs.map(sg => Object.assign({ k: sg.k, d: Math.round((sg.t1 - sg.t0) * 100) / 100, mvt: sg.mvt, tr: sg.tr, trD: sg.trD }, typeof rvVinAuto === 'function' && (CR.photos[sg.i] || {}).video ? { vin: rvVinAuto(sg) } : {}));
 }
 
 // ---------- Dessin ----------
@@ -147,7 +147,8 @@ window.mtDessiner = function(g, W, H, s, tt, imgs, plan){
     const a = mtDuree(segPv, seg) / 2, b = mtDuree(seg, segNx) / 2;
     const u = (tt - (seg.t0 - a)) / Math.max(0.1, (seg.t1 + b) - (seg.t0 - a));
     window.mtFiltrePlan = seg.filtre || null;
-    mtPlanDessin(cible, imgs[seg.i], W, H, s, seg.mvt, Math.max(0, Math.min(1, u)), tt - seg.t0, seg.n, tt);
+    const im = typeof rvPour === 'function' ? rvPour(seg, imgs[seg.i], tt) : imgs[seg.i];
+    mtPlanDessin(cible, im, W, H, s, seg.mvt, Math.max(0, Math.min(1, u)), tt - seg.t0, seg.n, tt);
     window.mtFiltrePlan = null;
   };
   let A = null, B = null, p = 0, tr = null;
@@ -290,7 +291,7 @@ function mtInner(){
   const plan = anPlan(), segs = plan.segs, man = mtEstManuel(), sel = MT.sel;
   const piste = segs.map((sg, n) => {
     const p = CR.photos[sg.i], d = sg.t1 - sg.t0;
-    const clip = `<button type="button" class="mt-clip ${sel && sel.t === 'c' && sel.n === n ? 'on' : ''}" data-n="${n}" style="width:${mtLargeur(d)}px" onclick="mtChoisir('c',${n})">${mtVignette(p)}<b>${d.toFixed(1).replace('.', ',')} s</b><i>${MT_MVT_COURT[sg.mvt] || ''}</i></button>`;
+    const clip = `<button type="button" class="mt-clip ${sel && sel.t === 'c' && sel.n === n ? 'on' : ''}" data-n="${n}" style="width:${mtLargeur(d)}px" onclick="mtChoisir('c',${n})">${mtVignette(p)}<b>${p && p.video ? agIcon('play', 9) + ' ' : ''}${d.toFixed(1).replace('.', ',')} s</b><i>${MT_MVT_COURT[sg.mvt] || ''}</i></button>`;
     const tr = n < segs.length - 1 ? `<button type="button" class="mt-tr ${sg.tr === 'coupe' ? 'cut' : ''} ${sel && sel.t === 't' && sel.n === n ? 'on' : ''}" title="${crE(MT_TR_NOM[sg.tr] || '')}" onclick="mtChoisir('t',${n})">${sg.tr === 'coupe' ? MT_IC_CUT : MT_IC_TR}</button>` : '';
     return clip + tr;
   }).join('');
@@ -299,13 +300,14 @@ function mtInner(){
   if(sel && sel.t === 'c' && segs[sel.n]){
     const sg = segs[sel.n], d = sg.t1 - sg.t0;
     panneau = `<div class="mt-pan"><div class="mt-pan-t"><b>Plan ${sel.n + 1}</b><span>photo ${sg.i + 1} · de ${anMinSec(sg.t0)} à ${anMinSec(sg.t1)}</span><button class="st-link" onclick="mtChoisir(null)">Fermer</button></div>
-      <label>Durée : <b id="mtDTxt">${d.toFixed(1).replace('.', ',')} s</b></label><input type="range" min="0.2" max="12" step="0.1" value="${d.toFixed(1)}" oninput="mtDureePlan(this.value)" onchange="mtMaj()">
+      <label>Durée : <b id="mtDTxt">${d.toFixed(1).replace('.', ',')} s</b></label><input type="range" min="0.2" max="${Math.max(12, Math.ceil(d))}" step="0.1" value="${d.toFixed(1)}" oninput="mtDureePlan(this.value)" onchange="mtMaj()">
+      ${typeof rvPanneau === 'function' && (CR.photos[sg.i] || {}).video ? rvPanneau(sg, d) : ''}
       <label>Mouvement de caméra</label>${pills(MT_MVTS, sg.mvt, 'mtMvt')}
       <label>Couleur de ce plan</label>${pills([['', 'Comme la vidéo']].concat(Object.keys(CR_FILTRES).filter(k => k !== 'aucun').map(k => [k, CR_FILTRES[k][0]])).concat([['aucun', 'Sans filtre']]), sg.filtre || '', 'mtFiltre')}
       <div class="mt-act">
         <button type="button" onclick="mtBouger(-1)" ${sel.n === 0 ? 'disabled' : ''}>‹ Avant</button>
         <button type="button" onclick="mtBouger(1)" ${sel.n >= segs.length - 1 ? 'disabled' : ''}>Après ›</button>
-        <button type="button" onclick="mtCouper()">✂ Couper ici</button>
+        <button type="button" onclick="mtCouper()">${agIcon('scissors', 13)} Couper ici</button>
         <button type="button" onclick="mtDupliquer()">Dupliquer</button>
         <button type="button" onclick="mtRemplacer()">Remplacer la photo</button>
         <button type="button" class="no" onclick="mtSupprimer()" ${segs.length <= 1 ? 'disabled' : ''}>Supprimer</button>
@@ -316,13 +318,13 @@ function mtInner(){
     panneau = `<div class="mt-pan"><div class="mt-pan-t"><b>Transition ${sel.n + 1} → ${sel.n + 2}</b><span>${crE(MT_TR_NOM[sg.tr] || '')}</span><button class="st-link" onclick="mtChoisir(null)">Fermer</button></div>
       ${pills(MT_TRS, sg.tr, 'mtTr')}
       ${sg.tr !== 'coupe' ? `<label>Durée de la transition : <b id="mtTDTxt">${(sg.trD || 0.6).toFixed(1).replace('.', ',')} s</b></label><input type="range" min="0.1" max="2" step="0.05" value="${sg.trD || 0.6}" oninput="mtTrDuree(this.value)">` : ''}
-      <div class="mt-act"><button type="button" onclick="mtTrPartout()">Mettre cette transition partout</button><button type="button" onclick="mtVoirTr()">▶ Voir</button></div></div>`;
+      <div class="mt-act"><button type="button" onclick="mtTrPartout()">Mettre cette transition partout</button><button type="button" onclick="mtVoirTr()">${agIcon('play', 12)} Voir</button></div></div>`;
   } else {
     panneau = `<div class="mt-pan mt-pan-tout"><div class="mt-pan-t"><b>Pour tous les plans</b><span>${man ? 'Montage personnalisé' : 'Montage automatique'}</span>${man ? '<button class="st-link" onclick="mtAuto()">Revenir en auto</button>' : ''}</div>
       <label>Transitions</label>${pills([['varie', 'Varié'], ['fondu', 'Fondu'], ['coupe', 'Coupes nettes'], ['flash', 'Flash'], ['fouet', 'Coup de fouet'], ['zoomIn', 'Zoom'], ['glitch', 'Glitch'], ['fuite', 'Fuite de lumière']], '', 'mtTrTous')}
       <label>Mouvements</label>${pills([['varie', 'Varié'], ['kb', 'Doux'], ['zoomin', 'Zoom avant'], ['punch', 'Punch'], ['tremble', 'Caméra à la main'], ['flottant', 'Carte flottante'], ['aucun', 'Fixe']], '', 'mtMvtTous')}
       <label>Même durée pour chaque photo</label>${pills([['0.5', '0,5 s'], ['1', '1 s'], ['1.5', '1,5 s'], ['2', '2 s'], ['3', '3 s'], ['4', '4 s']], '', 'mtDureeTous')}
-      ${AN.beats && AN.beats.length ? `<div class="mt-act"><button type="button" onclick="mtCalerRythme()">♫ Caler chaque coupe sur le rythme</button></div>` : ''}
+      ${AN.beats && AN.beats.length ? `<div class="mt-act"><button type="button" onclick="mtCalerRythme()">${agIcon('music', 13)} Caler chaque coupe sur le rythme</button></div>` : ''}
       <label>Force des mouvements</label><input type="range" min="0.3" max="2.5" step="0.1" value="${anVid().force || 1}" oninput="anVid().force=Number(this.value);anApercuUneFois()">
       <div class="ag-hint">Touche un plan pour régler sa durée et son mouvement, ou le petit signe entre deux plans pour la transition. Reste appuyé sur un plan puis glisse pour changer l'ordre.</div></div>`;
   }
@@ -334,6 +336,7 @@ function mtInner(){
 }
 window.mtChoisir = function(t, n){ MT.sel = t ? { t, n } : null; if(t === 'c'){ const sg = anPlan().segs[n]; if(sg){ anStop(); AN.t = Math.min(sg.t1 - 0.05, sg.t0 + 0.05); } } mtMaj(); };
 window.mtDureePlan = function(v){ const n = MT.sel && MT.sel.n; if(n == null) return; if(!mtEstManuel() || !MT.glisseDuree){ mtAvant(); MT.glisseDuree = true; } anVid().clips[n].d = Number(v); const el = document.getElementById('mtDTxt'); if(el) el.textContent = Number(v).toFixed(1).replace('.', ',') + ' s'; AN.plan = anPlan(); anApercuUneFois(); clearTimeout(mtDureePlan.t); mtDureePlan.t = setTimeout(() => { MT.glisseDuree = false; }, 800); };
+window.mtAvantPublic = function(){ mtAvant(); };
 window.mtFiltre = function(k){ mtAvant(); anVid().clips[MT.sel.n].filtre = k || null; mtMaj(); };
 window.mtMvt = function(k){ mtAvant(); anVid().clips[MT.sel.n].mvt = k; mtMaj(); };
 window.mtTr = function(k){ mtAvant(); const c = anVid().clips[MT.sel.n]; c.tr = k; if(!c.trD) c.trD = 0.6; mtMaj(); mtVoirTr(); };
@@ -359,7 +362,9 @@ window.mtCouper = function(){
   a = Math.round(a * 100) / 100;
   if(c.d < 0.5){ agToast('Ce plan est trop court pour être coupé', 'info'); MT.undo.pop(); return; }
   const suite = MT_MVTS.map(x => x[0]), autre = suite[(suite.indexOf(c.mvt) + 1) % (suite.length - 1)];
-  L.splice(n + 1, 0, Object.assign({}, c, { d: Math.round((c.d - a) * 100) / 100, mvt: autre }));
+  const ph = CR.photos[sg.i] || {}, vin0 = ph.video ? (c.vin != null ? c.vin : (typeof rvVinAuto === 'function' ? rvVinAuto(sg) : 0)) : null;
+  if(ph.video) c.vin = vin0;
+  L.splice(n + 1, 0, Object.assign({}, c, { d: Math.round((c.d - a) * 100) / 100, mvt: ph.video ? c.mvt : autre }, ph.video ? { vin: Math.round((vin0 + a * (c.vit || 1)) * 100) / 100 } : {}));
   c.d = a; c.tr = 'coupe';
   agToast('Plan coupé en deux'); MT.sel = { t: 'c', n: n + 1 }; mtMaj();
 };
@@ -507,7 +512,7 @@ crChoisirModele = function(k){ if(CR.vue === 'accueil' && typeof AN !== 'undefin
 .mt-piste{position:relative;display:flex;align-items:stretch;gap:0;min-width:max-content;padding:4px 2px;touch-action:pan-x}
 .mt-clip{position:relative;flex:none;height:64px;margin:0;padding:0;border-radius:9px;overflow:hidden;border:2px solid transparent;background:var(--card2);cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:transform .12s}
 .mt-clip img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
-.mt-clip b{position:absolute;left:4px;bottom:3px;font-size:10px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);font-weight:600}
+.mt-clip b{display:flex;align-items:center;gap:3px;position:absolute;left:4px;bottom:3px;font-size:10px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);font-weight:600}
 .mt-clip i{position:absolute;right:4px;top:3px;font-style:normal;font-size:9px;color:#fff;background:rgba(0,0,0,.5);border-radius:5px;padding:1px 4px}
 .mt-clip.on{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 35%,transparent)}
 .mt-clip.drag{z-index:5;opacity:.85;box-shadow:0 10px 24px rgba(0,0,0,.45);transition:none}
@@ -523,7 +528,7 @@ crChoisirModele = function(k){ if(CR.vue === 'accueil' && typeof AN !== 'undefin
 .mt-pan label{display:block;margin:8px 0 4px;font-size:12px;color:var(--muted)}
 .mt-pills{flex-wrap:wrap}.mt-pills button{width:auto;font-size:12px;padding:6px 10px}
 .mt-act{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-.mt-act button{width:auto;margin:0;padding:7px 11px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12.5px;cursor:pointer}
+.mt-act button{display:inline-flex;align-items:center;gap:5px;width:auto;margin:0;padding:7px 11px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12.5px;cursor:pointer}
 .mt-act button:disabled{opacity:.4;cursor:default}.mt-act button.no{color:#e5484d}
 .mt-rps{display:flex;flex-wrap:wrap;gap:6px}
 .mt-rp{width:56px;height:56px;margin:0;padding:0;border-radius:8px;overflow:hidden;border:1px solid var(--border);cursor:pointer}

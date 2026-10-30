@@ -293,7 +293,7 @@ function anVueEdit(){
     <div class="cr-edit">
       <div class="cr-prev-zone">
         <div class="cr-prev" style="aspect-ratio:${F.w}/${F.h};max-width:min(100%,calc(62vh * ${F.w} / ${F.h}));margin-left:auto;margin-right:auto"><canvas id="anCanvas" width="${F.w}" height="${F.h}"></canvas></div>
-        <div class="an-lect"><button type="button" class="an-play" onclick="anLecture()" id="anPlay">${AN.lecture ? '❚❚' : '▶'}</button>
+        <div class="an-lect"><button type="button" class="an-play" onclick="anLecture()" id="anPlay">${agIcon(AN.lecture ? 'pause' : 'play', 20)}</button>
           <input type="range" id="anScrub" min="0" max="${plan.D}" step="0.05" value="${AN.t}" oninput="anAller(this.value)"><span id="anTemps">0,0 / ${plan.D.toFixed(0)} s</span></div>
         <div class="cr-fmtnom">${crE(M.nom)} · ${CR.photos.length} photos · ${parPhoto}</div>
       </div>
@@ -308,13 +308,13 @@ function anVueEdit(){
           ${AN.busy ? `<div class="an-prog"><i style="width:${Math.round(AN.progres * 100)}%"></i></div><div class="ag-hint">Garde l'écran allumé et l'app ouverte pendant la création. Chaque image est fabriquée une par une : la vidéo sera parfaitement fluide.</div><button class="st-link" onclick="AN.annuler=true">Annuler</button>` : ''}
         </details>
         <details class="cr-bloc" open><summary>Musique</summary>
-          ${V.musique ? `<div class="an-mus"><b>♪ ${crE(V.musique.nom)}</b><small>${Math.round(V.musique.duree)} s</small><button class="st-link" onclick="anRetirerMusique()">Retirer</button></div>
+          ${V.musique ? `<div class="an-mus"><b>${agIcon('music', 14)} ${crE(V.musique.nom)}</b><small>${Math.round(V.musique.duree)} s</small><button class="st-link" onclick="anRetirerMusique()">Retirer</button></div>
             <canvas id="anOnde" class="an-onde"></canvas>
             <label>Début de l'extrait : <b id="anDebutTxt">${anMinSec(V.debut)}</b></label><input type="range" min="0" max="${Math.max(0, V.musique.duree - V.duree).toFixed(1)}" step="0.1" value="${V.debut}" oninput="anDebut(this.value)">
             <label>Volume</label><input type="range" min="0.1" max="1" step="0.05" value="${V.volume}" oninput="anVid().volume=Number(this.value);if(AN.audio)AN.audio.volume=Number(this.value)">
             <label class="ag-check"><input type="checkbox" ${V.fondu ? 'checked' : ''} onchange="anVid().fondu=this.checked"> Fondu au début et à la fin</label>
             <label class="ag-check"><input type="checkbox" ${V.sync ? 'checked' : ''} onchange="anSet('sync',this.checked)"> Caler les photos sur le rythme (${AN.beats.length} temps forts trouvés)</label>`
-            : `<button class="btn-secondary" style="width:100%;margin:4px 0" onclick="document.getElementById('anMusFile').click()">♪ Choisir une musique sur mon téléphone</button>
+            : `<button class="btn-secondary" style="width:100%;margin:4px 0" onclick="document.getElementById('anMusFile').click()">${agIcon('music', 16)} Choisir une musique sur mon téléphone</button>
               <div class="ag-hint">N'importe quelle musique (MP3, M4A...). Tu choisis ensuite le passage. Sur Facebook, une musique connue peut être coupée pour les droits : pour TikTok et Reels, tu peux aussi ajouter le son directement dans l'app.</div>`}
           <input type="file" id="anMusFile" accept="audio/*" style="display:none" onchange="anChoisirMusique(this.files)">
         </details>
@@ -387,7 +387,7 @@ function anLecture(){
   AN.debutLecture = performance.now() - AN.t * 1000;
   const V = anVid();
   if(AN.audio){ AN.audio.currentTime = V.debut + AN.t; AN.audio.volume = V.volume; AN.audio.play().catch(() => {}); }
-  const b = document.getElementById('anPlay'); if(b) b.textContent = '❚❚';
+  const b = document.getElementById('anPlay'); if(b) b.innerHTML = agIcon('pause', 20);
   const tour = () => {
     if(!AN.lecture) return;
     AN.t = (performance.now() - AN.debutLecture) / 1000;
@@ -400,7 +400,7 @@ function anLecture(){
 function anStop(){
   AN.lecture = false; cancelAnimationFrame(AN.raf);
   if(AN.audio) AN.audio.pause();
-  const b = document.getElementById('anPlay'); if(b) b.textContent = '▶';
+  const b = document.getElementById('anPlay'); if(b) b.innerHTML = agIcon('play', 20);
 }
 function anAller(v){
   AN.t = Number(v);
@@ -512,6 +512,7 @@ async function anVideoImageParImage(){
   for(let i = 0; i < n; i++){
     if(erreur) throw erreur;
     if(AN.annuler) throw new Error('annulé');
+    if(typeof rvPreparer === 'function') await rvPreparer(i / fps, plan);
     anImage(g, w, h, s, i / fps, AN_IMGS, plan, AN_LOGO);
     const fr = new VideoFrame(cv, { timestamp: i * dur, duration: dur });
     venc.encode(fr, { keyFrame: i % (fps * 2) === 0 }); fr.close();
@@ -595,6 +596,7 @@ async function anGif(){
   const g = cv.getContext('2d', { willReadFrequently: true }), s = Math.min(d.w, d.h) / 1080;
   const fps = q[3], n = Math.ceil(plan.D * fps), gif = GIFEncoder();
   for(let i = 0; i < n; i++){
+    if(typeof rvPreparer === 'function') await rvPreparer(i / fps, plan);
     anImage(g, d.w, d.h, s, i / fps, AN_IMGS, plan, AN_LOGO);
     const data = g.getImageData(0, 0, d.w, d.h).data;
     const pal = quantize(data, 256, { format: 'rgb565' });
@@ -642,7 +644,7 @@ function anMini(){
   const st = document.createElement('style'); st.id = 'anCss';
   st.textContent = `
 .an-lect{display:flex;align-items:center;gap:10px;margin-top:10px}
-.an-play{width:44px;height:44px;flex:none;margin:0;padding:0;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:16px;cursor:pointer}
+.an-play{display:flex;align-items:center;justify-content:center;width:44px;height:44px;flex:none;margin:0;padding:0;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:16px;cursor:pointer}
 .an-lect input{flex:1;margin:0;padding:0}
 .an-lect span{font-size:12px;color:var(--muted);white-space:nowrap;min-width:70px;text-align:right}
 .an-mus{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:var(--card2);margin-bottom:8px}

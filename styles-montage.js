@@ -189,13 +189,13 @@ window.mtsRemplir = function(v){ anVid().remplir = v === 'tout'; if(anVid().styl
 function mtsHtml(){
   const V = anVid(), A = AN.buffer ? mtsAnalyse() : null;
   const pills = (list, val, fn) => `<div class="ag-pills mt-pills">${list.map(([k, l]) => `<button type="button" class="${val === k ? 'on' : ''}" onclick="${fn}('${k}')">${crE(l)}</button>`).join('')}</div>`;
-  return `<div class="mts-tete"><b>Montage automatique</b><span>${A ? `♫ ${A.bpm} BPM · coupes sur le rythme` : 'Ajoute une musique pour caler sur le rythme'}</span></div>
+  return `<div class="mts-tete"><b>Montage automatique</b><span>${A ? `${agIcon('music', 12)} ${A.bpm} BPM · coupes sur le rythme` : 'Ajoute une musique pour caler sur le rythme'}</span></div>
     <div class="mts-liste">${MTS_STYLES.map(s => `<button type="button" class="mts-c ${V.style === s.id ? 'on' : ''}" onclick="mtsAppliquer('${s.id}')"><span class="mts-f" style="background:${s.fond}"></span><b>${crE(s.nom)}</b><small>${crE(s.desc)}</small></button>`).join('')}</div>
     <div class="mts-opts">
       <div><label>Rythme</label>${pills([['lent', 'Lent'], ['normal', 'Normal'], ['rapide', 'Rapide']], V.rythme || 'normal', 'mtsRythme')}</div>
       <div><label>Durée</label>${pills([['photos', 'Chaque photo une fois'], ['tout', AN.buffer ? 'Toute la musique' : 'Toute la durée']], V.remplir ? 'tout' : 'photos', 'mtsRemplir')}</div>
     </div>
-    ${V.style ? `<div class="mt-act"><button type="button" onclick="mtsAutreVersion()">🎲 Autre version</button>${mtsIntact() ? '' : '<span class="mts-retouche">retouché à la main</span>'}</div>` : ''}`;
+    ${V.style ? `<div class="mt-act"><button type="button" onclick="mtsAutreVersion()">${agIcon('dice', 13)} Autre version</button>${mtsIntact() ? '' : '<span class="mts-retouche">retouché à la main</span>'}</div>` : ''}`;
 }
 window.mtsMaj = function(){ const z = document.getElementById('mtsZone'); if(z) z.innerHTML = mtsHtml(); };
 const anVueEditS = anVueEdit;

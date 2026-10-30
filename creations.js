@@ -148,7 +148,7 @@ function crVueAccueil(){
         <div class="cr-st-d"><b>${crE(s.nom || 'Mon style')}</b><small>${crE((crModele(s.modele) || {}).nom || '')}</small>
         <div class="cr-st-b"><button onclick="crAppliquerStyle(${s.id})">Refaire avec d'autres photos</button><button class="no" onclick="crSupprimer(${s.id})">Supprimer</button></div></div></div>`).join('')}</div>`
       : '<div class="ag-hint">Quand une création te plaît, touche "Garder ce style" : tu pourras le refaire en un clic sur d\'autres photos.</div>'}
-    ${CR.recents.length ? `<div class="cr-sec">Mes dernières créations <i>${CR.recents.length}</i></div><div class="cr-recents">${CR.recents.map(r => `<div class="cr-rec-c"><button class="cr-rec" title="${crE(r.nom || '')}" onclick="crRouvrir(${r.id})">${r.apercu ? `<img src="${crE(r.apercu)}" alt="">` : crMini(r.modele)}${/^v-/.test(r.modele || '') ? '<em>▶</em>' : ''}</button>
+    ${CR.recents.length ? `<div class="cr-sec">Mes dernières créations <i>${CR.recents.length}</i></div><div class="cr-recents">${CR.recents.map(r => `<div class="cr-rec-c"><button class="cr-rec" title="${crE(r.nom || '')}" onclick="crRouvrir(${r.id})">${r.apercu ? `<img src="${crE(r.apercu)}" alt="">` : crMini(r.modele)}${/^v-/.test(r.modele || '') ? '<em>' + agIcon('play', 9) + '</em>' : ''}</button>
         <small>${crE(r.nom || (crModele(r.modele) || {}).nom || '')}</small><div class="cr-rec-b"><button onclick="crRouvrir(${r.id})">Modifier</button><button class="no" onclick="crSupprimerCreation(${r.id})" aria-label="Supprimer">${agIcon('trash', 14)}</button></div></div>`).join('')}</div>` : ''}`;
 }
 // Petit dessin du modèle (pour les cartes)
@@ -268,7 +268,16 @@ function crRetirer(i){ CR.remplace = null;  CR.photos.splice(i, 1); CR.crop.spli
 function crFichiers(files){
   const M = crModele();
   [...(files || [])].forEach(f => {
-    if(!/^image\//.test(f.type)) return;
+    const estVideo = /^video\//.test(f.type);
+    if(estVideo && !(typeof anEst === 'function' && anEst(CR.modele))){ agToast('Les vidéos vont dans les modèles vidéo (Diaporama, Rythmé...)', 'info'); return; }
+    if(!/^image\//.test(f.type) && !estVideo) return;
+    if(estVideo){
+      if(CR.remplace == null && CR.photos.length >= M.max) return;
+      const vu = URL.createObjectURL(f), pv = { k: 'v:' + f.name + f.size + Math.random(), src: 'fichier', file: f, url: vu, thumb: '', video: true };
+      if(typeof rvNouveau === 'function') rvNouveau(pv);
+      if(crFaireRemplace(pv)) return;
+      CR.photos.push(pv); CR.crop.push({ x: 0, y: 0, z: 1 }); return;
+    }
     if(CR.remplace == null && CR.photos.length >= M.max){ if(M.max === 1){ CR.photos = []; CR.crop = []; } else return; }
     const url = URL.createObjectURL(f);
     if(crFaireRemplace({ k: 'f:' + f.name + f.size + Math.random(), src: 'fichier', file: f, url, thumb: url })) return;
@@ -283,6 +292,7 @@ function crFichiers(files){
 const CR_IMG = {};
 async function crImage(p){
   if(!p) return null;
+  if(p.video && typeof rvImage === 'function') return rvImage(p);
   if(CR_IMG[p.k]) return CR_IMG[p.k];
   let blob;
   if(p.file) blob = p.file;

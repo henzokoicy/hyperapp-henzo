@@ -220,11 +220,11 @@ function txHtml(){
         <input type="color" value="${E(x.couleur || '#ffffff')}" oninput="txSet(${i},'couleur',this.value)" title="Couleur du texte">
         <label class="ag-check"><input type="checkbox" ${x.fond ? 'checked' : ''} onchange="txSet(${i},'fond',this.checked)"> Bandeau</label>
         <label class="ag-check"><input type="checkbox" ${x.maj ? 'checked' : ''} onchange="txSet(${i},'maj',this.checked)"> MAJUSCULES</label></div>
-      <div class="mt-act"><button type="button" onclick="txIci(${i},'de')">Apparaît ici</button><button type="button" onclick="txIci(${i},'a')">Disparaît ici</button><button type="button" onclick="txVoir(${i})">▶ Voir</button></div>
+      <div class="mt-act"><button type="button" onclick="txIci(${i},'de')">Apparaît ici</button><button type="button" onclick="txIci(${i},'a')">Disparaît ici</button><button type="button" onclick="txVoir(${i})">${agIcon('play', 12)} Voir</button></div>
     </div>`).join('')}
     <div class="mt-act"><button type="button" class="on" onclick="txAjouter()">+ Ajouter un texte ici (${fmtS(Math.min(AN.t, D))})</button>
-      <button type="button" onclick="vpCorriger()" ${VP.busy ? 'disabled' : ''}>${VP.busy === 'corr' ? 'Correction...' : '✓ Corriger l\'orthographe'}</button>
-      <button type="button" onclick="vpIdees()" ${VP.busy ? 'disabled' : ''}>${VP.busy === 'idees' ? 'Recherche...' : '💡 Idées de textes'}</button></div>
+      <button type="button" onclick="vpCorriger()" ${VP.busy ? 'disabled' : ''}>${VP.busy === 'corr' ? 'Correction...' : agIcon('edit', 13) + ' Corriger l\'orthographe'}</button>
+      <button type="button" onclick="vpIdees()" ${VP.busy ? 'disabled' : ''}>${VP.busy === 'idees' ? 'Recherche...' : agIcon('bulb', 13) + ' Idées de textes'}</button></div>
     <div id="vpIdees">${vpIdeesHtml()}</div>`;
 }
 window.txRendu = function(){ const z = document.getElementById('txZone'); if(z) z.innerHTML = txHtml(); };
@@ -391,7 +391,7 @@ function gfHtml(){
       ${mod === 'merci' ? champ('noms', 'Les noms', 'Awa & Yao') : ''}
       ${['profil', 'reseaux'].includes(mod) ? champ('reseaux', 'Mes réseaux (un par ligne)', 'Instagram @henzo.photographie\nFacebook Henzo Photographie\nTikTok @henzo', true) : ''}
       ${['reseaux', 'merci'].includes(mod) ? `<label>Police du grand mot</label><div class="ag-pills mt-pills">${Object.entries(CR_POLICES_CREA).filter(([k, x]) => x.f).map(([k, x]) => `<button type="button" class="${(f.police || 'pinceau') === k ? 'on' : ''}" onclick="gfSet('police','${k}',1)">${E(x.nom)}</button>`).join('')}</div>` : ''}
-      <div class="mt-act"><button type="button" onclick="gfVoir()">▶ Voir le générique</button></div>` : ''}`;
+      <div class="mt-act"><button type="button" onclick="gfVoir()">${agIcon('play', 12)} Voir le générique</button></div>` : ''}`;
 }
 window.gfSet = function(k, v, rendu){ gfCfg(true)[k] = v; if(rendu){ const z = document.getElementById('gfZone'); if(z){ z.innerHTML = gfHtml(); if(typeof mkHydrate === 'function') mkHydrate(z); } if(k === 'police') anPreparer(false).then(gfVoir); else gfVoir(); } else anApercuUneFois(); };
 window.gfVoir = function(){ const p = anPlan(); AN.plan = p; anStop(); AN.t = Math.min(p.D - 0.05, p.Dp + Math.min(1.2, p.finD * 0.6)); anApercuUneFois(); };

@@ -1000,6 +1000,11 @@ if(typeof openRevenueModal === 'function'){
 // DESIGN : icones fines, themes au choix, barre laterale (PC)
 // ============================================================
 const AG_ICONS = {
+  play: '<path d="M7 4.5v15l12.5-7.5z" fill="currentColor" stroke="none"/>',
+  pause: '<path d="M7 4.5h3.5v15H7zM13.5 4.5H17v15h-3.5z" fill="currentColor" stroke="none"/>',
+  scissors: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/>',
+  music: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  dice: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="16" cy="16" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>',
   home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
   wallet: '<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18M16 15h2"/>',
   camera: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
@@ -1481,7 +1486,7 @@ agSetupInstall();
 // Galerie clients integree (fichier galerie.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=7'; document.body.appendChild(sc); })();
 // Clients, relances, promos et tarifs (fichier crm.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=23'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=24'; document.body.appendChild(sc); })();
 // Moodboard : idees de seance (fichier mood.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'mood.js?v=4'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'marketing.js?v=6'; document.body.appendChild(sc); })();
@@ -1498,7 +1503,7 @@ agSetupInstall();
 // Frais des opérateurs (Wave, Orange Money, MTN, Moov...) (fichier frais.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'frais.js?v=1'; document.body.appendChild(sc); })();
 // Créations : affiches, stories, mosaïques, cadres, carrousels (fichier creations.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'creations.js?v=6'; sc.onload = () => { const a = document.createElement('script'); a.src = 'animations.js?v=5'; a.onload = () => { const b = document.createElement('script'); b.src = 'montage.js?v=3'; b.onload = () => { const c = document.createElement('script'); c.src = 'styles-montage.js?v=3'; c.onload = () => { const d = document.createElement('script'); d.src = 'video-plus.js?v=1'; d.onload = () => { const e = document.createElement('script'); e.src = 'crea-brouillons.js?v=2'; document.body.appendChild(e); }; document.body.appendChild(d); }; document.body.appendChild(c); }; document.body.appendChild(b); }; document.body.appendChild(a); }; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'creations.js?v=7'; sc.onload = () => { const a = document.createElement('script'); a.src = 'animations.js?v=6'; a.onload = () => { const b = document.createElement('script'); b.src = 'montage.js?v=4'; b.onload = () => { const c = document.createElement('script'); c.src = 'styles-montage.js?v=4'; c.onload = () => { const d = document.createElement('script'); d.src = 'video-plus.js?v=2'; d.onload = () => { const e = document.createElement('script'); e.src = 'rushs.js?v=1'; e.onload = () => { const f = document.createElement('script'); f.src = 'crea-brouillons.js?v=3'; document.body.appendChild(f); }; document.body.appendChild(e); }; document.body.appendChild(d); }; document.body.appendChild(c); }; document.body.appendChild(b); }; document.body.appendChild(a); }; document.body.appendChild(sc); })();
 
 (function agDesignInit(){
   document.body.classList.add('ag-ui');
