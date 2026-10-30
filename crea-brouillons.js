@@ -92,7 +92,7 @@ async function brGarder(force){
 // Petit signe "Gardé" en haut de l'éditeur
 function brMarque(){
   let el = document.getElementById('brMarque');
-  const zone = document.querySelector('#crBody .ag-back'); if(!zone) return;
+  const zone = document.querySelector('.ed-g .ag-back') || document.querySelector('#crBody .ag-back'); if(!zone) return;
   if(!el){ el = document.createElement('span'); el.id = 'brMarque'; el.className = 'br-marque'; zone.insertAdjacentElement('afterend', el); }
   el.textContent = '✓ Brouillon gardé'; el.classList.remove('vu'); void el.offsetWidth; el.classList.add('vu');
 }

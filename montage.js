@@ -272,6 +272,7 @@ function mtAvant(){ mtSnap(); mtManuel(); }
 function mtMaj(images){
   const z = document.getElementById('mtZone'); if(z){ z.innerHTML = mtInner(); if(typeof mkHydrate === 'function') mkHydrate(z); mtBrancher(); }
   if(typeof window.mtsMaj === 'function') window.mtsMaj();
+  if(typeof window.edApresMt === 'function') window.edApresMt();
   const plan = anPlan(); AN.plan = plan;
   const sc = document.getElementById('anScrub'); if(sc) sc.max = plan.D;
   const dt = document.getElementById('anDureeTxt'); if(dt) dt.textContent = anMinSec(plan.D);
@@ -376,7 +377,7 @@ window.mtRemplacer = function(){
   const h = `<div class="mt-pan"><div class="mt-pan-t"><b>Remplacer la photo du plan ${n + 1}</b><button class="st-link" onclick="mtMaj()">Annuler</button></div>
     ${autres ? `<label>Une de tes photos du montage</label><div class="mt-rps">${autres}</div>` : ''}
     <div class="mt-act"><button type="button" onclick="document.getElementById('mtFile').click()">Une autre photo de mon téléphone</button></div></div>`;
-  const pan = document.querySelector('#mtZone .mt-pan'); if(pan){ pan.outerHTML = h; if(typeof mkHydrate === 'function') mkHydrate(document.getElementById('mtZone')); }
+  const pan = document.querySelector('.mt-pan'); if(pan){ const hote = pan.parentElement; pan.outerHTML = h; if(typeof mkHydrate === 'function') mkHydrate(hote); }
 };
 window.mtRemplacerPar = function(k){ mtAvant(); anVid().clips[MT.sel.n].k = k; mtNettoyer(); mtMaj(true); };
 window.mtFichierRemplace = function(files){

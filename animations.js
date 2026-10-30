@@ -611,7 +611,7 @@ async function anGif(){
 function anNomFichier(){ return (typeof mkSlug === 'function' ? mkSlug(CR.cfg.titre || anModele(CR.modele).nom) : 'video'); }
 function anMajProgres(){
   const b = document.querySelector('.an-prog i'); if(b) b.style.width = Math.round(AN.progres * 100) + '%';
-  const bt = document.querySelector('.cr-panneau .btn-primary'); if(bt && AN.busy) bt.textContent = anProgresTxt();
+  const bt = document.querySelector('.cr-panneau .btn-primary') || document.querySelector('.ed-p[data-o="export"] .btn-primary'); if(bt && AN.busy) bt.textContent = anProgresTxt();
 }
 async function anExporter(mode){
   if(AN.busy) return;
