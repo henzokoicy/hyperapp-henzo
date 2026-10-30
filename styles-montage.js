@@ -108,7 +108,7 @@ window.mtsAppliquer = function(id, silencieux){
   const r = mtsHasard(V.styleGraine + id.length * 17);
   const mult = V.rythme === 'lent' ? 2 : V.rythme === 'rapide' ? 0.5 : 1;
   const A = AN.buffer ? mtsAnalyse() : null;
-  const finD = V.fin ? 2.4 : 0;
+  const finD = anFinD();
   // Les photos dans l'ordre ; "toute la musique" : on les répète pour tout remplir
   const maxD = A ? Math.min(180, A.duree) - finD : 180;
   const ks = CR.photos.map(p => p.k);

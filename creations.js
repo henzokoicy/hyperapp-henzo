@@ -1181,7 +1181,7 @@ async function crImages(){
   return out;
 }
 function crApercuMini(){
-  const cv = document.getElementById('crCanvas'); if(!cv) return null;
+  const cv = document.getElementById('crCanvas') || document.getElementById('anCanvas'); if(!cv) return null;
   const k = 260 / Math.max(cv.width, cv.height);
   const c = document.createElement('canvas'); c.width = Math.round(cv.width * k); c.height = Math.round(cv.height * k);
   c.getContext('2d').drawImage(cv, 0, 0, c.width, c.height);

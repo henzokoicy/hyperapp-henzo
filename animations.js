@@ -27,6 +27,8 @@ const AN_QUAL = [
 const AN_GIF = [['petit', 'Petit', 360, 10], ['normal', 'Normal', 540, 12], ['grand', 'Grand', 720, 12]];
 const AN = { vid: null, lecture: false, t: 0, raf: 0, debutLecture: 0, audio: null, buffer: null, beats: [], busy: '', progres: 0, plan: null };
 
+// Durée de la carte de fin (réglable dans Générique de fin)
+function anFinD(){ const V = anVid(); return V.fin ? Math.max(1.2, Math.min(8, Number(V.finDuree) || 2.4)) : 0; }
 function anEst(k){ return /^v-/.test(k || ''); }
 function anModele(k){ const m = CR_VIDEOS.find(x => x[0] === k); return m ? { k: m[0], nom: m[1], desc: m[2], min: m[3], max: m[4], fmts: m[5] } : null; }
 function anVid(){
@@ -39,7 +41,7 @@ const anEaseIO = u => { u = Math.max(0, Math.min(1, u)); return u < .5 ? 4 * u *
 // ---------- Le plan : quelle photo à quel moment ----------
 function anPlan(){
   const V = anVid(), n = CR.photos.length, M = anModele(CR.modele);
-  const finD = V.fin ? 2.4 : 0, D = Math.max(3, V.duree), Dp = Math.max(1, D - finD);
+  const finD = anFinD(), D = Math.max(3, V.duree), Dp = Math.max(1, D - finD);
   let cuts = [];
   const beats = V.sync && AN.beats.length ? AN.beats.filter(b => b > 0.3 && b < Dp - 0.3) : [];
   if(M.k === 'v-dyn'){
@@ -96,6 +98,7 @@ function anMotSync(g, W, H, s, txt, o){
 }
 function anImage(g, W, H, s, t, imgs, plan, logo){
   const c = CR.cfg, M = anModele(CR.modele), P = crPolices(), V = anVid();
+  AN.tCourant = t;
   g.save(); g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.restore();
   const tt = Math.min(t, plan.Dp);
   if(typeof mtEstSeq === 'function' && mtEstSeq(M.k) && plan.mt){
@@ -197,8 +200,11 @@ function anImage(g, W, H, s, t, imgs, plan, logo){
   }
   // Effets (grain, lumière, vignette, effet perso)
   anEffetsSync(g, W, H, s, t);
-  // Carte de fin : logo, appel, contact
-  if(plan.finD && t > plan.Dp - 0.3){
+  // Textes animés (video-plus.js)
+  if(typeof txDessiner === 'function') txDessiner(g, W, H, s, t, plan);
+  // Carte de fin : générique choisi (video-plus.js), sinon logo, appel, contact
+  if(plan.finD && t > plan.Dp - 0.3 && typeof gfDessiner === 'function' && gfDessiner(g, W, H, s, t, plan, imgs, logo)){}
+  else if(plan.finD && t > plan.Dp - 0.3){
     const a = anEase((t - (plan.Dp - 0.3)) / 0.6);
     g.save(); g.globalAlpha = a; g.fillStyle = c.fond || '#000'; g.fillRect(0, 0, W, H);
     const coul = crLisible(c.fond || '#000');
@@ -211,15 +217,19 @@ function anImage(g, W, H, s, t, imgs, plan, logo){
     if(c.contact) crTexte(g, c.contact, { fam: P.x, poids: 500, px: 32 * s, x: 60 * s, maxW: W - 120 * s, y, couleur: coul, align: 'centre', maxL: 2 });
     g.restore();
   }
+  // Image de couverture en toute première image (video-plus.js)
+  if(typeof cvPremiere === 'function') cvPremiere(g, W, H, s, t);
 }
 // Effets sans attente (l'image de l'effet perso est chargée avant)
 function anEffetsSync(g, W, H, s, t){
-  const e = (CR.cfg && CR.cfg.effets) || {};
+  let e = (CR.cfg && CR.cfg.effets) || {};
+  if(typeof fxDansLeTemps === 'function') e = fxDansLeTemps(e, t);
   const im = e.perso && e.perso.path ? CR_FX_IMG[e.perso.path] : null;
   if(im){ const k = Math.max(W / im.width, H / im.height), dw = im.width * k, dh = im.height * k;
     g.save(); g.globalAlpha = e.persoOpac == null ? 0.6 : e.persoOpac; g.globalCompositeOperation = e.persoBlend || 'screen'; g.drawImage(im, (W - dw) / 2, (H - dh) / 2, dw, dh); g.restore(); }
   const c2 = Object.assign({}, CR.cfg, { effets: Object.assign({}, e, { perso: null }) });
   crEffetsApres(g, W, H, s, c2, t);   // sans image perso : rien n'est attendu
+  if(typeof fxPlus === 'function') fxPlus(g, W, H, s, t, e);
 }
 
 // ---------- Musique ----------
@@ -335,7 +345,7 @@ function anSetFps(v){ anVid().fps = Number(v); crRender(); }
 function anSetParPage(v){ anVid().parPage = Number(v); anApercuUneFois(); crRender(); }
 function anDureeAuto(k){
   const V = anVid(), M = anModele(CR.modele);
-  let d = typeof k === 'number' ? k : k === 'musique' && V.musique ? Math.floor(V.musique.duree - V.debut) : Math.round(CR.photos.length * (M.k === 'v-dyn' ? 0.6 : 2.5) + (V.fin ? 2.4 : 0));
+  let d = typeof k === 'number' ? k : k === 'musique' && V.musique ? Math.floor(V.musique.duree - V.debut) : Math.round(CR.photos.length * (M.k === 'v-dyn' ? 0.6 : 2.5) + anFinD());
   d = Math.max(4, Math.min(180, d));
   if(V.musique && d > V.musique.duree) d = Math.max(4, Math.floor(V.musique.duree));
   anDuree(d); const r = document.getElementById('anDureeR'); if(r) r.value = d;

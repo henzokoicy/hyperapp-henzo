@@ -71,8 +71,8 @@ function mtPlanManuel(){
   const pris = new Set(V.clips.map(c => c.k));
   CR.photos.forEach(p => { if(!pris.has(p.k)){ V.clips.push(Object.assign({ k: p.k, d: 2.5 }, mtPreset(CR.modele, V.clips.length))); pris.add(p.k); } });
   let t = 0;
-  const segs = V.clips.map((c, n) => { const sg = { i: idx[c.k], k: c.k, t0: t, t1: t + c.d, mvt: c.mvt, tr: c.tr, trD: c.trD, n }; t += c.d; return sg; });
-  const finD = V.fin ? 2.4 : 0, Dp = Math.max(0.5, t), D = Dp + finD;
+  const segs = V.clips.map((c, n) => { const sg = { i: idx[c.k], k: c.k, t0: t, t1: t + c.d, mvt: c.mvt, tr: c.tr, trD: c.trD, filtre: c.filtre || null, n }; t += c.d; return sg; });
+  const finD = anFinD(), Dp = Math.max(0.5, t), D = Dp + finD;
   V.duree = Math.round(D * 10) / 10;
   return { D, Dp, finD, segs, n: CR.photos.length, mt: true, manuel: true };
 }
@@ -146,7 +146,9 @@ window.mtDessiner = function(g, W, H, s, tt, imgs, plan){
   const vue = (seg, segPv, segNx, cible) => {
     const a = mtDuree(segPv, seg) / 2, b = mtDuree(seg, segNx) / 2;
     const u = (tt - (seg.t0 - a)) / Math.max(0.1, (seg.t1 + b) - (seg.t0 - a));
+    window.mtFiltrePlan = seg.filtre || null;
     mtPlanDessin(cible, imgs[seg.i], W, H, s, seg.mvt, Math.max(0, Math.min(1, u)), tt - seg.t0, seg.n, tt);
+    window.mtFiltrePlan = null;
   };
   let A = null, B = null, p = 0, tr = null;
   if(nx && dOut > 0 && tt > sg.t1 - dOut / 2){ A = [sg, pv, nx]; B = [nx, sg, segs[k + 2]]; p = (tt - (sg.t1 - dOut / 2)) / dOut; tr = sg.tr; }
@@ -299,6 +301,7 @@ function mtInner(){
     panneau = `<div class="mt-pan"><div class="mt-pan-t"><b>Plan ${sel.n + 1}</b><span>photo ${sg.i + 1} · de ${anMinSec(sg.t0)} à ${anMinSec(sg.t1)}</span><button class="st-link" onclick="mtChoisir(null)">Fermer</button></div>
       <label>Durée : <b id="mtDTxt">${d.toFixed(1).replace('.', ',')} s</b></label><input type="range" min="0.2" max="12" step="0.1" value="${d.toFixed(1)}" oninput="mtDureePlan(this.value)" onchange="mtMaj()">
       <label>Mouvement de caméra</label>${pills(MT_MVTS, sg.mvt, 'mtMvt')}
+      <label>Couleur de ce plan</label>${pills([['', 'Comme la vidéo']].concat(Object.keys(CR_FILTRES).filter(k => k !== 'aucun').map(k => [k, CR_FILTRES[k][0]])).concat([['aucun', 'Sans filtre']]), sg.filtre || '', 'mtFiltre')}
       <div class="mt-act">
         <button type="button" onclick="mtBouger(-1)" ${sel.n === 0 ? 'disabled' : ''}>‹ Avant</button>
         <button type="button" onclick="mtBouger(1)" ${sel.n >= segs.length - 1 ? 'disabled' : ''}>Après ›</button>
@@ -331,6 +334,7 @@ function mtInner(){
 }
 window.mtChoisir = function(t, n){ MT.sel = t ? { t, n } : null; if(t === 'c'){ const sg = anPlan().segs[n]; if(sg){ anStop(); AN.t = Math.min(sg.t1 - 0.05, sg.t0 + 0.05); } } mtMaj(); };
 window.mtDureePlan = function(v){ const n = MT.sel && MT.sel.n; if(n == null) return; if(!mtEstManuel() || !MT.glisseDuree){ mtAvant(); MT.glisseDuree = true; } anVid().clips[n].d = Number(v); const el = document.getElementById('mtDTxt'); if(el) el.textContent = Number(v).toFixed(1).replace('.', ',') + ' s'; AN.plan = anPlan(); anApercuUneFois(); clearTimeout(mtDureePlan.t); mtDureePlan.t = setTimeout(() => { MT.glisseDuree = false; }, 800); };
+window.mtFiltre = function(k){ mtAvant(); anVid().clips[MT.sel.n].filtre = k || null; mtMaj(); };
 window.mtMvt = function(k){ mtAvant(); anVid().clips[MT.sel.n].mvt = k; mtMaj(); };
 window.mtTr = function(k){ mtAvant(); const c = anVid().clips[MT.sel.n]; c.tr = k; if(!c.trD) c.trD = 0.6; mtMaj(); mtVoirTr(); };
 window.mtTrDuree = function(v){ if(!mtEstManuel() || !MT.glisseDuree){ mtAvant(); MT.glisseDuree = true; } anVid().clips[MT.sel.n].trD = Number(v); const el = document.getElementById('mtTDTxt'); if(el) el.textContent = Number(v).toFixed(1).replace('.', ',') + ' s'; AN.plan = anPlan(); anApercuUneFois(); clearTimeout(mtTrDuree.t); mtTrDuree.t = setTimeout(() => { MT.glisseDuree = false; }, 800); };
@@ -458,7 +462,7 @@ const anDureeBase = anDuree;
 anDuree = function(v){
   const M = anModele(CR.modele);
   if(!M || !mtEstSeq(M.k) || !mtEstManuel()) return anDureeBase.apply(this, arguments);
-  const V = anVid(), finD = V.fin ? 2.4 : 0, somme = V.clips.reduce((a, c) => a + c.d, 0) || 1;
+  const V = anVid(), finD = anFinD(), somme = V.clips.reduce((a, c) => a + c.d, 0) || 1;
   const k = Math.max(0.2, (Number(v) - finD)) / somme;
   V.clips.forEach(c => { c.d = Math.max(0.2, Math.round(c.d * k * 100) / 100); });
   const el = document.getElementById('anDureeTxt'); if(el) el.textContent = anMinSec(Number(v));
