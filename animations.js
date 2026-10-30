@@ -98,7 +98,14 @@ function anImage(g, W, H, s, t, imgs, plan, logo){
   const c = CR.cfg, M = anModele(CR.modele), P = crPolices(), V = anVid();
   g.save(); g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.restore();
   const tt = Math.min(t, plan.Dp);
-  if(M.k === 'v-diapo' || M.k === 'v-titre'){
+  if(typeof mtEstSeq === 'function' && mtEstSeq(M.k) && plan.mt){
+    // Table de montage (montage.js) : mouvements et transitions photo par photo
+    mtDessiner(g, W, H, s, tt, imgs, plan);
+    if(M.k === 'v-titre'){
+      g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, W, H);
+      anMotSync(g, W, H, s, c.mot || c.titre || crNom(), { lettres: Math.min(1, tt / 1.4), echelle: 1 + 0.04 * Math.min(1, tt / plan.Dp) });
+    }
+  } else if(M.k === 'v-diapo' || M.k === 'v-titre'){
     const xf = 0.6;
     const k = plan.segs.indexOf(anSeg(plan, tt)), sg = plan.segs[k], nx = plan.segs[k + 1];
     const prog = sg2 => (tt - sg2.t0) / Math.max(0.5, sg2.t1 - sg2.t0 + xf);
