@@ -41,6 +41,7 @@ const brGet = (st, k) => brOp(st, 'readonly', s => s.get(k));
 const brPut = (st, v, k) => brOp(st, 'readwrite', s => k === undefined ? s.put(v) : s.put(v, k));
 const brDel = (st, k) => brOp(st, 'readwrite', s => s.delete(k));
 const brTous = () => brOp('brouillons', 'readonly', s => s.getAll());
+window.BR = { get: brGet, put: brPut, del: brDel, tous: brTous };
 
 // ---------- Ce qu'on garde ----------
 CR.brouillonId = CR.brouillonId || null;
@@ -48,7 +49,7 @@ CR.brouillons = CR.brouillons || [];
 let brSigAvant = '', brEnCours = false;
 const brFichiersGardes = new Set();
 function brVid(){ return typeof AN !== 'undefined' && AN.vid ? Object.assign({}, AN.vid, { musique: AN.vid.musique ? { nom: AN.vid.musique.nom, duree: AN.vid.musique.duree } : null }) : null; }
-function brPhotos(){ return CR.photos.map(p => p.src === 'fichier' ? Object.assign({ k: p.k, src: 'fichier' }, p.video ? { video: true, vdur: p.vdur, thumb: p.thumb && p.thumb.length < 60000 ? p.thumb : '' } : {}) : p.src === 'galerie' ? { k: p.k, src: 'galerie', dossier: p.dossier, f: p.f } : p.path ? { k: p.k, src: 'media', path: p.path } : p.url ? { k: p.k, src: 'url', url: p.url, thumb: p.thumb } : null).filter(Boolean); }
+function brPhotos(){ return CR.photos.map(p => p.src === 'fichier' ? Object.assign({ k: p.k, src: 'fichier', pl: p.pl || null, px: p.px || null, nomF: p.nomF || (p.file && p.file.name) || null, taille: p.taille || (p.file && !p.proxy ? p.file.size : null) || null }, p.video ? { video: true, vdur: p.vdur, thumb: p.thumb && p.thumb.length < 60000 ? p.thumb : '' } : {}) : p.src === 'galerie' ? { k: p.k, src: 'galerie', dossier: p.dossier, f: p.f } : p.path ? { k: p.k, src: 'media', path: p.path } : p.url ? { k: p.k, src: 'url', url: p.url, thumb: p.thumb } : null).filter(Boolean); }
 function brSignature(){ return JSON.stringify([CR.modele, CR.fmt, CR.cfg, brVid(), CR.photos.map(p => p.k), CR.crop]); }
 function brApercu(){
   const cv = document.getElementById('anCanvas') || document.getElementById('crCanvas'); if(!cv || !cv.width) return null;
@@ -76,7 +77,7 @@ async function brGarder(force){
     if(V && V.musique && AN.musFile){
       const cle = 'mus:' + id;
       if(AN.musFileGarde !== cle + AN.musFile.name + AN.musFile.size){ await brPut('fichiers', AN.musFile, cle); AN.musFileGarde = cle + AN.musFile.name + AN.musFile.size; }
-      musique = { cle, nom: V.musique.nom, duree: V.musique.duree };
+      musique = { cle, nom: V.musique.nom, duree: V.musique.duree, pl: AN.musPl || null };
     }
     const M = crModele() || {};
     const avant = CR.brouillons.find(x => x.id === id);
@@ -84,6 +85,7 @@ async function brGarder(force){
       musique, apercu: brApercu() || (avant && avant.apercu) || null, cree: avant ? avant.cree : Date.now(), maj: Date.now(), exemple: !!CR.exemple };
     await brPut('brouillons', JSON.parse(JSON.stringify(rec)));
     brSigAvant = sig;
+    if(typeof window.blApresGarde === 'function') window.blApresGarde(rec);
     const i = CR.brouillons.findIndex(x => x.id === id); if(i >= 0) CR.brouillons[i] = rec; else CR.brouillons.unshift(rec);
     brMarque();
   } catch(e){ console.warn('brouillon', e); }
@@ -103,13 +105,14 @@ window.addEventListener('pagehide', () => { brGarder(false); });
 // La musique choisie est aussi gardée
 if(typeof anChoisirMusique === 'function'){
   const avant = anChoisirMusique;
-  anChoisirMusique = async function(files){ const f = files && files[0]; if(f) AN.musFile = f; return avant.apply(this, arguments); };
+  anChoisirMusique = async function(files){ const f = files && files[0]; if(f){ AN.musFile = f; if(!AN.silence) AN.musPl = null; } return avant.apply(this, arguments); };
   const ret = anRetirerMusique;
   anRetirerMusique = function(){ AN.musFile = null; AN.musFileGarde = null; return ret.apply(this, arguments); };
 }
 
 // ---------- Liste, reprise, copie, suppression ----------
-async function brCharger(){ try { CR.brouillons = (await brTous() || []).sort((a, b) => b.maj - a.maj); } catch(e){ CR.brouillons = CR.brouillons || []; } }
+async function brCharger(){ try { CR.brouillons = (await brTous() || []).sort((a, b) => b.maj - a.maj); } catch(e){ CR.brouillons = CR.brouillons || []; }
+  if(typeof window.blFusion === 'function'){ try { CR.brouillons = await window.blFusion(CR.brouillons); } catch(e){ console.warn('en ligne', e); } } }
 function brQuand(t){
   const m = Math.round((Date.now() - t) / 60000);
   if(m < 1) return 'à l\'instant'; if(m < 60) return 'il y a ' + m + ' min';
@@ -120,10 +123,13 @@ async function brPhotosDepuis(list){
   const out = [];
   for(const p of list || []){
     if(p.src === 'fichier'){
-      const b = await brGet('fichiers', 'ph:' + p.k).catch(() => null); if(!b) continue;
-      const url = URL.createObjectURL(b); brFichiersGardes.add(p.k);
-      if(p.video){ const pv = { k: p.k, src: 'fichier', file: b, url, thumb: p.thumb || '', video: true, vdur: p.vdur }; if(!pv.thumb && typeof rvNouveau === 'function') rvNouveau(pv); out.push(pv); }
-      else out.push({ k: p.k, src: 'fichier', file: b, url, thumb: url });
+      let b = await brGet('fichiers', 'ph:' + p.k).catch(() => null), proxy = false;
+      if(!b && p.video){ b = await brGet('fichiers', 'px:' + p.k).catch(() => null); proxy = !!b; }
+      if(!b) continue;
+      const url = URL.createObjectURL(b); if(!proxy) brFichiersGardes.add(p.k);
+      const enPlus = { pl: p.pl || null, px: p.px || null, nomF: p.nomF || null, taille: p.taille || null };
+      if(p.video){ const pv = Object.assign({ k: p.k, src: 'fichier', file: b, url, thumb: p.thumb || '', video: true, vdur: p.vdur, proxy }, enPlus); if(!pv.thumb && typeof rvNouveau === 'function') rvNouveau(pv); out.push(pv); }
+      else out.push(Object.assign({ k: p.k, src: 'fichier', file: b, url, thumb: url }, enPlus));
     } else if(p.src === 'galerie') out.push({ k: p.k, src: 'galerie', dossier: p.dossier, f: p.f, thumb: typeof galPhotoUrl === 'function' ? galPhotoUrl(p.dossier, p.f, 'thumb') : '', url: typeof galPhotoUrl === 'function' ? galPhotoUrl(p.dossier, p.f, 'medium') : '' });
     else if(p.src === 'media') out.push({ k: p.k, src: 'media', path: p.path });
     else if(p.src === 'url') out.push({ k: p.k, src: 'url', url: p.url, thumb: p.thumb || p.url });
@@ -131,15 +137,18 @@ async function brPhotosDepuis(list){
   return out;
 }
 window.brReprendre = async function(id, copie){
-  const r = CR.brouillons.find(x => x.id === id) || await brGet('brouillons', id).catch(() => null); if(!r) return;
+  let r = await brGet('brouillons', id).catch(() => null) || CR.brouillons.find(x => x.id === id);
   const el = crBody(); if(el) el.innerHTML = '<div class="ag-empty">Ouverture du brouillon...</div>';
+  // Brouillon en ligne : la dernière version et ses fichiers arrivent sur cet appareil
+  if(typeof window.blAvantReprendre === 'function'){ try { r = await window.blAvantReprendre(id, r); } catch(e){ console.warn('en ligne', e); } }
+  if(!r){ if(el) crRender(); return; }
   if(typeof anStop === 'function') anStop();
   CR.modele = r.modele; CR.fmt = r.fmt || 'post'; CR.cfg = Object.assign(crCfgDefaut(), r.cfg || {}); CR.slide = 0; CR.styleId = null; CR.remplace = null; CR.exemple = false;
   CR.photos = await brPhotosDepuis(r.photos);
   CR.crop = (r.crop || []).slice(0, CR.photos.length); while(CR.crop.length < CR.photos.length) CR.crop.push({ x: 0, y: 0, z: 1 });
   if(typeof AN !== 'undefined'){
     if(AN.audio){ try { AN.audio.pause(); } catch(e){} }
-    AN.vid = r.vid ? Object.assign({}, r.vid, { musique: null }) : null; AN.buffer = null; AN.audio = null; AN.beats = []; AN.t = 0; AN.musFile = null; AN.musFileGarde = null;
+    AN.vid = r.vid ? Object.assign({}, r.vid, { musique: null }) : null; AN.buffer = null; AN.audio = null; AN.beats = []; AN.t = 0; AN.musFile = null; AN.musFileGarde = null; AN.musPl = (r.musique && r.musique.pl) || null;
   }
   CR.brouillonId = copie ? null : r.id;
   brSigAvant = copie ? '' : brSignature();
@@ -149,13 +158,13 @@ window.brReprendre = async function(id, copie){
   if(r.musique && r.musique.cle && typeof anChoisirMusique === 'function'){
     const b = await brGet('fichiers', r.musique.cle).catch(() => null);
     if(b){ const f = new File([b], (r.musique.nom || 'musique') + '.' + ((b.type || '').split('/')[1] || 'mp3'), { type: b.type || 'audio/mpeg' }); const debut = (r.vid || {}).debut || 0;
-      AN.silence = true; try { await anChoisirMusique([f]); } finally { AN.silence = false; } if(AN.vid){ AN.vid.debut = debut; anCalculerBeats(); } }
+      const pl = AN.musPl; AN.silence = true; try { await anChoisirMusique([f]); } finally { AN.silence = false; } AN.musPl = pl; if(AN.vid){ AN.vid.debut = debut; anCalculerBeats(); } }
   }
   if(copie){ CR.cfg.titre = CR.cfg.titre ? CR.cfg.titre + ' (copie)' : ''; await brGarder(true); agToast('Copie créée : tu peux la modifier'); }
   crRender(); window.scrollTo({ top: 0 });
 };
 window.brSupprimer = async function(id){
-  if(!await agConfirm('Supprimer ce brouillon ?\nSes photos du téléphone et sa musique restent sur ton téléphone, seule la copie dans l\'app est effacée.', { ok: 'Supprimer', no: 'Garder' })) return;
+  if(!await agConfirm('Supprimer ce brouillon ?\nIl est effacé sur tous tes appareils et en ligne. Les fichiers d\'origine de ton téléphone ou ordinateur ne sont pas touchés.', { ok: 'Supprimer', no: 'Garder' })) return;
   const r = CR.brouillons.find(x => x.id === id);
   try {
     await brDel('brouillons', id);
@@ -163,6 +172,7 @@ window.brSupprimer = async function(id){
     // Les photos qui ne servent plus à aucun autre brouillon
     const autres = new Set(CR.brouillons.filter(x => x.id !== id).flatMap(x => (x.photos || []).map(p => p.k)));
     for(const p of (r && r.photos) || []) if(p.src === 'fichier' && !autres.has(p.k)){ await brDel('fichiers', 'ph:' + p.k); brFichiersGardes.delete(p.k); }
+    if(typeof window.blSupprimer === 'function') await window.blSupprimer(id, r);
   } catch(e){ agAlert('Suppression impossible : ' + (e.message || e)); return; }
   CR.brouillons = CR.brouillons.filter(x => x.id !== id);
   if(CR.brouillonId === id) CR.brouillonId = null;
@@ -170,8 +180,9 @@ window.brSupprimer = async function(id){
 };
 window.brToutSupprimer = async function(){
   if(!CR.brouillons.length) return;
-  if(!await agConfirm(`Supprimer les ${CR.brouillons.length} brouillons ?`, { ok: 'Tout supprimer', no: 'Annuler' })) return;
+  if(!await agConfirm(`Supprimer les ${CR.brouillons.length} brouillons ?\nIls sont effacés sur tous tes appareils et en ligne.`, { ok: 'Tout supprimer', no: 'Annuler' })) return;
   try { await brOp('brouillons', 'readwrite', s => s.clear()); await brOp('fichiers', 'readwrite', s => s.clear()); } catch(e){}
+  if(typeof window.blToutSupprimer === 'function'){ try { await window.blToutSupprimer(); } catch(e){} }
   CR.brouillons = []; CR.brouillonId = null; brFichiersGardes.clear(); crRender();
 };
 function brListeHtml(){
