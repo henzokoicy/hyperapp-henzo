@@ -10,18 +10,19 @@
 // ============================================================
 
 const CR_VIDEOS = [
-  ['v-diapo', 'Diaporama doux', 'Fondu et léger zoom sur chaque photo', 2, 30, ['story', 'post', 'carre', 'large']],
-  ['v-dyn', 'Rythmé', 'Coupes rapides sur la musique, effet punch', 3, 30, ['story', 'post', 'carre', 'large']],
-  ['v-glisse', 'Glisse', 'Les photos arrivent en glissant', 2, 30, ['story', 'post', 'carre', 'large']],
-  ['v-galerie', 'Mini-galerie animée', 'La grille se construit photo par photo', 3, 9, ['story', 'post', 'carre']],
-  ['v-polaroid', 'Polaroids', 'Les photos tombent comme des polaroids', 2, 8, ['story', 'post', 'carre']],
-  ['v-pellicule', 'Pellicule', 'Un film qui défile', 3, 12, ['story', 'post']],
-  ['v-titre', 'Titre animé', 'Un grand mot qui apparaît sur tes photos', 1, 10, ['story', 'post', 'carre', 'large']]
+  ['v-diapo', 'Diaporama doux', 'Fondu et léger zoom sur chaque photo', 2, 100, ['story', 'post', 'carre', 'large']],
+  ['v-dyn', 'Rythmé', 'Coupes rapides sur la musique, effet punch', 3, 100, ['story', 'post', 'carre', 'large']],
+  ['v-glisse', 'Glisse', 'Les photos arrivent en glissant', 2, 100, ['story', 'post', 'carre', 'large']],
+  ['v-galerie', 'Mini-galerie animée', 'La grille se construit, page après page', 3, 60, ['story', 'post', 'carre']],
+  ['v-polaroid', 'Polaroids', 'Les photos tombent comme des polaroids', 2, 60, ['story', 'post', 'carre']],
+  ['v-pellicule', 'Pellicule', 'Un film qui défile', 3, 60, ['story', 'post']],
+  ['v-titre', 'Titre animé', 'Un grand mot qui apparaît sur tes photos', 1, 60, ['story', 'post', 'carre', 'large']]
 ];
 const AN_QUAL = [
-  ['leger', 'Léger', 720, 2.5e6, 'Envoi rapide, WhatsApp'],
-  ['standard', 'TikTok / Reels / Facebook', 1080, 6e6, '1080 px, le format conseillé'],
-  ['hd', 'Haute qualité', 1440, 12e6, 'Plus net, fichier plus lourd']
+  ['leger', 'Léger', 720, 3e6, 'Envoi rapide, WhatsApp'],
+  ['standard', 'TikTok / Reels / Facebook', 1080, 10e6, '1080 px, le format conseillé'],
+  ['hd', 'Haute qualité', 1440, 18e6, '1440 px, plus net'],
+  ['4k', 'Très haute (4K)', 2160, 40e6, 'Pour l\'ordinateur et YouTube']
 ];
 const AN_GIF = [['petit', 'Petit', 360, 10], ['normal', 'Normal', 540, 12], ['grand', 'Grand', 720, 12]];
 const AN = { vid: null, lecture: false, t: 0, raf: 0, debutLecture: 0, audio: null, buffer: null, beats: [], busy: '', progres: 0, plan: null };
@@ -29,7 +30,7 @@ const AN = { vid: null, lecture: false, t: 0, raf: 0, debutLecture: 0, audio: nu
 function anEst(k){ return /^v-/.test(k || ''); }
 function anModele(k){ const m = CR_VIDEOS.find(x => x[0] === k); return m ? { k: m[0], nom: m[1], desc: m[2], min: m[3], max: m[4], fmts: m[5] } : null; }
 function anVid(){
-  if(!AN.vid) AN.vid = { duree: 12, fin: true, sync: true, qualite: 'standard', gif: 'normal', sortie: 'video', musique: null, debut: 0, volume: 0.9, fondu: true };
+  if(!AN.vid) AN.vid = { duree: 12, fin: true, sync: true, qualite: 'standard', gif: 'normal', sortie: 'video', musique: null, debut: 0, volume: 0.9, fondu: true, fps: 30, parPage: 0 };
   return AN.vid;
 }
 const anEase = u => 1 - Math.pow(1 - Math.max(0, Math.min(1, u)), 3);
@@ -71,6 +72,8 @@ function anCover(g, img, x, y, w, h, zoom, px, py, alpha){
   g.drawImage(img, x + (w - dw) / 2 - (px || 0) * lx, y + (h - dh) / 2 - (py || 0) * ly, dw, dh);
   g.restore();
 }
+// Photos par page de la mini-galerie (auto : 9 au plus, 6 en paysage)
+function anParPage(n){ const V = anVid(); if(V.parPage) return Math.min(n, V.parPage); if(n <= 9) return n; const pages = Math.ceil(n / 9); return Math.ceil(n / pages); }
 function anSeg(plan, t){ return plan.segs.find(sg => t >= sg.t0 && t < sg.t1) || plan.segs[plan.segs.length - 1]; }
 function anMotSync(g, W, H, s, txt, o){
   // Comme le mot géant, mais sans attendre la police (déjà chargée avant)
@@ -92,7 +95,7 @@ function anMotSync(g, W, H, s, txt, o){
   g.restore();
 }
 function anImage(g, W, H, s, t, imgs, plan, logo){
-  const c = CR.cfg, M = anModele(CR.modele), P = crPolices();
+  const c = CR.cfg, M = anModele(CR.modele), P = crPolices(), V = anVid();
   g.save(); g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.restore();
   const tt = Math.min(t, plan.Dp);
   if(M.k === 'v-diapo' || M.k === 'v-titre'){
@@ -117,37 +120,52 @@ function anImage(g, W, H, s, t, imgs, plan, logo){
     if(pv && u < 1) anCover(g, imgs[pv.i], -dir * W * 0.3 * u, 0, W, H, 1.04, 0, 0);
     anCover(g, imgs[sg.i], pv ? dir * W * (1 - u) : 0, 0, W, H, 1.04 - 0.04 * Math.min(1, (tt - sg.t0) / (sg.t1 - sg.t0)), 0, 0);
   } else if(M.k === 'v-galerie'){
+    // Par pages : la grille se construit, vit (léger zoom dans chaque photo), puis s'envole pour la page suivante
     g.fillStyle = c.bordCouleur || '#ffffff'; g.fillRect(0, 0, W, H);
     const m = 60 * s, titreH = c.titre ? 150 * s : 0;
-    const cases = crGrille(plan.n, { x: m, y: m, w: W - 2 * m, h: H - 2 * m - titreH }, 14 * s);
-    const pas = Math.min(0.55, plan.Dp * 0.6 / plan.n);
-    const zoomG = 1 + 0.035 * Math.max(0, (tt - pas * plan.n) / Math.max(1, plan.Dp - pas * plan.n));
+    const pp = anParPage(plan.n), pages = Math.ceil(plan.n / pp), pd = plan.Dp / pages;
+    const p = Math.min(pages - 1, Math.floor(tt / pd)), lt = tt - p * pd;
+    const debutP = p * pp, np = Math.min(pp, plan.n - debutP);
+    const cases = crGrille(np, { x: m, y: m, w: W - 2 * m, h: H - 2 * m - titreH }, 14 * s);
+    const pas = Math.min(0.5, pd * 0.4 / np), finP = p < pages - 1 ? pd - 0.45 : 1e9;
+    const zoomG = 1 + 0.04 * Math.min(1, lt / pd);
     g.save(); g.translate(W / 2, H / 2); g.scale(zoomG, zoomG); g.translate(-W / 2, -H / 2);
-    cases.forEach((r, i) => {
-      const u = anEase((tt - i * pas) / 0.45); if(u <= 0) return;
-      const sc = 0.82 + 0.18 * u, cx = r.x + r.w / 2, cy = r.y + r.h / 2;
-      g.save(); g.globalAlpha = u; g.translate(cx, cy); g.scale(sc, sc); g.translate(-cx, -cy);
+    cases.forEach((r, j) => {
+      const i = debutP + j;
+      let u = anEase((lt - j * pas) / 0.45); if(u <= 0) return;
+      let sortie = lt > finP ? anEaseIO((lt - finP - j * 0.03) / 0.4) : 0;
+      const sc = (0.82 + 0.18 * u) * (1 - 0.25 * sortie), cx = r.x + r.w / 2, cy = r.y + r.h / 2 - sortie * 60 * s;
+      g.save(); g.globalAlpha = u * (1 - sortie); g.translate(cx, cy); g.scale(sc, sc); g.translate(-r.x - r.w / 2, -r.y - r.h / 2);
       crRond(g, r.x, r.y, r.w, r.h, 12 * s); g.clip();
-      anCover(g, imgs[i], r.x, r.y, r.w, r.h, 1.06 - 0.06 * u, 0, 0);
+      const vie = Math.max(0, lt - j * pas) / pd;
+      anCover(g, imgs[i], r.x, r.y, r.w, r.h, 1.04 + 0.08 * vie, (j % 2 ? -1 : 1) * 0.4 * vie, 0);
       g.restore();
     });
     g.restore();
-    if(c.titre){ const a = anEase((tt - pas * plan.n) / 0.5); if(a > 0){ g.save(); g.globalAlpha = a; crTexte(g, c.titre, { fam: P.t, poids: P.tw, px: 56 * s, x: m, maxW: W - 2 * m, y: H - m - titreH + 30 * s, couleur: crLisible(c.bordCouleur || '#ffffff'), align: 'centre', maxL: 2, lh: 1.05 }); g.restore(); } }
+    if(c.titre){ const a = anEase((tt - Math.min(1.2, pas * np)) / 0.5); if(a > 0){ g.save(); g.globalAlpha = a; crTexte(g, c.titre, { fam: P.t, poids: P.tw, px: 56 * s, x: m, maxW: W - 2 * m, y: H - m - titreH + 30 * s, couleur: crLisible(c.bordCouleur || '#ffffff'), align: 'centre', maxL: 2, lh: 1.05 }); g.restore(); } }
   } else if(M.k === 'v-polaroid'){
+    // Par paquets : les polaroids tombent, bougent doucement, puis glissent hors de l'écran
     g.fillStyle = c.clair || '#f6f3ee'; g.fillRect(0, 0, W, H);
-    const pas = Math.min(0.9, plan.Dp * 0.7 / plan.n);
+    const pp = Math.min(plan.n, V.parPage || 6), pages = Math.ceil(plan.n / pp), pd = plan.Dp / pages;
+    const p = Math.min(pages - 1, Math.floor(tt / pd)), lt = tt - p * pd, debutP = p * pp, np = Math.min(pp, plan.n - debutP);
+    const pas = Math.min(0.9, pd * 0.6 / np);
     const cw = Math.min(W, H) * 0.62, ch = cw * 1.18, ph = cw - 36 * s, m = 18 * s;
-    for(let i = 0; i < plan.n; i++){
-      const u = anEase((tt - i * pas) / 0.6); if(u <= 0) continue;
+    const sortie = p < pages - 1 && lt > pd - 0.5 ? anEaseIO((lt - (pd - 0.5)) / 0.5) : 0;
+    const zoomG = 1 + 0.05 * Math.min(1, lt / pd);
+    g.save(); g.translate(W / 2 - sortie * W * 1.1, H / 2); g.scale(zoomG, zoomG); g.translate(-W / 2, -H / 2);
+    for(let j = 0; j < np; j++){
+      const i = debutP + j;
+      const u = anEase((lt - j * pas) / 0.6); if(u <= 0) continue;
       const sx = Math.sin(i * 12.9898) * 43758.5453, rnd = sx - Math.floor(sx), sy = Math.sin(i * 78.233) * 12345.678, rnd2 = sy - Math.floor(sy);
-      const tx = W / 2 + (rnd - 0.5) * W * 0.28, ty = H / 2 + (rnd2 - 0.5) * H * 0.18, rot = (rnd - 0.5) * 16;
+      const tx = W / 2 + (rnd - 0.5) * W * 0.28, ty = H / 2 + (rnd2 - 0.5) * H * 0.18, rot = (rnd - 0.5) * 16 + Math.sin(lt * 0.9 + j) * 1.2;
       const y = -ch + (ty + ch) * u, r = (rot + (1 - u) * 25) * Math.PI / 180;
       g.save(); g.translate(tx, y); g.rotate(r);
       g.shadowColor = 'rgba(0,0,0,.25)'; g.shadowBlur = 30 * s; g.shadowOffsetY = 12 * s;
       g.fillStyle = '#fff'; g.fillRect(-cw / 2, -ch / 2, cw, ch); g.shadowColor = 'transparent';
-      anCover(g, imgs[i], -cw / 2 + m, -ch / 2 + m, cw - 2 * m, ph, 1.02, 0, 0);
+      anCover(g, imgs[i], -cw / 2 + m, -ch / 2 + m, cw - 2 * m, ph, 1.02 + 0.05 * Math.min(1, Math.max(0, lt - j * pas) / pd), 0, 0);
       g.restore();
     }
+    g.restore();
   } else if(M.k === 'v-pellicule'){
     g.fillStyle = '#0d0d0d'; g.fillRect(0, 0, W, H);
     const bande = 70 * s, zx = bande + 12 * s, zw = W - 2 * zx, ph = zw * 0.75, gap = 22 * s;
@@ -210,7 +228,7 @@ async function anChoisirMusique(files){
     V.musique = { nom: f.name.replace(/\.[^.]+$/, '').slice(0, 40), duree: AN.buffer.duration };
     V.debut = Math.min(V.debut || 0, Math.max(0, AN.buffer.duration - V.duree));
     anCalculerBeats();
-    agToast('Musique ajoutée');
+    if(!AN.silence) agToast('Musique ajoutée');
   } catch(e){ agAlert('Cette musique ne peut pas être lue. Essaie un fichier MP3 ou M4A.'); AN.buffer = null; V.musique = null; }
   const inp = document.getElementById('anMusFile'); if(inp) inp.value = '';
   crRender();
@@ -267,9 +285,10 @@ function anVueEdit(){
           <div class="ag-pills"><button type="button" class="${V.sortie !== 'gif' ? 'on' : ''}" onclick="anSet('sortie','video')">Vidéo (avec musique)</button><button type="button" class="${V.sortie === 'gif' ? 'on' : ''}" onclick="anSet('sortie','gif')">GIF animé (sans son)</button></div>
           ${V.sortie === 'gif' ? `<label>Taille du GIF</label>${pills(AN_GIF.map(q => [q[0], q[1] + ' (' + q[2] + ' px)']), V.gif, "anSet.bind(null,'gif')")}<div class="ag-hint">Un GIF est plus lourd qu'une vidéo et n'a pas de son : garde-le court (5 à 8 s).</div>`
             : `<label>Qualité</label><div class="cr-qual">${AN_QUAL.map(([k, nom, px, br, d]) => `<button type="button" class="${V.qualite === k ? 'on' : ''}" onclick="anSet('qualite','${k}')"><b>${nom}</b><small>${d}</small></button>`).join('')}</div>
-              <div class="cr-taille">${(() => { const q = AN_QUAL.find(x => x[0] === V.qualite) || AN_QUAL[1]; const d = crDims(CR.fmt, q[2] / 1080); return `<b>${d.w} x ${d.h} px</b> · ${anFormatNom()} · environ ${Math.max(1, Math.round(q[3] * plan.D / 8e6))} Mo`; })()}</div>`}
+              <div class="cr-taille">${(() => { const q = AN_QUAL.find(x => x[0] === V.qualite) || AN_QUAL[1]; const d = crDims(CR.fmt, q[2] / 1080); return `<b>${d.w} x ${d.h} px</b> · ${anFormatNom()} · ${V.fps === 60 ? 60 : 30} images/s · environ ${Math.max(1, Math.round(q[3] * (V.fps === 60 ? 1.5 : 1) * plan.D / 8e6))} Mo`; })()}</div>
+              <label>Fluidité</label>${pills([[30, '30 images/s (conseillé)'], [60, '60 images/s (encore plus fluide)']].map(x => [String(x[0]), x[1]]), String(V.fps === 60 ? 60 : 30), "anSetFps")}`}
           <div class="cr-actions" style="margin-top:10px"><button class="btn-primary" ${AN.busy ? 'disabled' : ''} onclick="anExporter('partager')">${agIcon('share', 16)} ${AN.busy ? anProgresTxt() : 'Créer et partager'}</button><button class="btn-secondary" ${AN.busy ? 'disabled' : ''} onclick="anExporter('telecharger')">${agIcon('download', 16)} Télécharger</button></div>
-          ${AN.busy ? `<div class="an-prog"><i style="width:${Math.round(AN.progres * 100)}%"></i></div><div class="ag-hint">Garde l'écran allumé et l'app ouverte pendant la création.</div>` : ''}
+          ${AN.busy ? `<div class="an-prog"><i style="width:${Math.round(AN.progres * 100)}%"></i></div><div class="ag-hint">Garde l'écran allumé et l'app ouverte pendant la création. Chaque image est fabriquée une par une : la vidéo sera parfaitement fluide.</div><button class="st-link" onclick="AN.annuler=true">Annuler</button>` : ''}
         </details>
         <details class="cr-bloc" open><summary>Musique</summary>
           ${V.musique ? `<div class="an-mus"><b>♪ ${crE(V.musique.nom)}</b><small>${Math.round(V.musique.duree)} s</small><button class="st-link" onclick="anRetirerMusique()">Retirer</button></div>
@@ -283,7 +302,9 @@ function anVueEdit(){
           <input type="file" id="anMusFile" accept="audio/*" style="display:none" onchange="anChoisirMusique(this.files)">
         </details>
         <details class="cr-bloc" open><summary>Durée et format</summary>
-          <label>Durée totale : <b id="anDureeTxt">${V.duree} s</b></label><input type="range" min="4" max="60" step="1" value="${V.duree}" oninput="anDuree(this.value)">
+          <label>Durée totale : <b id="anDureeTxt">${anMinSec(V.duree)}</b></label><input type="range" id="anDureeR" min="4" max="180" step="1" value="${V.duree}" oninput="anDuree(this.value)">
+          <div class="an-raccourcis">${V.musique ? `<button type="button" onclick="anDureeAuto('musique')">Toute la musique</button>` : ''}<button type="button" onclick="anDureeAuto('photos')">Selon les photos (${CR.photos.length} x ${M.k === 'v-dyn' ? '0,6' : '2,5'} s)</button><button type="button" onclick="anDureeAuto(15)">15 s</button><button type="button" onclick="anDureeAuto(30)">30 s</button><button type="button" onclick="anDureeAuto(60)">1 min</button></div>
+          ${['v-galerie', 'v-polaroid'].includes(M.k) && CR.photos.length > 4 ? `<label>Photos par page</label>${pills([['0', 'Auto']].concat([4, 6, 9, 12].filter(x => x < CR.photos.length).map(x => [String(x), String(x)])), String(V.parPage || 0), "anSetParPage")}` : ''}
           <label>Format</label>${pills(M.fmts.map(f => [f, CR_FMT[f].nom]), CR.fmt, "anFmt")}
           <label class="ag-check"><input type="checkbox" ${V.fin ? 'checked' : ''} onchange="anSet('fin',this.checked)"> Carte de fin : logo, « ${crE(c.appel || 'Réserve ta séance')} », contact</label>
         </details>
@@ -300,11 +321,20 @@ function anVueEdit(){
     </div>`;
 }
 function anMinSec(t){ t = Math.max(0, Number(t) || 0); return `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`; }
-function anFormatNom(){ return anMime().ext === 'mp4' ? 'MP4' : 'WebM'; }
-function anProgresTxt(){ return AN.busy === 'gif' ? `GIF ${Math.round(AN.progres * 100)} %` : `Vidéo ${Math.round(AN.progres * 100)} %`; }
+function anFormatNom(){ return typeof VideoEncoder !== 'undefined' || anMime().ext === 'mp4' ? 'MP4' : 'WebM'; }
+function anProgresTxt(){ const r = AN.reste > 2 ? ` · encore ${AN.reste > 90 ? Math.round(AN.reste / 60) + ' min' : Math.round(AN.reste) + ' s'}` : ''; return (AN.busy === 'gif' ? `GIF ${Math.round(AN.progres * 100)} %` : `Vidéo ${Math.round(AN.progres * 100)} %`) + r; }
 function anSet(k, v){ anVid()[k] = v; if(k === 'sync') AN.plan = null; crRender(); }
+function anSetFps(v){ anVid().fps = Number(v); crRender(); }
+function anSetParPage(v){ anVid().parPage = Number(v); anApercuUneFois(); crRender(); }
+function anDureeAuto(k){
+  const V = anVid(), M = anModele(CR.modele);
+  let d = typeof k === 'number' ? k : k === 'musique' && V.musique ? Math.floor(V.musique.duree - V.debut) : Math.round(CR.photos.length * (M.k === 'v-dyn' ? 0.6 : 2.5) + (V.fin ? 2.4 : 0));
+  d = Math.max(4, Math.min(180, d));
+  if(V.musique && d > V.musique.duree) d = Math.max(4, Math.floor(V.musique.duree));
+  anDuree(d); const r = document.getElementById('anDureeR'); if(r) r.value = d;
+}
 function anFmt(f){ CR.fmt = f; crRender(); }
-function anDuree(v){ const V = anVid(); V.duree = Number(v); const el = document.getElementById('anDureeTxt'); if(el) el.textContent = V.duree + ' s'; if(V.musique){ V.debut = Math.min(V.debut, Math.max(0, V.musique.duree - V.duree)); anCalculerBeats(); } clearTimeout(anDuree.t); anDuree.t = setTimeout(crRender, 350); }
+function anDuree(v){ const V = anVid(); V.duree = Number(v); const el = document.getElementById('anDureeTxt'); if(el) el.textContent = anMinSec(V.duree); if(V.musique){ V.debut = Math.min(V.debut, Math.max(0, V.musique.duree - V.duree)); anCalculerBeats(); } clearTimeout(anDuree.t); anDuree.t = setTimeout(crRender, 350); }
 function anDebut(v){ const V = anVid(); V.debut = Number(v); const el = document.getElementById('anDebutTxt'); if(el) el.textContent = anMinSec(V.debut); anCalculerBeats(); anDessinerOnde(); if(AN.lecture) anAller(AN.t); }
 function anRetirerMusique(){ if(AN.audio){ AN.audio.pause(); } AN.audio = null; AN.buffer = null; AN.beats = []; const V = anVid(); V.musique = null; V.debut = 0; crRender(); }
 
@@ -371,7 +401,126 @@ function anMime(){
   const t = l.find(x => { try { return MediaRecorder.isTypeSupported(x[0]); } catch(e){ return false; } });
   return t ? { type: t[0], ext: t[1] } : { type: '', ext: 'webm' };
 }
+// ============================================================
+// EXPORT VIDÉO IMAGE PAR IMAGE (fluide)
+// Chaque image de la vidéo est dessinée puis encodée l'une après l'autre,
+// sans se presser : aucune image sautée, même en très haute qualité.
+// La musique est mixée à part (fondus, volume), puis encodée en AAC.
+// Résultat : un vrai MP4 (H.264 + AAC) lu partout, fluide et facile à
+// parcourir (une image clé toutes les 2 secondes).
+// Si l'appareil ne sait pas faire, on revient à l'ancien moteur.
+// ============================================================
+async function anEncodeurVideo(w, h, fps, debit){
+  if(typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') return null;
+  // H.264 d'abord (lu partout : WhatsApp, iPhone, TikTok...), sinon VP9 (toujours fluide, un peu moins compatible)
+  const codecs = ['avc1.640034', 'avc1.640033', 'avc1.640032', 'avc1.64002A', 'avc1.640028', 'avc1.4D4033', 'avc1.4D0028', 'avc1.42E034', 'avc1.42E01F'].map(c => [c, 'avc'])
+    .concat([['vp09.00.51.08', 'vp9'], ['vp09.00.41.08', 'vp9'], ['vp09.00.10.08', 'vp9']]);
+  for(const [codec, mux] of codecs){
+    for(const hw of ['prefer-hardware', 'no-preference']){
+      const cfg = Object.assign({ codec, width: w, height: h, bitrate: debit, framerate: fps, hardwareAcceleration: hw, latencyMode: 'quality', bitrateMode: 'variable' }, mux === 'avc' ? { avc: { format: 'avc' } } : {});
+      try { const r = await VideoEncoder.isConfigSupported(cfg); if(r && r.supported) return { cfg: r.config || cfg, mux }; } catch(e){}
+    }
+  }
+  return null;
+}
+async function anEncodeurAudio(){
+  if(typeof AudioEncoder === 'undefined' || typeof AudioData === 'undefined') return null;
+  for(const [codec, mux] of [['mp4a.40.2', 'aac'], ['opus', 'opus']]){
+    const cfg = { codec, sampleRate: 48000, numberOfChannels: 2, bitrate: 192000 };
+    try { const r = await AudioEncoder.isConfigSupported(cfg); if(r && r.supported) return { cfg, mux }; } catch(e){}
+  }
+  return null;
+}
+// La musique déjà mixée : extrait choisi, volume, fondus (48 kHz stéréo)
+async function anMixMusique(D){
+  const V = anVid(); if(!AN.buffer) return null;
+  const sr = 48000, n = Math.ceil(D * sr);
+  const off = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(2, n, sr);
+  const src = off.createBufferSource(); src.buffer = AN.buffer;
+  const gain = off.createGain(); src.connect(gain); gain.connect(off.destination);
+  const vol = V.volume;
+  if(V.fondu){ gain.gain.setValueAtTime(0.0001, 0); gain.gain.exponentialRampToValueAtTime(vol, Math.min(0.8, D / 3)); gain.gain.setValueAtTime(vol, Math.max(0.9, D - 1.2)); gain.gain.exponentialRampToValueAtTime(0.0001, D); }
+  else gain.gain.setValueAtTime(vol, 0);
+  src.start(0, V.debut, D + 0.1);
+  return await off.startRendering();
+}
+async function anVideoImageParImage(){
+  const V = anVid(), q = AN_QUAL.find(x => x[0] === V.qualite) || AN_QUAL[1];
+  const fps = V.fps === 60 ? 60 : 30;
+  let d = crDims(CR.fmt, q[2] / 1080);
+  const pair = v => Math.max(2, Math.round(v / 2) * 2);
+  let w = pair(d.w), h = pair(d.h);
+  let debit = Math.round(q[3] * (fps === 60 ? 1.5 : 1));
+  let vcfg = await anEncodeurVideo(w, h, fps, debit);
+  if(!vcfg && q[2] > 1080){
+    // Trop grand pour cet appareil : on descend en 1080
+    const d2 = crDims(CR.fmt, 1); w = pair(d2.w); h = pair(d2.h); debit = 8e6;
+    vcfg = await anEncodeurVideo(w, h, fps, debit);
+    if(vcfg) agToast(`Cet appareil ne sait pas encoder en ${q[2]} px : vidéo faite en 1080 px`, 'info');
+  }
+  if(!vcfg) return null;
+  const acfg = AN.buffer ? await anEncodeurAudio() : null;
+  if(AN.buffer && !acfg) return null;   // musique impossible à encoder ici : ancien moteur
+  const { Muxer, ArrayBufferTarget } = await import('./mp4-muxer.esm.js');
+  await anPreparer(q[2] > 1080);
+  const plan = anPlan();
+  const target = new ArrayBufferTarget();
+  const muxer = new Muxer(Object.assign({ target, fastStart: 'in-memory', firstTimestampBehavior: 'offset',
+    video: { codec: vcfg.mux, width: w, height: h, frameRate: fps } },
+    acfg ? { audio: { codec: acfg.mux, numberOfChannels: 2, sampleRate: 48000 } } : {}));
+  let erreur = null;
+  const venc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: e => { erreur = e; } });
+  venc.configure(vcfg.cfg);
+  // 1. La musique (rapide)
+  if(acfg){
+    const mix = await anMixMusique(plan.D);
+    const aenc = new AudioEncoder({ output: (chunk, meta) => muxer.addAudioChunk(chunk, meta), error: e => { erreur = e; } });
+    aenc.configure(acfg.cfg);
+    const L = mix.getChannelData(0), R = mix.getChannelData(1), bloc = 4800;
+    for(let i = 0; i < mix.length; i += bloc){
+      const nb = Math.min(bloc, mix.length - i), buf = new Float32Array(nb * 2);
+      buf.set(L.subarray(i, i + nb), 0); buf.set(R.subarray(i, i + nb), nb);
+      const ad = new AudioData({ format: 'f32-planar', sampleRate: 48000, numberOfFrames: nb, numberOfChannels: 2, timestamp: Math.round(i / 48000 * 1e6), data: buf });
+      aenc.encode(ad); ad.close();
+    }
+    await aenc.flush(); aenc.close();
+  }
+  // 2. Les images, une par une
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const g = cv.getContext('2d', { alpha: false }), s = Math.min(w, h) / 1080;
+  const n = Math.round(plan.D * fps), dur = Math.round(1e6 / fps);
+  const t0 = performance.now();
+  for(let i = 0; i < n; i++){
+    if(erreur) throw erreur;
+    if(AN.annuler) throw new Error('annulé');
+    anImage(g, w, h, s, i / fps, AN_IMGS, plan, AN_LOGO);
+    const fr = new VideoFrame(cv, { timestamp: i * dur, duration: dur });
+    venc.encode(fr, { keyFrame: i % (fps * 2) === 0 }); fr.close();
+    // On laisse l'encodeur respirer (sinon la mémoire monte)
+    while(venc.encodeQueueSize > 6) await new Promise(r => setTimeout(r, 4));
+    if(i % 6 === 0){
+      AN.progres = (i + 1) / n;
+      const ec = (performance.now() - t0) / 1000, reste = ec / AN.progres - ec;
+      AN.reste = i > fps ? reste : null;
+      anMajProgres(); await new Promise(r => setTimeout(r, 0));
+    }
+  }
+  await venc.flush(); venc.close();
+  if(erreur) throw erreur;
+  muxer.finalize();
+  const blob = new Blob([target.buffer], { type: 'video/mp4' });
+  return { blob, nom: `${anNomFichier()}-${w}x${h}-${fps}ips.mp4`, type: 'video/mp4' };
+}
 async function anVideo(){
+  AN.annuler = false;
+  try {
+    const r = await anVideoImageParImage();
+    if(r) return r;
+  } catch(e){ if(String(e && e.message) === 'annulé') throw e; console.warn('export image par image', e); }
+  // Secours : ancien moteur (la vidéo est filmée pendant qu'elle se joue)
+  return anVideoDirect();
+}
+async function anVideoDirect(){
   const V = anVid(), q = AN_QUAL.find(x => x[0] === V.qualite) || AN_QUAL[1];
   const d = crDims(CR.fmt, q[2] / 1080);
   await anPreparer(q[2] > 1080);
@@ -431,6 +580,7 @@ async function anGif(){
     const data = g.getImageData(0, 0, d.w, d.h).data;
     const pal = quantize(data, 256, { format: 'rgb565' });
     gif.writeFrame(applyPalette(data, pal, 'rgb565'), d.w, d.h, { palette: pal, delay: Math.round(1000 / fps) });
+    if(AN.annuler) throw new Error('annulé');
     AN.progres = (i + 1) / n; if(i % 2 === 0){ anMajProgres(); await new Promise(r => setTimeout(r, 0)); }
   }
   gif.finish();
@@ -446,8 +596,8 @@ async function anExporter(mode){
   if(AN.busy) return;
   anStop();
   const V = anVid();
-  if(V.sortie !== 'gif' && (typeof MediaRecorder === 'undefined' || !HTMLCanvasElement.prototype.captureStream)){ agAlert("Ce navigateur ne sait pas créer de vidéo. Essaie avec Chrome, ou choisis GIF."); return; }
-  AN.busy = V.sortie === 'gif' ? 'gif' : 'video'; AN.progres = 0; crRender();
+  if(V.sortie !== 'gif' && typeof VideoEncoder === 'undefined' && (typeof MediaRecorder === 'undefined' || !HTMLCanvasElement.prototype.captureStream)){ agAlert("Ce navigateur ne sait pas créer de vidéo. Essaie avec Chrome, ou choisis GIF."); return; }
+  AN.busy = V.sortie === 'gif' ? 'gif' : 'video'; AN.progres = 0; AN.reste = null; AN.annuler = false; crRender();
   try {
     const f = AN.busy === 'gif' ? await anGif() : await anVideo();
     const file = new File([f.blob], f.nom, { type: f.type });
@@ -458,8 +608,8 @@ async function anExporter(mode){
       agToast(`${AN.busy === 'gif' ? 'GIF' : 'Vidéo'} prêt${AN.busy === 'gif' ? '' : 'e'} : ${(f.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo`);
     }
     try { await sb.from('creations').insert({ kind: 'creation', nom: CR.cfg.titre || anModele(CR.modele).nom, modele: CR.modele, config: Object.assign(crConfigPour(true), { vid: Object.assign({}, V, { musique: V.musique ? { nom: V.musique.nom } : null }) }), apercu: anMini(), shoot_id: CR.shoot_id || null }); } catch(e){}
-  } catch(e){ agAlert('Création impossible : ' + (e.message || e)); }
-  AN.busy = ''; crRender();
+  } catch(e){ if(String(e && e.message) === 'annulé') agToast('Création annulée', 'info'); else agAlert('Création impossible : ' + (e.message || e)); }
+  AN.busy = ''; AN.annuler = false; crRender();
 }
 function anMini(){
   const cv = document.getElementById('anCanvas'); if(!cv) return null;
@@ -481,6 +631,8 @@ function anMini(){
 .an-mus small{color:var(--muted)}
 .an-onde{width:100%;height:60px;display:block;border-radius:10px;background:var(--card2)}
 .an-prog{height:8px;border-radius:6px;background:var(--card2);overflow:hidden;margin-top:10px}
+.an-raccourcis{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}
+.an-raccourcis button{width:auto;margin:0;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card2);color:var(--text);font-size:12px;cursor:pointer}
 .an-prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}`;
   document.head.appendChild(st);
 })();

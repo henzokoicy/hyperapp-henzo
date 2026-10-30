@@ -148,7 +148,8 @@ function crVueAccueil(){
         <div class="cr-st-d"><b>${crE(s.nom || 'Mon style')}</b><small>${crE((crModele(s.modele) || {}).nom || '')}</small>
         <div class="cr-st-b"><button onclick="crAppliquerStyle(${s.id})">Refaire avec d'autres photos</button><button class="no" onclick="crSupprimer(${s.id})">Supprimer</button></div></div></div>`).join('')}</div>`
       : '<div class="ag-hint">Quand une création te plaît, touche "Garder ce style" : tu pourras le refaire en un clic sur d\'autres photos.</div>'}
-    ${CR.recents.length ? `<div class="cr-sec">Mes dernières créations</div><div class="cr-recents">${CR.recents.map(r => `<button class="cr-rec" title="${crE(r.nom || '')}" onclick="crRouvrir(${r.id})">${r.apercu ? `<img src="${crE(r.apercu)}" alt="">` : crMini(r.modele)}</button>`).join('')}</div>` : ''}`;
+    ${CR.recents.length ? `<div class="cr-sec">Mes dernières créations <i>${CR.recents.length}</i></div><div class="cr-recents">${CR.recents.map(r => `<div class="cr-rec-c"><button class="cr-rec" title="${crE(r.nom || '')}" onclick="crRouvrir(${r.id})">${r.apercu ? `<img src="${crE(r.apercu)}" alt="">` : crMini(r.modele)}${/^v-/.test(r.modele || '') ? '<em>▶</em>' : ''}</button>
+        <small>${crE(r.nom || (crModele(r.modele) || {}).nom || '')}</small><div class="cr-rec-b"><button onclick="crRouvrir(${r.id})">Modifier</button><button class="no" onclick="crSupprimerCreation(${r.id})" aria-label="Supprimer">${agIcon('trash', 14)}</button></div></div>`).join('')}</div>` : ''}`;
 }
 // Petit dessin du modèle (pour les cartes)
 function crMini(k){
@@ -196,7 +197,9 @@ function crVuePhotos(){
   const onglet = (k, l) => `<button class="${CR.src === k ? 'on' : ''}" onclick="CR.src='${k}';crRender()">${l}</button>`;
   return `<button class="ag-back" onclick="CR.vue='accueil';crRender()">${agIcon('chev', 16)} Créations</button>
     <div class="cr-top"><h2>${crE(M.nom)}</h2><p>Choisis ${besoin}. Touche une photo pour la prendre ou l'enlever.</p></div>
-    <div class="cr-choisies">${n ? CR.photos.map((p, i) => `<div class="cr-ch"><img src="${crE(p.thumb || p.url || '')}" ${p.path && !p.thumb ? `data-mkp="${crE(p.path)}"` : ''} alt=""><i>${i + 1}</i><button onclick="crRetirer(${i})" aria-label="Retirer">×</button></div>`).join('') : '<span class="ag-hint" style="margin:0">Aucune photo choisie</span>'}</div>
+    <div class="cr-choisies">${n ? CR.photos.map((p, i) => `<div class="cr-ch ${CR.remplace === i ? 'rmp' : ''}" onclick="crChoisirRemplace(${i})"><img src="${crE(p.thumb || p.url || '')}" ${p.path && !p.thumb ? `data-mkp="${crE(p.path)}"` : ''} alt=""><i>${i + 1}</i><button onclick="event.stopPropagation();crRetirer(${i})" aria-label="Retirer">×</button>
+      <span class="cr-ord">${i > 0 ? `<b onclick="event.stopPropagation();crDeplacer(${i},-1)" aria-label="Avant">‹</b>` : '<b></b>'}${i < n - 1 ? `<b onclick="event.stopPropagation();crDeplacer(${i},1)" aria-label="Après">›</b>` : ''}</span></div>`).join('') : '<span class="ag-hint" style="margin:0">Aucune photo choisie</span>'}</div>
+    ${n ? `<div class="ag-hint" style="margin:2px 0 8px">${CR.remplace != null ? `<b>Photo ${CR.remplace + 1} sélectionnée :</b> touche une nouvelle photo pour la remplacer. <a href="#" onclick="event.preventDefault();CR.remplace=null;crRender()">Annuler</a>` : 'Flèches ‹ › : changer l\'ordre. Touche une photo choisie pour la remplacer par une autre.'}</div>` : ''}
     <div class="ag-pills cr-srcs">${onglet('tel', 'Téléphone / ordinateur')}${onglet('gal', 'Mes galeries')}${onglet('media', 'Mes photos envoyées')}</div>
     <div id="crSrc">${crSrcHtml()}</div>
     <div class="cr-foot"><button class="btn-primary" ${n < M.min ? 'disabled' : ''} onclick="CR.vue='edit';crRender();window.scrollTo({top:0})">${n < M.min ? `Choisis encore ${M.min - n} photo${M.min - n > 1 ? 's' : ''}` : 'Créer'}</button></div>
@@ -249,20 +252,26 @@ async function crOuvrirGalerie(code){
 function crBasculer(p){
   const M = crModele();
   const i = CR.photos.findIndex(x => x.k === p.k);
-  if(i >= 0){ CR.photos.splice(i, 1); CR.crop.splice(i, 1); }
+  if(i >= 0){ CR.photos.splice(i, 1); CR.crop.splice(i, 1); CR.remplace = null; }
+  else if(crFaireRemplace(p)){}
   else {
     if(CR.photos.length >= M.max){ if(M.max === 1){ CR.photos = []; CR.crop = []; } else { agToast(`${M.max} photos au plus pour ce modèle`, 'info'); return; } }
     CR.photos.push(p); CR.crop.push({ x: 0, y: 0, z: 1 });
   }
   crRender();
 }
-function crRetirer(i){ CR.photos.splice(i, 1); CR.crop.splice(i, 1); if(CR.sel >= CR.photos.length) CR.sel = 0; crRender(); }
+function crDeplacer(i, d){ const j = i + d; if(j < 0 || j >= CR.photos.length) return; [CR.photos[i], CR.photos[j]] = [CR.photos[j], CR.photos[i]]; [CR.crop[i], CR.crop[j]] = [CR.crop[j], CR.crop[i]]; if(CR.remplace === i) CR.remplace = j; crRender(); }
+function crChoisirRemplace(i){ CR.remplace = CR.remplace === i ? null : i; crRender(); }
+// Remplace la photo sélectionnée (si une est sélectionnée) : renvoie true si fait
+function crFaireRemplace(p){ const i = CR.remplace; if(i == null || !CR.photos[i]) return false; CR.photos[i] = p; CR.crop[i] = { x: 0, y: 0, z: 1 }; CR.remplace = null; agToast('Photo ' + (i + 1) + ' remplacée'); return true; }
+function crRetirer(i){ CR.remplace = null;  CR.photos.splice(i, 1); CR.crop.splice(i, 1); if(CR.sel >= CR.photos.length) CR.sel = 0; crRender(); }
 function crFichiers(files){
   const M = crModele();
   [...(files || [])].forEach(f => {
     if(!/^image\//.test(f.type)) return;
-    if(CR.photos.length >= M.max){ if(M.max === 1){ CR.photos = []; CR.crop = []; } else return; }
+    if(CR.remplace == null && CR.photos.length >= M.max){ if(M.max === 1){ CR.photos = []; CR.crop = []; } else return; }
     const url = URL.createObjectURL(f);
+    if(crFaireRemplace({ k: 'f:' + f.name + f.size + Math.random(), src: 'fichier', file: f, url, thumb: url })) return;
     CR.photos.push({ k: 'f:' + f.name + f.size + Math.random(), src: 'fichier', file: f, url, thumb: url });
     CR.crop.push({ x: 0, y: 0, z: 1 });
   });
@@ -1277,10 +1286,18 @@ async function crRouvrir(id){
   CR.photos = (conf.photos || []).map(p => !p ? null : p.src === 'galerie' ? { k: 'g:' + p.dossier + '/' + p.f, src: 'galerie', dossier: p.dossier, f: p.f, thumb: galPhotoUrl(p.dossier, p.f, 'thumb'), url: galPhotoUrl(p.dossier, p.f, 'medium') } : { k: 'm:' + p.path, src: 'media', path: p.path }).filter(Boolean);
   CR.crop = (conf.crop || []).slice(0, CR.photos.length);
   while(CR.crop.length < CR.photos.length) CR.crop.push({ x: 0, y: 0, z: 1 });
+  if(conf.vid && typeof AN !== 'undefined'){ AN.vid = Object.assign({}, conf.vid, { musique: null }); AN.buffer = null; AN.audio = null; AN.beats = []; AN.t = 0; }
+  CR.brouillonId = null; CR.exemple = false; CR.remplace = null;
   const M = crModele();
   CR.vue = CR.photos.length >= M.min ? 'edit' : 'photos';
   if(CR.vue === 'photos') agToast('Les photos du téléphone ne sont pas gardées : choisis-les à nouveau', 'info');
   crRender(); window.scrollTo({ top: 0 });
+}
+async function crSupprimerCreation(id){
+  if(!await agConfirm('Supprimer cette création de la liste ?\nLe fichier déjà partagé ou téléchargé n\'est pas touché.', { ok: 'Supprimer', no: 'Garder' })) return;
+  const { error } = await sb.from('creations').delete().eq('id', id).eq('kind', 'creation');
+  if(error){ agAlert(error.message); return; }
+  CR.recents = CR.recents.filter(x => x.id !== id); agToast('Création supprimée'); crRender();
 }
 async function crSupprimer(id){
   if(!await agConfirm('Supprimer ce style ?')) return;
@@ -1297,7 +1314,7 @@ window.crOuvrir = function(o){
   o = o || {};
   CR.photos = (o.photos || []).map((p, i) => p.src === 'galerie' && p.f ? { k: 'g:' + p.dossier + '/' + p.f, src: 'galerie', dossier: p.dossier, f: p.f, thumb: galPhotoUrl(p.dossier, p.f, 'thumb'), url: galPhotoUrl(p.dossier, p.f, 'medium') }
     : p.path ? { k: 'm:' + p.path, src: 'media', path: p.path } : p.file ? { k: 'f:' + i + Math.random(), src: 'fichier', file: p.file, url: URL.createObjectURL(p.file), thumb: URL.createObjectURL(p.file) }
-    : p.url ? { k: 'u:' + p.url, src: 'url', url: p.url, thumb: p.thumb || p.url } : null).filter(Boolean).slice(0, 10);
+    : p.url ? { k: 'u:' + p.url, src: 'url', url: p.url, thumb: p.thumb || p.url } : null).filter(Boolean).slice(0, 100);
   CR.crop = CR.photos.map(() => ({ x: 0, y: 0, z: 1 }));
   CR.cfg = Object.assign(crCfgDefaut(), o.titre ? { titre: o.titre } : {});
   CR.shoot_id = o.shoot_id || null; CR.occasion = o.occasion || '';
@@ -1351,7 +1368,15 @@ function crCss(){
 .cr-st-b{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .cr-st-b button{width:auto;margin:0;padding:6px 10px;border-radius:10px;font:600 12px Inter,sans-serif;background:var(--card2);border:1px solid var(--border);color:var(--text);cursor:pointer}
 .cr-st-b button.no{color:var(--red,#ff6b6b)}
-.cr-recents{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.cr-recents{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.cr-rec-c{min-width:0}.cr-rec-c small{display:block;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px}
+.cr-rec-b{display:flex;gap:4px;margin-top:4px}.cr-rec-b button{flex:1;margin:0;padding:5px 4px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.cr-rec-b button.no{flex:none;width:30px;color:#e5484d}
+.cr-rec{position:relative;width:100% !important}.cr-rec em{position:absolute;right:6px;bottom:6px;font-style:normal;font-size:10px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center}
+.cr-ch{cursor:pointer}.cr-ch.rmp{outline:3px solid #f5a524;outline-offset:1px}
+.cr-ord{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between}
+.cr-ord b{width:22px;height:20px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);color:#fff;font-size:15px;line-height:1;cursor:pointer}
+.cr-ord b:empty{background:none;pointer-events:none}
 .cr-rec{margin:0;padding:0;aspect-ratio:4/5;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:var(--card2);cursor:pointer;width:auto;color:var(--accent)}
 .cr-rec img{width:100%;height:100%;object-fit:cover;display:block}
 .cr-choisies{display:flex;gap:6px;overflow-x:auto;padding:4px 0 10px;min-height:70px;align-items:center}
