@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Contrat - Henzo Photographie</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#030b0a">
+<link rel="icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="contrat-commun.js?v=1"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,sans-serif;background:#e9eeed;color:#1d2b29;padding:16px 12px 40px}
+.wrap{max-width:780px;margin:0 auto}
+.info{max-width:760px;margin:0 auto 12px;padding:12px 14px;border-radius:14px;background:#fff;border:1px solid #d3e2df;font-size:14px;line-height:1.5}
+.info b{color:#00524D}
+.signer{max-width:760px;margin:16px auto 0;background:#fff;border-radius:14px;padding:18px;border:2px solid #48A89A}
+.signer h2{margin:0 0 6px;font-size:18px;color:#053931}.signer p{margin:0 0 10px;font-size:14px;color:#4b5d5a}
+.signer label{display:block;font-size:13px;font-weight:600;margin:12px 0 6px}
+.signer input[type=text]{width:100%;padding:12px;border-radius:12px;border:1px solid #c4d4d1;font:inherit;font-size:16px}
+canvas{width:100%;aspect-ratio:600/220;background:#f7fbfa;border:1px dashed #9fbab5;border-radius:12px;touch-action:none;display:block}
+.ok{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px}.ok input{width:22px;height:22px;flex-shrink:0;margin-top:1px}
+.btns{display:flex;gap:8px;margin-top:14px}
+button{border:0;border-radius:12px;padding:13px 16px;font:700 15px Inter,sans-serif;cursor:pointer}
+.b1{flex:1;background:#00524D;color:#fff}.b2{background:#eef3f2;color:#1d2b29}
+.err{color:#c0392b;font-size:13px;margin-top:8px;min-height:1em}
+.fini{max-width:760px;margin:16px auto 0;background:#e9f8ef;border:1px solid #34c759;border-radius:14px;padding:16px;text-align:center}
+.fini b{display:block;font-size:17px;color:#1f7a44}.fini button{margin-top:10px;background:#00524D;color:#fff}
+.vide{text-align:center;padding:60px 10px;color:#4b5d5a}
+@media print{body{background:#fff;padding:0}.info,.signer,.fini button{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="vide">Chargement du contrat...</div></div>
+<script>
+var SUPABASE_URL = 'https://lzxvktkryxizclkdetaa.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_L4Udla2VCbZsNjdm9IRuJw_ExshPrPc';
+var C = null, sb = null, TOKEN = '';
+(function(){ var s = document.createElement('style'); s.textContent = window.CT_CSS || ''; document.head.appendChild(s); })();
+function esc(s){ return ctEsc(s); }
+async function init(){
+  TOKEN = (new URLSearchParams(location.search).get('t') || '').trim();
+  var app = document.getElementById('app');
+  if(!/^[0-9a-f-]{36}$/i.test(TOKEN)){ app.innerHTML = '<div class="vide">Ce lien de contrat n\'est pas valide.</div>'; return; }
+  try {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    var r = await sb.rpc('contrat_lire', { p_token: TOKEN });
+    C = r && r.data;
+  } catch(e){ C = null; }
+  if(!C){ app.innerHTML = '<div class="vide">Ce contrat n\'est pas disponible. Demandez un nouveau lien à votre photographe.</div>'; return; }
+  document.title = C.titre + ' - ' + (C.marque || 'Henzo Photographie');
+  rendre();
+}
+function rendre(){
+  var app = document.getElementById('app'), signe = C.statut === 'signe';
+  var h = (signe ? '' : '<div class="info"><b>Votre contrat</b><br>Lisez-le tranquillement jusqu\'en bas. Si tout vous convient, écrivez votre nom et signez avec le doigt. Une question ? Écrivez à ' + esc(C.marque || 'votre photographe') + (C.phone ? ' sur WhatsApp (+' + esc(String(C.phone).replace(/\D/g, '')) + ')' : '') + ' avant de signer.</div>') +
+    ctDocHtml(C);
+  if(signe) h += '<div class="fini"><b>Contrat signé</b>Merci ! Gardez une copie : touchez le bouton ci-dessous, puis « Enregistrer en PDF ».<br><button onclick="window.print()">Télécharger / Imprimer</button></div>';
+  else h += '<div class="signer" id="sg"><h2>Signer le contrat</h2><p>En signant, vous dites avoir lu et accepté ce contrat.</p>' +
+    '<label for="nom">Votre nom et prénom</label><input type="text" id="nom" autocomplete="name" value="' + esc((C.donnees || {}).client || '') + '">' +
+    '<label>Votre signature (avec le doigt)</label><canvas id="cv" width="600" height="220"></canvas>' +
+    '<label class="ok"><input type="checkbox" id="lu"> <span>J\'ai lu le contrat en entier et je l\'accepte.</span></label>' +
+    '<div class="btns"><button class="b2" onclick="effacer()">Effacer</button><button class="b1" id="go" onclick="signer()">Je signe</button></div><div class="err" id="err"></div></div>';
+  app.innerHTML = h;
+  if(!signe) pad();
+}
+var vide = true, g = null, cv = null;
+function pad(){
+  cv = document.getElementById('cv'); g = cv.getContext('2d'); var des = false, last = null;
+  g.lineWidth = 3.2; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#10302c';
+  function pt(e){ var r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * cv.width / r.width, y: (e.clientY - r.top) * cv.height / r.height }; }
+  cv.addEventListener('pointerdown', function(e){ des = true; last = pt(e); cv.setPointerCapture(e.pointerId); e.preventDefault(); });
+  cv.addEventListener('pointermove', function(e){ if(!des) return; var p = pt(e); g.beginPath(); g.moveTo(last.x, last.y); g.lineTo(p.x, p.y); g.stroke(); last = p; vide = false; e.preventDefault(); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(function(t){ cv.addEventListener(t, function(){ des = false; }); });
+}
+function effacer(){ if(g){ g.clearRect(0, 0, cv.width, cv.height); vide = true; } }
+async function signer(){
+  var nom = document.getElementById('nom').value.trim(), err = document.getElementById('err'), b = document.getElementById('go');
+  if(!nom){ err.textContent = 'Écrivez votre nom et prénom.'; return; }
+  if(vide){ err.textContent = 'Signez dans le cadre avec votre doigt.'; return; }
+  if(!document.getElementById('lu').checked){ err.textContent = 'Cochez « J\'ai lu le contrat » pour signer.'; return; }
+  err.textContent = ''; b.disabled = true; b.textContent = 'Signature...';
+  try {
+    var r = await sb.rpc('contrat_signer', { p_token: TOKEN, p_nom: nom, p_image: cv.toDataURL('image/png') });
+    if(!r || r.error || !r.data || !r.data.ok) throw new Error('refus');
+    var x = await sb.rpc('contrat_lire', { p_token: TOKEN }); C = (x && x.data) || C; if(C.statut !== 'signe'){ C.statut = 'signe'; C.signature_client = { nom: nom, image: cv.toDataURL('image/png'), date: new Date().toISOString() }; }
+    rendre(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  } catch(e){ err.textContent = 'La signature n\'a pas pu être envoyée. Vérifiez votre connexion et réessayez.'; b.disabled = false; b.textContent = 'Je signe'; }
+}
+init();
+</script>
+</body>
+</html>

@@ -215,7 +215,7 @@ async function otRefresh(force){
   OT.busy = false;
 }
 // Nouvelle version du site publiee ? On recharge tout seul.
-const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'ia.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'coach2.js', 'marketing.js', 'suivi.js', 'budget.js', 'voix.js', 'equipe.js', 'patron.js', 'studio.js', 'messages.js', 'frais.js', 'argent-clair.js', 'objectifs-charges.js', 'argent-travaille.js', 'preparation.js', 'centre-aide.js', 'tarifs-vente.js', 'comment-reserver.js', 'argent-precis.js', 'personnaliser.js', 'creations.js', 'animations.js', 'montage.js', 'styles-montage.js', 'video-plus.js', 'rushs.js', 'montage-plus.js', 'rythme.js', 'musique-libre.js', 'crea-brouillons.js', 'brouillons-ligne.js', 'editeur.js', 'mp4-muxer.esm.js', 'gifenc.esm.js', 'theme.css'];
+const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'ia.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'coach2.js', 'marketing.js', 'suivi.js', 'budget.js', 'voix.js', 'equipe.js', 'patron.js', 'studio.js', 'messages.js', 'frais.js', 'argent-clair.js', 'objectifs-charges.js', 'argent-travaille.js', 'preparation.js', 'centre-aide.js', 'tarifs-vente.js', 'comment-reserver.js', 'argent-precis.js', 'personnaliser.js', 'historiques.js', 'prereglages.js', 'ecriture.js', 'contrat-commun.js', 'contrats.js', 'guides.js', 'creations.js', 'animations.js', 'montage.js', 'styles-montage.js', 'video-plus.js', 'rushs.js', 'montage-plus.js', 'rythme.js', 'musique-libre.js', 'crea-brouillons.js', 'brouillons-ligne.js', 'editeur.js', 'mp4-muxer.esm.js', 'gifenc.esm.js', 'theme.css'];
 async function otCheckVersion(){
   let changed = false;
   for(const f of OT_FILES){
@@ -264,10 +264,11 @@ const OT_GROUPS = [
   { k: 'creations', n: 'Créations', t: ['creations'], d: 'Tes styles de visuels gardés et tes dernières créations' },
   { k: 'budgets', n: 'Budgets et charges fixes', t: ['charges_paiements', 'charges_fixes', 'budgets', 'projets_argent'], d: 'Calculs de budget, charges fixes et leurs paiements, projets qui font travailler ton argent' },
   { k: 'preparation', n: 'Préparations et kits', t: ['preparations', 'kits'], d: 'Listes pour voyages, événements, séances, et tes kits' },
+  { k: 'contrats', n: 'Contrats', t: ['contrats'], d: 'Tes contrats et leurs signatures' },
   { k: 'coach', n: 'Coach', t: ['ecole_progres', 'negociations', 'coach_journal', 'coach_plans'], d: 'Plans d\'action, journal, négociations, école de la vente' },
   { k: 'reglages', n: 'Réglages', t: ['user_settings'], d: 'Notifications, préférences, thème, messages' }
 ];
-const OT_ORDER = ['accounts', 'goals', 'goal_reminders', 'clients', 'shoots', 'client_suivi', 'transactions', 'manquants', 'budgets', 'charges_fixes', 'charges_paiements', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'client_messages', 'promos', 'tarifs', 'tarif_collections', 'devis', 'tarif_page', 'reservations', 'equipe_evals', 'messages_programmes', 'equipe_taches', 'equipe_defis', 'equipe_defis_suivi', 'equipe_bonus', 'coach_plans', 'coach_journal', 'negociations', 'ecole_progres', 'mood_boards', 'mood_images', 'mood_feedback', 'materiel', 'creations', 'projets_argent', 'preparations', 'kits', 'user_settings'];
+const OT_ORDER = ['accounts', 'goals', 'goal_reminders', 'clients', 'shoots', 'client_suivi', 'transactions', 'manquants', 'budgets', 'charges_fixes', 'charges_paiements', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'client_messages', 'promos', 'tarifs', 'tarif_collections', 'devis', 'tarif_page', 'reservations', 'equipe_evals', 'messages_programmes', 'equipe_taches', 'equipe_defis', 'equipe_defis_suivi', 'equipe_bonus', 'coach_plans', 'coach_journal', 'negociations', 'ecole_progres', 'mood_boards', 'mood_images', 'mood_feedback', 'materiel', 'creations', 'projets_argent', 'preparations', 'kits', 'contrats', 'user_settings'];
 
 // La cle IA et le mot de passe galerie ne partent jamais dans une sauvegarde
 const OT_SECRETS = ['ai_config', 'galerie_admin_pwd'];
@@ -430,7 +431,7 @@ async function otImportRun(){
     // 2. Mode Remplacer : on enleve seulement ce qui n'existait pas dans la sauvegarde
     //    (les plus "dependants" d'abord). Les clients ne sont jamais effaces.
     if(mode === 'replace'){
-      const order = ['projets_argent', 'preparations', 'kits', 'manquants', 'equipe_bonus', 'equipe_defis_suivi', 'equipe_defis', 'equipe_taches', 'messages_programmes', 'equipe_evals', 'charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'creations', 'charges_fixes', 'budgets', 'goals', 'accounts'];
+      const order = ['projets_argent', 'preparations', 'kits', 'contrats', 'manquants', 'equipe_bonus', 'equipe_defis_suivi', 'equipe_defis', 'equipe_taches', 'messages_programmes', 'equipe_evals', 'charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'creations', 'charges_fixes', 'budgets', 'goals', 'accounts'];
       for(const t of order.filter(x => tables.includes(x))){
         const ids = (snap.tables[t] || []).map(r => r.id).filter(v => v != null);
         let q = sb.from(t).delete().eq('user_id', uid);
@@ -465,7 +466,7 @@ async function otAutoBackup(){
 setTimeout(otAutoBackup, 20000);
 
 async function otWipe(tables, uid){
-  const order = ['projets_argent', 'preparations', 'kits', 'manquants', 'equipe_bonus', 'equipe_defis_suivi', 'equipe_defis', 'equipe_taches', 'messages_programmes', 'equipe_evals', 'charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'tarif_page', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'creations', 'charges_fixes', 'budgets', 'clients', 'goals', 'accounts'];
+  const order = ['projets_argent', 'preparations', 'kits', 'contrats', 'manquants', 'equipe_bonus', 'equipe_defis_suivi', 'equipe_defis', 'equipe_taches', 'messages_programmes', 'equipe_evals', 'charges_paiements', 'ecole_progres', 'negociations', 'coach_journal', 'coach_plans', 'transactions', 'client_suivi', 'client_messages', 'reservations', 'devis', 'shoots', 'goal_reminders', 'payment_links', 'notes', 'reminders', 'saved_ideas', 'inspirations', 'promos', 'tarifs', 'tarif_collections', 'tarif_page', 'mood_feedback', 'mood_images', 'mood_boards', 'materiel', 'creations', 'charges_fixes', 'budgets', 'clients', 'goals', 'accounts'];
   for(const t of order.filter(x => tables.includes(x))){
     const { error } = await sb.from(t).delete().eq('user_id', uid);
     if(error) throw new Error(t + ' : ' + error.message);
