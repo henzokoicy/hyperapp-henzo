@@ -25,9 +25,9 @@ const MT_MVTS = [
   ['kb', 'Doux (Ken Burns)'], ['zoomin', 'Zoom avant'], ['zoomout', 'Zoom arrière'], ['dolly', 'Plongée'],
   ['gauche', 'Vers la gauche'], ['droite', 'Vers la droite'], ['haut', 'Vers le haut'], ['bas', 'Vers le bas'],
   ['punch', 'Punch'], ['battement', 'Battement (rythme)'], ['tremble', 'Caméra à la main'], ['rotation', 'Rotation douce'],
-  ['flottant', 'Carte flottante'], ['flou', 'Net depuis le flou'], ['aucun', 'Fixe']
+  ['flottant', 'Carte flottante'], ['flou', 'Net depuis le flou'], ['zoompoint', 'Zoom sur un point'], ['aucun', 'Fixe']
 ];
-const MT_MVT_COURT = { kb: 'Doux', zoomin: 'Zoom +', zoomout: 'Zoom -', dolly: 'Plongée', gauche: '←', droite: '→', haut: '↑', bas: '↓', punch: 'Punch', battement: 'Beat', tremble: 'Main', rotation: 'Rot.', flottant: 'Carte', flou: 'Flou', aucun: 'Fixe' };
+const MT_MVT_COURT = { zoompoint: 'Point', kb: 'Doux', zoomin: 'Zoom +', zoomout: 'Zoom -', dolly: 'Plongée', gauche: '←', droite: '→', haut: '↑', bas: '↓', punch: 'Punch', battement: 'Beat', tremble: 'Main', rotation: 'Rot.', flottant: 'Carte', flou: 'Flou', aucun: 'Fixe' };
 // ---------- Transitions ----------
 const MT_TRS = [
   ['coupe', 'Coupe nette'], ['fondu', 'Fondu'], ['noir', 'Fondu au noir'], ['blanc', 'Fondu au blanc'], ['flash', 'Flash'],
@@ -71,7 +71,7 @@ function mtPlanManuel(){
   const pris = new Set(V.clips.map(c => c.k));
   CR.photos.forEach(p => { if(!pris.has(p.k)){ V.clips.push(Object.assign({ k: p.k, d: p.video ? Math.max(0.5, Math.min(p.vdur || 4, 4)) : 2.5 }, mtPreset(CR.modele, V.clips.length), p.video ? { mvt: 'aucun' } : {})); pris.add(p.k); } });
   let t = 0;
-  const segs = V.clips.map((c, n) => { const sg = { i: idx[c.k], k: c.k, t0: t, t1: t + c.d, mvt: c.mvt, tr: c.tr, trD: c.trD, filtre: c.filtre || null, vin: c.vin, vit: c.vit, n }; t += c.d; return sg; });
+  const segs = V.clips.map((c, n) => { const sg = { i: idx[c.k], k: c.k, t0: t, t1: t + c.d, mvt: c.mvt, tr: c.tr, trD: c.trD, filtre: c.filtre || null, vin: c.vin, vit: c.vit, rampe: c.rampe, cadre: c.cadre, focal: c.focal, avec: c.avec, dispo: c.dispo, n }; t += c.d; return sg; });
   const finD = anFinD(), Dp = Math.max(0.5, t), D = Dp + finD;
   V.duree = Math.round(D * 10) / 10;
   return { D, Dp, finD, segs, n: CR.photos.length, mt: true, manuel: true };
@@ -97,6 +97,8 @@ function mtCover(g, img, x, y, w, h, z, px, py, alpha, filtrePlus){
   if(!img) return;
   const k = Math.max(w / img.width, h / img.height) * (z || 1);
   const dw = img.width * k, dh = img.height * k, lx = (dw - w) / 2, ly = (dh - h) / 2;
+  // Le point important du plan (choisi en touchant l'aperçu) reste dans l'image
+  const Fo = window.mtSegCourant && window.mtSegCourant.focal; if(Fo){ px = (px || 0) + (Fo.x - 0.5) * 2; py = (py || 0) + (Fo.y - 0.5) * 2; }
   g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
   if(alpha != null) g.globalAlpha = alpha;
   const f = [crFiltre(CR.cfg), filtrePlus].filter(Boolean).join(' '); if(f) g.filter = f;
@@ -107,6 +109,48 @@ function mtCover(g, img, x, y, w, h, z, px, py, alpha, filtrePlus){
 function mtDepuisBeat(t){ let d = 9; for(const b of AN.beats || []){ if(b <= t) d = t - b; else break; } return d; }
 // Un plan : la photo et son mouvement. u = avancement 0 à 1, ts = secondes depuis le début du plan
 function mtPlanDessin(g, img, W, H, s, mvt, u, ts, n, t){
+  const S = window.mtSegCourant;
+  // Deux photos : écran partagé
+  if(S && S.dispo === 'duo' && S.avec && !mtPlanDessin.dedans){
+    const i2 = CR.photos.findIndex(p => p.k === S.avec), img2 = i2 >= 0 && typeof AN_IMGS !== 'undefined' ? AN_IMGS[i2] : null;
+    if(img2){
+      const vert = H >= W, gap = Math.round(6 * s), aw = vert ? W : (W - gap) / 2, ah = vert ? (H - gap) / 2 : H;
+      g.fillStyle = CR.cfg.accent || '#fff'; g.fillRect(0, 0, W, H);
+      mtPlanDessin.dedans = true;
+      try {
+        [[img, 0, 0], [img2, vert ? 0 : aw + gap, vert ? ah + gap : 0]].forEach(([im, x, y], j) => {
+          g.save(); g.translate(x, y); g.beginPath(); g.rect(0, 0, aw, ah); g.clip();
+          const k = Math.min(1, Math.max(0, (u - j * 0.08) / 0.25)), off = (1 - (k * (2 - k))) * (vert ? ah : aw) * (j ? 1 : -1);
+          g.translate(vert ? 0 : off, vert ? off : 0);
+          mtPlanDessin(g, im, aw, ah, s, mvt, u, ts, n + j, t); g.restore();
+        });
+      } finally { mtPlanDessin.dedans = false; }
+      return;
+    }
+  }
+  // Photo entière (sans la couper) sur fond flou ou sur bandes
+  if(S && (S.cadre === 'flou' || S.cadre === 'bandes') && img && !mtPlanDessin.cadre){
+    const r = Math.min(W / img.width, H / img.height) * 0.96, w = img.width * r, h = img.height * r, x = (W - w) / 2, y = (H - h) / 2;
+    if(S.cadre === 'flou'){ mtCover(g, img, 0, 0, W, H, 1.25, 0, 0, 1, `blur(${Math.round(30 * s)}px) brightness(.7)`); }
+    else { g.fillStyle = S.fond || '#000'; g.fillRect(0, 0, W, H); }
+    g.save(); g.translate(x, y); if(S.cadre === 'flou'){ g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 30 * s; g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.shadowColor = 'transparent'; }
+    g.beginPath(); g.rect(0, 0, w, h); g.clip();
+    mtPlanDessin.cadre = true; try { mtPlanDessin(g, img, w, h, s, mvt, u, ts, n, t); } finally { mtPlanDessin.cadre = false; }
+    g.restore();
+  } else mtPlanDessinBase(g, img, W, H, s, mvt, u, ts, n, t);
+  // Une 2e photo dans la photo
+  if(S && S.dispo === 'pip' && S.avec && !mtPlanDessin.dedans && !mtPlanDessin.cadre){
+    const i2 = CR.photos.findIndex(p => p.k === S.avec), img2 = i2 >= 0 && typeof AN_IMGS !== 'undefined' ? AN_IMGS[i2] : null;
+    if(img2){
+      const pw = Math.min(W, H) * 0.42, ph = pw * 1.25, m = 40 * s, k = Math.min(1, Math.max(0, (u - 0.05) / 0.2)), e = k * (2 - k);
+      const x = W - pw - m, y = H - ph - m * 2.4 + (1 - e) * 60 * s + Math.sin(t * 1.4) * 6 * s;
+      g.save(); g.globalAlpha = e; g.translate(x + pw / 2, y + ph / 2); g.rotate((-2 + Math.sin(t) * 0.8) * Math.PI / 180); g.translate(-pw / 2, -ph / 2);
+      g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 26 * s; g.shadowOffsetY = 10 * s; g.fillStyle = '#fff'; g.fillRect(-8 * s, -8 * s, pw + 16 * s, ph + 16 * s); g.shadowColor = 'transparent';
+      mtCover(g, img2, 0, 0, pw, ph, 1.04 + 0.05 * u, 0, 0); g.restore();
+    }
+  }
+}
+function mtPlanDessinBase(g, img, W, H, s, mvt, u, ts, n, t){
   const f = Math.max(0.3, Math.min(2.5, anVid().force || 1));
   g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
   const dir = n % 2 ? -1 : 1;
@@ -115,6 +159,7 @@ function mtPlanDessin(g, img, W, H, s, mvt, u, ts, n, t){
     case 'zoomin': return mtCover(g, img, 0, 0, W, H, 1.02 + 0.16 * f * mtEaseIO(u));
     case 'zoomout': return mtCover(g, img, 0, 0, W, H, 1.02 + 0.16 * f * (1 - mtEaseIO(u)));
     case 'dolly': return mtCover(g, img, 0, 0, W, H, 1 + 0.38 * f * mtEaseIO(u));
+    case 'zoompoint': return mtCover(g, img, 0, 0, W, H, 1.02 + 0.9 * f * mtEaseIO(u));
     case 'gauche': return mtCover(g, img, 0, 0, W, H, 1 + 0.12 * f, 0.9 - 1.8 * u, 0);
     case 'droite': return mtCover(g, img, 0, 0, W, H, 1 + 0.12 * f, -0.9 + 1.8 * u, 0);
     case 'haut': return mtCover(g, img, 0, 0, W, H, 1 + 0.12 * f, 0, 0.9 - 1.8 * u);
@@ -146,10 +191,10 @@ window.mtDessiner = function(g, W, H, s, tt, imgs, plan){
   const vue = (seg, segPv, segNx, cible) => {
     const a = mtDuree(segPv, seg) / 2, b = mtDuree(seg, segNx) / 2;
     const u = (tt - (seg.t0 - a)) / Math.max(0.1, (seg.t1 + b) - (seg.t0 - a));
-    window.mtFiltrePlan = seg.filtre || null;
+    window.mtFiltrePlan = seg.filtre || null; window.mtSegCourant = seg;
     const im = typeof rvPour === 'function' ? rvPour(seg, imgs[seg.i], tt) : imgs[seg.i];
     mtPlanDessin(cible, im, W, H, s, seg.mvt, Math.max(0, Math.min(1, u)), tt - seg.t0, seg.n, tt);
-    window.mtFiltrePlan = null;
+    window.mtFiltrePlan = null; window.mtSegCourant = null;
   };
   let A = null, B = null, p = 0, tr = null;
   if(nx && dOut > 0 && tt > sg.t1 - dOut / 2){ A = [sg, pv, nx]; B = [nx, sg, segs[k + 2]]; p = (tt - (sg.t1 - dOut / 2)) / dOut; tr = sg.tr; }
@@ -304,6 +349,7 @@ function mtInner(){
       <label>Durée : <b id="mtDTxt">${d.toFixed(1).replace('.', ',')} s</b></label><input type="range" min="0.2" max="${Math.max(12, Math.ceil(d))}" step="0.1" value="${d.toFixed(1)}" oninput="mtDureePlan(this.value)" onchange="mtMaj()">
       ${typeof rvPanneau === 'function' && (CR.photos[sg.i] || {}).video ? rvPanneau(sg, d) : ''}
       <label>Mouvement de caméra</label>${pills(MT_MVTS, sg.mvt, 'mtMvt')}
+      ${typeof mpPanneau === 'function' ? mpPanneau(sg) : ''}
       <label>Couleur de ce plan</label>${pills([['', 'Comme la vidéo']].concat(Object.keys(CR_FILTRES).filter(k => k !== 'aucun').map(k => [k, CR_FILTRES[k][0]])).concat([['aucun', 'Sans filtre']]), sg.filtre || '', 'mtFiltre')}
       <div class="mt-act">
         <button type="button" onclick="mtBouger(-1)" ${sel.n === 0 ? 'disabled' : ''}>‹ Avant</button>
@@ -449,6 +495,7 @@ function mtBrancher(){
   // Pendant le glissé : la piste ne défile pas
   piste.addEventListener('touchmove', e => { if(piste.classList.contains('en-drag')) e.preventDefault(); }, { passive: false });
   mtTeteLecture();
+  if(typeof window.rtMarques === 'function') try { window.rtMarques(); } catch(e){}
 }
 // La tête de lecture suit la vidéo
 function mtTeteLecture(){

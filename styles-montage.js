@@ -92,12 +92,31 @@ function mtsAnalyse(){
   const en = grille.map(t => { const a = Math.round(t * 100), z = Math.min(env.length, a + Math.round(P)); let s = 0; for(let i = a; i < z; i++) s += env[i]; return s / Math.max(1, z - a); });
   const tri = en.slice().sort((x, y) => x - y), bas = tri[Math.floor(tri.length * 0.2)] || 0, haut = tri[Math.floor(tri.length * 0.85)] || 1;
   const energie = en.map(x => Math.max(0, Math.min(1, (x - bas) / Math.max(1e-6, haut - bas))));
-  mtsCache = { cle, bpm: Math.round(6000 / P), periode: P / 100, grille, mesure: mes, energie, duree: (d1 - d0) / sr };
+  // Force de l'attaque sur chaque temps, et les "points forts" (montée d'énergie : refrain, drop)
+  const force = grille.map(t => { const a = Math.round(t * 100); let m = 0; for(let i = a - 3; i <= a + 3; i++) m = Math.max(m, o[i] || 0); return m; });
+  const forts = [];
+  energie.forEach((e, i) => { if(i < 4) return; const avant = (energie[i - 1] + energie[i - 2] + energie[i - 3] + energie[i - 4]) / 4; if(e > 0.6 && e - avant > 0.32 && (!forts.length || grille[i] - forts[forts.length - 1] > 4)) forts.push(grille[i]); });
+  mtsCache = { cle, bpm: Math.round(6000 / P), periode: P / 100, grille, mesure: mes, energie, force, forts, duree: (d1 - d0) / sr };
   return mtsCache;
 }
 window.mtsAnalyse = mtsAnalyse;
 
 // ---------- Fabrication du montage ----------
+// Les moments de coupe selon le choix (temps en secondes depuis le début de la vidéo)
+function mtsCoupes(coupe, A, maxD){
+  const V = anVid(), out = [];
+  if(coupe === 'reperes'){ return (V.reperes || []).filter(x => x > 0.2 && x <= maxD).sort((a, b) => a - b); }
+  if(!A || !A.grille || A.grille.length < 3) return null;
+  const g = A.grille;
+  if(coupe === 'forts'){
+    const tri = A.force.slice().sort((a, b) => a - b), seuil = tri[Math.floor(tri.length * 0.7)] || 0;
+    let der = 0; g.forEach((t, i) => { if(A.force[i] >= seuil && t - der >= 0.45 && t > 0.2){ out.push(t); der = t; } });
+    return out;
+  }
+  const n = Number(coupe) || 1;
+  for(let i = A.mesure + n; i < g.length; i += n) out.push(g[i]);
+  return out;
+}
 function mtsHasard(graine){ let s = graine * 9301 + 49297; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
 function mtsMelange(a, r){ a = a.slice(); for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 window.mtsAppliquer = function(id, silencieux){
@@ -121,7 +140,14 @@ window.mtsAppliquer = function(id, silencieux){
   const maxD = A ? Math.min(180, A.duree) - finD : 180;
   const ks = CR.photos.map(p => p.k);
   const durees = [];
-  if(A && A.grille.length > 2){
+  // Coupes choisies à la main (Couper sur : chaque temps, 2, 4, temps forts, mes repères...)
+  const coupe = V.coupe && V.coupe !== 'style' && V.coupe !== 'energie' ? V.coupe : null;
+  const coupesFixes = coupe ? mtsCoupes(coupe, A, maxD) : null;
+  if(coupesFixes && coupesFixes.length){
+    let t = 0;
+    for(const c of coupesFixes){ if(c - t < 0.2) continue; if(c > maxD + 0.01) break; durees.push(c - t); t = c; if(V.remplir !== true && durees.length >= ks.length) break; }
+    if(V.remplir !== true && durees.length < ks.length){ const pas = A ? A.periode * 2 : st.secs; while(durees.length < ks.length && t + pas <= maxD){ durees.push(pas); t += pas; } }
+  } else if(A && A.grille.length > 2){
     const g = A.grille, per = A.periode;
     // Position en temps (peut être un demi-temps) -> secondes
     const aT = x => { const f = Math.floor(x); return f < g.length ? g[f] + (x - f) * per : g[g.length - 1] + (x - g.length + 1) * per; };
@@ -129,7 +155,7 @@ window.mtsAppliquer = function(id, silencieux){
     let t = 0, n = 0;
     const tempsPour = (k) => {
       let T = Math.max(1, Math.round(st.temps * mult));
-      if(st.energie){
+      if(st.energie || V.coupe === 'energie'){
         const e = A.energie[Math.min(A.energie.length - 1, Math.floor(i))] || 0.5;
         if(e > 0.7) T = T >= 2 ? Math.round(T / 2) : (e > 0.85 ? 0.5 : 1);   // refrain : plus vite (jusqu'au demi-temps)
         else if(e < 0.3) T = T * 2;                                           // passage calme : plus lent
@@ -164,6 +190,11 @@ window.mtsAppliquer = function(id, silencieux){
     return { k: ordre[n], d: Math.round(d * 1000) / 1000, mvt: mvts[n % mvts.length], tr, trD: tr === 'coupe' ? 0 : st.trD };
   });
   V.force = st.force;
+  // Les points forts de la musique (refrain, drop) : un effet qui claque à cet endroit
+  if(V.accentsForts && A && A.forts && A.forts.length){
+    let t = 0; const debuts = V.clips.map(c => { const x = t; t += c.d; return x; });
+    A.forts.forEach(f => { const i = debuts.findIndex(x => Math.abs(x - f) < 0.2); if(i > 0){ V.clips[i].mvt = 'punch'; V.clips[i - 1].tr = 'flash'; V.clips[i - 1].trD = 0.35; } });
+  }
   // Le look du style (couleur, grain, lumières...) seulement si tu le demandes : par défaut, aucun effet n'est imposé
   if(V.lookStyle) mtsPoserLook(st);
   V.styleSig = JSON.stringify(V.clips);
@@ -207,7 +238,8 @@ function mtsHtml(){
       <div><label>Durée</label>${pills([['photos', 'Chaque photo une fois'], ['tout', AN.buffer ? 'Toute la musique' : 'Toute la durée']], V.remplir ? 'tout' : 'photos', 'mtsRemplir')}</div>
     </div>
     ${V.style ? `<div class="mt-act"><button type="button" onclick="mtsAutreVersion()">${agIcon('dice', 13)} Autre version</button>${V.lookStyle ? `<button type="button" onclick="mtsLook(false)">Retirer le look du style</button>` : `<button type="button" onclick="mtsLook(true)">${agIcon('palette', 13)} Ajouter le look du style</button>`}${mtsIntact() ? '' : '<span class="mts-retouche">retouché à la main</span>'}</div>
-      <div class="ag-hint">Le style pose seulement les coupes, les mouvements et les transitions. Couleurs et effets : seulement si tu ajoutes le look. Tout reste modifiable (Montage, Effets).</div>` : ''}`;
+      <div class="ag-hint">Le style pose seulement les coupes, les mouvements et les transitions. Couleurs et effets : seulement si tu ajoutes le look. Tout reste modifiable (Montage, Effets).</div>` : ''}
+    ${typeof rtHtml === 'function' ? rtHtml() : ''}`;
 }
 window.mtsMaj = function(){ const z = document.getElementById('mtsZone'); if(z) z.innerHTML = mtsHtml(); };
 const anVueEditS = anVueEdit;

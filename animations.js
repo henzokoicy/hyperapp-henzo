@@ -451,16 +451,22 @@ async function anEncodeurAudio(){
   return null;
 }
 // La musique déjà mixée : extrait choisi, volume, fondus (48 kHz stéréo)
+// Des bruitages sont placés dans la vidéo ?
+function anAvecSons(){ return !!((anVid().sons || []).length); }
 async function anMixMusique(D){
-  const V = anVid(); if(!AN.buffer) return null;
+  const V = anVid(); if(!AN.buffer && !anAvecSons()) return null;
   const sr = 48000, n = Math.ceil(D * sr);
   const off = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(2, n, sr);
-  const src = off.createBufferSource(); src.buffer = AN.buffer;
-  const gain = off.createGain(); src.connect(gain); gain.connect(off.destination);
-  const vol = V.volume;
-  if(V.fondu){ gain.gain.setValueAtTime(0.0001, 0); gain.gain.exponentialRampToValueAtTime(vol, Math.min(0.8, D / 3)); gain.gain.setValueAtTime(vol, Math.max(0.9, D - 1.2)); gain.gain.exponentialRampToValueAtTime(0.0001, D); }
-  else gain.gain.setValueAtTime(vol, 0);
-  src.start(0, V.debut, D + 0.1);
+  if(AN.buffer){
+    const src = off.createBufferSource(); src.buffer = AN.buffer;
+    const gain = off.createGain(); src.connect(gain); gain.connect(off.destination);
+    const vol = V.volume;
+    if(V.fondu){ gain.gain.setValueAtTime(0.0001, 0); gain.gain.exponentialRampToValueAtTime(vol, Math.min(0.8, D / 3)); gain.gain.setValueAtTime(vol, Math.max(0.9, D - 1.2)); gain.gain.exponentialRampToValueAtTime(0.0001, D); }
+    else gain.gain.setValueAtTime(vol, 0);
+    src.start(0, V.debut, D + 0.1);
+  }
+  // Les bruitages (musique-libre.js)
+  if(typeof mlAjouterSons === 'function') await mlAjouterSons(off, D);
   return await off.startRendering();
 }
 async function anVideoImageParImage(){
@@ -478,8 +484,9 @@ async function anVideoImageParImage(){
     if(vcfg) agToast(`Cet appareil ne sait pas encoder en ${q[2]} px : vidéo faite en 1080 px`, 'info');
   }
   if(!vcfg) return null;
-  const acfg = AN.buffer ? await anEncodeurAudio() : null;
-  if(AN.buffer && !acfg) return null;   // musique impossible à encoder ici : ancien moteur
+  const avecSon = AN.buffer || anAvecSons();
+  const acfg = avecSon ? await anEncodeurAudio() : null;
+  if(avecSon && !acfg) return null;   // musique impossible à encoder ici : ancien moteur
   const { Muxer, ArrayBufferTarget } = await import('./mp4-muxer.esm.js');
   await anPreparer(q[2] > 1080);
   const plan = anPlan();

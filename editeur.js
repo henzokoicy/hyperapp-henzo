@@ -125,7 +125,10 @@ window.edOutil = function(id, silencieux){
 window.edApresMt = function(){
   const hote = document.getElementById('mtPanHote'); if(!hote) return;
   const p = document.querySelector('#mtZone .mt-pan'); if(p){ hote.innerHTML = ''; hote.appendChild(p); if(typeof mkHydrate === 'function') mkHydrate(hote); }
-  if(typeof MT !== 'undefined' && MT.sel && CR.edOutil !== 'montage') edOutil('montage', true);
+  // On passe sur l'outil Montage seulement quand tu viens de toucher un plan ou une transition
+  const cle = typeof MT !== 'undefined' && MT.sel ? MT.sel.t + MT.sel.n : '';
+  const nouveau = cle && cle !== edApresMt.der; edApresMt.der = cle;
+  if(nouveau && CR.edOutil !== 'montage') edOutil('montage', true);
   else if(CR.edOutil === 'montage') edOutil('montage', true);
   edInfo();
 };
@@ -213,6 +216,7 @@ body.ed-ouvert #edPortail{display:block;position:fixed;inset:0;z-index:150;backg
 .ed-piste{order:2}
 .ed-main{order:1}
 body.ed-ouvert .ot-backtop{display:none !important}
+body.ed-ouvert .modal-bg{z-index:400 !important}
 @media(max-width:899px){
   .ed{gap:8px}.ed-main{display:contents}.ed-scene{order:1}.ed-piste{order:2}.ed-outils{order:3}.ed-insp{order:4;min-height:60vh}
   .ed-barre{order:0}.ed-exp span{display:none}

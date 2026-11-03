@@ -58,13 +58,16 @@ window.rvImage = async function(p){
 
 // ---------- Quel moment de la vidéo pour un plan ----------
 window.rvVinAuto = function(sg){
-  const p = CR.photos[sg.i] || {}, dur = p.vdur || 0, d = (sg.t1 - sg.t0) * (sg.vit || 1);
+  const p = CR.photos[sg.i] || {}, dur = p.vdur || 0, d = (sg.t1 - sg.t0) * (sg.vit == null ? 1 : sg.vit);
   return Math.round(Math.max(0, Math.min(dur - d, dur * 0.15)) * 100) / 100;
 };
 function rvCible(sg, tt){
   const p = CR.photos[sg.i] || {}, dur = p.vdur || 0;
   const vin = sg.vin != null ? sg.vin : rvVinAuto(sg);
-  const x = vin + Math.max(0, tt - sg.t0) * (sg.vit || 1);
+  const vit = sg.vit == null ? 1 : sg.vit, dt = Math.max(0, tt - sg.t0);
+  let x = vin + dt * vit;
+  // Rampe : ralenti au milieu du plan, normal au début et à la fin
+  if(sg.rampe){ const d = Math.max(0.1, sg.t1 - sg.t0), p = Math.min(1, dt / d); x = vin + d * (vit || 1) * (0.65 * p + 0.7 * Math.sin(2 * Math.PI * p) / (4 * Math.PI)); }
   return Math.max(0, Math.min(Math.max(0, dur - 0.04), x));
 }
 function rvCle(sg){ return sg.k + '@' + sg.n; }
@@ -115,8 +118,9 @@ function rvSync(){
   Object.keys(RV.els).forEach(c => { if(!vis.has(c)){ const v = RV.els[c]; if(!v.paused) v.pause(); } });
   rvVisibles(t, plan).forEach(sg => {
     const v = rvPourSeg(sg), x = rvCible(sg, t), actif = t >= sg.t0 - 0.6 && t <= sg.t1 + 0.6;
-    if(AN.lecture && actif){
-      v.playbackRate = sg.vit || 1;
+    const vr = sg.vit == null ? 1 : sg.vit;
+    if(AN.lecture && actif && vr > 0 && !sg.rampe){
+      v.playbackRate = vr;
       if(v.paused){ if(Math.abs(v.currentTime - x) > 0.05) v.currentTime = x; v.play().catch(() => {}); }
       else if(Math.abs(v.currentTime - x) > 0.3) v.currentTime = x;
     } else {
@@ -132,13 +136,14 @@ anStop = function(){ const r = stopRv.apply(this, arguments); Object.values(RV.e
 
 // ---------- Réglages d'un plan vidéo (dans la table de montage) ----------
 window.rvPanneau = function(sg, d){
-  const p = CR.photos[sg.i] || {}, dur = p.vdur || 0, vin = sg.vin != null ? sg.vin : rvVinAuto(sg), vit = sg.vit || 1;
-  const fin = Math.min(dur, vin + d * vit);
+  const p = CR.photos[sg.i] || {}, dur = p.vdur || 0, vin = sg.vin != null ? sg.vin : rvVinAuto(sg), vit = sg.vit == null ? 1 : sg.vit;
+  const fin = Math.min(dur, vin + d * (sg.rampe ? 0.65 * (vit || 1) : vit));
   return `<div class="rv-pan"><div class="rv-t">${agIcon('play', 11)} Rush vidéo · ${dur ? (Math.round(dur * 10) / 10).toFixed(1).replace('.', ',') + ' s' : '...'}</div>
     <div class="rv-barre"><i style="left:${dur ? vin / dur * 100 : 0}%;width:${dur ? Math.max(1, (fin - vin) / dur * 100) : 0}%"></i></div>
     <label>Passage utilisé : de <b id="rvVinTxt">${vin.toFixed(1).replace('.', ',')} s</b> à <b id="rvFinTxt">${fin.toFixed(1).replace('.', ',')} s</b></label>
     <input type="range" min="0" max="${Math.max(0, dur - 0.2).toFixed(2)}" step="0.05" value="${vin}" oninput="rvVin(this.value)" onchange="mtMaj()">
-    <label>Vitesse</label><div class="ag-pills mt-pills">${[[0.25, 'Très ralenti'], [0.5, 'Ralenti'], [0.75, '0,75x'], [1, 'Normale'], [1.5, '1,5x'], [2, 'Accéléré 2x']].map(([k, l]) => `<button type="button" class="${vit === k ? 'on' : ''}" onclick="rvVit(${k})">${l}</button>`).join('')}</div>
+    <label>Vitesse</label><div class="ag-pills mt-pills">${[[0, 'Image figée'], [0.25, 'Très ralenti'], [0.5, 'Ralenti'], [0.75, '0,75x'], [1, 'Normale'], [1.5, '1,5x'], [2, 'Accéléré 2x']].map(([k, l]) => `<button type="button" class="${vit === k ? 'on' : ''}" onclick="rvVit(${k})">${l}</button>`).join('')}</div>
+    <label class="ag-check"><input type="checkbox" ${sg.rampe ? 'checked' : ''} onchange="rvRampe(this.checked)"> Rampe de vitesse (ralenti au milieu, normal au début et à la fin)</label>
     <div class="mt-act"><button type="button" onclick="rvToutLeRush()">Prendre tout le rush</button></div>
     <div class="ag-hint">Pour garder plusieurs moments d'un même rush : « Couper ici », puis change le passage de chaque morceau.</div></div>`;
 };
@@ -150,6 +155,7 @@ window.rvVin = function(v){
   const sg = anPlan().segs[n]; AN.plan = anPlan(); AN.t = sg.t0 + 0.02; anApercuUneFois();
   clearTimeout(rvVin.t); rvVin.t = setTimeout(() => { MT.rvGlisse = false; }, 800);
 };
+window.rvRampe = function(on){ mtAvantPublic(); anVid().clips[MT.sel.n].rampe = !!on; mtMaj(); };
 window.rvVit = function(k){ mtAvantPublic(); anVid().clips[MT.sel.n].vit = k; mtMaj(); };
 window.rvToutLeRush = function(){
   mtAvantPublic(); const sg = anPlan().segs[MT.sel.n], c = anVid().clips[MT.sel.n], p = CR.photos[sg.i] || {};
