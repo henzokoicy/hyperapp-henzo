@@ -66,6 +66,7 @@ function apResume(kind, id){
   L.forEach(x => { if(x.t.type === 'revenu'){ parts.entrees += x.e; parts.nE++; } else if(x.t.type === 'depense'){ parts.depenses += -x.e; parts.nD++; } else if(x.e > 0){ parts.arrivees += x.e; parts.nA++; } else { parts.envois += -x.e; parts.nV++; } });
   return { o, L, depart, actuel, parts, nom: o.name };
 }
+window.apResume = apResume; window.apLibelle = apLibelle;
 window.apExpliquer = function(kind, id){
   const R = apResume(kind, id); if(!R) return;
   const p = R.parts;
