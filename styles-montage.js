@@ -164,10 +164,8 @@ window.mtsAppliquer = function(id, silencieux){
     return { k: ordre[n], d: Math.round(d * 1000) / 1000, mvt: mvts[n % mvts.length], tr, trD: tr === 'coupe' ? 0 : st.trD };
   });
   V.force = st.force;
-  // Effets du style (les anciens sont remis à zéro)
-  const e = CR.cfg.effets || (CR.cfg.effets = {});
-  ['grain', 'vignette', 'lumiere', 'poussiere', 'brulure'].forEach(k => { e[k] = 0; });
-  Object.assign(e, st.effets);
+  // Le look du style (couleur, grain, lumières...) seulement si tu le demandes : par défaut, aucun effet n'est imposé
+  if(V.lookStyle) mtsPoserLook(st);
   V.styleSig = JSON.stringify(V.clips);
   if(typeof MT !== 'undefined') MT.sel = null;
   if(V.musique) anCalculerBeats();
@@ -181,6 +179,19 @@ window.mtsAppliquer = function(id, silencieux){
 // Le style est-il encore tel qu'il a été posé (rien retouché à la main) ?
 function mtsIntact(){ const V = anVid(); return !!(V.style && V.clips && V.styleSig === JSON.stringify(V.clips)); }
 window.mtsVers = function(k){ if(typeof anStop === 'function') anStop(); CR.modele = k; const M = anModele(k); if(!M.fmts.includes(CR.fmt)) CR.fmt = M.fmts[0]; anVid().clips = null; AN.t = 0; crRender(); };
+function mtsPoserLook(st){
+  const e = CR.cfg.effets || (CR.cfg.effets = {});
+  ['grain', 'vignette', 'lumiere', 'poussiere', 'brulure'].forEach(k => { e[k] = 0; });
+  Object.assign(e, st.effets);
+}
+// Ajouter ou retirer le look du style (tes réglages d'effets restent modifiables ensuite)
+window.mtsLook = function(oui){
+  const V = anVid(), st = MTS_STYLES.find(x => x.id === V.style); V.lookStyle = !!oui;
+  const e = CR.cfg.effets || (CR.cfg.effets = {});
+  if(oui && st){ mtsPoserLook(st); agToast('Look « ' + st.nom + ' » ajouté : tu peux tout régler dans Effets'); }
+  else { ['grain', 'vignette', 'lumiere', 'poussiere', 'brulure', 'bandes', 'chroma', 'vhs', 'bokeh', 'confettis', 'pulse'].forEach(k => { e[k] = 0; }); e.filtre = 'aucun'; agToast('Effets retirés : montage sans effet'); }
+  crRender();
+};
 window.mtsAutreVersion = function(){ const V = anVid(); V.styleGraine = (V.styleGraine || 1) + 1; mtsAppliquer(V.style || 'mariage'); };
 window.mtsRythme = function(v){ anVid().rythme = v; if(anVid().style) mtsAppliquer(anVid().style); else crRender(); };
 window.mtsRemplir = function(v){ anVid().remplir = v === 'tout'; if(anVid().style) mtsAppliquer(anVid().style); else crRender(); };
@@ -195,7 +206,8 @@ function mtsHtml(){
       <div><label>Rythme</label>${pills([['lent', 'Lent'], ['normal', 'Normal'], ['rapide', 'Rapide']], V.rythme || 'normal', 'mtsRythme')}</div>
       <div><label>Durée</label>${pills([['photos', 'Chaque photo une fois'], ['tout', AN.buffer ? 'Toute la musique' : 'Toute la durée']], V.remplir ? 'tout' : 'photos', 'mtsRemplir')}</div>
     </div>
-    ${V.style ? `<div class="mt-act"><button type="button" onclick="mtsAutreVersion()">${agIcon('dice', 13)} Autre version</button>${mtsIntact() ? '' : '<span class="mts-retouche">retouché à la main</span>'}</div>` : ''}`;
+    ${V.style ? `<div class="mt-act"><button type="button" onclick="mtsAutreVersion()">${agIcon('dice', 13)} Autre version</button>${V.lookStyle ? `<button type="button" onclick="mtsLook(false)">Retirer le look du style</button>` : `<button type="button" onclick="mtsLook(true)">${agIcon('palette', 13)} Ajouter le look du style</button>`}${mtsIntact() ? '' : '<span class="mts-retouche">retouché à la main</span>'}</div>
+      <div class="ag-hint">Le style pose seulement les coupes, les mouvements et les transitions. Couleurs et effets : seulement si tu ajoutes le look. Tout reste modifiable (Montage, Effets).</div>` : ''}`;
 }
 window.mtsMaj = function(){ const z = document.getElementById('mtsZone'); if(z) z.innerHTML = mtsHtml(); };
 const anVueEditS = anVueEdit;
