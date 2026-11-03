@@ -215,7 +215,7 @@ async function otRefresh(force){
   OT.busy = false;
 }
 // Nouvelle version du site publiee ? On recharge tout seul.
-const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'ia.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'coach2.js', 'marketing.js', 'suivi.js', 'budget.js', 'voix.js', 'equipe.js', 'patron.js', 'studio.js', 'messages.js', 'frais.js', 'argent-clair.js', 'objectifs-charges.js', 'argent-travaille.js', 'preparation.js', 'centre-aide.js', 'creations.js', 'animations.js', 'montage.js', 'styles-montage.js', 'video-plus.js', 'rushs.js', 'montage-plus.js', 'rythme.js', 'musique-libre.js', 'crea-brouillons.js', 'brouillons-ligne.js', 'editeur.js', 'mp4-muxer.esm.js', 'gifenc.esm.js', 'theme.css'];
+const OT_FILES = ['index.html', 'config.js', 'app.js', 'modules.js', 'ia.js', 'coach.js', 'argent.js', 'crm.js', 'prix.js', 'outils.js', 'mood.js', 'galerie.js', 'extras.js', 'coach2.js', 'marketing.js', 'suivi.js', 'budget.js', 'voix.js', 'equipe.js', 'patron.js', 'studio.js', 'messages.js', 'frais.js', 'argent-clair.js', 'objectifs-charges.js', 'argent-travaille.js', 'preparation.js', 'centre-aide.js', 'tarifs-vente.js', 'comment-reserver.js', 'creations.js', 'animations.js', 'montage.js', 'styles-montage.js', 'video-plus.js', 'rushs.js', 'montage-plus.js', 'rythme.js', 'musique-libre.js', 'crea-brouillons.js', 'brouillons-ligne.js', 'editeur.js', 'mp4-muxer.esm.js', 'gifenc.esm.js', 'theme.css'];
 async function otCheckVersion(){
   let changed = false;
   for(const f of OT_FILES){
@@ -599,8 +599,19 @@ function otTopButtons(){
   b.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
   b.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
   document.body.appendChild(b);
-  const upd = () => b.classList.toggle('show', window.scrollY > 500);
-  window.addEventListener('scroll', upd, { passive: true }); upd();
+  // Et une flèche pour descendre tout en bas (longues pages)
+  const d = document.createElement('button');
+  d.id = 'otBas'; d.className = 'ot-backtop ot-bas'; d.title = 'Descendre tout en bas';
+  d.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>';
+  d.onclick = () => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+  document.body.appendChild(d);
+  const upd = () => {
+    const H = document.documentElement.scrollHeight - innerHeight, y = window.scrollY;
+    b.classList.toggle('show', y > 500);
+    d.classList.toggle('show', H > 900 && H - y > 500);
+  };
+  window.addEventListener('scroll', upd, { passive: true }); window.addEventListener('resize', upd); upd();
+  setInterval(upd, 1500);
 })();
 
 // ============================================================

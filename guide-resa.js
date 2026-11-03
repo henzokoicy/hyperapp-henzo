@@ -34,12 +34,12 @@ var ETAPES = {
   ],
   tarifs: [
     { sel: 'h1', t: 'Bienvenue', d: 'Voici nos tarifs. Je vous montre comment choisir et réserver, étape par étape.' },
+    { sel: '#rdv', t: 'Comment réserver', d: 'Touchez « Comment réserver » pour voir toutes les étapes : vérification de la date, lien de paiement Wave, reçu sur WhatsApp. Important : c\'est l\'acompte qui valide le rendez-vous.' },
     { sel: '.pills', t: 'Le type de séance', d: 'Touchez une séance pour voir ses packs, ou « Tout voir ».' },
     { sel: '.f', max: 3, t: 'Les packs', d: 'Chaque pack montre ce qui est inclus (✔) ou non (✘). Touchez celui qui vous plaît pour le choisir.', fait: function(){ return !!etat().sel; } },
     { sel: '.o', max: 3, t: 'Les options (facultatif)', d: 'Touchez + pour ajouter une option à votre pack.' },
     { sel: '#bar', t: 'Le total et la réservation', d: '« Réserver en ligne » ouvre un petit formulaire (2 minutes). « Réserver sur WhatsApp » vous met directement en contact avec nous.' },
     { sel: '.pdf', t: 'Garder les tarifs', d: 'Téléchargez la grille en PDF pour la regarder plus tard ou l\'envoyer à quelqu\'un.' },
-    { sel: '#rdv', t: 'Comment réserver', d: 'Les étapes après votre choix : vérification de la date, acompte, confirmation.' },
     { sel: '.cond', t: 'Les conditions', d: 'Lisez les conditions : acompte, déplacement, délai de livraison des photos.' }
   ]
 };
@@ -128,8 +128,8 @@ function placer(){
 function bouton(){
   if($('#gr-btn')) return;
   var b = document.createElement('button');
-  b.id = 'gr-btn'; b.type = 'button'; b.setAttribute('aria-label', 'Guide : comment réserver');
-  b.innerHTML = '<span>?</span><em>Guide</em>';
+  b.id = 'gr-btn'; b.type = 'button'; b.setAttribute('aria-label', 'Comment faire : le guide pas à pas');
+  b.innerHTML = '<span>?</span><em>Comment faire</em>';
   b.onclick = function(){ if(G) finir(); demarrer(); };
   document.body.appendChild(b);
 }

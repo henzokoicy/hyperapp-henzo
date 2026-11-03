@@ -8,6 +8,7 @@
 <link rel="icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="comment-reserver.js?v=1"></script>
 <style>
 :root{--bg:#030b0a;--card:#0a1c1a;--card2:#0f2a27;--line:#173b37;--txt:#fff;--muted:#9cbdb8;--accent:#48A89A;--light:#CBEFEB;--deep:#00524D;--forest:#053931;--gold:#ffd166}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -148,6 +149,7 @@ function parMoyens(){ return ('par ' + joinOu(moyensOn().map(function(m){ return
 function pasDe(){ var c = moyensOn()[0].c; return (/^[aeiouyéè]/i.test(c) ? "Pas d'" : 'Pas de ') + c; }
 var RI = {
   pack: '<path d="M4 5h16v14H4z"/><path d="M4 10h16M9 10v9"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
   chat: '<path d="M4 5h16v11H9l-5 4z"/>',
   cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   pay: '<rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M16 15h2"/>',
@@ -156,6 +158,7 @@ var RI = {
 function ri(n, k){ return '<span class="ri"><i>' + k + '</i><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + RI[n] + '</svg></span>'; }
 // o = { acompte, pour (nom de la collection), s1, s2, somme }
 function rdvHtml(o){
+  if(window.rdvHtml2) return rdvHtml2(Object.assign({ depuis: 'reserver' }, o));
   var acc = Number(o.acompte) || 0, ms = moyensOn();
   var steps = [
     ['pack', 'Choisissez votre pack', o.s1],
@@ -243,7 +246,7 @@ function render(){
     h += '<h2>' + (k++) + '. Votre ' + (S.cols.length ? 'pack' : 'formule') + (col && S.cols.length === 1 ? ' - ' + esc(col.nom) : '') + '</h2><div data-g="packs">';
     S.f.forEach(function(x){
       var d = detLines(x).join(' · '), star = col && col.vedette_id === x.id;
-      h += '<button class="f' + (S.sel === x.id ? ' on' : '') + '" onclick="pick(' + x.id + ')"><span class="chk">' + (S.sel === x.id ? tick : '') + '</span><div class="d"><b>' + esc(x.name) + (star ? '<i class="tag">Le plus choisi</i>' : '') + '</b>' + (d ? '<span class="x">' + esc(d) + '</span>' : '') + '</div><span class="p">' + F(x.price) + '</span></button>';
+      h += '<button class="f' + (S.sel === x.id ? ' on' : '') + '" onclick="pick(' + x.id + ')"><span class="chk">' + (S.sel === x.id ? tick : '') + '</span><div class="d"><b>' + esc(x.name) + (star ? '<i class="tag">Le plus choisi</i>' : '') + '</b>' + (d ? '<span class="x">' + esc(d) + '</span>' : '') + '</div><span class="p">' + (Number(x.prix_barre) > Number(x.price) ? '<del style="display:block;font-size:12px;font-weight:600;opacity:.6">' + F(x.prix_barre) + '</del>' : '') + F(x.price) + '</span></button>';
     });
     h += '</div>';
   } else if(S.cols.length > 1) h += '<p class="intro" style="margin-top:12px;font-size:14px">Choisissez d\'abord le type de séance.</p>';
@@ -262,6 +265,7 @@ function render(){
   h += '<div class="sum">' + c.l.map(function(x){ return '<div class="l"><span>' + esc(x.n) + (x.q > 1 ? ' x' + x.q : '') + '</span><span>' + F(x.p * x.q) + '</span></div>'; }).join('') +
     (c.rem ? '<div class="l"><span>Code ' + esc(S.promo.code) + '</span><span>-' + F(c.rem) + '</span></div>' : '') +
     '<div class="t"><span>Total estimé</span><b>' + F(c.tot - c.rem) + '</b></div></div>' +
+    (window.rdvRegleHtml ? rdvRegleHtml(col ? Number(col.acompte) || 0 : accCommun(), col && Number(col.acompte) && c.tot - c.rem > 0 ? Math.round((c.tot - c.rem) * Number(col.acompte) / 100) : 0) : '') +
     '<button class="btn" id="go" onclick="envoyer()">Envoyer ma demande</button><div class="err" id="err"></div>' +
     rdvHtml({ acompte: col ? Number(col.acompte) || 0 : accCommun(), pour: '', somme: col && Number(col.acompte) && c.tot - c.rem > 0 ? Math.round((c.tot - c.rem) * Number(col.acompte) / 100) : 0,
       s1: 'Ci-dessus, avec vos options si vous voulez.', s2: 'Avec ce formulaire : votre nom, votre numéro WhatsApp, le jour et l\'heure souhaités.' }) +
@@ -299,6 +303,6 @@ function renderOk(){
 init();
 </script>
 <script src="pages-theme.js?v=1"></script>
-<script src="guide-resa.js?v=2"></script>
+<script src="guide-resa.js?v=3"></script>
 </body>
 </html>

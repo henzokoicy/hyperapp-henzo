@@ -60,6 +60,28 @@ h3{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ligh
 .btn2{background:transparent;border:1px solid var(--line);color:var(--txt)}
 .btn.dis{opacity:.5;pointer-events:none}
 .empty{text-align:center;color:var(--muted);padding:60px 10px}
+.f-p del{display:block;font-size:13px;font-weight:600;color:var(--muted);text-align:right;text-decoration:line-through}
+.eco{display:inline-block;margin-top:8px;font-size:12px;font-weight:700;color:#0b3d2e;background:#7ee0a8;padding:3px 9px;border-radius:999px}
+.bonus{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:9px 11px;border-radius:12px;background:color-mix(in srgb,#f5a524 14%,transparent);border:1px dashed color-mix(in srgb,#f5a524 60%,transparent);font-size:13px;line-height:1.45}
+.bonus svg{flex-shrink:0;color:#f5a524;margin-top:1px}
+.up{margin:-4px 0 14px;padding:12px 14px;border-radius:16px;background:var(--card2);border:1px solid var(--accent)}
+.up b{display:block;font-size:14px}.up ul{list-style:none;margin:6px 0 10px}.up li{font-size:13px;color:var(--muted);padding:2px 0}.up li:before{content:'+ ';color:var(--accent);font-weight:800}
+.up button{border:0;border-radius:12px;padding:10px 14px;font:700 13.5px Inter,sans-serif;cursor:pointer;background:var(--accent);color:#fff}
+.ban{margin-top:14px;display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:var(--card);border:1px solid var(--line);font-size:13.5px;line-height:1.45}
+.ban svg{flex-shrink:0;margin-top:1px;color:var(--accent)}.ban b{color:var(--txt)}.ban.offre{border-color:#f5a524}.ban.offre svg{color:#f5a524}.ban.plein{border-color:#ff6b5a}
+.cren{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.cren span{font-size:12.5px;padding:4px 10px;border-radius:999px;background:var(--card2);border:1px solid var(--line)}.cren span.peu{border-color:#f5a524;color:#f5c46a}.cren span.zero{opacity:.6;text-decoration:line-through}
+.avis{margin-top:28px}.avis h3{margin-top:0}.av{padding:14px;border-radius:16px;background:var(--card);border:1px solid var(--line);margin-bottom:8px}.av p{font-size:14px;line-height:1.5;font-style:italic}.av b{display:block;margin-top:6px;font-size:13px;color:var(--light)}
+.gar{margin-top:12px;padding:14px;border-radius:16px;background:color-mix(in srgb,var(--accent) 12%,transparent);border:1px solid var(--accent);font-size:14px;line-height:1.5}
+.top-b .pdf.main{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.rdv-bas{display:block;width:100%;margin-top:22px;padding:13px;border-radius:14px;border:1px dashed var(--line);background:transparent;color:var(--light);font:600 14px Inter,sans-serif;cursor:pointer}
+.nav-f{position:fixed;right:12px;z-index:55;display:flex;flex-direction:column;gap:8px;bottom:calc(150px + env(safe-area-inset-bottom))}
+.nav-f button{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:color-mix(in srgb,var(--card) 92%,transparent);color:var(--txt);display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.3);transition:opacity .2s}
+.nav-f button.off{opacity:0;pointer-events:none}
+body.pdfmode .nav-f{display:none}
+.cd .cp del{display:block;font-size:9pt;font-weight:600;color:#9aa9a6;text-decoration:line-through;margin-bottom:.4mm}
+.cd .ceco{display:inline-block;font-size:7pt;font-weight:700;color:#0b6b3f;background:#dff6e8;padding:.6mm 2mm;border-radius:10mm;margin:-2mm 0 2.5mm}
+.cd .cbo{font-size:7.8pt;color:#8a5a00;background:#fff6e3;border:.5pt dashed #e6b04d;border-radius:2mm;padding:1.4mm 2mm;margin-top:2mm}
+.poff{margin-top:4mm;font-size:8.6pt;color:#8a5a00;background:#fff6e3;border:.5pt solid #f0c879;border-radius:2.5mm;padding:2.2mm 3mm}
 .rdv{margin-top:28px;padding:18px 16px;border-radius:20px;background:var(--card);border:1px solid var(--line)}
 .rdv h2{font-size:18px;font-weight:800;letter-spacing:0;text-transform:none;color:var(--txt);opacity:1;margin:0 0 6px}
 .rdv ol{list-style:none;margin:0;padding:0}
@@ -176,6 +198,7 @@ body.pdfmode .pg{box-sizing:content-box;padding:12mm;margin:8mm auto;box-shadow:
   <div class="bar-b"><button class="btn" id="barB" onclick="reserver()">Réserver sur WhatsApp</button><a class="btn btn2" id="barR" href="#">Réserver en ligne</a></div>
 </div></div>
 <div id="pdf"></div>
+<script src="comment-reserver.js?v=1"></script>
 <script>
 var SUPABASE_URL = 'https://lzxvktkryxizclkdetaa.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_L4Udla2VCbZsNjdm9IRuJw_ExshPrPc';
@@ -254,6 +277,7 @@ function parMoyens(){ return ('par ' + joinOu(moyensOn().map(function(m){ return
 function pasDe(){ var c = moyensOn()[0].c; return (/^[aeiouyéè]/i.test(c) ? "Pas d'" : 'Pas de ') + c; }
 var RI = {
   pack: '<path d="M4 5h16v14H4z"/><path d="M4 10h16M9 10v9"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
   chat: '<path d="M4 5h16v11H9l-5 4z"/>',
   cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   pay: '<rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M16 15h2"/>',
@@ -262,6 +286,7 @@ var RI = {
 function ri(n, k){ return '<span class="ri"><i>' + k + '</i><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + RI[n] + '</svg></span>'; }
 // o = { acompte, pour (nom de la collection), s1, s2, somme }
 function rdvHtml(o){
+  if(window.rdvHtml2) return rdvHtml2(o);
   var acc = Number(o.acompte) || 0, ms = moyensOn();
   var steps = [
     ['pack', 'Choisissez votre pack', o.s1],
@@ -285,7 +310,7 @@ function accDe(c){
   return k ? Number(k) : 0;
 }
 function rdvPage(c){
-  return rdvHtml({ acompte: accDe(c), pour: c && !S.legacy && S.cols.length > 1 && Number(c.acompte) ? c.nom : '',
+  return rdvHtml({ acompte: accDe(c), pliable: true, ouvert: window.RDV_OUVERT, depuis: 'tarifs', pour: c && !S.legacy && S.cols.length > 1 && Number(c.acompte) ? c.nom : '',
     s1: 'Touchez un pack sur cette page et ajoutez vos options si vous voulez.',
     s2: (S.page.phone ? 'Sur WhatsApp ou avec "Réserver en ligne" : ' : '') + 'votre nom et prénom, le jour et l\'heure souhaités, et le pack choisi.' });
 }
@@ -300,6 +325,8 @@ async function init(){
     var p = await sb.from('tarif_page').select('*').eq('slug', S.slug).maybeSingle();
     if(!p.data){ app.innerHTML = '<div class="empty">Cette page de tarifs n\'existe pas.</div>'; return; }
     S.page = p.data;
+    S.vente = venteDe(p.data.vente);
+    if(S.vente.capacite > 0){ try { var cr = await sb.rpc('creneaux_pris', { p_slug: S.slug }); S.pris = (cr && cr.data) || {}; } catch(e){ S.pris = null; } }
     if(window.appliquerApparencePage) try { appliquerApparencePage(p.data.apparence); } catch(e){}
     var r = await Promise.all([
       sb.from('tarifs').select('*').eq('user_id', p.data.user_id).not('public', 'is', false).not('active', 'is', false).order('position', { ascending: true }),
@@ -327,16 +354,63 @@ async function init(){
   if(q.get('pdf') === '1') openPdf(true);
 }
 
+// ---------- Vendre mieux (réglé dans l'app : tarif_page.vente, tarif_collections.vente) ----------
+function venteDe(v){
+  if(typeof v === 'string'){ try { v = JSON.parse(v); } catch(e){ v = null; } }
+  v = v && typeof v === 'object' ? v : {};
+  return { portfolio: String(v.portfolio || '').trim(), portfolio_txt: String(v.portfolio_txt || '').trim() || 'Voir mon travail', capacite: Number(v.capacite) || 0,
+    premium: !!v.premium, economies: v.economies !== false, montee: v.montee !== false, garantie: String(v.garantie || '').trim(),
+    avis: Array.isArray(v.avis) ? v.avis.filter(function(a){ return a && String(a.texte || '').trim(); }) : [] };
+}
+function colVente(c){ var v = c && c.vente; if(typeof v === 'string'){ try { v = JSON.parse(v); } catch(e){ v = null; } } return v && typeof v === 'object' ? v : {}; }
+function auj(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function offreDe(c){ var o = colVente(c).offre; if(!o || !String(o.texte || '').trim()) return null; if(o.fin && String(o.fin) < auj()) return null; return o; }
+function bonusDe(c){ var b = colVente(c).bonus; return b && String(b.texte || '').trim() && b.pack_id ? b : null; }
+function barre(t){ var b = Number(t.prix_barre) || 0; return b > Number(t.price) ? b : 0; }
+function joursAvant(iso){ return Math.round((new Date(iso + 'T12:00:00') - new Date(auj() + 'T12:00:00')) / 864e5); }
+function moisNom(m){ var a = m.split('-'); return new Date(Number(a[0]), Number(a[1]) - 1, 1).toLocaleDateString('fr-FR', { month: 'long' }); }
+var GIFT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7z"/></svg>';
+var CLOCK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+var CAL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+// Créneaux libres des 3 mois (capacité réglée dans l'app - séances déjà prévues)
+function creneauxHtml(){
+  var cap = S.vente.capacite; if(!(cap > 0) || !S.pris) return '';
+  var d = new Date(), L = [];
+  for(var k = 0; k < 3; k++){ var x = new Date(d.getFullYear(), d.getMonth() + k, 1), m = x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0'); L.push({ m: m, r: Math.max(0, cap - (Number(S.pris[m]) || 0)) }); }
+  var c0 = L[0];
+  return '<div class="ban' + (c0.r === 0 ? ' plein' : '') + '">' + CAL + '<div><b>' + (c0.r === 0 ? 'Complet en ' + moisNom(c0.m) : c0.r <= Math.max(2, Math.round(cap * 0.3)) ? 'Plus que ' + c0.r + ' créneau' + (c0.r > 1 ? 'x' : '') + ' libre' + (c0.r > 1 ? 's' : '') + ' en ' + moisNom(c0.m) : 'Créneaux libres') + '</b>' +
+    '<div class="cren">' + L.map(function(x){ return '<span class="' + (x.r === 0 ? 'zero' : x.r <= 3 ? 'peu' : '') + '">' + moisNom(x.m) + ' : ' + (x.r === 0 ? 'complet' : x.r + ' libre' + (x.r > 1 ? 's' : '')) + '</span>'; }).join('') + '</div></div></div>';
+}
+// Ce qu'on gagne en prenant le pack d'au-dessus
+function packsTries(c){ var ps = packsOf(c).slice(); return S.vente.premium ? ps.sort(function(a, b){ return Number(b.price) - Number(a.price); }) : ps; }
+function packSup(t, c){ var ps = packsOf(c).filter(function(x){ return Number(x.price) > Number(t.price); }).sort(function(a, b){ return Number(a.price) - Number(b.price); }); return ps[0] || null; }
+function enPlus(t, u){
+  var a = lines(t).filter(function(l){ return l.ok; }).map(function(l){ return l.t.toLowerCase(); });
+  return lines(u).filter(function(l){ return l.ok && a.indexOf(l.t.toLowerCase()) < 0; }).map(function(l){ return l.t; });
+}
+function upHtml(t, c){
+  if(!S.vente.montee) return '';
+  var u = packSup(t, c); if(!u) return '';
+  var L = enPlus(t, u), b = bonusDe(c); if(b && b.pack_id === u.id) L.unshift('Bonus offert : ' + b.texte);
+  if(!L.length) return '';
+  return '<div class="up"><b>Pour seulement +' + F(Number(u.price) - Number(t.price)) + ', passez au ' + esc(u.name) + '</b><ul>' + L.slice(0, 4).map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' +
+    '<button type="button" onclick="pick(' + u.id + ',' + c.id + ')">Choisir ' + esc(u.name) + '</button></div>';
+}
+
 // ---------- Ecran ----------
 function packCard(t, c){
-  var on = S.sel === t.id, star = c.vedette_id === t.id, ls = lines(t);
+  var on = S.sel === t.id, star = c.vedette_id === t.id, ls = lines(t), pb = barre(t), b = bonusDe(c);
   return '<button class="f' + (on ? ' on' : '') + (star ? ' star' : '') + '" onclick="pick(' + t.id + ',' + c.id + ')">' + (star ? '<i class="tag">Le plus choisi</i>' : '') +
-    '<div class="f-h"><div style="display:flex;gap:12px"><span class="chk">' + (on ? tick : '') + '</span><b>' + esc(t.name) + '</b></div><span class="f-p">' + F(t.price) + '</span></div>' +
-    (ls.length ? '<ul class="ls">' + ls.map(function(l){ return '<li class="' + (l.ok ? 'ok' : 'no') + '"><s>' + (l.ok ? OK : NO) + '</s>' + esc(l.t) + '</li>'; }).join('') + '</ul>' : '') + '</button>';
+    '<div class="f-h"><div style="display:flex;gap:12px"><span class="chk">' + (on ? tick : '') + '</span><div><b>' + esc(t.name) + '</b>' + (pb && S.vente.economies ? '<br><span class="eco">Vous économisez ' + F(pb - Number(t.price)) + '</span>' : '') + '</div></div><span class="f-p">' + (pb ? '<del>' + F(pb) + '</del>' : '') + F(t.price) + '</span></div>' +
+    (ls.length ? '<ul class="ls">' + ls.map(function(l){ return '<li class="' + (l.ok ? 'ok' : 'no') + '"><s>' + (l.ok ? OK : NO) + '</s>' + esc(l.t) + '</li>'; }).join('') + '</ul>' : '') +
+    (b && b.pack_id === t.id ? '<div class="bonus">' + GIFT + '<span><b>Bonus offert :</b> ' + esc(b.texte) + '</span></div>' : '') + '</button>' + (on ? upHtml(t, c) : '');
 }
 function colHtml(c, withTitle){
   var ps = packsOf(c), os = optsOf(c), h = '<section class="col" id="col-' + c.id + '">';
   if(withTitle && !S.legacy) h += '<div class="col-h"><h2>' + esc(c.nom) + '</h2>' + (c.sous_titre ? '<p>' + esc(c.sous_titre) + '</p>' : '') + (c.intro ? '<p>' + esc(c.intro) + '</p>' : '') + '</div>';
+  var of = offreDe(c);
+  if(of) h += '<div class="ban offre">' + CLOCK + '<div><b>' + esc(of.texte) + '</b>' + (of.fin ? '<br>Jusqu\'au ' + new Date(of.fin + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) + (joursAvant(of.fin) <= 7 ? ' · ' + (joursAvant(of.fin) <= 0 ? 'dernier jour' : 'plus que ' + joursAvant(of.fin) + ' jour' + (joursAvant(of.fin) > 1 ? 's' : '')) : '') : '') + '</div></div>';
+  ps = packsTries(c);
   h += '<h3>' + (S.legacy ? 'Formules' : 'Les packs') + '</h3>';
   h += ps.length ? ps.map(function(t){ return packCard(t, c); }).join('') : '<div class="empty" style="padding:20px">Les packs arrivent bientôt.</div>';
   if(os.length){
@@ -360,7 +434,11 @@ function render(){
     var tt = String(P.title || '').replace(new RegExp('^\\s*' + brand().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*-\\s*', 'i'), '').trim();
     h += '<h1>' + esc(tt && tt.toLowerCase() !== brand().toLowerCase() ? tt : 'Nos tarifs') + '</h1>' + (P.intro ? '<p class="intro">' + esc(P.intro) + '</p>' : '');
   }
-  h += '<div class="top-b"><button class="pdf" onclick="openPdf(false)">Télécharger en PDF</button>' + (S.only && S.cols.length > 1 ? '<a class="pdf" href="' + esc(pageUrl('')) + '">Voir toutes les collections</a>' : '') + '</div>';
+  var V = S.vente || venteDe(null);
+  h += '<div class="top-b">' + (V.portfolio ? '<a class="pdf main" href="' + esc(V.portfolio) + '" target="_blank" rel="noopener">' + esc(V.portfolio_txt) + '</a>' : '') + '<button class="pdf" onclick="openPdf(false)">Télécharger en PDF</button>' + (S.only && S.cols.length > 1 ? '<a class="pdf" href="' + esc(pageUrl('')) + '">Voir toutes les collections</a>' : '') + '</div>';
+  if(S.packs.length || S.opts.length) h += '<div style="margin-top:14px">' + rdvPage(all ? null : cur) + '</div>';
+  if(S.packs.length && !window.RDV_OUVERT && window.rdvRegleHtml) h += rdvRegleHtml(accDe(all ? null : cur));
+  h += creneauxHtml();
   if(!S.only && S.cols.length > 1 && !S.legacy){
     h += '<div class="pills">' + S.cols.map(function(c){ return '<button class="' + (S.cur === c.id ? 'on' : '') + '" onclick="tab(' + c.id + ')">' + esc(c.nom) + '</button>'; }).join('') +
       '<button class="' + (all ? 'on' : '') + '" onclick="tab(\'all\')">Tout voir</button></div>';
@@ -371,12 +449,33 @@ function render(){
     if(P.notes) h += '<div class="cond"><p>' + esc(P.notes) + '</p></div>';
   } else if(cur) h += colHtml(cur, !S.only);
   if(!S.packs.length && !S.opts.length) h += '<div class="empty">Les tarifs arrivent bientôt.</div>';
-  else h += rdvPage(all ? null : cur);
+  else {
+    if(V.avis.length) h += '<section class="avis"><h3>Ils nous ont fait confiance</h3>' + V.avis.slice(0, 6).map(function(a){ return '<div class="av"><p>« ' + esc(a.texte) + ' »</p>' + (a.nom ? '<b>' + esc(a.nom) + '</b>' : '') + '</div>'; }).join('') + '</section>';
+    if(V.garantie) h += '<div class="gar"><b>Notre engagement :</b> ' + esc(V.garantie) + '</div>';
+    h += '<button class="rdv-bas" onclick="rdvBasculer(true)">Comment réserver ? Revoir les étapes</button>';
+  }
   h += '<div class="foot">' + esc(brand()) + (P.adresse ? ' · ' + esc(P.adresse) : '') +
     (P.phone ? '<br>WhatsApp : ' + esc(phoneTxt(P.phone)) : '') + (P.instagram ? (P.phone ? ' · ' : '<br>') + 'Instagram : ' + esc(P.instagram) : '') + '</div>';
   document.getElementById('app').innerHTML = h;
   var on = document.querySelector('.pills button.on'); if(on && on.scrollIntoView) on.parentElement.scrollLeft = on.offsetLeft - 16;
-  total();
+  total(); navFleches();
+}
+// Flèches pour aller tout en haut ou tout en bas
+function navFleches(){
+  var n = document.getElementById('navF');
+  if(!n){
+    n = document.createElement('div'); n.id = 'navF'; n.className = 'nav-f';
+    n.innerHTML = '<button type="button" id="navUp" aria-label="Aller en haut" onclick="window.scrollTo({top:0,behavior:\'smooth\'})"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button>' +
+      '<button type="button" id="navDn" aria-label="Aller en bas" onclick="window.scrollTo({top:document.documentElement.scrollHeight,behavior:\'smooth\'})"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>';
+    document.body.appendChild(n);
+    window.addEventListener('scroll', navMaj, { passive: true }); window.addEventListener('resize', navMaj);
+  }
+  navMaj();
+}
+function navMaj(){
+  var y = window.scrollY, H = document.documentElement.scrollHeight - innerHeight;
+  var u = document.getElementById('navUp'), d = document.getElementById('navDn'); if(!u || !d) return;
+  u.classList.toggle('off', y < 300); d.classList.toggle('off', H - y < 300 || H < 400);
 }
 function pageUrl(cslug){
   var u = location.pathname + '?s=' + encodeURIComponent(S.slug) + (cslug ? '&c=' + encodeURIComponent(cslug) : '');
@@ -412,7 +511,7 @@ function total(){
   bar.style.display = S.page && (S.page.phone || S.packs.length) ? '' : 'none';
   document.getElementById('barT').textContent = F(r.t);
   document.getElementById('barL').textContent = r.l.length ? 'Total estimé' + (r.c && !S.legacy && !S.only ? ' · ' + r.c.nom : '') : 'Choisissez un pack';
-  document.getElementById('barA').textContent = r.acc ? 'Acompte ' + Number(r.c.acompte) + ' % : ' + F(r.acc) : '';
+  document.getElementById('barA').textContent = r.acc ? 'Acompte ' + Number(r.c.acompte) + ' % : ' + F(r.acc) + ' (valide le RDV)' : '';
   document.getElementById('barB').style.display = S.page.phone ? '' : 'none';
   var a = document.getElementById('barR'); a.href = resaUrl(r);
   document.querySelector('.bar-b').style.gridTemplateColumns = S.page.phone ? '' : '1fr';
@@ -445,13 +544,15 @@ function pdfCols(n, ps){
   return 3;
 }
 function pdfPage(c){
-  var ps = packsOf(c), os = optsOf(c), P = S.page, n = pdfCols(ps.length, ps);
+  var ps = packsTries(c), os = optsOf(c), P = S.page, n = pdfCols(ps.length, ps);
   var h = '<section class="pg' + (n === 'rows' ? ' rows-p' : '') + '">' + pdfHead() + '<div class="pt"><h1>' + esc(S.legacy ? (P.title || 'Nos tarifs') : c.nom) + '</h1>' + (c.sous_titre ? '<div class="pst">' + esc(c.sous_titre) + '</div>' : '') + (c.intro ? '<div class="pi">' + esc(c.intro) + '</div>' : '') + '</div>';
   h += '<div class="pk ' + (n === 'rows' ? 'rows c1' : 'c' + n) + '">' + ps.map(function(t){
-    var star = c.vedette_id === t.id, ls = lines(t);
-    return '<div class="cd' + (star ? ' star' : '') + '">' + (star ? '<i class="tg">Le plus choisi</i>' : '') + '<div class="ch"><b class="cn">' + esc(t.name) + '</b><div class="cp">' + N(t.price) + '<small>F</small></div></div>' +
-      (ls.length ? '<ul>' + ls.map(function(l){ return '<li class="' + (l.ok ? 'ok' : 'no') + '"><s>' + (l.ok ? OK : NO) + '</s><span>' + esc(l.t) + '</span></li>'; }).join('') + '</ul>' : '') + '</div>';
+    var star = c.vedette_id === t.id, ls = lines(t), pb = barre(t), bo = bonusDe(c), V = S.vente || venteDe(null);
+    return '<div class="cd' + (star ? ' star' : '') + '">' + (star ? '<i class="tg">Le plus choisi</i>' : '') + '<div class="ch"><b class="cn">' + esc(t.name) + '</b><div class="cp">' + (pb ? '<del>' + F(pb) + '</del>' : '') + N(t.price) + '<small>F</small></div>' + (pb && V.economies ? '<span class="ceco">Vous économisez ' + F(pb - Number(t.price)) + '</span>' : '') + '</div>' +
+      (ls.length ? '<ul>' + ls.map(function(l){ return '<li class="' + (l.ok ? 'ok' : 'no') + '"><s>' + (l.ok ? OK : NO) + '</s><span>' + esc(l.t) + '</span></li>'; }).join('') + '</ul>' : '') +
+      (bo && bo.pack_id === t.id ? '<div class="cbo">Bonus offert : ' + esc(bo.texte) + '</div>' : '') + '</div>';
   }).join('') + '</div>';
+  var of = offreDe(c); if(of) h += '<div class="poff"><b>' + esc(of.texte) + '</b>' + (of.fin ? ' · jusqu\'au ' + new Date(of.fin + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : '') + '</div>';
   if(os.length) h += '<div class="po"><div class="sh">Options</div><div class="po-l">' + os.map(function(o){ return '<span>' + esc(o.name) + '<b>+' + F(o.price) + (UNITS[o.unit] ? ' ' + UNITS[o.unit] : '') + '</b></span>'; }).join('') + '</div></div>';
   var txt = [c.conditions, P.notes].filter(Boolean);
   if(Number(c.acompte) || txt.length){
@@ -463,7 +564,7 @@ function pdfPage(c){
 // Version courte de "Comment reserver" (enlevee si la page deborde)
 function pdfRdv(c){
   var acc = accDe(c);
-  var e = ['Choisissez votre pack', 'Envoyez votre nom, la date et le pack' + (S.page.phone ? ' sur WhatsApp' : ''), acc ? 'Acompte de <b>' + acc + ' %</b> ' + esc(parMoyens()) + ' pour bloquer la date' : 'Nous confirmons votre date', 'Confirmation et reçu, ' + (acc ? 'le reste' : 'le paiement') + ' le jour de la séance'];
+  var e = ['Choisissez votre pack', 'Envoyez votre nom, la date et le pack' + (S.page.phone ? ' sur WhatsApp' : ''), acc ? 'Acompte de <b>' + acc + ' %</b> ' + esc(parMoyens()) + ' : c\'est lui qui valide le rendez-vous' : 'Nous confirmons votre date', 'Confirmation et reçu, ' + (acc ? 'le reste' : 'le paiement') + ' le jour de la séance'];
   return '<div class="prv"><div class="sh">Comment réserver</div><p>' + e.map(function(x, i){ return '<i>' + (i + 1) + '</i>' + x; }).join(' ') + '</p></div>';
 }
 function pdfCover(){
@@ -515,6 +616,6 @@ function closePdf(){ document.body.classList.remove('pdfmode'); document.getElem
 init();
 </script>
 <script src="pages-theme.js?v=1"></script>
-<script src="guide-resa.js?v=2"></script>
+<script src="guide-resa.js?v=3"></script>
 </body>
 </html>
