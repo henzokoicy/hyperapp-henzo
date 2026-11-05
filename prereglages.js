@@ -158,7 +158,44 @@ window.prgSuppr = async function(id, i){
   if(await prgSauver()){ prgGerer(id); prgMaj(id); }
 };
 
-prgCharger().then(() => { prgScan(); setInterval(prgScan, 800); });
+// ---------- "Charger un préréglage" dans la fenêtre Nouvelle galerie ----------
+// Même stockage que plus haut (user_preferences.prereglages), déjà en mémoire :
+// aucune requête en plus, la liste s'affiche tout de suite.
+function prgGalListe(){
+  const P = PRG.prefs || {}, L = [];
+  (P.galCreate || []).forEach(p => L.push({ nom: p.nom, champs: p.champs || {} }));
+  // Préréglages enregistrés dans "Modifier la galerie" : mêmes champs, autre préfixe (geX -> galX)
+  (P.galEdit || []).forEach(p => { const ch = {}; Object.entries(p.champs || {}).forEach(([id, x]) => { ch[id.replace(/^ge/, 'gal')] = x; }); L.push({ nom: p.nom, champs: ch }); });
+  return L;
+}
+function prgGalChamp(){
+  const bg = document.getElementById('galCreate'); if(!bg || bg.querySelector('.prg-gal')) return;
+  const w = bg.querySelector('.modal-wrap'); if(!w) return;
+  const L = prgGalListe();
+  const d = document.createElement('div'); d.className = 'prg-gal';
+  // Pas d'id sur la liste : elle n'est jamais enregistrée dans un préréglage
+  d.innerHTML = `<label>Charger un préréglage</label>` + (L.length
+    ? `<select class="prg-gal-sel"><option value="">Aucun</option>${L.map((p, i) => `<option value="${i}">${E(p.nom)}</option>`).join('')}</select>`
+    : `<select class="prg-gal-sel" disabled><option value="">Aucun préréglage enregistré</option></select>`);
+  const h = w.querySelector(':scope > h3');
+  if(h) h.insertAdjacentElement('afterend', d); else w.insertBefore(d, w.firstChild);
+  const s = d.querySelector('select');
+  s.onchange = () => {
+    if(s.value === ''){ if(typeof window.galOpenCreate === 'function') window.galOpenCreate.apply(null, PRG.galArgs || []); return; }
+    const p = L[Number(s.value)]; if(!p) return;
+    prgRemplir(w, p.champs);
+    setTimeout(() => { prgRemplir(w, p.champs); agToast(`Préréglage « ${p.nom} » chargé : tu peux encore tout modifier`); }, 120);
+  };
+}
+function prgGalBrancher(){
+  const f = window.galOpenCreate;
+  if(typeof f !== 'function' || f.prgGal) return;
+  const g = function(){ PRG.galArgs = [...arguments]; const r = f.apply(this, arguments); try { if(PRG.prefs) prgGalChamp(); } catch(e){} return r; };
+  g.prgGal = true; window.galOpenCreate = g;
+}
+prgGalBrancher();
+
+prgCharger().then(() => { prgScan(); setInterval(() => { prgGalBrancher(); try { prgGalChamp(); } catch(e){} prgScan(); }, 800); });
 if(window.CA_ITEMS) CA_ITEMS.push({ id: 'prereglages', s: 'Réglages et données', t: 'Préréglages (ne plus retaper)', q: 'Dans chaque formulaire (galerie, séance, pack, budget...) : « Enregistrer ces réglages », puis un toucher remplit tout la prochaine fois.', ou: 'En haut de chaque formulaire : Préréglages', m: 'préréglage preset modèle réglage galerie retaper sauvegarder', go: 'galerie' });
 
 (function prgCss(){
