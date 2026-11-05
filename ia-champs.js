@@ -1,10 +1,10 @@
-// ia-champs.js — version 1
+// ia-champs.js — version 2
 // A) Petit bouton IA a cote de chaque champ texte : "Quelle est ton idee ?" -> 2 ou 3 propositions.
 // B) "Remplir avec l'IA" en haut des fenetres de saisie : 3 a 5 questions, puis remplissage (rien n'est enregistre).
 // Module autonome : ne touche a aucune donnee, n'enregistre rien. Utilise mkAI / mkJson / agSheet / agPrompt / agToast.
 (function(){
   if(window.IA_CHAMPS_VERSION) return;
-  window.IA_CHAMPS_VERSION = 1;
+  window.IA_CHAMPS_VERSION = 2;
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const toast = (m, t) => { try { agToast(m, t); } catch(e){ try { alert(m); } catch(_){} } };
@@ -72,9 +72,9 @@
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  async function ia(prompt, system){
+  async function ia(prompt, system, maxTokens){
     if(typeof window.mkAI !== 'function') throw new Error("L'IA n'est pas encore prête, réessaie dans un instant.");
-    const r = await window.mkAI({ system, prompt, maxTokens: 1200 });
+    const r = await window.mkAI({ system, prompt, maxTokens: maxTokens || 1200 });
     return r && r.text || '';
   }
   const parseJson = t => (typeof mkJson === 'function' ? mkJson(t) : JSON.parse(String(t).slice(String(t).search(/[\[{]/))));
@@ -137,6 +137,7 @@
   }
 
   // ---------- B) Remplir toute la fenetre ----------
+  const CACHE_Q = {};
   function champsDe(box){
     return [...box.querySelectorAll('input[data-iac], textarea[data-iac], select')]
       .filter(f => !f.closest('.iac-sheet, #agDlg') && !f.disabled && f.offsetParent !== null &&
@@ -169,14 +170,28 @@
     });
     btn.disabled = true;
     try {
-      const q = parseJson(await ia(`Ecran : ${titre || 'formulaire'}\nChamps : ${JSON.stringify(liste)}\n\nPose 3 a 5 questions tres courtes (une idee chacune) pour pouvoir remplir ces champs. JSON : {"questions":["...","..."]}`, SYS));
-      const questions = (Array.isArray(q) ? q : q.questions || []).map(x => String(x || '').trim()).filter(Boolean).slice(0, 5);
-      if(!questions.length) throw new Error('vide');
+      // Rapide : la 1re question s'affiche tout de suite ; l'IA prepare les suivantes pendant que Henzo repond.
+      const cle = titre + '|' + liste.map(x => x.nom).join(',');
+      const Q1 = "En une phrase, qu'est-ce que tu veux créer ici ?";
+      const suite = CACHE_Q[cle] ? Promise.resolve(CACHE_Q[cle]) :
+        ia(`Ecran : ${titre || 'formulaire'}\nChamps : ${JSON.stringify(liste.map(x => ({ nom: x.nom, type: x.type })))}\nPremiere question deja posee : "${Q1}"\n\nPose 2 a 4 autres questions tres courtes (une idee chacune) pour remplir ces champs. JSON : {"questions":["...","..."]}`, SYS, 300)
+          .then(t => { const q = parseJson(t); const l = (Array.isArray(q) ? q : q.questions || []).map(x => String(x || '').trim()).filter(Boolean).slice(0, 4); if(l.length) CACHE_Q[cle] = l; return l; })
+          .catch(() => []);
       const rep = [];
+      const poser = async (q, i, n) => {
+        const t = n ? `Question ${i}/${n}` : `Question ${i}`;
+        const r = await agPrompt(`${t}\n${q}`, '', { title: t });
+        if(r === null) return false;
+        rep.push({ question: q, reponse: String(r).trim() || '(pas de reponse)' });
+        return true;
+      };
+      if(!(await poser(Q1, 1, 0))){ toast('Remplissage annulé. Rien n’a changé.'); btn.disabled = false; return; }
+      let pret = false; suite.then(() => { pret = true; });
+      await Promise.resolve();
+      if(!pret) toast("L'IA prépare la suite…");
+      const questions = await suite;
       for(let i = 0; i < questions.length; i++){
-        const r = await agPrompt(`Question ${i + 1}/${questions.length}\n${questions[i]}`, '', { title: `Question ${i + 1}/${questions.length}` });
-        if(r === null){ toast('Remplissage annulé. Rien n’a changé.'); btn.disabled = false; return; }
-        rep.push({ question: questions[i], reponse: String(r).trim() || '(pas de reponse)' });
+        if(!(await poser(questions[i], i + 2, questions.length + 1))){ toast('Remplissage annulé. Rien n’a changé.'); btn.disabled = false; return; }
       }
       toast("L'IA remplit les champs…");
       const fin = parseJson(await ia(`Ecran : ${titre || 'formulaire'}\nChamps : ${JSON.stringify(liste)}\nReponses de Henzo : ${JSON.stringify(rep)}\n\n` +
