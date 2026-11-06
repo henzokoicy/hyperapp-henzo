@@ -1,4 +1,4 @@
-// montage-medias.js — version 1
+// montage-medias.js — version 2
 // ============================================================
 // MONTAGE-MEDIAS.JS - Lot C : les médias et l'aperçu
 // (écran de montage des Créations)
@@ -290,6 +290,8 @@ function poser(ks, ou){
   // La nouvelle place reste visible dans la table de montage
   setTimeout(() => { try { const w = wrap(), o = nouv[0]; if(!w || mobile()) return; const tt = o.t != null ? o.t : (planNow().segs[anVid().clips.indexOf(o)] || {}).t0; if(tt == null) return; const x = MPB.x0 + tt * MPB.pps; if(x < w.scrollLeft || x > w.scrollLeft + w.clientWidth - 60) w.scrollLeft = Math.max(0, x - 80); } catch(e){} }, 60);
   rendreGrille();
+  // L'aperçu du média dit maintenant « dans le montage »
+  { const v = document.getElementById('mmdVue'); if(v && MMD.vu && ks.includes(MMD.vu)){ v.innerHTML = vueHtml(); if(typeof mkHydrate === 'function') try { mkHydrate(v); } catch(e){} } }
 }
 window.mmdAjouter = function(k, type){
   const it = itemDe(k); if(!it) return;
