@@ -1486,7 +1486,7 @@ agSetupInstall();
 // Galerie clients integree (fichier galerie.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=7'; document.body.appendChild(sc); })();
 // Clients, relances, promos et tarifs (fichier crm.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=36'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=37'; document.body.appendChild(sc); })();
 // Moodboard : idees de seance (fichier mood.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'mood.js?v=4'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'marketing.js?v=6'; document.body.appendChild(sc); })();
@@ -1494,7 +1494,7 @@ agSetupInstall();
 (function(){ const sc = document.createElement('script'); sc.src = 'studio.js?v=3'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'extras.js?v=5'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'budget.js?v=2'; sc.onload = () => { const x = document.createElement('script'); x.src = 'argent-clair.js?v=2'; x.onload = () => { const y = document.createElement('script'); y.src = 'objectifs-charges.js?v=1'; y.onload = () => { const z = document.createElement('script'); z.src = 'argent-travaille.js?v=1'; z.onload = () => { const w = document.createElement('script'); w.src = 'preparation.js?v=1'; w.onload = () => { const v = document.createElement('script'); v.src = 'centre-aide.js?v=1'; v.onload = () => { const u = document.createElement('script'); u.src = 'argent-precis.js?v=1'; u.onload = () => { const t = document.createElement('script'); t.src = 'personnaliser.js?v=1'; t.onload = () => { const L = ['historiques.js?v=1', 'prereglages.js?v=1', 'ecriture.js?v=1', 'contrat-commun.js?v=1', 'contrats.js?v=1', 'guides.js?v=1']; const suite = () => { const f = L.shift(); if(!f) return; const s = document.createElement('script'); s.src = f; s.onload = suite; s.onerror = suite; document.body.appendChild(s); }; suite(); }; document.body.appendChild(t); }; document.body.appendChild(u); }; document.body.appendChild(v); }; document.body.appendChild(w); }; document.body.appendChild(z); }; document.body.appendChild(y); }; document.body.appendChild(x); }; document.body.appendChild(sc); })();
-(function(){ const sc = document.createElement('script'); sc.src = 'coach2.js?v=5'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'coach2.js?v=5'; sc.onload = () => { const n = document.createElement('script'); n.src = 'negociation-devis.js?v=1'; document.body.appendChild(n); }; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'equipe.js?v=3'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'messages.js?v=2'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'patron.js?v=3'; document.body.appendChild(sc); })();
