@@ -1486,7 +1486,7 @@ agSetupInstall();
 // Galerie clients integree (fichier galerie.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'galerie.js?v=7'; document.body.appendChild(sc); })();
 // Clients, relances, promos et tarifs (fichier crm.js)
-(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=37'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=38'; document.body.appendChild(sc); })();
 // Moodboard : idees de seance (fichier mood.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'mood.js?v=4'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'marketing.js?v=6'; document.body.appendChild(sc); })();
@@ -1676,3 +1676,5 @@ function agToggleMontants(force){
   document.addEventListener('visibilitychange', () => { if(document.hidden) agToggleMontants(false); });
   window.addEventListener('pagehide', () => agToggleMontants(false));
 })();
+// Lien avec Henzo Cloud (coffre à fichiers) : voir henzo-cloud.js
+(function(){ const sc = document.createElement('script'); sc.src = 'henzo-cloud.js?v=1'; document.body.appendChild(sc); })();

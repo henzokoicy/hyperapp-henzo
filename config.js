@@ -30,6 +30,14 @@ const SUPABASE_KEY = "sb_publishable_L4Udla2VCbZsNjdm9IRuJw_ExshPrPc";
  
  
 // ============================================================
+// 2 bis. HENZO CLOUD (coffre à fichiers)
+// ============================================================
+// L'adresse de ton site Henzo Cloud sur Render, par exemple "https://henzo-cloud.onrender.com".
+// Vide = l'app la demande une fois et la garde sur l'appareil.
+const HENZO_CLOUD_URL = "https://henzo-cloud.onrender.com";
+
+
+// ============================================================
 // 3. DEVISE
 // ============================================================
 // "FCFA", "€", "$", "MAD"... ce que tu veux
