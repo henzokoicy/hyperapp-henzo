@@ -2,9 +2,11 @@
 // LECTEUR.JS - Lecteur d'images de la Super App Henzo
 // Étape 1 : accès (barre PC, tiroir mobile, menu du compte) + import d'images
 // (galerie, appareil photo, glisser-déposer, collage).
-// Rien n'est envoyé nulle part et rien n'est gardé : les images vivent en mémoire
+// Étape 2 : lecture du texte sur l'appareil (OCR français + anglais, voir lecteur-ocr.js),
+// texte modifiable, copie complète ou de la sélection, relecture en mode inversé.
+// Rien n'est envoyé nulle part et rien n'est gardé : les images et les textes vivent en mémoire
 // tant que la fenêtre est ouverte, puis disparaissent à la fermeture.
-// Étapes suivantes : lecture du texte sur l'appareil (OCR), actions rapides, IA, exports.
+// Étapes suivantes : actions rapides, IA, exports.
 // ============================================================
 (function(){
 if(typeof agSheet !== 'function') return;
@@ -16,7 +18,8 @@ const LC_MAX = 12;          // images par session
 const LC_SIDE = 1800;       // taille maximale (px) d'une image gardée en mémoire
 
 // Seul état du module : en mémoire, jamais écrit sur l'appareil.
-const LC = { imgs: [], seq: 0 };
+// Chaque image : { id, nom, blob, url, etat: ''|'attente'|'lecture'|'ok'|'erreur', texte, confiance, inverse, blocs, err }
+const LC = { imgs: [], seq: 0, lecture: null, ocrScript: null };
 
 function lcStyle(){
   if(document.getElementById('lcStyle')) return;
@@ -24,6 +27,8 @@ function lcStyle(){
   st.textContent = `
     #lcSheet .modal{max-width:720px}
     #lcSheet{--lc-ga:var(--grad-a, var(--accent-2));--lc-gb:var(--grad-b, var(--accent))}
+    @media (min-width:1000px){ body.ag-ui #lcSheet{padding-left:264px} }
+    .lc-acts button,.lc-ra button,.lc-link{width:auto}
     .lc-h{margin:0 0 4px}
     .lc-sub{color:var(--muted);font-size:.86rem;margin:0 0 14px}
     .lc-drop{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:26px 16px;border-radius:20px;border:1.5px dashed var(--border-2);background:color-mix(in srgb,var(--card) 70%,transparent);color:var(--text-2);transition:border-color .15s,background .15s}
@@ -44,6 +49,26 @@ function lcStyle(){
     .lc-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;flex-wrap:wrap}
     .lc-count{color:var(--text-2);font-size:.86rem}
     .lc-link{background:none;border:none;color:var(--accent);font:500 .84rem Inter,sans-serif;text-decoration:underline;cursor:pointer;padding:4px}
+    .lc-go{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px}
+    .lc-go .btn-primary{width:auto;min-width:200px;margin:0}
+    .lc-prog{margin-top:14px;padding:12px 14px;border-radius:14px;background:var(--card2);border:1px solid var(--border)}
+    .lc-prog .t{display:flex;justify-content:space-between;gap:8px;font-size:.84rem;color:var(--text-2)}
+    .lc-prog .b{height:6px;border-radius:999px;background:color-mix(in srgb,var(--muted) 30%,transparent);margin-top:8px;overflow:hidden}
+    .lc-prog .b i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--lc-ga),var(--lc-gb));transition:width .2s}
+    .lc-res{margin-top:16px;padding:14px;border-radius:18px;background:linear-gradient(165deg,var(--card3),var(--card));border:1px solid var(--border-2)}
+    .lc-res-h{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+    .lc-res-h img{width:34px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border)}
+    .lc-res-h b{font-size:.92rem;font-weight:600;flex:1;min-width:0}
+    .lc-res-h .conf{font-size:.74rem;padding:3px 9px;border-radius:999px;border:1px solid var(--border-2);color:var(--text-2);white-space:nowrap}
+    .lc-res-h .conf.low{color:var(--yellow);border-color:color-mix(in srgb,var(--yellow) 50%,transparent)}
+    .lc-txt{width:100%;min-height:150px;max-height:55vh;resize:vertical;box-sizing:border-box;padding:12px;border-radius:12px;border:1px solid var(--border-2);background:var(--bg-2);color:var(--text);font:400 .92rem/1.5 Inter,system-ui,sans-serif;white-space:pre-wrap}
+    .lc-txt:focus{outline:2px solid color-mix(in srgb,var(--lc-gb) 55%,transparent);outline-offset:0}
+    .lc-ra{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .lc-ra button{padding:8px 14px;border-radius:999px;border:1px solid var(--border-2);background:var(--card2);color:var(--text);font:500 .82rem Inter,sans-serif;cursor:pointer}
+    .lc-ra button:hover{background:var(--card3)}
+    .lc-ra .main{background:var(--lc-gb);border-color:transparent;color:var(--pri-fg,#00241f);font-weight:600}
+    .lc-err{margin-top:10px;font-size:.82rem;color:var(--red)}
+    .lc-empty{font-size:.84rem;color:var(--muted);padding:6px 2px}
     .lc-priv{display:flex;gap:8px;align-items:flex-start;margin-top:14px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--card) 70%,transparent);border:1px solid var(--border);color:var(--muted);font-size:.78rem;line-height:1.4}
   `;
   document.head.appendChild(st);
@@ -95,7 +120,77 @@ function lcToutRetirer(){
   LC.imgs = [];
   lcRendu();
 }
-function lcLiberer(){ LC.imgs.forEach(x => URL.revokeObjectURL(x.url)); LC.imgs = []; }
+function lcLiberer(){
+  LC.imgs.forEach(x => URL.revokeObjectURL(x.url)); LC.imgs = []; LC.lecture = null;
+  if(window.LecteurOCR) window.LecteurOCR.fermer();   // libère la mémoire du moteur de lecture
+}
+
+// ---------- Lecture du texte (sur l'appareil) ----------
+function lcChargerOcr(){
+  if(window.LecteurOCR) return Promise.resolve();
+  if(!LC.ocrScript){
+    LC.ocrScript = new Promise((ok, ko) => {
+      const s = document.createElement('script'); s.src = 'lecteur-ocr.js?v=1';
+      s.onload = ok; s.onerror = () => { LC.ocrScript = null; ko(new Error("Le moteur de lecture n'a pas pu être chargé. Vérifie ta connexion et réessaie.")); };
+      document.head.appendChild(s);
+    });
+  }
+  return LC.ocrScript;
+}
+function lcMajProg(){
+  const t = document.getElementById('lcProgT'), b = document.getElementById('lcProgB'), L = LC.lecture;
+  if(!t || !b || !L) return;
+  t.firstElementChild.textContent = L.etape;
+  t.lastElementChild.textContent = L.n > 1 && L.i > 0 ? `Image ${L.i} sur ${L.n}` : '';
+  b.style.width = Math.round(Math.max(3, L.part * 100)) + '%';
+}
+async function lcLire(ids, inverser){
+  if(LC.lecture) return;
+  const cibles = LC.imgs.filter(x => ids.includes(x.id));
+  if(!cibles.length) return;
+  cibles.forEach(x => { x.etat = 'attente'; x.err = ''; });
+  LC.lecture = { i: 0, n: cibles.length, etape: 'Préparation du moteur…', part: 0 };
+  lcRendu();
+  try {
+    await lcChargerOcr();
+    for(const im of cibles){
+      if(!LC.imgs.includes(im)) continue;           // image retirée entre-temps
+      LC.lecture.i++; LC.lecture.part = 0; im.etat = 'lecture'; lcMajProg();
+      try {
+        const r = await window.LecteurOCR.lire(im.blob, { inverser, progres: p => { if(LC.lecture){ LC.lecture.etape = p.etape; LC.lecture.part = p.part; lcMajProg(); } } });
+        if(!LC.imgs.includes(im)) continue;
+        im.texte = r.texte; im.confiance = r.confiance; im.inverse = r.inverse; im.blocs = r.blocs; im.etat = 'ok';
+      } catch(e){
+        console.warn('Lecteur : lecture impossible', e);
+        im.etat = 'erreur'; im.err = (e && e.message) || 'Lecture impossible.';
+      }
+      lcRendu();
+    }
+  } catch(e){
+    cibles.forEach(x => { if(x.etat === 'attente' || x.etat === 'lecture'){ x.etat = 'erreur'; x.err = (e && e.message) || 'Lecture impossible.'; } });
+  }
+  LC.lecture = null;
+  lcRendu();
+}
+async function lcCopier(txt, msg){
+  txt = String(txt == null ? '' : txt);
+  if(!txt.trim()){ LC_TOAST('Rien à copier.'); return; }
+  try { await navigator.clipboard.writeText(txt); }
+  catch(e){
+    const t = document.createElement('textarea'); t.value = txt; t.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(t); t.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch(_){} t.remove();
+    if(!ok){ LC_TOAST("Copie impossible sur ce navigateur."); return; }
+  }
+  LC_TOAST(msg || 'Texte copié');
+}
+function lcCopierSelection(id){
+  const ta = document.querySelector(`.lc-txt[data-id="${id}"]`);
+  if(!ta) return;
+  const a = ta.selectionStart, b = ta.selectionEnd;
+  if(a == null || a === b){ LC_TOAST('Sélectionne d\u2019abord une partie du texte.'); return; }
+  lcCopier(ta.value.slice(a, b), 'Sélection copiée');
+}
 
 function lcChoisir(camera){
   const inp = document.createElement('input');
@@ -106,6 +201,35 @@ function lcChoisir(camera){
 }
 
 // ---------- Fenêtre ----------
+function lcRenduLecture(){
+  if(!LC.imgs.length) return '';
+  const aLire = LC.imgs.filter(x => !x.etat || x.etat === 'erreur' && !x.texte).map(x => x.id);
+  const fait = LC.imgs.filter(x => x.etat === 'ok');
+  let h = '';
+  if(LC.lecture){
+    h += `<div class="lc-prog"><div class="t" id="lcProgT"><span></span><span></span></div><div class="b"><i id="lcProgB"></i></div></div>`;
+  } else if(aLire.length){
+    h += `<div class="lc-go"><button type="button" class="btn-primary" data-lc="read" data-ids="${aLire.join(',')}">${fait.length ? 'Lire les nouvelles images' : (aLire.length > 1 ? 'Lire le texte des images' : 'Lire le texte')}</button></div>`;
+  }
+  LC.imgs.forEach((x, i) => {
+    if(x.etat === 'ok'){
+      h += `<div class="lc-res">
+        <div class="lc-res-h"><img src="${x.url}" alt=""><b>Image ${i + 1}</b>${x.texte ? `<span class="conf${x.confiance < 70 ? ' low' : ''}" title="Fiabilité estimée de la lecture">Fiabilité ${x.confiance} %</span>` : ''}</div>
+        ${x.texte ? '' : `<div class="lc-empty">Aucun texte reconnu. Essaie « Relire en inversant les couleurs », ou une capture plus nette.</div>`}
+        <textarea class="lc-txt" data-id="${x.id}" spellcheck="false" aria-label="Texte lu sur l'image ${i + 1}">${LC_E(x.texte)}</textarea>
+        <div class="lc-ra">
+          <button type="button" class="main" data-lc="copy" data-id="${x.id}">Copier tout</button>
+          <button type="button" data-lc="copysel" data-id="${x.id}">Copier la sélection</button>
+          <button type="button" data-lc="reread" data-id="${x.id}" title="Utile si le texte est mal lu (captures sombres ou claires)">${x.inverse ? 'Relire sans inverser' : 'Relire en inversant les couleurs'}</button>
+        </div></div>`;
+    } else if(x.etat === 'erreur' && !x.texte){
+      h += `<div class="lc-err">Image ${i + 1} : ${LC_E(x.err || 'lecture impossible')}</div>`;
+    }
+  });
+  if(fait.length > 1) h += `<div class="lc-ra" style="justify-content:center"><button type="button" class="main" data-lc="copyall">Copier le texte de toutes les images</button></div>`;
+  return h;
+}
+
 function lcRendu(){
   const box = document.getElementById('lcBody');
   if(!box) return;
@@ -127,7 +251,8 @@ function lcRendu(){
         <span class="lc-count">${n} image${n > 1 ? 's' : ''} prête${n > 1 ? 's' : ''}</span>
         <button type="button" class="lc-link" data-lc="clear">Tout retirer</button>
       </div>` : ''}
-    <div class="lc-priv">🔒 <span>Tes images restent sur cet appareil et ne sont pas enregistrées : elles disparaissent quand tu fermes cette fenêtre. La lecture du texte et les analyses arrivent aux prochaines étapes.</span></div>`;
+    ${lcRenduLecture()}
+    <div class="lc-priv">🔒 <span>Tout se passe sur cet appareil : la lecture du texte n'envoie rien en ligne, et les images comme les textes ne sont pas enregistrés. Ils disparaissent quand tu fermes cette fenêtre.</span></div>`;
 
   const drop = document.getElementById('lcDrop');
   drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
@@ -140,7 +265,15 @@ function lcRendu(){
     else if(a === 'cam') lcChoisir(true);
     else if(a === 'del') lcRetirer(+b.dataset.id);
     else if(a === 'clear') lcToutRetirer();
+    else if(a === 'read') lcLire((b.dataset.ids || '').split(',').map(Number).filter(Boolean));
+    else if(a === 'reread'){ const im = LC.imgs.find(x => x.id === +b.dataset.id); if(im) lcLire([im.id], !im.inverse); }
+    else if(a === 'copy'){ const im = LC.imgs.find(x => x.id === +b.dataset.id); if(im) lcCopier(im.texte); }
+    else if(a === 'copysel') lcCopierSelection(+b.dataset.id);
+    else if(a === 'copyall') lcCopier(LC.imgs.filter(x => x.etat === 'ok' && x.texte).map((x, i) => (LC.imgs.filter(y => y.etat === 'ok' && y.texte).length > 1 ? `--- Image ${LC.imgs.indexOf(x) + 1} ---\n` : '') + x.texte).join('\n\n'), 'Tout le texte copié');
   };
+  // Le texte corrigé à la main est gardé (en mémoire) pour la copie et les prochaines étapes
+  box.oninput = e => { const ta = e.target.closest && e.target.closest('.lc-txt'); if(!ta) return; const im = LC.imgs.find(x => x.id === +ta.dataset.id); if(im) im.texte = ta.value; };
+  lcMajProg();
 }
 
 function lcOpen(){
