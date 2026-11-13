@@ -6,7 +6,9 @@
 // texte modifiable, copie complète ou de la sélection, relecture en mode inversé.
 // Rien n'est envoyé nulle part et rien n'est gardé : les images et les textes vivent en mémoire
 // tant que la fenêtre est ouverte, puis disparaissent à la fermeture.
-// Étapes suivantes : actions rapides, IA, exports.
+// Étape 3 : extraction locale (téléphones, prix, dates et heures, e-mails, liens) et exports
+// TXT / PDF / CSV, partage (voir lecteur-outils.js).
+// Étapes suivantes : IA, plusieurs images, historique, DOCX.
 // ============================================================
 (function(){
 if(typeof agSheet !== 'function') return;
@@ -67,6 +69,21 @@ function lcStyle(){
     .lc-ra button{padding:8px 14px;border-radius:999px;border:1px solid var(--border-2);background:var(--card2);color:var(--text);font:500 .82rem Inter,sans-serif;cursor:pointer}
     .lc-ra button:hover{background:var(--card3)}
     .lc-ra .main{background:var(--lc-gb);border-color:transparent;color:var(--pri-fg,#00241f);font-weight:600}
+    .lc-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px;align-items:center}
+    .lc-chips .lbl,.lc-exp .lbl{font-size:.76rem;color:var(--muted);margin-right:2px}
+    .lc-chip{width:auto;display:inline-flex;gap:6px;align-items:center;padding:6px 11px;border-radius:999px;border:1px solid var(--border-2);background:var(--card2);color:var(--text);font:500 .8rem Inter,sans-serif;cursor:pointer}
+    .lc-chip i{font-style:normal;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--card3);display:grid;place-items:center;font-size:.7rem;color:var(--text-2)}
+    .lc-chip.on{background:color-mix(in srgb,var(--lc-gb) 25%,var(--card2));border-color:var(--lc-gb)}
+    .lc-chip:disabled{opacity:.4;cursor:default}
+    .lc-pan{margin:0 0 10px}.lc-pan:empty{display:none}
+    .lc-pl{border:1px solid var(--border-2);border-radius:14px;background:var(--bg-2);padding:6px 12px 10px}
+    .lc-ph{font-size:.8rem;font-weight:600;color:var(--text-2);padding:6px 0 2px}
+    .lc-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+    .lc-row .m{flex:1;min-width:0}.lc-row .m b{display:block;font-weight:600;font-size:.92rem;word-break:break-word}
+    .lc-row .m small{display:block;color:var(--muted);font-size:.76rem;margin-top:2px;word-break:break-word}
+    .lc-row .a{display:flex;gap:6px;flex-shrink:0}
+    .lc-row .a button,.lc-row .a a{width:auto;padding:5px 10px;border-radius:999px;border:1px solid var(--border-2);background:var(--card2);color:var(--text);font:500 .76rem Inter,sans-serif;text-decoration:none;cursor:pointer}
+    .lc-exp{align-items:center}
     .lc-err{margin-top:10px;font-size:.82rem;color:var(--red)}
     .lc-empty{font-size:.84rem;color:var(--muted);padding:6px 2px}
     .lc-priv{display:flex;gap:8px;align-items:flex-start;margin-top:14px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--card) 70%,transparent);border:1px solid var(--border);color:var(--muted);font-size:.78rem;line-height:1.4}
@@ -121,21 +138,79 @@ function lcToutRetirer(){
   lcRendu();
 }
 function lcLiberer(){
+  clearTimeout(LC.tmr);
   LC.imgs.forEach(x => URL.revokeObjectURL(x.url)); LC.imgs = []; LC.lecture = null;
   if(window.LecteurOCR) window.LecteurOCR.fermer();   // libère la mémoire du moteur de lecture
 }
 
 // ---------- Lecture du texte (sur l'appareil) ----------
 function lcChargerOcr(){
-  if(window.LecteurOCR) return Promise.resolve();
+  if(window.LecteurOCR && window.LecteurOutils) return Promise.resolve();
   if(!LC.ocrScript){
-    LC.ocrScript = new Promise((ok, ko) => {
-      const s = document.createElement('script'); s.src = 'lecteur-ocr.js?v=1';
-      s.onload = ok; s.onerror = () => { LC.ocrScript = null; ko(new Error("Le moteur de lecture n'a pas pu être chargé. Vérifie ta connexion et réessaie.")); };
+    const un = (src, pret) => pret() ? Promise.resolve() : new Promise((ok, ko) => {
+      const s = document.createElement('script'); s.src = src; s.onload = ok;
+      s.onerror = () => ko(new Error("Le moteur de lecture n'a pas pu être chargé. Vérifie ta connexion et réessaie."));
       document.head.appendChild(s);
     });
+    LC.ocrScript = Promise.all([un('lecteur-ocr.js?v=1', () => window.LecteurOCR), un('lecteur-outils.js?v=1', () => window.LecteurOutils)])
+      .catch(e => { LC.ocrScript = null; throw e; });
   }
   return LC.ocrScript;
+}
+
+// ---------- Extraction rapide (téléphones, prix, dates, e-mails, liens) ----------
+function lcExt(im){ return window.LecteurOutils ? window.LecteurOutils.extraire(im.texte) : null; }
+function lcPuces(im){
+  const O = window.LecteurOutils, ext = lcExt(im);
+  if(!O || !ext) return '';
+  return '<span class="lbl">Extraire</span>' + O.TYPES.map(t => {
+    const n = ext[t.id].length;
+    return `<button type="button" class="lc-chip${im.vue === t.id ? ' on' : ''}" data-lc="chip" data-id="${im.id}" data-t="${t.id}"${n ? '' : ' disabled'}>${t.icone} ${t.nom} <i>${n}</i></button>`;
+  }).join('');
+}
+function lcPanneau(im){
+  const O = window.LecteurOutils, ext = lcExt(im);
+  if(!O || !ext || !im.vue) return '';
+  const t = O.TYPES.find(x => x.id === im.vue), items = ext[im.vue] || [];
+  if(!t) return '';
+  if(!items.length) return `<div class="lc-empty">${t.vide}</div>`;
+  const rows = items.map((it, i) => {
+    let act = '';
+    if(it.type === 'tel') act = `<a href="tel:${LC_E(it.valeur)}">Appeler</a>`;
+    else if(it.type === 'email') act = `<a href="mailto:${LC_E(it.valeur)}">Écrire</a>`;
+    else if(it.type === 'lien' && /^https?:\/\//i.test(it.valeur)) act = `<a href="${LC_E(it.valeur)}" target="_blank" rel="noopener noreferrer">Ouvrir</a>`;
+    return `<div class="lc-row"><div class="m"><b>${LC_E(it.texte)}</b>${it.detail ? `<small>${LC_E(it.detail)}</small>` : ''}</div><div class="a">${act}<button type="button" data-lc="copyitem" data-id="${im.id}" data-i="${i}">Copier</button></div></div>`;
+  }).join('');
+  return `<div class="lc-pl"><div class="lc-ph">${t.icone} ${t.nom} · ${items.length}</div>${rows}
+    <div class="lc-ra"><button type="button" class="main" data-lc="copylist" data-id="${im.id}">Copier la liste</button><button type="button" data-lc="csv" data-id="${im.id}">Exporter en CSV</button></div></div>`;
+}
+function lcMajCarte(id){
+  const im = LC.imgs.find(x => x.id === id); if(!im) return;
+  const c = document.querySelector(`.lc-chips[data-id="${id}"]`), p = document.querySelector(`.lc-pan[data-id="${id}"]`);
+  if(c) c.innerHTML = lcPuces(im);
+  if(p) p.innerHTML = lcPanneau(im);
+}
+function lcItems(id){
+  const im = LC.imgs.find(x => x.id === id), ext = im && lcExt(im);
+  return ext && im.vue ? ext[im.vue] || [] : [];
+}
+
+// ---------- Exports (TXT, PDF, CSV), partage ----------
+function lcSections(ids){
+  return LC.imgs.filter(x => x.etat === 'ok' && x.texte && x.texte.trim() && (!ids || ids.includes(x.id)))
+    .map(x => ({ titre: `Image ${LC.imgs.indexOf(x) + 1}`, texte: x.texte }));
+}
+function lcExporter(format, ids){
+  const O = window.LecteurOutils, sec = lcSections(ids);
+  if(!O || !sec.length){ LC_TOAST('Rien à exporter.'); return; }
+  try {
+    if(format === 'pdf') O.telecharger(O.pdf(sec, "Texte lu par le Lecteur d'images"), O.nomFichier('pdf'));
+    else O.telecharger(O.blob(O.txt(sec), 'text/plain;charset=utf-8'), O.nomFichier('txt'));
+    LC_TOAST(format === 'pdf' ? 'PDF créé' : 'Fichier TXT créé');
+  } catch(e){ LC_TOAST((e && e.message) || 'Export impossible.'); }
+}
+async function lcPartager(txt){
+  try { await window.LecteurOutils.partager(txt); } catch(e){ LC_TOAST((e && e.message) || 'Partage impossible.'); }
 }
 function lcMajProg(){
   const t = document.getElementById('lcProgT'), b = document.getElementById('lcProgB'), L = LC.lecture;
@@ -216,17 +291,25 @@ function lcRenduLecture(){
       h += `<div class="lc-res">
         <div class="lc-res-h"><img src="${x.url}" alt=""><b>Image ${i + 1}</b>${x.texte ? `<span class="conf${x.confiance < 70 ? ' low' : ''}" title="Fiabilité estimée de la lecture">Fiabilité ${x.confiance} %</span>` : ''}</div>
         ${x.texte ? '' : `<div class="lc-empty">Aucun texte reconnu. Essaie « Relire en inversant les couleurs », ou une capture plus nette.</div>`}
+        <div class="lc-chips" data-id="${x.id}">${lcPuces(x)}</div>
+        <div class="lc-pan" data-id="${x.id}">${lcPanneau(x)}</div>
         <textarea class="lc-txt" data-id="${x.id}" spellcheck="false" aria-label="Texte lu sur l'image ${i + 1}">${LC_E(x.texte)}</textarea>
         <div class="lc-ra">
           <button type="button" class="main" data-lc="copy" data-id="${x.id}">Copier tout</button>
           <button type="button" data-lc="copysel" data-id="${x.id}">Copier la sélection</button>
           <button type="button" data-lc="reread" data-id="${x.id}" title="Utile si le texte est mal lu (captures sombres ou claires)">${x.inverse ? 'Relire sans inverser' : 'Relire en inversant les couleurs'}</button>
+        </div>
+        <div class="lc-ra lc-exp"><span class="lbl">Exporter</span>
+          <button type="button" data-lc="exp" data-f="txt" data-id="${x.id}">TXT</button>
+          <button type="button" data-lc="exp" data-f="pdf" data-id="${x.id}">PDF</button>
+          ${navigator.share ? `<button type="button" data-lc="share" data-id="${x.id}">Partager</button>` : ''}
         </div></div>`;
     } else if(x.etat === 'erreur' && !x.texte){
       h += `<div class="lc-err">Image ${i + 1} : ${LC_E(x.err || 'lecture impossible')}</div>`;
     }
   });
-  if(fait.length > 1) h += `<div class="lc-ra" style="justify-content:center"><button type="button" class="main" data-lc="copyall">Copier le texte de toutes les images</button></div>`;
+  if(fait.length > 1) h += `<div class="lc-ra" style="justify-content:center"><button type="button" class="main" data-lc="copyall">Copier le texte de toutes les images</button>
+    <span class="lbl" style="font-size:.76rem;color:var(--muted)">Exporter tout</span><button type="button" data-lc="expall" data-f="txt">TXT</button><button type="button" data-lc="expall" data-f="pdf">PDF</button></div>`;
   return h;
 }
 
@@ -269,10 +352,17 @@ function lcRendu(){
     else if(a === 'reread'){ const im = LC.imgs.find(x => x.id === +b.dataset.id); if(im) lcLire([im.id], !im.inverse); }
     else if(a === 'copy'){ const im = LC.imgs.find(x => x.id === +b.dataset.id); if(im) lcCopier(im.texte); }
     else if(a === 'copysel') lcCopierSelection(+b.dataset.id);
+    else if(a === 'chip'){ const im = LC.imgs.find(x => x.id === +b.dataset.id); if(im){ im.vue = im.vue === b.dataset.t ? '' : b.dataset.t; lcMajCarte(im.id); } }
+    else if(a === 'copyitem'){ const it = lcItems(+b.dataset.id)[+b.dataset.i]; if(it) lcCopier(it.texte, 'Copié'); }
+    else if(a === 'copylist'){ const l = lcItems(+b.dataset.id); lcCopier(l.map(window.LecteurOutils.ligneCopie).join('\n'), `${l.length} élément${l.length > 1 ? 's' : ''} copié${l.length > 1 ? 's' : ''}`); }
+    else if(a === 'csv'){ const l = lcItems(+b.dataset.id), O = window.LecteurOutils; if(l.length){ O.telecharger(O.blob(O.csvExtraction(l), 'text/csv;charset=utf-8'), O.nomFichier('csv')); LC_TOAST('Fichier CSV créé (s\u2019ouvre dans Excel)'); } }
+    else if(a === 'exp') lcExporter(b.dataset.f, [+b.dataset.id]);
+    else if(a === 'expall') lcExporter(b.dataset.f);
+    else if(a === 'share'){ const im = LC.imgs.find(x => x.id === +b.dataset.id); if(im) lcPartager(im.texte); }
     else if(a === 'copyall') lcCopier(LC.imgs.filter(x => x.etat === 'ok' && x.texte).map((x, i) => (LC.imgs.filter(y => y.etat === 'ok' && y.texte).length > 1 ? `--- Image ${LC.imgs.indexOf(x) + 1} ---\n` : '') + x.texte).join('\n\n'), 'Tout le texte copié');
   };
   // Le texte corrigé à la main est gardé (en mémoire) pour la copie et les prochaines étapes
-  box.oninput = e => { const ta = e.target.closest && e.target.closest('.lc-txt'); if(!ta) return; const im = LC.imgs.find(x => x.id === +ta.dataset.id); if(im) im.texte = ta.value; };
+  box.oninput = e => { const ta = e.target.closest && e.target.closest('.lc-txt'); if(!ta) return; const im = LC.imgs.find(x => x.id === +ta.dataset.id); if(im){ im.texte = ta.value; clearTimeout(LC.tmr); LC.tmr = setTimeout(() => lcMajCarte(im.id), 350); } };
   lcMajProg();
 }
 
