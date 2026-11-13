@@ -115,9 +115,50 @@ async function hcUnlink(){
 }
 
 // ---------- Fenêtre "Fichiers" ----------
-function hcSheet(inner){
+// La fenêtre « Fichiers » reste comme les autres : si tu actualises la page, elle se rouvre toute seule,
+// au même endroit (même défilement), avec le texte que tu étais en train d'écrire.
+const hcLs = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k, v){ try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch(e){} },
+};
+const HC_WIN = { view: null, top: null, restore: null, timer: null };
+function hcSheet(inner, view){
+  const old = document.getElementById('hcSheet');
+  const m0 = old && old.querySelector('.modal');
+  // Même vue qu'avant (ex. mise à jour de la liste) : on garde le défilement ; sinon, celui d'avant l'actualisation.
+  HC_WIN.top = m0 && view && HC_WIN.view === view ? m0.scrollTop
+    : (view && HC_WIN.restore && HC_WIN.restore.view === view ? HC_WIN.restore.top : null);
+  if(view && HC_WIN.restore && HC_WIN.restore.view === view) HC_WIN.restore = null;
   agSheet('hcSheet', `<h3>${HC_ICON} Fichiers (Henzo Cloud)</h3>${inner}`);
+  HC_WIN.view = view || null;
+  hcLs.set('hc_win', view || 'files');
+  const m = document.querySelector('#hcSheet .modal');
+  if(m && view) m.addEventListener('scroll', () => {
+    clearTimeout(HC_WIN.timer);
+    HC_WIN.timer = setTimeout(() => hcLs.set('hc_scroll_' + view, String(m.scrollTop)), 150);
+  });
 }
+// À appeler quand le contenu de la fenêtre est entièrement rempli.
+function hcApplyScroll(){
+  const m = document.querySelector('#hcSheet .modal'); const top = HC_WIN.top; HC_WIN.top = null;
+  if(m && top) { m.scrollTop = top; requestAnimationFrame(() => { m.scrollTop = top; }); }
+}
+// Fermée par toi (croix, fond, retour) : on oublie qu'elle était ouverte. Une actualisation de la page ne passe pas par ici.
+new MutationObserver(() => { if(!document.getElementById('hcSheet') && hcLs.get('hc_win')) hcLs.set('hc_win', null); })
+  .observe(document.body, { childList: true });
+// Au démarrage : si elle était ouverte, on la rouvre dès que la Super App est prête (connectée, menus affichés).
+(function hcRestore(){
+  const v = hcLs.get('hc_win'); if(!v) return;
+  HC_WIN.restore = { view: v === 'trash' ? 'trash' : 'files', top: Number(hcLs.get('hc_scroll_' + (v === 'trash' ? 'trash' : 'files'))) || 0 };
+  let tries = 0;
+  const t = setInterval(() => {
+    if(++tries > 120 || document.getElementById('hcSheet')){ clearInterval(t); return; }
+    if(!document.querySelector('.drawer-nav.hc-drawer')) return;        // pas encore prête (connexion en cours)
+    if(document.querySelector('.ag-sheet, .modal-bg.show')) return;      // une autre fenêtre est ouverte : on attend
+    clearInterval(t);
+    if(v === 'trash') window.hcTrash(); else hcOpen();
+  }, 500);
+})();
 
 function hcAskUrl(msg){
   hcSheet(`
@@ -286,6 +327,8 @@ function hcStyle(){
     #hcViewer audio{width:min(560px,100%)}
     #hcViewer .hv-pdf{align-self:flex-start;width:100%;display:flex;flex-direction:column;align-items:center;gap:10px}
     #hcViewer .hv-pdf canvas{max-width:100%;height:auto;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.5)}
+    #hcViewer .hv-office{align-self:stretch;width:100%;min-height:0;display:flex;flex-direction:column}
+    #hcViewer .hv-office>.ho-doc{flex:1}
     #hcViewer pre{align-self:stretch;width:100%;margin:0;padding:14px;background:rgba(255,255,255,.07);border-radius:12px;white-space:pre-wrap;word-break:break-word;overflow:auto;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;text-align:left;color:#fff}
     #hcViewer .hv-note{text-align:center;max-width:420px;color:#cfd3dc;display:flex;flex-direction:column;align-items:center;gap:12px}
     #hcViewer .hv-note button{background:var(--accent,#6c5ce7);color:#fff;border:0;border-radius:12px;padding:10px 18px;font:inherit;cursor:pointer;margin:0;width:auto}
@@ -321,8 +364,8 @@ function hcManager(user, files, usage){
     <div class="hc-note">
       <b>Envoyer du texte</b>
       <div class="ag-hint" style="margin:2px 0 0">Écris ou colle un texte (lien, code, adresse...) : il est rangé comme un fichier .txt, à copier depuis n'importe quel appareil.</div>
-      <input id="hcNoteTitle" maxlength="80" placeholder="Titre (facultatif)">
-      <textarea id="hcNoteText" placeholder="Écris ou colle ton texte ici..." oninput="hcNoteSync()"></textarea>
+      <input id="hcNoteTitle" maxlength="80" placeholder="Titre (facultatif)" oninput="hcNoteSave()">
+      <textarea id="hcNoteText" placeholder="Écris ou colle ton texte ici..." oninput="hcNoteSync();hcNoteSave()"></textarea>
       <div class="row"><button class="btn-secondary" type="button" onclick="hcNotePaste()">Coller</button><button class="btn-primary" id="hcNoteSend" type="button" onclick="hcSendNote()" disabled>Envoyer le texte</button></div>
       <div id="hcNoteMsg" class="ag-hint" style="margin:6px 0 0"></div>
     </div>
@@ -335,8 +378,9 @@ function hcManager(user, files, usage){
       <button class="btn-secondary" onclick="hcTrash()">${HC_IC('trash', 14)} Corbeille</button>
       <button class="btn-secondary" onclick="hcDoUnlink()">Délier</button>
     </div>
-    <div class="ag-hint">Connecté en tant que <b>${HC_E(user.username)}</b>, sans code : la Super App s'en charge.</div>`);
+    <div class="ag-hint">Connecté en tant que <b>${HC_E(user.username)}</b>, sans code : la Super App s'en charge.</div>`, 'files');
   hcRenderUsage(); hcRenderUps(); hcRenderList();
+  hcNoteRestore(); hcApplyScroll();
 }
 
 function hcRenderUsage(){
@@ -452,6 +496,7 @@ function hcShowThumb(id, data){
 }
 // Le lecteur de PDF (pdf.js) et la fabrique de miniatures : chargés une fois.
 (function(){ if(window.HCThumbs) return; const sc = document.createElement('script'); sc.src = 'henzo-miniatures.js?v=2'; document.head.appendChild(sc); })();
+(function(){ if(window.HCOffice) return; const sc = document.createElement('script'); sc.src = 'henzo-office.js?v=1'; document.head.appendChild(sc); })();
 
 window.hcSearch = v => { HC_ST.q = v; hcRenderList(); };
 
@@ -576,7 +621,7 @@ async function hcWatchMove(id){
 // ---------- Corbeille ----------
 window.hcTrash = async function(){
   hcStyle();
-  hcSheet(`<div class="ag-empty">Chargement de la corbeille...</div>`);
+  if(HC_WIN.view !== 'trash' || !document.getElementById('hcSheet')) hcSheet(`<div class="ag-empty">Chargement de la corbeille...</div>`);
   try {
     const { files, days } = await hcApi('GET', '/trash');
     HC_ST.trash = files; HC_ST.days = days;
@@ -610,7 +655,8 @@ function hcRenderTrash(){
     <div class="hc-foot">
       <button class="btn-secondary" onclick="hcOpenFiles()">← Mes fichiers</button>
       ${files.length ? `<button class="btn-secondary" style="color:var(--red)" onclick="hcEmptyTrash()">Vider la corbeille</button>` : ''}
-    </div>`);
+    </div>`, 'trash');
+  hcApplyScroll();
 }
 window.hcTToggle = (id, on) => { on ? HC_ST.tsel.add(id) : HC_ST.tsel.delete(id); hcRenderTrash(); };
 window.hcTSelAll = on => { HC_ST.tsel = new Set(on ? HC_ST.trash.map(f => f.id) : []); hcRenderTrash(); };
@@ -678,6 +724,16 @@ window.hcPicked = function(input){
 
 // ---------- Envoyer du texte (rangé comme un fichier .txt) ----------
 const hcStamp = () => new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(/[/:]/g, '-').replace(',', '');
+// Brouillon gardé sur l'appareil : une actualisation ne le perd pas.
+window.hcNoteSave = function(){
+  const t = document.getElementById('hcNoteText'), ti = document.getElementById('hcNoteTitle'); if(!t || !ti) return;
+  hcLs.set('hc_note_draft', t.value || ti.value ? JSON.stringify({ title: ti.value, text: t.value }) : null);
+};
+function hcNoteRestore(){
+  const t = document.getElementById('hcNoteText'), ti = document.getElementById('hcNoteTitle'); if(!t || !ti) return;
+  try { const d = JSON.parse(hcLs.get('hc_note_draft') || 'null'); if(d){ ti.value = d.title || ''; t.value = d.text || ''; } } catch(e){}
+  hcNoteSync();
+}
 window.hcNoteSync = function(){
   const t = document.getElementById('hcNoteText'), b = document.getElementById('hcNoteSend');
   if(t && b) b.disabled = !t.value.trim();
@@ -698,7 +754,7 @@ window.hcSendNote = function(){
   hcAddFiles([file], ok => {
     const t2 = document.getElementById('hcNoteText'), m2 = document.getElementById('hcNoteMsg');
     if(!t2) return; // fenêtre fermée entre-temps
-    if(ok){ t2.value = ''; document.getElementById('hcNoteTitle').value = ''; m2.textContent = 'Texte enregistré dans la liste. Touche-le pour le copier.'; hcNoteSync(); }
+    if(ok){ t2.value = ''; document.getElementById('hcNoteTitle').value = ''; hcNoteSave(); m2.textContent = 'Texte enregistré dans la liste. Touche-le pour le copier.'; hcNoteSync(); }
     else m2.textContent = "L'envoi a échoué (voir plus haut). Ton texte est gardé : réessaie.";
   });
 };
@@ -832,6 +888,9 @@ function hcViewKind(f){
     if(k === 'image' && /^(heic|heif|tiff?)$/.test(e)) return 'other'; // pas affichable dans un navigateur
     return k;
   }
+  // Word et Excel modernes (.docx / .xlsx) : lus ici ; les anciens formats (.doc / .xls) : à télécharger.
+  if(f.size <= 25e6 && (e === 'docx' || e === 'docm' || f.mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')) return 'word';
+  if(f.size <= 25e6 && (e === 'xlsx' || e === 'xlsm' || f.mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) return 'excel';
   if((String(f.mime).startsWith('text/') || HC_TEXT_EXT.test(e)) && f.size <= 5e6) return 'text';
   return 'other';
 }
@@ -865,7 +924,10 @@ async function hvRender(){
   document.getElementById('hvCopy').style.display = 'none'; HV.text = '';
   if(f.offline) return hvNote('Ce fichier est sur ton PC, qui est éteint ou hors ligne. Rallume ton PC puis réessaie.', f, false);
   const k = hcViewKind(f);
-  if(k === 'other') return hvNote("Ce type de fichier ne peut pas être lu ici. Télécharge-le pour l'ouvrir.", f);
+  if(k === 'other'){
+    const old = /^(doc|xls|ppt|pptx|odt|ods)$/.test((f.name.split('.').pop() || '').toLowerCase());
+    return hvNote(old ? "Ce format ne peut pas être lu ici (seuls Word .docx et Excel .xlsx le sont). Télécharge-le, ou enregistre-le en .docx / .xlsx." : "Ce type de fichier ne peut pas être lu ici. Télécharge-le pour l'ouvrir.", f);
+  }
   hvBody().textContent = 'Chargement...';
   let url;
   try { url = (await hcApi('GET', `/files/${f.id}/download?inline=1`)).url; }
@@ -889,6 +951,16 @@ async function hvRender(){
     a.src = url; wrap.appendChild(a); b.innerHTML = ''; b.appendChild(wrap);
   } else if(k === 'pdf'){
     await hvPdf(url, f, token);
+  } else if(k === 'word' || k === 'excel'){
+    try {
+      const r = await fetch(url); if(!r.ok) throw 0;
+      const buf = await r.arrayBuffer();
+      if(token !== HV.token) return;
+      const box = document.createElement('div'); box.className = 'hv-office';
+      b.innerHTML = ''; b.appendChild(box);
+      if(!window.HCOffice) throw 0;
+      await (k === 'word' ? window.HCOffice.renderDocx(buf, box) : window.HCOffice.renderXlsx(buf, box));
+    } catch(e){ if(token === HV.token) hvNote("Impossible de lire ce document ici (fichier protégé ou abîmé ?). Télécharge-le pour l'ouvrir.", f); }
   } else if(k === 'text'){
     try {
       const r = await fetch(url); if(!r.ok) throw 0;
