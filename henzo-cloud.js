@@ -17,6 +17,9 @@ if(typeof sb === 'undefined' || typeof agSheet !== 'function') return;
 
 const HC_E = s => (typeof agEsc === 'function' ? agEsc(s) : String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])));
 const HC_TOAST = m => { if(typeof agToast === 'function') agToast(m); };
+// Demande de confirmation : la belle fenêtre de la Super App (agConfirm) quand elle existe.
+// (Le confirm() habituel y est remplacé par une fenêtre qui "rejoue" le clic, ce qui ne marche pas ici.)
+const hcAsk = msg => (typeof agConfirm === 'function' ? agConfirm(msg) : Promise.resolve(window.confirm(msg)));
 const HC_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.3 12.6 3.5 3.5 0 0 0 6.5 19z"/></svg>';
 const HC_SIZE = n => {
   n = Number(n) || 0;
@@ -159,7 +162,7 @@ window.hcDoLink = async function(){
 };
 
 window.hcDoUnlink = async function(){
-  if(!confirm('Délier la Super App de Henzo Cloud ? Tes fichiers ne sont pas touchés. Pour les revoir ici, il faudra retaper ton nom et ton code secret de Henzo Cloud une fois.')) return;
+  if(!await hcAsk('Délier la Super App de Henzo Cloud ? Tes fichiers ne sont pas touchés. Pour les revoir ici, il faudra retaper ton nom et ton code secret de Henzo Cloud une fois.')) return;
   try { await hcUnlink(); HC_ST.user = null; HC_TOAST('Lien défait'); } catch(e){ alert(e.message); }
   hcOpen();
 };
@@ -309,7 +312,7 @@ window.hcDownload = async function(id, view){
 
 window.hcDelete = async function(id){
   const f = HC_ST.files.find(x => x.id === id); if(!f) return;
-  if(!confirm(`Mettre « ${f.name} » à la corbeille ?\nTu pourras le récupérer pendant 30 jours (bouton Corbeille).`)) return;
+  if(!await hcAsk(`Mettre « ${f.name} » à la corbeille ?\nTu pourras le récupérer pendant 30 jours (bouton Corbeille).`)) return;
   try {
     await hcApi('DELETE', `/files/${id}`);
     HC_ST.files = HC_ST.files.filter(x => x.id !== id);
@@ -322,7 +325,7 @@ window.hcDelete = async function(id){
 const HC_MOVING = new Set();
 window.hcMove = async function(id){
   const f = HC_ST.files.find(x => x.id === id); if(!f) return;
-  if(!confirm(`Déplacer « ${f.name} » sur ton PC ?\n\nÇa libère ${HC_SIZE(f.size)} en ligne. Le fichier reste dans ta liste et se télécharge quand ton PC est allumé.`)) return;
+  if(!await hcAsk(`Déplacer « ${f.name} » sur ton PC ?\n\nÇa libère ${HC_SIZE(f.size)} en ligne. Le fichier reste dans ta liste et se télécharge quand ton PC est allumé.`)) return;
   try {
     await hcApi('POST', `/files/${id}/move-to-pc`, {});
     f.moving = true; hcRenderList();
@@ -372,11 +375,11 @@ window.hcRestore = async function(id){
   try { await hcApi('POST', `/trash/${id}/restore`, {}); HC_TOAST('Fichier restauré'); hcTrash(); } catch(e){ alert(e.message); }
 };
 window.hcKill = async function(id){
-  if(!confirm('Supprimer ce fichier pour toujours ? Impossible de revenir en arrière.')) return;
+  if(!await hcAsk('Supprimer ce fichier pour toujours ? Impossible de revenir en arrière.')) return;
   try { await hcApi('DELETE', `/trash/${id}`); hcTrash(); } catch(e){ alert(e.message); }
 };
 window.hcEmptyTrash = async function(){
-  if(!confirm('Vider la corbeille ? Tous ces fichiers seront supprimés pour toujours.')) return;
+  if(!await hcAsk('Vider la corbeille ? Tous ces fichiers seront supprimés pour toujours.')) return;
   try { const r = await hcApi('POST', '/trash/empty', {}); if(r.message) alert(r.message); hcTrash(); } catch(e){ alert(e.message); }
 };
 
