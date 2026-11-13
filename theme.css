@@ -6,6 +6,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* ---------- THEMES (choisis par l'utilisateur) ---------- */
+/* Dégradé lumineux (barres de progression...) : par défaut les couleurs du thème */
+:root{ --grad-a:var(--accent-2); --grad-b:var(--accent); }
+[data-theme="neon"]{ --grad-a:#c8ff5c; --grad-b:#5ef2d6; }
 :root, [data-theme="aurora"]{
   --bg:#030b0a; --bg-2:#061412; --card:#0a1c1a; --card2:#0f2523; --card3:#143230;
   --text:#ffffff; --text-2:#d7efeb; --muted:#8fb3ad;

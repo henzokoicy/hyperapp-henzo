@@ -199,14 +199,27 @@ function hcStyle(){
   const st = document.createElement('style'); st.id = 'hcStyle';
   st.textContent = `
     #hcSheet .modal{max-width:640px}
-    .hc-usage{color:var(--muted);font-size:.85rem;margin:0 0 10px}
+    #hcSheet{--hc-ga:var(--grad-a, var(--accent-2));--hc-gb:var(--grad-b, var(--accent))}
+    .hc-store{position:relative;border-radius:24px;padding:18px 18px 16px;margin:0 0 14px;background:linear-gradient(165deg,var(--card3),var(--card));border:1px solid var(--border-2);box-shadow:0 24px 40px -24px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.06)}
+    .hc-store-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .hc-store-h b{font-size:1.05rem;font-weight:600}
+    .hc-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;border:1px solid var(--border-2);background:color-mix(in srgb,var(--card) 70%,transparent);font-size:.78rem;color:var(--text-2)}
+    .hc-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--hc-gb);box-shadow:0 0 8px var(--hc-gb)}
+    .hc-chip.off{color:var(--red)} .hc-chip.off .dot{background:var(--red);box-shadow:none}
+    .hc-store-pct{font-size:2.7rem;font-weight:500;letter-spacing:-.04em;line-height:1;margin:12px 0 14px}
+    .hc-store-pct span{color:var(--muted);font-weight:400}
+    .hc-store-bar{position:relative;height:44px;border-radius:999px;background:color-mix(in srgb,var(--muted) 30%,transparent)}
+    .hc-store-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:linear-gradient(90deg,var(--hc-ga),var(--hc-gb));box-shadow:0 0 24px color-mix(in srgb,var(--hc-gb) 55%,transparent);transition:width .8s cubic-bezier(.16,1,.3,1)}
+    .hc-store-bar span{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-weight:600;font-size:.9rem;color:var(--text-2);text-shadow:0 1px 2px rgba(0,0,0,.25)}
+    .hc-store-sub{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;color:var(--muted);font-size:.8rem}
+    .hc-usage{margin:0}
     .hc-row2{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
     .hc-row2 .btn-primary{flex:1;min-width:180px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;margin:0}
     .hc-row2 select{flex:0 0 auto;width:auto;margin:0}
     .hc-search{width:100%;margin:6px 0 4px}
     .hc-up{padding:8px 0;border-top:1px solid var(--border);font-size:.85rem}
-    .hc-up .bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:5px}
-    .hc-up .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .4s}
+    .hc-up .bar{height:10px;background:color-mix(in srgb,var(--muted) 25%,transparent);border-radius:999px;margin-top:7px}
+    .hc-up .bar i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--hc-ga),var(--hc-gb));box-shadow:0 0 14px color-mix(in srgb,var(--hc-gb) 50%,transparent);transition:width .4s}
     .hc-up .m{color:var(--muted);font-size:.8rem;margin-top:3px}
     .hc-up.fail .m{color:var(--red)} .hc-up.ok .m{color:var(--green)}
     .hc-list{margin-top:6px}
@@ -261,18 +274,26 @@ function hcManager(user, files, usage){
 
 function hcRenderUsage(){
   const el = document.getElementById('hcUsage'); const u = HC_ST.usage; if(!el || !u) return;
-  let t = `${HC_ST.files.length} fichier${HC_ST.files.length > 1 ? 's' : ''} · Stockage en ligne : ${HC_SIZE(u.used)} sur ${HC_SIZE(u.limit)} (à vous tous).`;
-  if(u.trash) t += ` Corbeille : ${HC_SIZE(u.trash)}.`;
-  let pcOff = '';
+  const n = HC_ST.files.length;
+  const pct = u.limit ? Math.min(100, (u.used / u.limit) * 100) : 0;
+  const pctTxt = pct === 0 ? '0' : pct < 10 ? pct.toFixed(1).replace('.', ',') : Math.round(pct);
+  const free = Math.max(0, u.limit - u.used);
+  let pc = '', pcOff = '';
   if(u.pc && u.pc.configured){
-    if(u.pc.online) t += ` Ton PC est allumé${u.pc.freeBytes != null ? ` (${HC_SIZE(u.pc.freeBytes)} libres)` : ''}.`;
+    if(u.pc.online) pc = `<span class="hc-chip"><span class="dot"></span>PC allumé${u.pc.freeBytes != null ? ` · ${HC_SIZE(u.pc.freeBytes)} libres` : ''}</span>`;
     else {
+      pc = `<span class="hc-chip off"><span class="dot"></span>PC éteint</span>`;
       const ago = u.pc.lastSeen ? Math.round((Date.now() - new Date(u.pc.lastSeen)) / 60000) : null;
-      pcOff = `<div class="ag-hint" style="color:var(--red);margin:6px 0 0">Le site ne reçoit pas de nouvelles de ton PC (${ago == null ? 'jamais reçu' : ago < 60 ? `dernières nouvelles il y a ${ago} min` : `dernières nouvelles le ${HC_DATE(u.pc.lastSeen)}`}). Vérifie sur le PC que l'app Henzo Cloud est lancée : sa page <b>http://localhost:8788</b> dit ce qui ne va pas.
+      pcOff = `<div class="ag-hint" style="color:var(--red);margin:10px 0 0">Le site ne reçoit pas de nouvelles de ton PC (${ago == null ? 'jamais reçu' : ago < 60 ? `dernières nouvelles il y a ${ago} min` : `dernières nouvelles le ${HC_DATE(u.pc.lastSeen)}`}). Vérifie sur le PC que l'app Henzo Cloud est lancée : sa page <b>http://localhost:8788</b> dit ce qui ne va pas.
         <button class="btn-secondary" style="margin-top:6px;width:auto;padding:6px 12px" onclick="hcRefresh()">Vérifier de nouveau</button></div>`;
     }
   }
-  el.innerHTML = HC_E(t) + pcOff;
+  el.innerHTML = `<div class="hc-store">
+    <div class="hc-store-h"><b>Stockage en ligne</b><span class="hc-chip">${n} fichier${n > 1 ? 's' : ''}</span></div>
+    <div class="hc-store-pct">${pctTxt}<span>%</span></div>
+    <div class="hc-store-bar"><i style="width:${u.used > 0 ? `max(44px, ${pct}%)` : '0'}"></i><span>${HC_SIZE(free)} libres</span></div>
+    <div class="hc-store-sub"><span>${HC_SIZE(u.used)} utilisés sur ${HC_SIZE(u.limit)} (à vous tous)</span>${u.trash ? `<span>· Corbeille ${HC_SIZE(u.trash)}</span>` : ''}${pc}</div>
+    ${pcOff}</div>`;
 }
 
 function hcRenderList(){

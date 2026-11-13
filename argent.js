@@ -1084,7 +1084,8 @@ const AG_THEMES = {
   rose:       { label: 'Rose poudré', desc: 'Clair, rose et framboise', clair: true, gen: { bg: '#fbf2f3', card: '#ffffff', accent: '#b4536b', text: '#3a1f27', deep: '#83384b' } },
   menthe:     { label: 'Menthe',      desc: 'Clair, vert d\'eau', clair: true, gen: { bg: '#eef6f4', card: '#fbfffe', accent: '#00796b', text: '#0f2e2b', deep: '#00524D' } },
   ciel:       { label: 'Ciel',        desc: 'Clair, bleu franc', clair: true, gen: { bg: '#eef3fb', card: '#ffffff', accent: '#2f6fdb', text: '#14213d', deep: '#1d4ea8' } },
-  blanc:      { label: 'Blanc pur',   desc: 'Clair, noir et blanc', clair: true, gen: { bg: '#f7f7f7', card: '#ffffff', accent: '#111111', text: '#111111', deep: '#111111' } }
+  blanc:      { label: 'Blanc pur',   desc: 'Clair, noir et blanc', clair: true, gen: { bg: '#f7f7f7', card: '#ffffff', accent: '#111111', text: '#111111', deep: '#111111' } },
+  neon:       { label: 'Néon',        desc: 'Anthracite, dégradé vert-turquoise lumineux', gen: { bg: '#141515', card: '#232525', accent: '#5ef2d6', light: '#e6fff8', deep: '#1d4a42', priBg: '#c8ff5c', priFg: '#111311' } }
 };
 function agHex(h){ h = String(h || '').replace('#', ''); if(h.length === 3) h = h.split('').map(c => c + c).join(''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) || 0); }
 function agMix(a, b, t){ const A = agHex(a), B = agHex(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join(''); }
@@ -1677,4 +1678,4 @@ function agToggleMontants(force){
   window.addEventListener('pagehide', () => agToggleMontants(false));
 })();
 // Lien avec Henzo Cloud (coffre à fichiers) : voir henzo-cloud.js
-(function(){ const sc = document.createElement('script'); sc.src = 'henzo-cloud.js?v=7'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'henzo-cloud.js?v=8'; document.body.appendChild(sc); })();
