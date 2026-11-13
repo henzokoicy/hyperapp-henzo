@@ -1051,6 +1051,15 @@ function hcButtons(){
     b.onclick = () => { if(typeof closeDrawer === 'function') closeDrawer(); hcOpen(); };
     th.parentElement.insertBefore(b, th);
   }
+  // Barre de gauche de l'ordinateur : tout en haut, juste sous « Accueil » (le bas de la barre demande de défiler).
+  const side = document.getElementById('agSide');
+  if(side && !side.querySelector('.hc-side')){
+    const b = document.createElement('button'); b.className = 'ag-side-it hc-side';
+    b.innerHTML = `<span class="si">${HC_ICON.replace('width="16" height="16"', 'width="18" height="18"')}</span><span class="sl">Fichiers</span>`;
+    b.onclick = () => hcOpen();
+    const home = side.querySelector('.ag-side-it[data-tab="dash"]');
+    if(home) home.insertAdjacentElement('afterend', b); else side.insertBefore(b, side.firstChild);
+  }
   const um = document.querySelector('.user-menu-items');
   if(um && !um.querySelector('.hc-um')){
     const b = document.createElement('button'); b.className = 'hc-um';
@@ -1060,7 +1069,7 @@ function hcButtons(){
   }
 }
 // Les menus apparaissent après la connexion : on vérifie chaque seconde jusqu'à les trouver.
-const timer = setInterval(() => { hcButtons(); if(document.querySelector('.hc-drawer') && document.querySelector('.hc-um')) clearInterval(timer); }, 1000);
+const timer = setInterval(() => { hcButtons(); if(document.querySelector('.hc-drawer') && document.querySelector('.hc-um') && (!document.getElementById('agSide') || document.querySelector('.hc-side'))) clearInterval(timer); }, 1000);
 
 window.hcOpenFiles = hcOpen;
 window.HC = { api: hcApi, url: hcUrl, connect: hcConnect, open: hcOpen };
