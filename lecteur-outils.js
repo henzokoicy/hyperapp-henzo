@@ -231,6 +231,85 @@ function pdf(sections, titre){
   return doc.output('blob');
 }
 
+// ---------- DOCX (Word) : fabriqué à la main avec fflate (déjà dans la Super App), aucune bibliothèque en plus ----------
+let fflateP = null;
+function chargerFflate(){
+  if(window.fflate) return Promise.resolve();
+  if(!fflateP) fflateP = new Promise((ok, ko) => {
+    const s = document.createElement('script'); s.src = 'henzo-fflate.min.js?v=1'; s.onload = ok;
+    s.onerror = () => { fflateP = null; ko(new Error("Le module Word n'a pas pu être chargé. Vérifie ta connexion.")); };
+    document.head.appendChild(s);
+  });
+  return fflateP;
+}
+const X = s => String(s == null ? '' : s).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function run(texte, o){
+  o = o || {};
+  const pr = (o.b ? '<w:b/>' : '') + (o.i ? '<w:i/>' : '') + (o.sz ? `<w:sz w:val="${o.sz}"/>` : '');
+  return `<w:r>${pr ? `<w:rPr>${pr}</w:rPr>` : ''}<w:t xml:space="preserve">${X(texte)}</w:t></w:r>`;
+}
+// Gras **x** dans une ligne de réponse
+function runs(texte, o){
+  return String(texte).split(/(\*\*.+?\*\*)/).filter(x => x !== '').map(x => /^\*\*.+\*\*$/.test(x) ? run(x.slice(2, -2), { ...o, b: true }) : run(x, o)).join('');
+}
+function para(contenu, o){
+  o = o || {};
+  const ppr = (o.puce ? '<w:ind w:left="360" w:hanging="260"/>' : '') + (o.apres != null ? `<w:spacing w:after="${o.apres}"/>` : '');
+  return `<w:p>${ppr ? `<w:pPr>${ppr}</w:pPr>` : ''}${contenu}</w:p>`;
+}
+// blocs : même format que LecteurIA.blocs ; on y ajoute { t:'h', n, texte } pour les titres
+function docx(blocs, titre){
+  return chargerFflate().then(() => {
+    let corps = para(run(titre || "Texte lu par le Lecteur d'images", { b: true, sz: 32 }), { apres: 120 })
+      + para(run('Super App Henzo - ' + new Date().toLocaleDateString('fr-FR'), { sz: 18 }), { apres: 240 });
+    let n = 0;
+    blocs.forEach(b => {
+      if(b.t === 'h') corps += para(runs(b.texte, { b: true, sz: b.n <= 1 ? 30 : b.n === 2 ? 26 : 24 }), { apres: 100 });
+      else if(b.t === 'p') corps += para(runs(b.texte), { apres: 100 });
+      else if(b.t === 'li'){ n = b.num ? n + 1 : 0; corps += para(run(b.num ? n + '. ' : '\u2022 ') + runs(b.texte), { puce: true, apres: 40 }); }
+      else if(b.t === 'vide') corps += para('', { apres: 60 });
+      else if(b.t === 'table'){
+        const bord = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(k => `<w:${k} w:val="single" w:sz="4" w:space="0" w:color="999999"/>`).join('');
+        const cols = Math.max(...b.lignes.map(r => r.length));
+        corps += `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>${bord}</w:tblBorders></w:tblPr><w:tblGrid>${'<w:gridCol/>'.repeat(cols)}</w:tblGrid>`
+          + b.lignes.map((r, i) => `<w:tr>${Array.from({ length: cols }, (_, k) => `<w:tc><w:tcPr><w:tcW w:w="${Math.round(5000 / cols)}" w:type="pct"/>${i === 0 ? '<w:shd w:val="clear" w:color="auto" w:fill="E8EEF0"/>' : ''}</w:tcPr>${para(runs(r[k] || '', i === 0 ? { b: true } : {}))}</w:tc>`).join('')}</w:tr>`).join('')
+          + '</w:tbl>' + para('', { apres: 80 });
+      }
+    });
+    const f = window.fflate, u = f.strToU8, ns = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+    const zip = f.zipSync({
+      '[Content_Types].xml': u('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'),
+      '_rels/.rels': u('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'),
+      'word/document.xml': u(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${ns}><w:body>${corps}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>`)
+    });
+    return new Blob([zip], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  });
+}
+// Blocs DOCX pour du texte lu : un titre par image puis une ligne = un paragraphe
+function blocsTexte(sections){
+  const out = [];
+  sections.filter(s => s.texte && s.texte.trim()).forEach((s, i, tab) => {
+    if(tab.length > 1) out.push({ t: 'h', n: 2, texte: s.titre });
+    s.texte.replace(/\r/g, '').split('\n').forEach(l => out.push(l.trim() ? { t: 'p', texte: l.replace(/\*\*/g, '') } : { t: 'vide' }));
+    out.push({ t: 'vide' });
+  });
+  return out;
+}
+
+// ---------- Informations répétées entre plusieurs images ----------
+function repetees(sections){
+  const norm = l => l.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9@+]+/g, ' ').trim();
+  const vus = new Map();
+  sections.forEach(s => {
+    const deja = new Set();
+    String(s.texte || '').split('\n').forEach(l => {
+      const k = norm(l); if(k.length < 6 || deja.has(k)) return; deja.add(k);
+      const e = vus.get(k) || { texte: l.trim(), images: [] }; e.images.push(s.titre); vus.set(k, e);
+    });
+  });
+  return [...vus.values()].filter(e => e.images.length > 1);
+}
+
 function telecharger(b, nom){
   const url = URL.createObjectURL(b), a = document.createElement('a');
   a.href = url; a.download = nom; a.style.display = 'none';
@@ -243,5 +322,5 @@ async function partager(texte){
   catch(e){ if(e && e.name === 'AbortError') return; throw e; }
 }
 
-window.LecteurOutils = { extraire, TYPES, ligneCopie, fr, txt, csv, csvExtraction, pdf, blob, nomFichier, telecharger, partager };
+window.LecteurOutils = { extraire, TYPES, ligneCopie, fr, txt, csv, csvExtraction, pdf, docx, blocsTexte, repetees, blob, nomFichier, telecharger, partager };
 })();
