@@ -224,8 +224,13 @@ function hcStyle(){
     .hc-up.fail .m{color:var(--red)} .hc-up.ok .m{color:var(--green)}
     .hc-list{margin-top:6px}
     .hc-f{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--border)}
-    .hc-th{flex:0 0 46px;width:46px;height:46px;border-radius:8px;background:var(--card2,var(--border));display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:.65rem;font-weight:700;color:var(--muted)}
-    .hc-th img{width:100%;height:100%;object-fit:cover;cursor:pointer}
+    .hc-th{position:relative;flex:0 0 48px;width:48px;height:48px;border-radius:12px;display:flex;flex-direction:column;gap:1px;align-items:center;justify-content:center;overflow:hidden;color:var(--accent-2,var(--accent));background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 22%,var(--card3,var(--card2))),var(--card3,var(--card2)))}
+    .hc-th small{font-size:.55rem;font-weight:800;color:var(--muted);letter-spacing:.04em}
+    .hc-th.k-video{color:#ff9b7a;background:linear-gradient(145deg,color-mix(in srgb,#ff7a59 22%,var(--card3,var(--card2))),var(--card3,var(--card2)))}
+    .hc-th.k-audio{color:#c49bff;background:linear-gradient(145deg,color-mix(in srgb,#a77bff 24%,var(--card3,var(--card2))),var(--card3,var(--card2)))}
+    .hc-th.k-pdf{color:#ff7b7b;background:linear-gradient(145deg,color-mix(in srgb,#ff5c5c 22%,var(--card3,var(--card2))),var(--card3,var(--card2)))}
+    .hc-th img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;cursor:pointer;opacity:0;transition:opacity .3s}
+    .hc-th.has-img img{opacity:1}
     .hc-in{flex:1;min-width:0}
     .hc-n{word-break:break-word;font-size:.92rem;line-height:1.25}
     .hc-d{color:var(--muted);font-size:.78rem;margin-top:2px}
@@ -305,8 +310,10 @@ function hcRenderList(){
   hcRenderSel(L);
   if(!L.length){ box.innerHTML = `<div class="ag-empty">${q ? 'Aucun fichier ne correspond.' : 'Aucun fichier pour l\'instant. Touche « Envoyer des fichiers ».'}</div>`; return; }
   box.innerHTML = L.map(f => {
-    const img = /^image\//.test(f.mime || '') && !f.offline;
+    const T = window.HCThumbs;
+    const k = T ? T.kind(f.name, f.mime) : 'file';
     const ext = (f.name.split('.').pop() || '').slice(0, 4).toUpperCase();
+    const viewable = !f.offline && ['image', 'video', 'pdf'].includes(k);
     const where = f.location === 'pc' ? (f.offline ? ' · <span class="off">Sur le PC, hors ligne</span>' : ' · Sur le PC')
       : f.moving ? ' · <span style="color:var(--accent)">Déplacement vers le PC...</span>'
       : f.toPc ? ' · <span style="color:var(--accent)">En ligne, ira sur le PC quand il sera rallumé</span>' : '';
@@ -314,7 +321,7 @@ function hcRenderList(){
     const on = HC_ST.sel.has(f.id);
     return `<div class="hc-f${on ? ' on' : ''}">
       <input type="checkbox" class="hc-ck" title="Sélectionner" ${on ? 'checked' : ''} onchange="hcToggle('${HC_E(f.id)}', this.checked)">
-      <div class="hc-th">${img ? `<img alt="" data-hcid="${HC_E(f.id)}" onclick="hcDownload('${HC_E(f.id)}', true)">` : HC_E(ext)}</div>
+      <div class="hc-th k-${k}" data-th="${HC_E(f.id)}">${T ? T.icon(k, 20) : ''}<small>${HC_E(ext)}</small>${f.hasThumb ? `<img alt="" data-hcid="${HC_E(f.id)}" ${viewable ? `onclick="hcDownload('${HC_E(f.id)}', true)"` : ''} onload="this.parentNode.classList.add('has-img')">` : ''}</div>
       <div class="hc-in"><div class="hc-n">${HC_E(f.name)}</div><div class="hc-d">${HC_SIZE(f.size)} · ${HC_DATE(f.createdAt)}${where}</div></div>
       <div class="hc-a">
         <button title="Télécharger" onclick="hcDownload('${HC_E(f.id)}')" ${f.offline ? 'disabled' : ''}>${HC_IC('download', 16)}</button>
@@ -323,14 +330,67 @@ function hcRenderList(){
       </div></div>`;
   }).join('');
   L.filter(f => f.moving).forEach(f => hcWatchMove(f.id));
-  // Miniatures : chargées seulement quand elles apparaissent à l'écran.
+  // Miniatures : demandées par paquets quand elles apparaissent à l'écran.
   const imgs = box.querySelectorAll('img[data-hcid]');
-  const load = im => { const id = im.dataset.hcid; delete im.dataset.hcid; hcApi('GET', `/files/${id}/download`).then(r => { im.src = r.url; }).catch(() => {}); };
+  const load = im => { const id = im.dataset.hcid; delete im.dataset.hcid; hcWantThumb(id, im); };
   if('IntersectionObserver' in window){
     const ob = new IntersectionObserver(en => en.forEach(e => { if(e.isIntersecting){ ob.unobserve(e.target); load(e.target); } }), { rootMargin: '200px' });
     imgs.forEach(im => ob.observe(im));
   } else imgs.forEach(load);
+  // Fichiers sans miniature (envoyés avant, ou depuis le PC) : on la fabrique en arrière-plan.
+  if(window.HCThumbs) L.filter(f => !f.hasThumb && !f.offline && ['image', 'video', 'pdf', 'audio'].includes(window.HCThumbs.kind(f.name, f.mime))).forEach(hcBackfill);
 }
+
+// ---------- Miniatures (photo, vidéo, PDF, pochette de musique) ----------
+const HC_THUMBS = new Map(), HC_WANT = new Map();
+let hcThumbTimer = null;
+function hcWantThumb(id, img){
+  if(HC_THUMBS.has(id)){ img.src = HC_THUMBS.get(id); return; }
+  if(!HC_WANT.has(id)) HC_WANT.set(id, []);
+  HC_WANT.get(id).push(img);
+  clearTimeout(hcThumbTimer); hcThumbTimer = setTimeout(hcFlushThumbs, 60);
+}
+async function hcFlushThumbs(){
+  const ids = [...HC_WANT.keys()].slice(0, 100);
+  const waiting = ids.map(i => [i, HC_WANT.get(i)]);
+  ids.forEach(i => HC_WANT.delete(i));
+  try {
+    const { thumbs } = await hcApi('POST', '/thumbs', { ids });
+    for(const [i, imgs] of waiting) if(thumbs[i]){ HC_THUMBS.set(i, thumbs[i]); imgs.forEach(im => { im.src = thumbs[i]; }); }
+  } catch(e){}
+  if(HC_WANT.size) hcThumbTimer = setTimeout(hcFlushThumbs, 60);
+}
+const HC_TRIED = new Set((() => { try { return JSON.parse(localStorage.getItem('hc_thumb_tried') || '[]'); } catch(e){ return []; } })());
+const HC_BACK = []; let hcBackBusy = false;
+function hcBackfill(f){
+  if(HC_TRIED.has(f.id) || HC_BACK.some(x => x.id === f.id)) return;
+  HC_BACK.push(f); hcRunBackfill();
+}
+async function hcRunBackfill(){
+  if(hcBackBusy) return; hcBackBusy = true;
+  while(HC_BACK.length){
+    const f = HC_BACK.shift();
+    HC_TRIED.add(f.id);
+    try { localStorage.setItem('hc_thumb_tried', JSON.stringify([...HC_TRIED].slice(-1000))); } catch(e){}
+    const k = window.HCThumbs.kind(f.name, f.mime);
+    if((k === 'image' && f.size > 40e6) || (k === 'pdf' && f.size > 60e6)) continue; // trop gros à relire
+    try {
+      const { url } = await hcApi('GET', `/files/${f.id}/download`);
+      const data = await window.HCThumbs.make(url, f.name, f.mime);
+      if(data){ await hcApi('POST', `/files/${f.id}/thumb`, { data }); HC_THUMBS.set(f.id, data); f.hasThumb = true; hcShowThumb(f.id, data); }
+    } catch(e){}
+  }
+  hcBackBusy = false;
+}
+function hcShowThumb(id, data){
+  const th = document.querySelector(`[data-th="${CSS.escape(id)}"]`);
+  if(!th || th.querySelector('img')) return;
+  const im = document.createElement('img'); im.alt = '';
+  im.onload = () => th.classList.add('has-img');
+  im.src = data; th.appendChild(im);
+}
+// Le lecteur de PDF (pdf.js) et la fabrique de miniatures : chargés une fois.
+(function(){ if(window.HCThumbs) return; const sc = document.createElement('script'); sc.src = 'henzo-miniatures.js?v=1'; document.head.appendChild(sc); })();
 
 window.hcSearch = v => { HC_ST.q = v; hcRenderList(); };
 
@@ -624,6 +684,11 @@ async function hcUploadOne(u){
     await Promise.all(Array.from({ length: Math.min(HC_PARALLEL, todo.length) }, worker));
     set(100, 'Finalisation...');
     await hcApi('POST', `/uploads/${fileId}/complete`, {});
+    // Miniature fabriquée sur cet appareil, à partir du fichier (photo, vidéo, PDF, pochette).
+    if(window.HCThumbs){
+      set(100, 'Miniature...');
+      try { const data = await window.HCThumbs.make(file, file.name, file.type); if(data){ await hcApi('POST', `/files/${fileId}/thumb`, { data }); HC_THUMBS.set(fileId, data); } } catch(e){}
+    }
     u.state = 'ok'; u.file = null;
     set(100, init.waitingForPc ? 'Terminé. Ton PC est éteint : le fichier attend en ligne et ira dessus tout seul quand il sera rallumé.' : 'Terminé');
     hcRefresh();
