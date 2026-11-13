@@ -1,6 +1,7 @@
 // ============================================================
 // HENZO-CLOUD.JS - Lien avec Henzo Cloud (mon coffre à fichiers)
-// Étape 1 : connexion unique.
+// Étape 1 : connexion unique. Étape 2 : mes fichiers (liste, envoi,
+// téléchargement, suppression, recherche, miniatures).
 // - La Super App montre sa connexion (Supabase) à Henzo Cloud, qui
 //   la vérifie et donne sa propre carte d'entrée : plus de 2e code.
 // - La toute première fois seulement : on relie les deux comptes en
@@ -158,24 +159,18 @@ window.hcDoLink = async function(){
 
 window.hcDoUnlink = async function(){
   if(!confirm('Délier la Super App de Henzo Cloud ? Tes fichiers ne sont pas touchés. Pour les revoir ici, il faudra retaper ton nom et ton code secret de Henzo Cloud une fois.')) return;
-  try { await hcUnlink(); HC_TOAST('Lien défait'); } catch(e){ alert(e.message); }
+  try { await hcUnlink(); HC_ST.user = null; HC_TOAST('Lien défait'); } catch(e){ alert(e.message); }
   hcOpen();
 };
 
 async function hcOpen(){
   if(!hcUrl()){ hcAskUrl(); return; }
-  hcSheet(`<div class="ag-empty">Connexion à Henzo Cloud... (jusqu'à une minute si le serveur dormait)</div>`);
+  if(HC_ST.user && HC_ST.usage) hcManager(HC_ST.user, HC_ST.files, HC_ST.usage); // tout de suite, puis mise à jour
+  else hcSheet(`<div class="ag-empty">Connexion à Henzo Cloud... (jusqu'à une minute si le serveur dormait)</div>`);
   try {
     const me = await hcApi('GET', '/me'); // d'abord la connexion, puis le reste en même temps
     const [files, usage] = await Promise.all([hcApi('GET', '/files'), hcApi('GET', '/usage')]);
-    const n = (files.files || []).length;
-    const pc = usage.pc && usage.pc.configured ? (usage.pc.online ? 'Ton PC est allumé.' : 'Ton PC est éteint : ses fichiers sont indisponibles pour le moment.') : '';
-    hcSheet(`
-      <div class="ag-hint" style="margin-top:0;color:var(--green)"><b>Connecté à Henzo Cloud</b> en tant que <b>${HC_E(me.user.username)}</b>, sans code : la Super App s'en charge.</div>
-      <p><b>${n}</b> fichier${n > 1 ? 's' : ''} dans ton coffre.<br>Stockage en ligne : ${HC_SIZE(usage.used)} sur ${HC_SIZE(usage.limit)}. ${HC_E(pc)}</p>
-      <div class="ag-hint">Bientôt ici : la liste de tes fichiers, l'envoi et le téléchargement, et les fichiers de chaque client et shooting. En attendant, ils sont sur le site Henzo Cloud.</div>
-      <a class="btn-secondary" style="display:block;text-align:center;text-decoration:none;margin-top:8px" href="${HC_E(hcUrl())}" target="_blank" rel="noopener">Ouvrir le site Henzo Cloud</a>
-      <button class="btn-secondary" style="margin-top:8px" onclick="hcDoUnlink()">Délier</button>`);
+    hcManager(me.user, files.files || [], usage);
   } catch(e){
     if(e.needsLink || e.status === 404){ hcAskLink(); return; }
     if(e.status === -1){ hcAskUrl(); return; }
@@ -184,6 +179,238 @@ async function hcOpen(){
       ${typeof HENZO_CLOUD_URL !== 'undefined' && HENZO_CLOUD_URL ? '' : '<button class="btn-secondary" style="margin-top:8px" onclick="hcAskUrl()">Changer l\'adresse</button>'}`);
   }
 }
+
+// ============================================================
+// ÉTAPE 2 : MES FICHIERS (liste, envoi, téléchargement, suppression)
+// Les fichiers vont directement de l'appareil vers le stockage (Cloudflare ou ton PC),
+// par morceaux, avec reprise : la Super App ne fait que demander les "laissez-passer".
+// ============================================================
+const HC_ST = { user: null, files: [], usage: null, q: '', ups: [], busy: false };
+const HC_IC = (n, s) => (typeof agIcon === 'function' ? agIcon(n, s || 16) : '');
+const HC_DATE = d => { try { return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }); } catch(e){ return ''; } };
+
+function hcStyle(){
+  if(document.getElementById('hcStyle')) return;
+  const st = document.createElement('style'); st.id = 'hcStyle';
+  st.textContent = `
+    #hcSheet .modal{max-width:640px}
+    .hc-usage{color:var(--muted);font-size:.85rem;margin:0 0 10px}
+    .hc-row2{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+    .hc-row2 .btn-primary{flex:1;min-width:180px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;margin:0}
+    .hc-row2 select{flex:0 0 auto;width:auto;margin:0}
+    .hc-search{width:100%;margin:6px 0 4px}
+    .hc-up{padding:8px 0;border-top:1px solid var(--border);font-size:.85rem}
+    .hc-up .bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:5px}
+    .hc-up .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .4s}
+    .hc-up .m{color:var(--muted);font-size:.8rem;margin-top:3px}
+    .hc-up.fail .m{color:var(--red)} .hc-up.ok .m{color:var(--green)}
+    .hc-list{margin-top:6px}
+    .hc-f{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--border)}
+    .hc-th{flex:0 0 46px;width:46px;height:46px;border-radius:8px;background:var(--card2,var(--border));display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:.65rem;font-weight:700;color:var(--muted)}
+    .hc-th img{width:100%;height:100%;object-fit:cover;cursor:pointer}
+    .hc-in{flex:1;min-width:0}
+    .hc-n{word-break:break-word;font-size:.92rem;line-height:1.25}
+    .hc-d{color:var(--muted);font-size:.78rem;margin-top:2px}
+    .hc-d .off{color:var(--red)}
+    .hc-a{display:flex;gap:4px;flex:0 0 auto}
+    .hc-a button{background:none;border:1px solid var(--border);border-radius:8px;padding:7px;color:var(--text);cursor:pointer;line-height:0;margin:0;width:auto}
+    .hc-a button:disabled{opacity:.35;cursor:not-allowed}
+    .hc-a button.del{color:var(--red)}
+    .hc-foot{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+    .hc-foot button{flex:1;margin:0;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+  `;
+  document.head.appendChild(st);
+}
+
+function hcManager(user, files, usage){
+  hcStyle();
+  HC_ST.user = user; HC_ST.files = files; HC_ST.usage = usage;
+  const pcOn = usage.pc && usage.pc.configured;
+  hcSheet(`
+    <div class="hc-usage" id="hcUsage"></div>
+    <div class="hc-row2">
+      <label class="btn-primary">${HC_IC('download', 16).replace('<svg', '<svg style="transform:rotate(180deg)"')} Envoyer des fichiers
+        <input type="file" multiple hidden onchange="hcPicked(this)"></label>
+      ${pcOn ? `<select id="hcTarget" title="Où ranger les fichiers"><option value="auto">Automatique</option><option value="pc">Sur mon PC</option></select>` : ''}
+    </div>
+    <div id="hcUps"></div>
+    <input class="hc-search" id="hcSearch" type="search" placeholder="Rechercher un fichier..." value="${HC_E(HC_ST.q)}" oninput="hcSearch(this.value)">
+    <div class="hc-list" id="hcList"></div>
+    <div class="hc-foot">
+      <button class="btn-secondary" onclick="hcRefresh()">${HC_IC('refresh', 14)} Rafraîchir</button>
+      <button class="btn-secondary" onclick="hcDoUnlink()">Délier</button>
+    </div>
+    <div class="ag-hint">Connecté en tant que <b>${HC_E(user.username)}</b>, sans code : la Super App s'en charge.</div>`);
+  hcRenderUsage(); hcRenderUps(); hcRenderList();
+}
+
+function hcRenderUsage(){
+  const el = document.getElementById('hcUsage'); const u = HC_ST.usage; if(!el || !u) return;
+  let t = `${HC_ST.files.length} fichier${HC_ST.files.length > 1 ? 's' : ''} · Stockage en ligne : ${HC_SIZE(u.used)} sur ${HC_SIZE(u.limit)} (à vous tous).`;
+  if(u.pc && u.pc.configured) t += u.pc.online ? ` Ton PC est allumé${u.pc.freeBytes != null ? ` (${HC_SIZE(u.pc.freeBytes)} libres)` : ''}.` : ' Ton PC est éteint : ses fichiers sont indisponibles.';
+  el.textContent = t;
+}
+
+function hcRenderList(){
+  const box = document.getElementById('hcList'); if(!box) return;
+  const q = HC_ST.q.trim().toLowerCase();
+  const L = q ? HC_ST.files.filter(f => f.name.toLowerCase().includes(q)) : HC_ST.files;
+  if(!L.length){ box.innerHTML = `<div class="ag-empty">${q ? 'Aucun fichier ne correspond.' : 'Aucun fichier pour l\'instant. Touche « Envoyer des fichiers ».'}</div>`; return; }
+  box.innerHTML = L.map(f => {
+    const img = /^image\//.test(f.mime || '') && !f.offline;
+    const ext = (f.name.split('.').pop() || '').slice(0, 4).toUpperCase();
+    const where = f.location === 'pc' ? (f.offline ? ' · <span class="off">Sur le PC, hors ligne</span>' : ' · Sur le PC') : '';
+    return `<div class="hc-f">
+      <div class="hc-th">${img ? `<img alt="" data-hcid="${HC_E(f.id)}" onclick="hcDownload('${HC_E(f.id)}', true)">` : HC_E(ext)}</div>
+      <div class="hc-in"><div class="hc-n">${HC_E(f.name)}</div><div class="hc-d">${HC_SIZE(f.size)} · ${HC_DATE(f.createdAt)}${where}</div></div>
+      <div class="hc-a">
+        <button title="Télécharger" onclick="hcDownload('${HC_E(f.id)}')" ${f.offline ? 'disabled' : ''}>${HC_IC('download', 16)}</button>
+        <button class="del" title="Supprimer" onclick="hcDelete('${HC_E(f.id)}')">${HC_IC('trash', 16)}</button>
+      </div></div>`;
+  }).join('');
+  // Miniatures : chargées seulement quand elles apparaissent à l'écran.
+  const imgs = box.querySelectorAll('img[data-hcid]');
+  const load = im => { const id = im.dataset.hcid; delete im.dataset.hcid; hcApi('GET', `/files/${id}/download`).then(r => { im.src = r.url; }).catch(() => {}); };
+  if('IntersectionObserver' in window){
+    const ob = new IntersectionObserver(en => en.forEach(e => { if(e.isIntersecting){ ob.unobserve(e.target); load(e.target); } }), { rootMargin: '200px' });
+    imgs.forEach(im => ob.observe(im));
+  } else imgs.forEach(load);
+}
+
+window.hcSearch = v => { HC_ST.q = v; hcRenderList(); };
+
+window.hcRefresh = async function(){
+  try {
+    const [files, usage] = await Promise.all([hcApi('GET', '/files'), hcApi('GET', '/usage')]);
+    HC_ST.files = files.files || []; HC_ST.usage = usage;
+    hcRenderUsage(); hcRenderList();
+  } catch(e){ HC_TOAST(e.message); }
+};
+
+window.hcDownload = async function(id, view){
+  const f = HC_ST.files.find(x => x.id === id);
+  if(f && f.offline){ alert('Ce fichier est sur ton PC, qui est éteint. Rallume-le puis réessaie.'); return; }
+  try {
+    const { url } = await hcApi('GET', `/files/${id}/download`);
+    if(view){ window.open(url, '_blank', 'noopener'); return; }
+    const a = document.createElement('a'); a.href = url; a.rel = 'noopener';
+    if(f) a.download = f.name;
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch(e){ alert(e.message); }
+};
+
+window.hcDelete = async function(id){
+  const f = HC_ST.files.find(x => x.id === id); if(!f) return;
+  if(!confirm(`Supprimer « ${f.name} » pour toujours, sur tous tes appareils ?`)) return;
+  try {
+    await hcApi('DELETE', `/files/${id}`);
+    HC_ST.files = HC_ST.files.filter(x => x.id !== id);
+    hcRenderList(); hcRefresh();
+  } catch(e){ alert(e.message); }
+};
+
+// ---------- Envoi par morceaux, avec reprise ----------
+const HC_PARALLEL = 3, HC_RETRIES = 5;
+const hcSleep = ms => new Promise(r => setTimeout(r, ms));
+
+function hcRenderUps(){
+  const box = document.getElementById('hcUps'); if(!box) return;
+  box.innerHTML = HC_ST.ups.map(u => `<div class="hc-up ${u.state}">
+    <div>${HC_E(u.name)} <span style="color:var(--muted)">(${HC_SIZE(u.size)})</span></div>
+    ${u.state === 'ok' ? '' : `<div class="bar"><i style="width:${u.pct}%"></i></div>`}
+    <div class="m">${HC_E(u.msg)}</div></div>`).join('');
+}
+
+window.hcPicked = function(input){
+  const picked = [...input.files]; input.value = '';
+  const target = document.getElementById('hcTarget')?.value || 'auto';
+  for(const file of picked) HC_ST.ups.unshift({ file, name: file.name, size: file.size, pct: 0, msg: 'En attente...', state: '', target });
+  hcRenderUps();
+  hcQueue();
+};
+
+async function hcQueue(){
+  if(HC_ST.busy) return;
+  HC_ST.busy = true;
+  try {
+    for(;;){
+      const u = HC_ST.ups.slice().reverse().find(x => x.state === ''); // le plus ancien d'abord
+      if(!u) break;
+      u.state = 'run';
+      await hcUploadOne(u);
+    }
+  } finally {
+    HC_ST.busy = false;
+    // On garde seulement les 5 derniers envois réussis à l'écran.
+    let okSeen = 0; HC_ST.ups = HC_ST.ups.filter(u => u.state !== 'ok' || ++okSeen <= 5);
+    hcRenderUps();
+  }
+}
+
+function hcPut(url, blob, onProgress){
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open('PUT', url);
+    x.upload.onprogress = e => onProgress(e.loaded);
+    x.onload = () => (x.status >= 200 && x.status < 300 ? resolve() : reject(new Error('Refus du stockage (' + x.status + ')')));
+    x.onerror = () => reject(new Error('Connexion perdue'));
+    x.send(blob);
+  });
+}
+
+async function hcUploadOne(u){
+  const file = u.file;
+  const set = (pct, msg) => { if(pct != null) u.pct = pct; if(msg != null) u.msg = msg; hcRenderUps(); };
+  // Même "empreinte" que le site Henzo Cloud : un envoi coupé reprend, même commencé sur le site.
+  const fingerprint = `${file.name}|${file.size}|${file.lastModified}`;
+  try {
+    set(0, 'Préparation...');
+    const init = await hcApi('POST', '/uploads/init', { name: file.name, size: file.size, type: file.type, fingerprint, target: u.target });
+    const { fileId, partSize, totalParts } = init;
+    const done = new Set(init.doneParts);
+    const sizeOf = n => Math.min(partSize, file.size - (n - 1) * partSize);
+    const live = new Map();
+    let finished = [...done].reduce((s, n) => s + sizeOf(n), 0);
+    const refresh = () => {
+      const cur = [...live.values()].reduce((s, v) => s + v, 0);
+      const pct = file.size ? Math.min(100, ((finished + cur) / file.size) * 100) : 100;
+      set(pct, (init.resumed ? 'Reprise... ' : '') + Math.floor(pct) + ' %');
+    };
+    refresh();
+    const todo = [];
+    for(let n = 1; n <= totalParts; n++) if(!done.has(n)) todo.push(n);
+    const worker = async () => {
+      while(todo.length){
+        const n = todo.shift();
+        const blob = file.slice((n - 1) * partSize, (n - 1) * partSize + sizeOf(n));
+        for(let attempt = 1; ; attempt++){
+          try {
+            const { urls } = await hcApi('POST', `/uploads/${fileId}/parts`, { partNumbers: [n] });
+            await hcPut(urls[n], blob, loaded => { live.set(n, loaded); refresh(); });
+            break;
+          } catch(err){
+            live.delete(n);
+            if(attempt >= HC_RETRIES) throw err;
+            set(null, `Problème de connexion, nouvel essai (${attempt}/${HC_RETRIES - 1})...`);
+            await hcSleep(1000 * 2 ** attempt);
+          }
+        }
+        live.delete(n); finished += sizeOf(n); refresh();
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(HC_PARALLEL, todo.length) }, worker));
+    set(100, 'Finalisation...');
+    await hcApi('POST', `/uploads/${fileId}/complete`, {});
+    u.state = 'ok'; u.file = null; set(100, 'Terminé');
+    hcRefresh();
+  } catch(e){
+    u.state = 'fail'; u.file = null;
+    set(null, `${e.message} Pour reprendre, choisis de nouveau le même fichier : il repart où il s'était arrêté.`);
+  }
+}
+
+// Fermer la Super App pendant un envoi : on prévient.
+window.addEventListener('beforeunload', e => { if(HC_ST.busy){ e.preventDefault(); e.returnValue = ''; } });
 
 // ---------- Boutons dans les menus ----------
 function hcButtons(){
