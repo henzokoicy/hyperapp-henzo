@@ -276,14 +276,15 @@ function hcRenderList(){
     const img = /^image\//.test(f.mime || '') && !f.offline;
     const ext = (f.name.split('.').pop() || '').slice(0, 4).toUpperCase();
     const where = f.location === 'pc' ? (f.offline ? ' · <span class="off">Sur le PC, hors ligne</span>' : ' · Sur le PC')
-      : f.moving ? ' · <span style="color:var(--accent)">Déplacement vers le PC...</span>' : '';
+      : f.moving ? ' · <span style="color:var(--accent)">Déplacement vers le PC...</span>'
+      : f.toPc ? ' · <span style="color:var(--accent)">En ligne, ira sur le PC quand il sera rallumé</span>' : '';
     const canMove = f.location !== 'pc' && HC_ST.usage && HC_ST.usage.pc && HC_ST.usage.pc.configured;
     return `<div class="hc-f">
       <div class="hc-th">${img ? `<img alt="" data-hcid="${HC_E(f.id)}" onclick="hcDownload('${HC_E(f.id)}', true)">` : HC_E(ext)}</div>
       <div class="hc-in"><div class="hc-n">${HC_E(f.name)}</div><div class="hc-d">${HC_SIZE(f.size)} · ${HC_DATE(f.createdAt)}${where}</div></div>
       <div class="hc-a">
         <button title="Télécharger" onclick="hcDownload('${HC_E(f.id)}')" ${f.offline ? 'disabled' : ''}>${HC_IC('download', 16)}</button>
-        ${canMove ? `<button title="Déplacer sur mon PC (libère la place en ligne)" onclick="hcMove('${HC_E(f.id)}')" ${f.moving ? 'disabled' : ''}>${HC_PC}</button>` : ''}
+        ${canMove ? `<button title="Déplacer sur mon PC (libère la place en ligne)" onclick="hcMove('${HC_E(f.id)}')" ${f.moving || f.toPc ? 'disabled' : ''}>${HC_PC}</button>` : ''}
         <button class="del" title="Mettre à la corbeille" onclick="hcDelete('${HC_E(f.id)}')">${HC_IC('trash', 16)}</button>
       </div></div>`;
   }).join('');
@@ -497,7 +498,8 @@ async function hcUploadOne(u){
     await Promise.all(Array.from({ length: Math.min(HC_PARALLEL, todo.length) }, worker));
     set(100, 'Finalisation...');
     await hcApi('POST', `/uploads/${fileId}/complete`, {});
-    u.state = 'ok'; u.file = null; set(100, 'Terminé');
+    u.state = 'ok'; u.file = null;
+    set(100, init.waitingForPc ? 'Terminé. Ton PC est éteint : le fichier attend en ligne et ira dessus tout seul quand il sera rallumé.' : 'Terminé');
     hcRefresh();
   } catch(e){
     u.state = 'fail'; // on garde le fichier pour le bouton Réessayer
