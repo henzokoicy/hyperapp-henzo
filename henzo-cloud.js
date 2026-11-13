@@ -221,6 +221,7 @@ function hcStyle(){
     .hc-a button{background:none;border:1px solid var(--border);border-radius:8px;padding:7px;color:var(--text);cursor:pointer;line-height:0;margin:0;width:auto}
     .hc-a button:disabled{opacity:.35;cursor:not-allowed}
     .hc-a button.del{color:var(--red)}
+    .hc-up .hc-a button{line-height:1.2;padding:6px 10px;display:inline-flex;gap:5px;align-items:center;font-size:.8rem}
     .hc-foot{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
     .hc-foot button{flex:1;margin:0;display:inline-flex;align-items:center;justify-content:center;gap:6px}
   `;
@@ -254,8 +255,16 @@ function hcRenderUsage(){
   const el = document.getElementById('hcUsage'); const u = HC_ST.usage; if(!el || !u) return;
   let t = `${HC_ST.files.length} fichier${HC_ST.files.length > 1 ? 's' : ''} · Stockage en ligne : ${HC_SIZE(u.used)} sur ${HC_SIZE(u.limit)} (à vous tous).`;
   if(u.trash) t += ` Corbeille : ${HC_SIZE(u.trash)}.`;
-  if(u.pc && u.pc.configured) t += u.pc.online ? ` Ton PC est allumé${u.pc.freeBytes != null ? ` (${HC_SIZE(u.pc.freeBytes)} libres)` : ''}.` : ' Ton PC est éteint : ses fichiers sont indisponibles.';
-  el.textContent = t;
+  let pcOff = '';
+  if(u.pc && u.pc.configured){
+    if(u.pc.online) t += ` Ton PC est allumé${u.pc.freeBytes != null ? ` (${HC_SIZE(u.pc.freeBytes)} libres)` : ''}.`;
+    else {
+      const ago = u.pc.lastSeen ? Math.round((Date.now() - new Date(u.pc.lastSeen)) / 60000) : null;
+      pcOff = `<div class="ag-hint" style="color:var(--red);margin:6px 0 0">Le site ne reçoit pas de nouvelles de ton PC (${ago == null ? 'jamais reçu' : ago < 60 ? `dernières nouvelles il y a ${ago} min` : `dernières nouvelles le ${HC_DATE(u.pc.lastSeen)}`}). Vérifie sur le PC que l'app Henzo Cloud est lancée : sa page <b>http://localhost:8788</b> dit ce qui ne va pas.
+        <button class="btn-secondary" style="margin-top:6px;width:auto;padding:6px 12px" onclick="hcRefresh()">Vérifier de nouveau</button></div>`;
+    }
+  }
+  el.innerHTML = HC_E(t) + pcOff;
 }
 
 function hcRenderList(){
@@ -392,13 +401,26 @@ function hcRenderUps(){
   box.innerHTML = HC_ST.ups.map(u => `<div class="hc-up ${u.state}">
     <div>${HC_E(u.name)} <span style="color:var(--muted)">(${HC_SIZE(u.size)})</span></div>
     ${u.state === 'ok' ? '' : `<div class="bar"><i style="width:${u.pct}%"></i></div>`}
-    <div class="m">${HC_E(u.msg)}</div></div>`).join('');
+    <div class="m">${HC_E(u.msg)}</div>
+    ${u.state === 'fail' ? `<div class="hc-a" style="margin-top:6px">
+      ${u.file ? `<button onclick="hcRetry(${u.id})">${HC_IC('refresh', 14)} Réessayer</button>` : ''}
+      <button onclick="hcForget(${u.id})">Retirer</button></div>` : ''}</div>`).join('');
 }
+
+// Réessayer un envoi raté : il reprend où il s'était arrêté (les morceaux déjà envoyés sont gardés).
+window.hcRetry = function(id){
+  const u = HC_ST.ups.find(x => x.id === id); if(!u || !u.file) return;
+  u.state = ''; u.msg = 'En attente...';
+  const t = document.getElementById('hcTarget'); if(t) u.target = t.value;
+  hcRenderUps(); hcQueue();
+};
+window.hcForget = function(id){ HC_ST.ups = HC_ST.ups.filter(x => x.id !== id); hcRenderUps(); };
+let hcUpId = 0;
 
 window.hcPicked = function(input){
   const picked = [...input.files]; input.value = '';
   const target = document.getElementById('hcTarget')?.value || 'auto';
-  for(const file of picked) HC_ST.ups.unshift({ file, name: file.name, size: file.size, pct: 0, msg: 'En attente...', state: '', target });
+  for(const file of picked) HC_ST.ups.unshift({ id: ++hcUpId, file, name: file.name, size: file.size, pct: 0, msg: 'En attente...', state: '', target });
   hcRenderUps();
   hcQueue();
 };
@@ -478,8 +500,8 @@ async function hcUploadOne(u){
     u.state = 'ok'; u.file = null; set(100, 'Terminé');
     hcRefresh();
   } catch(e){
-    u.state = 'fail'; u.file = null;
-    set(null, `${e.message} Pour reprendre, choisis de nouveau le même fichier : il repart où il s'était arrêté.`);
+    u.state = 'fail'; // on garde le fichier pour le bouton Réessayer
+    set(null, `${e.message} Touche « Réessayer » : l'envoi reprendra où il s'était arrêté.`);
   }
 }
 
