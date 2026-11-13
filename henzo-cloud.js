@@ -132,6 +132,7 @@ function hcSheet(inner, view){
   agSheet('hcSheet', `<h3>${HC_ICON} Fichiers (Henzo Cloud)</h3>${inner}`);
   HC_WIN.view = view || null;
   hcLs.set('hc_win', view || 'files');
+  const shEl = document.getElementById('hcSheet'); if(shEl) shEl.setAttribute('data-iac-off', ''); // pas de micro / « Remplir avec l'IA » ici
   const m = document.querySelector('#hcSheet .modal');
   if(m && view) m.addEventListener('scroll', () => {
     clearTimeout(HC_WIN.timer);
@@ -332,7 +333,12 @@ function hcStyle(){
     #hcViewer pre{align-self:stretch;width:100%;margin:0;padding:14px;background:rgba(255,255,255,.07);border-radius:12px;white-space:pre-wrap;word-break:break-word;overflow:auto;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;text-align:left;color:#fff}
     #hcViewer .hv-note{text-align:center;max-width:420px;color:#cfd3dc;display:flex;flex-direction:column;align-items:center;gap:12px}
     #hcViewer .hv-note button{background:var(--accent,#6c5ce7);color:#fff;border:0;border-radius:12px;padding:10px 18px;font:inherit;cursor:pointer;margin:0;width:auto}
-    .hc-drop{border:2px dashed var(--border-2);border-radius:14px;padding:14px;margin:4px 0 8px;text-align:center;color:var(--muted);font-size:.85rem}
+    .hc-drop{border:2px dashed var(--border-2);border-radius:12px;padding:8px 12px;margin:4px 0 8px;text-align:center;color:var(--muted);font-size:.8rem}
+    @media (hover:none){.hc-drop{display:none}}
+    .hc-note summary{cursor:pointer;list-style:none}
+    .hc-note summary::-webkit-details-marker{display:none}
+    .hc-note summary::before{content:'▸ ';color:var(--muted)}
+    .hc-note[open] summary::before{content:'▾ '}
     #hcSheet.hc-drop-on .modal{outline:3px dashed var(--accent);outline-offset:-6px}
     #hcSheet.hc-drop-on .hc-drop{border-color:var(--accent);color:var(--text)}
     .hc-note{border:1px solid var(--border);border-radius:14px;padding:10px 12px;margin:0 0 10px}
@@ -358,17 +364,15 @@ function hcManager(user, files, usage){
         <input type="file" multiple hidden onchange="hcPicked(this)"></label>
       ${pcOn ? `<select id="hcTarget" title="Où ranger les fichiers"><option value="auto">Automatique</option><option value="pc">Sur mon PC</option></select>` : ''}
     </div>
-    <label style="display:block;margin:4px 0 8px;font-size:.82rem;color:var(--muted)">Cet appareil s'appelle (affiché sur chaque fichier envoyé d'ici)
-      <input id="hcDevice" maxlength="60" placeholder="Ex. Téléphone de Henzo" value="${HC_E(hcDevice())}" onchange="hcSetDevice(this)" style="margin-top:4px"></label>
     <div class="hc-drop">Glisse tes fichiers ou dossiers ici, ou touche « Envoyer des fichiers ».</div>
-    <div class="hc-note">
-      <b>Envoyer du texte</b>
-      <div class="ag-hint" style="margin:2px 0 0">Écris ou colle un texte (lien, code, adresse...) : il est rangé comme un fichier .txt, à copier depuis n'importe quel appareil.</div>
+    <details class="hc-note" id="hcNoteBox" ontoggle="hcNoteToggle(this)">
+      <summary><b>Envoyer du texte</b> <span style="color:var(--muted);font-size:.8rem">(à copier-coller)</span></summary>
+      <div class="ag-hint" style="margin:6px 0 0">Écris ou colle un texte (lien, code, adresse...) : il est rangé comme un fichier .txt, à copier depuis n'importe quel appareil.</div>
       <input id="hcNoteTitle" maxlength="80" placeholder="Titre (facultatif)" oninput="hcNoteSave()">
       <textarea id="hcNoteText" placeholder="Écris ou colle ton texte ici..." oninput="hcNoteSync();hcNoteSave()"></textarea>
       <div class="row"><button class="btn-secondary" type="button" onclick="hcNotePaste()">Coller</button><button class="btn-primary" id="hcNoteSend" type="button" onclick="hcSendNote()" disabled>Envoyer le texte</button></div>
       <div id="hcNoteMsg" class="ag-hint" style="margin:6px 0 0"></div>
-    </div>
+    </details>
     <div id="hcUps"></div>
     <input class="hc-search" id="hcSearch" type="search" placeholder="Rechercher un fichier..." value="${HC_E(HC_ST.q)}" oninput="hcSearch(this.value)">
     <div class="hc-selbar" id="hcSelBar"></div>
@@ -378,6 +382,8 @@ function hcManager(user, files, usage){
       <button class="btn-secondary" onclick="hcTrash()">${HC_IC('trash', 14)} Corbeille</button>
       <button class="btn-secondary" onclick="hcDoUnlink()">Délier</button>
     </div>
+    <label style="display:block;margin:14px 0 4px;font-size:.82rem;color:var(--muted)">Cet appareil s'appelle (affiché sur chaque fichier envoyé d'ici)
+      <input id="hcDevice" maxlength="60" placeholder="Ex. Téléphone de Henzo" value="${HC_E(hcDevice())}" onchange="hcSetDevice(this)" style="margin-top:4px"></label>
     <div class="ag-hint">Connecté en tant que <b>${HC_E(user.username)}</b>, sans code : la Super App s'en charge.</div>`, 'files');
   hcRenderUsage(); hcRenderUps(); hcRenderList();
   hcNoteRestore(); hcApplyScroll();
@@ -725,13 +731,16 @@ window.hcPicked = function(input){
 // ---------- Envoyer du texte (rangé comme un fichier .txt) ----------
 const hcStamp = () => new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(/[/:]/g, '-').replace(',', '');
 // Brouillon gardé sur l'appareil : une actualisation ne le perd pas.
+window.hcNoteToggle = el => hcLs.set('hc_note_open', el.open ? '1' : null);
 window.hcNoteSave = function(){
   const t = document.getElementById('hcNoteText'), ti = document.getElementById('hcNoteTitle'); if(!t || !ti) return;
   hcLs.set('hc_note_draft', t.value || ti.value ? JSON.stringify({ title: ti.value, text: t.value }) : null);
 };
 function hcNoteRestore(){
   const t = document.getElementById('hcNoteText'), ti = document.getElementById('hcNoteTitle'); if(!t || !ti) return;
-  try { const d = JSON.parse(hcLs.get('hc_note_draft') || 'null'); if(d){ ti.value = d.title || ''; t.value = d.text || ''; } } catch(e){}
+  let draft = false;
+  try { const d = JSON.parse(hcLs.get('hc_note_draft') || 'null'); if(d){ ti.value = d.title || ''; t.value = d.text || ''; draft = true; } } catch(e){}
+  const box = document.getElementById('hcNoteBox'); if(box && (draft || hcLs.get('hc_note_open') === '1')) box.open = true;
   hcNoteSync();
 }
 window.hcNoteSync = function(){

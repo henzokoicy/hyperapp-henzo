@@ -19,7 +19,7 @@ const PRG = { prefs: null };
 window.PRG = PRG;
 const nd = s => String(s || '').replace(/[–—]/g, '-');
 // Fenêtres où ça n'a pas de sens
-const PRG_SANS = ['agDlg', 'noteModalBg', 'caSheet', 'prgSave', 'prgGerer', 'nsPersoS', 'nsApp', 'hiMsg', 'aqRes', 'apExpl', 'apCapSheet', 'prQuiz', 'prVue', 'atSheet', 'ocVue', 'ocPlan', 'agAccView', 'agCoffreView', 'crmHist'];
+const PRG_SANS = ['hcSheet', 'agDlg', 'noteModalBg', 'caSheet', 'prgSave', 'prgGerer', 'nsPersoS', 'nsApp', 'hiMsg', 'aqRes', 'apExpl', 'apCapSheet', 'prQuiz', 'prVue', 'atSheet', 'ocVue', 'ocPlan', 'agAccView', 'agCoffreView', 'crmHist'];
 // Champs qu'on ne garde pas par défaut (propres à chaque fois)
 const PRG_UNIQUE = /\bnom\b|name|titre|title|t[ée]l[ée]phone|tel\b|phone|mail|date|jour|heure|time|client|cli\b|code|mdp|mot de passe|pass|montant|amount|prix|price|note|search|recherche|msg\b|message|content|contenu|texte|^q\b/i;
 
