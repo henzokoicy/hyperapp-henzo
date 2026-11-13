@@ -289,6 +289,15 @@ function hcStyle(){
     #hcViewer pre{align-self:stretch;width:100%;margin:0;padding:14px;background:rgba(255,255,255,.07);border-radius:12px;white-space:pre-wrap;word-break:break-word;overflow:auto;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;text-align:left;color:#fff}
     #hcViewer .hv-note{text-align:center;max-width:420px;color:#cfd3dc;display:flex;flex-direction:column;align-items:center;gap:12px}
     #hcViewer .hv-note button{background:var(--accent,#6c5ce7);color:#fff;border:0;border-radius:12px;padding:10px 18px;font:inherit;cursor:pointer;margin:0;width:auto}
+    .hc-drop{border:2px dashed var(--border-2);border-radius:14px;padding:14px;margin:4px 0 8px;text-align:center;color:var(--muted);font-size:.85rem}
+    #hcSheet.hc-drop-on .modal{outline:3px dashed var(--accent);outline-offset:-6px}
+    #hcSheet.hc-drop-on .hc-drop{border-color:var(--accent);color:var(--text)}
+    .hc-note{border:1px solid var(--border);border-radius:14px;padding:10px 12px;margin:0 0 10px}
+    .hc-note b{font-size:.92rem}
+    .hc-note input,.hc-note textarea{width:100%;margin:8px 0 0}
+    .hc-note textarea{min-height:90px;resize:vertical;font:inherit;padding:10px 12px;border:1px solid var(--border-2);border-radius:12px;background:var(--bg-2,var(--card));color:var(--text)}
+    .hc-note .row{display:flex;gap:8px;margin-top:8px}
+    .hc-note .row button{margin:0;width:auto}
     .hc-foot{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
     .hc-foot button{flex:1;margin:0;display:inline-flex;align-items:center;justify-content:center;gap:6px}
   `;
@@ -308,6 +317,15 @@ function hcManager(user, files, usage){
     </div>
     <label style="display:block;margin:4px 0 8px;font-size:.82rem;color:var(--muted)">Cet appareil s'appelle (affiché sur chaque fichier envoyé d'ici)
       <input id="hcDevice" maxlength="60" placeholder="Ex. Téléphone de Henzo" value="${HC_E(hcDevice())}" onchange="hcSetDevice(this)" style="margin-top:4px"></label>
+    <div class="hc-drop">Glisse tes fichiers ou dossiers ici, ou touche « Envoyer des fichiers ».</div>
+    <div class="hc-note">
+      <b>Envoyer du texte</b>
+      <div class="ag-hint" style="margin:2px 0 0">Écris ou colle un texte (lien, code, adresse...) : il est rangé comme un fichier .txt, à copier depuis n'importe quel appareil.</div>
+      <input id="hcNoteTitle" maxlength="80" placeholder="Titre (facultatif)">
+      <textarea id="hcNoteText" placeholder="Écris ou colle ton texte ici..." oninput="hcNoteSync()"></textarea>
+      <div class="row"><button class="btn-secondary" type="button" onclick="hcNotePaste()">Coller</button><button class="btn-primary" id="hcNoteSend" type="button" onclick="hcSendNote()" disabled>Envoyer le texte</button></div>
+      <div id="hcNoteMsg" class="ag-hint" style="margin:6px 0 0"></div>
+    </div>
     <div id="hcUps"></div>
     <input class="hc-search" id="hcSearch" type="search" placeholder="Rechercher un fichier..." value="${HC_E(HC_ST.q)}" oninput="hcSearch(this.value)">
     <div class="hc-selbar" id="hcSelBar"></div>
@@ -647,13 +665,74 @@ window.hcRetry = function(id){
 window.hcForget = function(id){ HC_ST.ups = HC_ST.ups.filter(x => x.id !== id); hcRenderUps(); };
 let hcUpId = 0;
 
-window.hcPicked = function(input){
-  const picked = [...input.files]; input.value = '';
+function hcAddFiles(list, onDone){
   const target = document.getElementById('hcTarget')?.value || 'auto';
-  for(const file of picked) HC_ST.ups.unshift({ id: ++hcUpId, file, name: file.name, size: file.size, pct: 0, msg: 'En attente...', state: '', target });
+  for(const file of list) HC_ST.ups.unshift({ id: ++hcUpId, file, name: file.name, size: file.size, pct: 0, msg: 'En attente...', state: '', target, onDone });
   hcRenderUps();
   hcQueue();
+}
+window.hcPicked = function(input){
+  const picked = [...input.files]; input.value = '';
+  hcAddFiles(picked);
 };
+
+// ---------- Envoyer du texte (rangé comme un fichier .txt) ----------
+const hcStamp = () => new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(/[/:]/g, '-').replace(',', '');
+window.hcNoteSync = function(){
+  const t = document.getElementById('hcNoteText'), b = document.getElementById('hcNoteSend');
+  if(t && b) b.disabled = !t.value.trim();
+};
+window.hcNotePaste = async function(){
+  const t = document.getElementById('hcNoteText'); if(!t) return;
+  try {
+    const x = await navigator.clipboard.readText();
+    if(x){ t.value += (t.value && !t.value.endsWith('\n') ? '\n' : '') + x; hcNoteSync(); }
+  } catch(e){ const m = document.getElementById('hcNoteMsg'); if(m) m.textContent = 'Ton navigateur refuse de lire le presse-papiers : colle avec appui long (ou Ctrl+V) dans la zone.'; }
+};
+window.hcSendNote = function(){
+  const t = document.getElementById('hcNoteText'), ti = document.getElementById('hcNoteTitle'), m = document.getElementById('hcNoteMsg');
+  if(!t || !t.value.trim()) return;
+  const title = (ti.value || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim();
+  const file = new File([t.value], `${title || 'Texte du ' + hcStamp()}.txt`, { type: 'text/plain', lastModified: Date.now() });
+  m.textContent = 'Envoi...';
+  hcAddFiles([file], ok => {
+    const t2 = document.getElementById('hcNoteText'), m2 = document.getElementById('hcNoteMsg');
+    if(!t2) return; // fenêtre fermée entre-temps
+    if(ok){ t2.value = ''; document.getElementById('hcNoteTitle').value = ''; m2.textContent = 'Texte enregistré dans la liste. Touche-le pour le copier.'; hcNoteSync(); }
+    else m2.textContent = "L'envoi a échoué (voir plus haut). Ton texte est gardé : réessaie.";
+  });
+};
+
+// ---------- Glisser-déposer : fichiers et dossiers, sur la fenêtre « Fichiers » ----------
+async function hcFilesFromDrop(dt){
+  const entries = [...(dt.items || [])].map(i => (i.kind === 'file' && i.webkitGetAsEntry ? i.webkitGetAsEntry() : null));
+  if(!entries.length || entries.some(e => !e)) return [...dt.files].filter(f => f.size > 0 || f.type);
+  const out = [];
+  async function walk(en){
+    if(en.isFile){ try { out.push(await new Promise((ok, ko) => en.file(ok, ko))); } catch(e){} return; }
+    const rd = en.createReader();
+    for(;;){
+      const batch = await new Promise((ok, ko) => rd.readEntries(ok, ko)).catch(() => []);
+      if(!batch.length) break;
+      for(const c of batch) await walk(c);
+    }
+  }
+  for(const en of entries) await walk(en);
+  return out;
+}
+const hcDropOpen = () => document.getElementById('hcUps') && document.getElementById('hcSheet');
+const hcHasFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
+let hcDepth = 0;
+const hcDropOff = () => { hcDepth = 0; const sh = document.getElementById('hcSheet'); if(sh) sh.classList.remove('hc-drop-on'); };
+window.addEventListener('dragenter', e => { if(!hcHasFiles(e) || !hcDropOpen()) return; hcDepth++; document.getElementById('hcSheet').classList.add('hc-drop-on'); });
+window.addEventListener('dragleave', e => { if(!hcHasFiles(e)) return; hcDepth = Math.max(0, hcDepth - 1); if(!hcDepth) hcDropOff(); });
+window.addEventListener('dragover', e => { if(hcHasFiles(e) && hcDropOpen()) e.preventDefault(); });
+window.addEventListener('drop', async e => {
+  if(!hcHasFiles(e) || !hcDropOpen()) return;
+  e.preventDefault(); hcDropOff();
+  const list = await hcFilesFromDrop(e.dataTransfer);
+  if(list.length) hcAddFiles(list);
+});
 
 async function hcQueue(){
   if(HC_ST.busy) return;
@@ -732,11 +811,11 @@ async function hcUploadOne(u){
       set(100, 'Miniature...');
       try { const data = await window.HCThumbs.make(file, file.name, file.type); if(data){ await hcApi('POST', `/files/${fileId}/thumb`, { data }); HC_THUMBS.set(fileId, data); } } catch(e){}
     }
-    u.state = 'ok'; u.file = null;
+    u.state = 'ok'; u.file = null; if(u.onDone) u.onDone(true);
     set(100, init.waitingForPc ? 'Terminé. Ton PC est éteint : le fichier attend en ligne et ira dessus tout seul quand il sera rallumé.' : 'Terminé');
     hcRefresh();
   } catch(e){
-    u.state = 'fail'; // on garde le fichier pour le bouton Réessayer
+    u.state = 'fail'; if(u.onDone) u.onDone(false); // on garde le fichier pour le bouton Réessayer
     set(null, `${e.message} Touche « Réessayer » : l'envoi reprendra où il s'était arrêté.`);
   }
 }
@@ -783,6 +862,7 @@ async function hvRender(){
   document.getElementById('hvPrev').disabled = HV.i <= 0;
   document.getElementById('hvNext').disabled = HV.i >= HV.list.length - 1;
   document.getElementById('hvDl').disabled = !!f.offline;
+  document.getElementById('hvCopy').style.display = 'none'; HV.text = '';
   if(f.offline) return hvNote('Ce fichier est sur ton PC, qui est éteint ou hors ligne. Rallume ton PC puis réessaie.', f, false);
   const k = hcViewKind(f);
   if(k === 'other') return hvNote("Ce type de fichier ne peut pas être lu ici. Télécharge-le pour l'ouvrir.", f);
@@ -815,6 +895,7 @@ async function hvRender(){
       const txt = await r.text();
       if(token !== HV.token) return;
       const pre = document.createElement('pre'); pre.textContent = txt; b.innerHTML = ''; b.appendChild(pre);
+      HV.text = txt; const cb = document.getElementById('hvCopy'); cb.textContent = 'Copier'; cb.style.display = '';
     } catch(e){ if(token === HV.token) hvNote('Impossible de lire ce fichier.', f); }
   }
 }
@@ -851,6 +932,7 @@ window.hcView = function(id){
     v = document.createElement('div'); v.id = 'hcViewer';
     v.setAttribute('role', 'dialog'); v.setAttribute('aria-modal', 'true');
     v.innerHTML = `<div class="hv-bar"><div class="hv-t"><b id="hvName"></b><small id="hvMeta"></small></div>
+      <button class="hv-b" id="hvCopy" style="display:none;font-size:.85rem" onclick="hcViewCopy()">Copier</button>
       <button class="hv-b" id="hvPrev" title="Précédent" onclick="hcViewStep(-1)">‹</button>
       <button class="hv-b" id="hvNext" title="Suivant" onclick="hcViewStep(1)">›</button>
       <button class="hv-b" id="hvDl" title="Télécharger" onclick="hcViewDl()">${HC_IC('download', 18)}</button>
@@ -861,6 +943,12 @@ window.hcView = function(id){
   hvRender();
 };
 window.hcViewStep = d => { const n = HV.i + d; if(n < 0 || n >= HV.list.length) return; HV.i = n; hvRender(); };
+window.hcViewCopy = async function(){
+  const cb = document.getElementById('hvCopy');
+  try { await navigator.clipboard.writeText(HV.text); }
+  catch(e){ const t = document.createElement('textarea'); t.value = HV.text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); } catch(_){} t.remove(); }
+  cb.textContent = 'Copié ✓'; setTimeout(() => { cb.textContent = 'Copier'; }, 1800);
+};
 window.hcViewDl = () => { const f = HV.list[HV.i]; if(f) hcDownload(f.id); };
 window.hcCloseViewer = function(){
   HV.token++; hvStop();
