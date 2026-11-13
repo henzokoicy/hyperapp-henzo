@@ -189,7 +189,7 @@ async function hcOpen(){
 // Les fichiers vont directement de l'appareil vers le stockage (Cloudflare ou ton PC),
 // par morceaux, avec reprise : la Super App ne fait que demander les "laissez-passer".
 // ============================================================
-const HC_ST = { user: null, files: [], usage: null, q: '', ups: [], busy: false };
+const HC_ST = { user: null, files: [], usage: null, q: '', ups: [], busy: false, sel: new Set(), trash: [], tsel: new Set(), days: 30 };
 const HC_IC = (n, s) => (typeof agIcon === 'function' ? agIcon(n, s || 16) : '');
 const HC_PC = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>';
 const HC_DATE = d => { try { return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }); } catch(e){ return ''; } };
@@ -221,6 +221,13 @@ function hcStyle(){
     .hc-a button{background:none;border:1px solid var(--border);border-radius:8px;padding:7px;color:var(--text);cursor:pointer;line-height:0;margin:0;width:auto}
     .hc-a button:disabled{opacity:.35;cursor:not-allowed}
     .hc-a button.del{color:var(--red)}
+    .hc-ck{width:20px !important;height:20px;min-height:0;flex:0 0 20px;margin:0 !important;padding:0;accent-color:var(--accent);cursor:pointer}
+    .hc-selbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;font-size:.85rem;color:var(--muted)}
+    .hc-selbar label{display:flex;align-items:center;gap:8px;margin:0;cursor:pointer;color:var(--text)}
+    .hc-selbar .sp{flex:1}
+    .hc-selbar button{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);cursor:pointer;margin:0;width:auto;display:inline-flex;gap:5px;align-items:center;font-size:.8rem}
+    .hc-selbar button.del{color:var(--red)}
+    .hc-f.on{background:color-mix(in srgb, var(--accent) 10%, transparent);border-radius:8px}
     .hc-up .hc-a button{line-height:1.2;padding:6px 10px;display:inline-flex;gap:5px;align-items:center;font-size:.8rem}
     .hc-foot{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
     .hc-foot button{flex:1;margin:0;display:inline-flex;align-items:center;justify-content:center;gap:6px}
@@ -241,6 +248,7 @@ function hcManager(user, files, usage){
     </div>
     <div id="hcUps"></div>
     <input class="hc-search" id="hcSearch" type="search" placeholder="Rechercher un fichier..." value="${HC_E(HC_ST.q)}" oninput="hcSearch(this.value)">
+    <div class="hc-selbar" id="hcSelBar"></div>
     <div class="hc-list" id="hcList"></div>
     <div class="hc-foot">
       <button class="btn-secondary" onclick="hcRefresh()">${HC_IC('refresh', 14)} Rafraîchir</button>
@@ -271,6 +279,9 @@ function hcRenderList(){
   const box = document.getElementById('hcList'); if(!box) return;
   const q = HC_ST.q.trim().toLowerCase();
   const L = q ? HC_ST.files.filter(f => f.name.toLowerCase().includes(q)) : HC_ST.files;
+  const ids = new Set(HC_ST.files.map(f => f.id));
+  [...HC_ST.sel].forEach(id => { if(!ids.has(id)) HC_ST.sel.delete(id); }); // fichiers disparus
+  hcRenderSel(L);
   if(!L.length){ box.innerHTML = `<div class="ag-empty">${q ? 'Aucun fichier ne correspond.' : 'Aucun fichier pour l\'instant. Touche « Envoyer des fichiers ».'}</div>`; return; }
   box.innerHTML = L.map(f => {
     const img = /^image\//.test(f.mime || '') && !f.offline;
@@ -279,7 +290,9 @@ function hcRenderList(){
       : f.moving ? ' · <span style="color:var(--accent)">Déplacement vers le PC...</span>'
       : f.toPc ? ' · <span style="color:var(--accent)">En ligne, ira sur le PC quand il sera rallumé</span>' : '';
     const canMove = f.location !== 'pc' && HC_ST.usage && HC_ST.usage.pc && HC_ST.usage.pc.configured;
-    return `<div class="hc-f">
+    const on = HC_ST.sel.has(f.id);
+    return `<div class="hc-f${on ? ' on' : ''}">
+      <input type="checkbox" class="hc-ck" title="Sélectionner" ${on ? 'checked' : ''} onchange="hcToggle('${HC_E(f.id)}', this.checked)">
       <div class="hc-th">${img ? `<img alt="" data-hcid="${HC_E(f.id)}" onclick="hcDownload('${HC_E(f.id)}', true)">` : HC_E(ext)}</div>
       <div class="hc-in"><div class="hc-n">${HC_E(f.name)}</div><div class="hc-d">${HC_SIZE(f.size)} · ${HC_DATE(f.createdAt)}${where}</div></div>
       <div class="hc-a">
@@ -299,6 +312,66 @@ function hcRenderList(){
 }
 
 window.hcSearch = v => { HC_ST.q = v; hcRenderList(); };
+
+// ---------- Sélection de plusieurs fichiers ----------
+const hcVisible = () => { const q = HC_ST.q.trim().toLowerCase(); return q ? HC_ST.files.filter(f => f.name.toLowerCase().includes(q)) : HC_ST.files; };
+function hcRenderSel(L){
+  const bar = document.getElementById('hcSelBar'); if(!bar) return;
+  L = L || hcVisible();
+  if(!L.length){ bar.innerHTML = ''; return; }
+  const n = HC_ST.sel.size;
+  const all = L.every(f => HC_ST.sel.has(f.id));
+  const size = HC_ST.files.filter(f => HC_ST.sel.has(f.id)).reduce((t, f) => t + f.size, 0);
+  const pcOn = HC_ST.usage && HC_ST.usage.pc && HC_ST.usage.pc.configured;
+  bar.innerHTML = `<label><input type="checkbox" class="hc-ck" ${all ? 'checked' : ''} onchange="hcSelAll(this.checked)"> ${n ? `${n} sélectionné${n > 1 ? 's' : ''} (${HC_SIZE(size)})` : 'Tout sélectionner'}</label>
+    <span class="sp"></span>
+    ${n ? `<button onclick="hcBatchDownload()">${HC_IC('download', 14)} Télécharger</button>
+      ${pcOn ? `<button onclick="hcBatchMove()">${HC_PC.replace('width="16" height="16"', 'width="14" height="14"')} Vers le PC</button>` : ''}
+      <button class="del" onclick="hcBatchDelete()">${HC_IC('trash', 14)} Corbeille</button>
+      <button onclick="hcSelAll(false)">Annuler</button>` : ''}`;
+}
+window.hcToggle = (id, on) => { on ? HC_ST.sel.add(id) : HC_ST.sel.delete(id); hcRenderList(); };
+window.hcSelAll = on => { hcVisible().forEach(f => on ? HC_ST.sel.add(f.id) : HC_ST.sel.delete(f.id)); if(!on) HC_ST.sel.clear(); hcRenderList(); };
+
+const hcChosen = () => HC_ST.files.filter(f => HC_ST.sel.has(f.id));
+
+window.hcBatchDelete = async function(){
+  const L = hcChosen(); if(!L.length) return;
+  if(!await hcAsk(`Mettre ${L.length} fichier${L.length > 1 ? 's' : ''} à la corbeille ?\nTu pourras les récupérer pendant 30 jours (bouton Corbeille).`)) return;
+  let bad = 0;
+  for(const f of L){ try { await hcApi('DELETE', `/files/${f.id}`); HC_ST.sel.delete(f.id); } catch(e){ bad++; } }
+  HC_TOAST(bad ? `${L.length - bad} mis à la corbeille, ${bad} en échec` : `${L.length} mis à la corbeille`);
+  hcRefresh();
+};
+
+window.hcBatchMove = async function(){
+  const L = hcChosen().filter(f => f.location !== 'pc' && !f.moving && !f.toPc);
+  if(!L.length){ alert('Les fichiers choisis sont déjà sur ton PC (ou en route).'); return; }
+  const size = L.reduce((t, f) => t + f.size, 0);
+  if(!await hcAsk(`Déplacer ${L.length} fichier${L.length > 1 ? 's' : ''} sur ton PC ?\n\nÇa libère ${HC_SIZE(size)} en ligne. Les fichiers restent dans ta liste et se téléchargent quand ton PC est allumé.`)) return;
+  let done = 0;
+  for(const f of L){
+    try { await hcApi('POST', `/files/${f.id}/move-to-pc`, {}); done++; }
+    catch(e){ alert(`${f.name} : ${e.message}`); break; } // PC éteint ou plein : inutile d'insister
+  }
+  if(done) HC_TOAST(`${done} fichier${done > 1 ? 's' : ''} en route vers le PC`);
+  HC_ST.sel.clear();
+  hcRefresh();
+};
+
+window.hcBatchDownload = async function(){
+  const L = hcChosen().filter(f => !f.offline);
+  if(!L.length){ alert('Ces fichiers sont sur ton PC, qui est éteint.'); return; }
+  if(L.length > 1) HC_TOAST(`Téléchargement de ${L.length} fichiers... (le navigateur peut demander l'autorisation)`);
+  for(const f of L){
+    try {
+      const { url } = await hcApi('GET', `/files/${f.id}/download`);
+      const a = document.createElement('a'); a.href = url; a.rel = 'noopener'; a.download = f.name;
+      document.body.appendChild(a); a.click(); a.remove();
+      await hcSleep(1200); // un par un, sinon le navigateur en bloque
+    } catch(e){ alert(`${f.name} : ${e.message}`); }
+  }
+};
 
 window.hcRefresh = async function(){
   try {
@@ -364,22 +437,54 @@ window.hcTrash = async function(){
   hcSheet(`<div class="ag-empty">Chargement de la corbeille...</div>`);
   try {
     const { files, days } = await hcApi('GET', '/trash');
-    const total = files.reduce((s, f) => s + f.size, 0);
-    hcSheet(`
-      <div class="ag-hint" style="margin-top:0">Les fichiers supprimés restent ici <b>${days} jours</b>, puis partent pour de bon. Ils prennent encore de la place tant qu'ils sont ici${total ? ` (${HC_SIZE(total)})` : ''}.</div>
-      <div class="hc-list">${files.length ? files.map(f => `<div class="hc-f">
-        <div class="hc-in"><div class="hc-n">${HC_E(f.name)}</div><div class="hc-d">${HC_SIZE(f.size)} · part pour de bon dans ${f.daysLeft} jour${f.daysLeft > 1 ? 's' : ''}${f.location === 'pc' ? ' · sur le PC' : ''}</div></div>
-        <div class="hc-a">
-          <button title="Restaurer" onclick="hcRestore('${HC_E(f.id)}')">${HC_IC('refresh', 16)}</button>
-          <button class="del" title="Supprimer pour de bon" onclick="hcKill('${HC_E(f.id)}')">${HC_IC('trash', 16)}</button>
-        </div></div>`).join('') : '<div class="ag-empty">La corbeille est vide.</div>'}</div>
-      <div class="hc-foot">
-        <button class="btn-secondary" onclick="hcOpenFiles()">← Mes fichiers</button>
-        ${files.length ? `<button class="btn-secondary" style="color:var(--red)" onclick="hcEmptyTrash()">Vider la corbeille</button>` : ''}
-      </div>`);
+    HC_ST.trash = files; HC_ST.days = days;
+    const ids = new Set(files.map(f => f.id));
+    [...HC_ST.tsel].forEach(id => { if(!ids.has(id)) HC_ST.tsel.delete(id); });
+    hcRenderTrash();
   } catch(e){
     hcSheet(`<div class="ag-hint" style="color:var(--red)">${HC_E(e.message)}</div><button class="btn-secondary" onclick="hcOpenFiles()">← Mes fichiers</button>`);
   }
+};
+function hcRenderTrash(){
+  const files = HC_ST.trash;
+  const total = files.reduce((t, f) => t + f.size, 0);
+  const n = HC_ST.tsel.size;
+  const all = files.length && files.every(f => HC_ST.tsel.has(f.id));
+  hcSheet(`
+    <div class="ag-hint" style="margin-top:0">Les fichiers supprimés restent ici <b>${HC_ST.days} jours</b>, puis partent pour de bon. Ils prennent encore de la place tant qu'ils sont ici${total ? ` (${HC_SIZE(total)})` : ''}.</div>
+    ${files.length ? `<div class="hc-selbar">
+      <label><input type="checkbox" class="hc-ck" ${all ? 'checked' : ''} onchange="hcTSelAll(this.checked)"> ${n ? `${n} sélectionné${n > 1 ? 's' : ''}` : 'Tout sélectionner'}</label>
+      <span class="sp"></span>
+      ${n ? `<button onclick="hcBatchRestore()">${HC_IC('refresh', 14)} Restaurer</button>
+        <button class="del" onclick="hcBatchKill()">${HC_IC('trash', 14)} Supprimer pour de bon</button>` : ''}
+    </div>` : ''}
+    <div class="hc-list">${files.length ? files.map(f => { const on = HC_ST.tsel.has(f.id); return `<div class="hc-f${on ? ' on' : ''}">
+      <input type="checkbox" class="hc-ck" ${on ? 'checked' : ''} onchange="hcTToggle('${HC_E(f.id)}', this.checked)">
+      <div class="hc-in"><div class="hc-n">${HC_E(f.name)}</div><div class="hc-d">${HC_SIZE(f.size)} · part pour de bon dans ${f.daysLeft} jour${f.daysLeft > 1 ? 's' : ''}${f.location === 'pc' ? ' · sur le PC' : ''}</div></div>
+      <div class="hc-a">
+        <button title="Restaurer" onclick="hcRestore('${HC_E(f.id)}')">${HC_IC('refresh', 16)}</button>
+        <button class="del" title="Supprimer pour de bon" onclick="hcKill('${HC_E(f.id)}')">${HC_IC('trash', 16)}</button>
+      </div></div>`; }).join('') : '<div class="ag-empty">La corbeille est vide.</div>'}</div>
+    <div class="hc-foot">
+      <button class="btn-secondary" onclick="hcOpenFiles()">← Mes fichiers</button>
+      ${files.length ? `<button class="btn-secondary" style="color:var(--red)" onclick="hcEmptyTrash()">Vider la corbeille</button>` : ''}
+    </div>`);
+}
+window.hcTToggle = (id, on) => { on ? HC_ST.tsel.add(id) : HC_ST.tsel.delete(id); hcRenderTrash(); };
+window.hcTSelAll = on => { HC_ST.tsel = new Set(on ? HC_ST.trash.map(f => f.id) : []); hcRenderTrash(); };
+window.hcBatchRestore = async function(){
+  const L = HC_ST.trash.filter(f => HC_ST.tsel.has(f.id)); let bad = 0;
+  for(const f of L){ try { await hcApi('POST', `/trash/${f.id}/restore`, {}); HC_ST.tsel.delete(f.id); } catch(e){ bad++; } }
+  HC_TOAST(bad ? `${L.length - bad} restauré(s), ${bad} en échec` : `${L.length} fichier${L.length > 1 ? 's' : ''} restauré${L.length > 1 ? 's' : ''}`);
+  hcTrash();
+};
+window.hcBatchKill = async function(){
+  const L = HC_ST.trash.filter(f => HC_ST.tsel.has(f.id)); if(!L.length) return;
+  if(!await hcAsk(`Supprimer ${L.length} fichier${L.length > 1 ? 's' : ''} pour toujours ?\nImpossible de revenir en arrière.`)) return;
+  let bad = 0, msg = '';
+  for(const f of L){ try { await hcApi('DELETE', `/trash/${f.id}`); HC_ST.tsel.delete(f.id); } catch(e){ bad++; msg = e.message; } }
+  if(bad) alert(`${bad} fichier(s) non supprimé(s) : ${msg}`);
+  hcTrash();
 };
 window.hcRestore = async function(id){
   try { await hcApi('POST', `/trash/${id}/restore`, {}); HC_TOAST('Fichier restauré'); hcTrash(); } catch(e){ alert(e.message); }
