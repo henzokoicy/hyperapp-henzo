@@ -191,7 +191,7 @@
   }
 
   const api = {
-    make, kind, icon,
+    make, kind, icon, pdfjs,
     pdfjsUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
     pdfWorkerUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
   };

@@ -194,6 +194,28 @@ const HC_IC = (n, s) => (typeof agIcon === 'function' ? agIcon(n, s || 16) : '')
 const HC_PC = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>';
 const HC_DATE = d => { try { return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }); } catch(e){ return ''; } };
 
+// ---------- Nom de cet appareil (pour savoir d'où vient chaque fichier) ----------
+function hcGuessDevice(){
+  const ua = navigator.userAgent || '';
+  if(/iPhone/.test(ua)) return 'iPhone';
+  if(/iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'iPad';
+  if(/Android/.test(ua)){ const m = /Android[^;]*; ([^;)]+?)(?: Build|\))/.exec(ua); return 'Android' + (m && m[1].trim() !== 'K' ? ' ' + m[1].trim() : ''); }
+  if(/Windows/.test(ua)) return 'PC Windows';
+  if(/Mac/.test(ua)) return 'Mac';
+  if(/CrOS/.test(ua)) return 'Chromebook';
+  if(/Linux/.test(ua)) return 'PC Linux';
+  return 'Navigateur';
+}
+function hcDevice(){
+  let v = ''; try { v = localStorage.getItem('hc_device') || ''; } catch(e){}
+  return v.trim() || hcGuessDevice();
+}
+window.hcSetDevice = function(input){
+  try { localStorage.setItem('hc_device', input.value.trim()); } catch(e){}
+  input.value = hcDevice();
+};
+const HC_DEV_IC = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg>';
+
 function hcStyle(){
   if(document.getElementById('hcStyle')) return;
   const st = document.createElement('style'); st.id = 'hcStyle';
@@ -247,6 +269,26 @@ function hcStyle(){
     .hc-selbar button.del{color:var(--red)}
     .hc-f.on{background:color-mix(in srgb, var(--accent) 10%, transparent);border-radius:8px}
     .hc-up .hc-a button{line-height:1.2;padding:6px 10px;display:inline-flex;gap:5px;align-items:center;font-size:.8rem}
+    .hc-dev{color:var(--accent-2,var(--accent))}
+    .hc-th,.hc-in{cursor:pointer}
+    #hcViewer{position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;background:rgba(0,0,0,.94);color:#fff}
+    #hcViewer .hv-bar{display:flex;align-items:center;gap:6px;padding:10px 12px;background:rgba(0,0,0,.5)}
+    #hcViewer .hv-t{flex:1;min-width:0;display:flex;flex-direction:column}
+    #hcViewer .hv-t b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.95rem}
+    #hcViewer .hv-t small{color:#cfd3dc;font-size:.74rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    #hcViewer .hv-b{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:10px;padding:6px 11px;font-size:1.1rem;cursor:pointer;margin:0;width:auto;line-height:1.2}
+    #hcViewer .hv-b:disabled{opacity:.3;cursor:default}
+    #hcViewer .hv-body{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:auto;padding:10px}
+    #hcViewer img.hv-img,#hcViewer video{max-width:100%;max-height:100%;object-fit:contain}
+    #hcViewer video{width:100%;height:100%;background:#000}
+    #hcViewer .hv-audio{display:flex;flex-direction:column;align-items:center;gap:16px;width:100%}
+    #hcViewer .hv-audio img{width:min(260px,70vw);border-radius:16px}
+    #hcViewer audio{width:min(560px,100%)}
+    #hcViewer .hv-pdf{align-self:flex-start;width:100%;display:flex;flex-direction:column;align-items:center;gap:10px}
+    #hcViewer .hv-pdf canvas{max-width:100%;height:auto;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.5)}
+    #hcViewer pre{align-self:stretch;width:100%;margin:0;padding:14px;background:rgba(255,255,255,.07);border-radius:12px;white-space:pre-wrap;word-break:break-word;overflow:auto;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;text-align:left;color:#fff}
+    #hcViewer .hv-note{text-align:center;max-width:420px;color:#cfd3dc;display:flex;flex-direction:column;align-items:center;gap:12px}
+    #hcViewer .hv-note button{background:var(--accent,#6c5ce7);color:#fff;border:0;border-radius:12px;padding:10px 18px;font:inherit;cursor:pointer;margin:0;width:auto}
     .hc-foot{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
     .hc-foot button{flex:1;margin:0;display:inline-flex;align-items:center;justify-content:center;gap:6px}
   `;
@@ -264,6 +306,8 @@ function hcManager(user, files, usage){
         <input type="file" multiple hidden onchange="hcPicked(this)"></label>
       ${pcOn ? `<select id="hcTarget" title="Où ranger les fichiers"><option value="auto">Automatique</option><option value="pc">Sur mon PC</option></select>` : ''}
     </div>
+    <label style="display:block;margin:4px 0 8px;font-size:.82rem;color:var(--muted)">Cet appareil s'appelle (affiché sur chaque fichier envoyé d'ici)
+      <input id="hcDevice" maxlength="60" placeholder="Ex. Téléphone de Henzo" value="${HC_E(hcDevice())}" onchange="hcSetDevice(this)" style="margin-top:4px"></label>
     <div id="hcUps"></div>
     <input class="hc-search" id="hcSearch" type="search" placeholder="Rechercher un fichier..." value="${HC_E(HC_ST.q)}" oninput="hcSearch(this.value)">
     <div class="hc-selbar" id="hcSelBar"></div>
@@ -313,7 +357,6 @@ function hcRenderList(){
     const T = window.HCThumbs;
     const k = T ? T.kind(f.name, f.mime) : 'file';
     const ext = (f.name.split('.').pop() || '').slice(0, 4).toUpperCase();
-    const viewable = !f.offline && ['image', 'video', 'pdf'].includes(k);
     const where = f.location === 'pc' ? (f.offline ? ' · <span class="off">Sur le PC, hors ligne</span>' : ' · Sur le PC')
       : f.moving ? ' · <span style="color:var(--accent)">Déplacement vers le PC...</span>'
       : f.toPc ? ' · <span style="color:var(--accent)">En ligne, ira sur le PC quand il sera rallumé</span>' : '';
@@ -321,8 +364,8 @@ function hcRenderList(){
     const on = HC_ST.sel.has(f.id);
     return `<div class="hc-f${on ? ' on' : ''}">
       <input type="checkbox" class="hc-ck" title="Sélectionner" ${on ? 'checked' : ''} onchange="hcToggle('${HC_E(f.id)}', this.checked)">
-      <div class="hc-th k-${k}" data-th="${HC_E(f.id)}">${T ? T.icon(k, 20) : ''}<small>${HC_E(ext)}</small>${f.hasThumb ? `<img alt="" data-hcid="${HC_E(f.id)}" ${viewable ? `onclick="hcDownload('${HC_E(f.id)}', true)"` : ''} onload="this.parentNode.classList.add('has-img')">` : ''}</div>
-      <div class="hc-in"><div class="hc-n">${HC_E(f.name)}</div><div class="hc-d">${HC_SIZE(f.size)} · ${HC_DATE(f.createdAt)}${where}</div></div>
+      <div class="hc-th k-${k}" data-th="${HC_E(f.id)}" onclick="hcView('${HC_E(f.id)}')">${T ? T.icon(k, 20) : ''}<small>${HC_E(ext)}</small>${f.hasThumb ? `<img alt="" data-hcid="${HC_E(f.id)}" onload="this.parentNode.classList.add('has-img')">` : ''}</div>
+      <div class="hc-in" onclick="hcView('${HC_E(f.id)}')"><div class="hc-n">${HC_E(f.name)}</div><div class="hc-d">${HC_SIZE(f.size)} · ${HC_DATE(f.createdAt)}${where}${f.device ? ` · <span class="hc-dev">${HC_DEV_IC} ${HC_E(f.device)}</span>` : ''}</div></div>
       <div class="hc-a">
         <button title="Télécharger" onclick="hcDownload('${HC_E(f.id)}')" ${f.offline ? 'disabled' : ''}>${HC_IC('download', 16)}</button>
         ${canMove ? `<button title="Déplacer sur mon PC (libère la place en ligne)" onclick="hcMove('${HC_E(f.id)}')" ${f.moving || f.toPc ? 'disabled' : ''}>${HC_PC}</button>` : ''}
@@ -390,7 +433,7 @@ function hcShowThumb(id, data){
   im.src = data; th.appendChild(im);
 }
 // Le lecteur de PDF (pdf.js) et la fabrique de miniatures : chargés une fois.
-(function(){ if(window.HCThumbs) return; const sc = document.createElement('script'); sc.src = 'henzo-miniatures.js?v=1'; document.head.appendChild(sc); })();
+(function(){ if(window.HCThumbs) return; const sc = document.createElement('script'); sc.src = 'henzo-miniatures.js?v=2'; document.head.appendChild(sc); })();
 
 window.hcSearch = v => { HC_ST.q = v; hcRenderList(); };
 
@@ -648,7 +691,7 @@ async function hcUploadOne(u){
   const fingerprint = `${file.name}|${file.size}|${file.lastModified}`;
   try {
     set(0, 'Préparation...');
-    const init = await hcApi('POST', '/uploads/init', { name: file.name, size: file.size, type: file.type, fingerprint, target: u.target });
+    const init = await hcApi('POST', '/uploads/init', { name: file.name, size: file.size, type: file.type, fingerprint, target: u.target, device: hcDevice() });
     const { fileId, partSize, totalParts } = init;
     const done = new Set(init.doneParts);
     const sizeOf = n => Math.min(partSize, file.size - (n - 1) * partSize);
@@ -700,6 +743,135 @@ async function hcUploadOne(u){
 
 // Fermer la Super App pendant un envoi : on prévient.
 window.addEventListener('beforeunload', e => { if(HC_ST.busy){ e.preventDefault(); e.returnValue = ''; } });
+
+// ---------- Lecteur intégré : image, vidéo, musique, PDF, texte ----------
+const HC_TEXT_EXT = /^(txt|md|markdown|json|csv|tsv|log|xml|html?|css|js|mjs|ts|jsx|tsx|py|java|kt|c|h|cpp|cs|go|rs|php|sh|bat|ps1|yml|yaml|toml|ini|cfg|conf|env|sql|srt|vtt|svg|tex|rtf)$/;
+function hcViewKind(f){
+  const T = window.HCThumbs; const k = T ? T.kind(f.name, f.mime) : 'file';
+  const e = (f.name.split('.').pop() || '').toLowerCase();
+  if(['image', 'video', 'audio', 'pdf'].includes(k)){
+    if(k === 'image' && /^(heic|heif|tiff?)$/.test(e)) return 'other'; // pas affichable dans un navigateur
+    return k;
+  }
+  if((String(f.mime).startsWith('text/') || HC_TEXT_EXT.test(e)) && f.size <= 5e6) return 'text';
+  return 'other';
+}
+const HV = { list: [], i: -1, token: 0 };
+function hvBody(){ return document.getElementById('hvBody'); }
+function hvStop(){
+  const b = hvBody(); if(!b) return;
+  b.querySelectorAll('video,audio').forEach(m => { m.pause(); m.removeAttribute('src'); m.load(); });
+  b.innerHTML = '';
+}
+function hvNote(msg, f, withDl){
+  const b = hvBody(); if(!b) return;
+  b.innerHTML = '';
+  const box = document.createElement('div'); box.className = 'hv-note';
+  const t = document.createElement('div'); t.textContent = msg; box.appendChild(t);
+  if(withDl !== false && f && !f.offline){
+    const btn = document.createElement('button'); btn.textContent = 'Télécharger';
+    btn.onclick = () => hcDownload(f.id); box.appendChild(btn);
+  }
+  b.appendChild(box);
+}
+async function hvRender(){
+  const f = HV.list[HV.i]; if(!f) return hcCloseViewer();
+  const token = ++HV.token;
+  hvStop();
+  document.getElementById('hvName').textContent = f.name;
+  document.getElementById('hvMeta').textContent = [HC_SIZE(f.size), HC_DATE(f.createdAt), f.device ? 'Envoyé depuis ' + f.device : '', f.location === 'pc' ? 'Sur le PC' : 'En ligne'].filter(Boolean).join(' · ');
+  document.getElementById('hvPrev').disabled = HV.i <= 0;
+  document.getElementById('hvNext').disabled = HV.i >= HV.list.length - 1;
+  document.getElementById('hvDl').disabled = !!f.offline;
+  if(f.offline) return hvNote('Ce fichier est sur ton PC, qui est éteint ou hors ligne. Rallume ton PC puis réessaie.', f, false);
+  const k = hcViewKind(f);
+  if(k === 'other') return hvNote("Ce type de fichier ne peut pas être lu ici. Télécharge-le pour l'ouvrir.", f);
+  hvBody().textContent = 'Chargement...';
+  let url;
+  try { url = (await hcApi('GET', `/files/${f.id}/download?inline=1`)).url; }
+  catch(e){ if(token === HV.token) hvNote(e.message, f, false); return; }
+  if(token !== HV.token) return;
+  const b = hvBody();
+  if(k === 'image'){
+    const im = document.createElement('img'); im.className = 'hv-img'; im.alt = f.name;
+    im.onerror = () => token === HV.token && hvNote("Impossible d'afficher cette image.", f);
+    im.src = url; b.innerHTML = ''; b.appendChild(im);
+  } else if(k === 'video'){
+    const v = document.createElement('video'); v.controls = true; v.autoplay = true; v.playsInline = true;
+    v.onerror = () => token === HV.token && hvNote('Ton navigateur ne sait pas lire cette vidéo (format ou codec). Télécharge-la pour la lire avec une autre application.', f);
+    v.src = url; b.innerHTML = ''; b.appendChild(v);
+  } else if(k === 'audio'){
+    const wrap = document.createElement('div'); wrap.className = 'hv-audio';
+    const cover = HC_THUMBS.get(f.id);
+    if(cover){ const im = document.createElement('img'); im.alt = ''; im.src = cover; wrap.appendChild(im); }
+    const a = document.createElement('audio'); a.controls = true; a.autoplay = true;
+    a.onerror = () => token === HV.token && hvNote('Ton navigateur ne sait pas lire ce son.', f);
+    a.src = url; wrap.appendChild(a); b.innerHTML = ''; b.appendChild(wrap);
+  } else if(k === 'pdf'){
+    await hvPdf(url, f, token);
+  } else if(k === 'text'){
+    try {
+      const r = await fetch(url); if(!r.ok) throw 0;
+      const txt = await r.text();
+      if(token !== HV.token) return;
+      const pre = document.createElement('pre'); pre.textContent = txt; b.innerHTML = ''; b.appendChild(pre);
+    } catch(e){ if(token === HV.token) hvNote('Impossible de lire ce fichier.', f); }
+  }
+}
+async function hvPdf(url, f, token){
+  const b = hvBody();
+  try {
+    const L = await window.HCThumbs.pdfjs();
+    const doc = await L.getDocument({ url }).promise;
+    if(token !== HV.token){ doc.destroy(); return; }
+    const wrap = document.createElement('div'); wrap.className = 'hv-pdf';
+    b.innerHTML = ''; b.appendChild(wrap);
+    const dpr = window.devicePixelRatio || 1;
+    const width = Math.min(b.clientWidth - 20, 900);
+    for(let n = 1; n <= doc.numPages; n++){
+      if(token !== HV.token){ doc.destroy(); return; }
+      const page = await doc.getPage(n);
+      const base = page.getViewport({ scale: 1 });
+      const vp = page.getViewport({ scale: (width / base.width) * dpr });
+      const c = document.createElement('canvas');
+      c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
+      c.style.width = Math.ceil(vp.width / dpr) + 'px';
+      wrap.appendChild(c);
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+    }
+  } catch(e){ if(token === HV.token) hvNote("Impossible d'afficher ce PDF ici.", f); }
+}
+window.hcView = function(id){
+  const L = hcVisible(); const i = L.findIndex(x => x.id === id);
+  if(i < 0) return;
+  HV.list = L; HV.i = i;
+  hcStyle();
+  let v = document.getElementById('hcViewer');
+  if(!v){
+    v = document.createElement('div'); v.id = 'hcViewer';
+    v.setAttribute('role', 'dialog'); v.setAttribute('aria-modal', 'true');
+    v.innerHTML = `<div class="hv-bar"><div class="hv-t"><b id="hvName"></b><small id="hvMeta"></small></div>
+      <button class="hv-b" id="hvPrev" title="Précédent" onclick="hcViewStep(-1)">‹</button>
+      <button class="hv-b" id="hvNext" title="Suivant" onclick="hcViewStep(1)">›</button>
+      <button class="hv-b" id="hvDl" title="Télécharger" onclick="hcViewDl()">${HC_IC('download', 18)}</button>
+      <button class="hv-b" title="Fermer" onclick="hcCloseViewer()">✕</button></div>
+      <div class="hv-body" id="hvBody"></div>`;
+    document.body.appendChild(v);
+  }
+  hvRender();
+};
+window.hcViewStep = d => { const n = HV.i + d; if(n < 0 || n >= HV.list.length) return; HV.i = n; hvRender(); };
+window.hcViewDl = () => { const f = HV.list[HV.i]; if(f) hcDownload(f.id); };
+window.hcCloseViewer = function(){
+  HV.token++; hvStop();
+  const v = document.getElementById('hcViewer'); if(v) v.remove();
+};
+document.addEventListener('keydown', e => {
+  if(!document.getElementById('hcViewer')) return;
+  if(e.key === 'Escape') hcCloseViewer();
+  else if(e.key === 'ArrowLeft') hcViewStep(-1);
+  else if(e.key === 'ArrowRight') hcViewStep(1);
+});
 
 // ---------- Boutons dans les menus ----------
 function hcButtons(){
