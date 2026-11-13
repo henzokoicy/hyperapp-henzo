@@ -1677,4 +1677,4 @@ function agToggleMontants(force){
   window.addEventListener('pagehide', () => agToggleMontants(false));
 })();
 // Lien avec Henzo Cloud (coffre à fichiers) : voir henzo-cloud.js
-(function(){ const sc = document.createElement('script'); sc.src = 'henzo-cloud.js?v=2'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'henzo-cloud.js?v=3'; document.body.appendChild(sc); })();

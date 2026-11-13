@@ -1,7 +1,8 @@
 // ============================================================
 // HENZO-CLOUD.JS - Lien avec Henzo Cloud (mon coffre à fichiers)
 // Étape 1 : connexion unique. Étape 2 : mes fichiers (liste, envoi,
-// téléchargement, suppression, recherche, miniatures).
+// téléchargement, suppression, recherche, miniatures), corbeille 30 jours,
+// déplacer vers le PC pour libérer la place en ligne.
 // - La Super App montre sa connexion (Supabase) à Henzo Cloud, qui
 //   la vérifie et donne sa propre carte d'entrée : plus de 2e code.
 // - La toute première fois seulement : on relie les deux comptes en
@@ -187,6 +188,7 @@ async function hcOpen(){
 // ============================================================
 const HC_ST = { user: null, files: [], usage: null, q: '', ups: [], busy: false };
 const HC_IC = (n, s) => (typeof agIcon === 'function' ? agIcon(n, s || 16) : '');
+const HC_PC = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>';
 const HC_DATE = d => { try { return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }); } catch(e){ return ''; } };
 
 function hcStyle(){
@@ -238,6 +240,7 @@ function hcManager(user, files, usage){
     <div class="hc-list" id="hcList"></div>
     <div class="hc-foot">
       <button class="btn-secondary" onclick="hcRefresh()">${HC_IC('refresh', 14)} Rafraîchir</button>
+      <button class="btn-secondary" onclick="hcTrash()">${HC_IC('trash', 14)} Corbeille</button>
       <button class="btn-secondary" onclick="hcDoUnlink()">Délier</button>
     </div>
     <div class="ag-hint">Connecté en tant que <b>${HC_E(user.username)}</b>, sans code : la Super App s'en charge.</div>`);
@@ -247,6 +250,7 @@ function hcManager(user, files, usage){
 function hcRenderUsage(){
   const el = document.getElementById('hcUsage'); const u = HC_ST.usage; if(!el || !u) return;
   let t = `${HC_ST.files.length} fichier${HC_ST.files.length > 1 ? 's' : ''} · Stockage en ligne : ${HC_SIZE(u.used)} sur ${HC_SIZE(u.limit)} (à vous tous).`;
+  if(u.trash) t += ` Corbeille : ${HC_SIZE(u.trash)}.`;
   if(u.pc && u.pc.configured) t += u.pc.online ? ` Ton PC est allumé${u.pc.freeBytes != null ? ` (${HC_SIZE(u.pc.freeBytes)} libres)` : ''}.` : ' Ton PC est éteint : ses fichiers sont indisponibles.';
   el.textContent = t;
 }
@@ -259,15 +263,19 @@ function hcRenderList(){
   box.innerHTML = L.map(f => {
     const img = /^image\//.test(f.mime || '') && !f.offline;
     const ext = (f.name.split('.').pop() || '').slice(0, 4).toUpperCase();
-    const where = f.location === 'pc' ? (f.offline ? ' · <span class="off">Sur le PC, hors ligne</span>' : ' · Sur le PC') : '';
+    const where = f.location === 'pc' ? (f.offline ? ' · <span class="off">Sur le PC, hors ligne</span>' : ' · Sur le PC')
+      : f.moving ? ' · <span style="color:var(--accent)">Déplacement vers le PC...</span>' : '';
+    const canMove = f.location !== 'pc' && HC_ST.usage && HC_ST.usage.pc && HC_ST.usage.pc.configured;
     return `<div class="hc-f">
       <div class="hc-th">${img ? `<img alt="" data-hcid="${HC_E(f.id)}" onclick="hcDownload('${HC_E(f.id)}', true)">` : HC_E(ext)}</div>
       <div class="hc-in"><div class="hc-n">${HC_E(f.name)}</div><div class="hc-d">${HC_SIZE(f.size)} · ${HC_DATE(f.createdAt)}${where}</div></div>
       <div class="hc-a">
         <button title="Télécharger" onclick="hcDownload('${HC_E(f.id)}')" ${f.offline ? 'disabled' : ''}>${HC_IC('download', 16)}</button>
-        <button class="del" title="Supprimer" onclick="hcDelete('${HC_E(f.id)}')">${HC_IC('trash', 16)}</button>
+        ${canMove ? `<button title="Déplacer sur mon PC (libère la place en ligne)" onclick="hcMove('${HC_E(f.id)}')" ${f.moving ? 'disabled' : ''}>${HC_PC}</button>` : ''}
+        <button class="del" title="Mettre à la corbeille" onclick="hcDelete('${HC_E(f.id)}')">${HC_IC('trash', 16)}</button>
       </div></div>`;
   }).join('');
+  L.filter(f => f.moving).forEach(f => hcWatchMove(f.id));
   // Miniatures : chargées seulement quand elles apparaissent à l'écran.
   const imgs = box.querySelectorAll('img[data-hcid]');
   const load = im => { const id = im.dataset.hcid; delete im.dataset.hcid; hcApi('GET', `/files/${id}/download`).then(r => { im.src = r.url; }).catch(() => {}); };
@@ -301,12 +309,75 @@ window.hcDownload = async function(id, view){
 
 window.hcDelete = async function(id){
   const f = HC_ST.files.find(x => x.id === id); if(!f) return;
-  if(!confirm(`Supprimer « ${f.name} » pour toujours, sur tous tes appareils ?`)) return;
+  if(!confirm(`Mettre « ${f.name} » à la corbeille ?\nTu pourras le récupérer pendant 30 jours (bouton Corbeille).`)) return;
   try {
     await hcApi('DELETE', `/files/${id}`);
     HC_ST.files = HC_ST.files.filter(x => x.id !== id);
     hcRenderList(); hcRefresh();
+    HC_TOAST('Mis à la corbeille');
   } catch(e){ alert(e.message); }
+};
+
+// ---------- Déplacer vers le PC (libère la place en ligne) ----------
+const HC_MOVING = new Set();
+window.hcMove = async function(id){
+  const f = HC_ST.files.find(x => x.id === id); if(!f) return;
+  if(!confirm(`Déplacer « ${f.name} » sur ton PC ?\n\nÇa libère ${HC_SIZE(f.size)} en ligne. Le fichier reste dans ta liste et se télécharge quand ton PC est allumé.`)) return;
+  try {
+    await hcApi('POST', `/files/${id}/move-to-pc`, {});
+    f.moving = true; hcRenderList();
+    HC_TOAST('Déplacement vers le PC lancé');
+  } catch(e){ alert(e.message); }
+};
+async function hcWatchMove(id){
+  if(HC_MOVING.has(id)) return;
+  HC_MOVING.add(id);
+  try {
+    for(let i = 0; i < 2000; i++){
+      await hcSleep(4000);
+      const st = await hcApi('GET', `/files/${id}/move`);
+      if(st.state === 'done' || st.state === 'none'){ if(st.state === 'done') HC_TOAST('Fichier rangé sur le PC'); break; }
+      if(st.state === 'error'){ alert(st.error); break; }
+      if(!document.getElementById('hcList')) break; // fenêtre fermée : on reprendra à la prochaine ouverture
+    }
+  } catch(e){}
+  HC_MOVING.delete(id);
+  hcRefresh();
+}
+
+// ---------- Corbeille ----------
+window.hcTrash = async function(){
+  hcStyle();
+  hcSheet(`<div class="ag-empty">Chargement de la corbeille...</div>`);
+  try {
+    const { files, days } = await hcApi('GET', '/trash');
+    const total = files.reduce((s, f) => s + f.size, 0);
+    hcSheet(`
+      <div class="ag-hint" style="margin-top:0">Les fichiers supprimés restent ici <b>${days} jours</b>, puis partent pour de bon. Ils prennent encore de la place tant qu'ils sont ici${total ? ` (${HC_SIZE(total)})` : ''}.</div>
+      <div class="hc-list">${files.length ? files.map(f => `<div class="hc-f">
+        <div class="hc-in"><div class="hc-n">${HC_E(f.name)}</div><div class="hc-d">${HC_SIZE(f.size)} · part pour de bon dans ${f.daysLeft} jour${f.daysLeft > 1 ? 's' : ''}${f.location === 'pc' ? ' · sur le PC' : ''}</div></div>
+        <div class="hc-a">
+          <button title="Restaurer" onclick="hcRestore('${HC_E(f.id)}')">${HC_IC('refresh', 16)}</button>
+          <button class="del" title="Supprimer pour de bon" onclick="hcKill('${HC_E(f.id)}')">${HC_IC('trash', 16)}</button>
+        </div></div>`).join('') : '<div class="ag-empty">La corbeille est vide.</div>'}</div>
+      <div class="hc-foot">
+        <button class="btn-secondary" onclick="hcOpenFiles()">← Mes fichiers</button>
+        ${files.length ? `<button class="btn-secondary" style="color:var(--red)" onclick="hcEmptyTrash()">Vider la corbeille</button>` : ''}
+      </div>`);
+  } catch(e){
+    hcSheet(`<div class="ag-hint" style="color:var(--red)">${HC_E(e.message)}</div><button class="btn-secondary" onclick="hcOpenFiles()">← Mes fichiers</button>`);
+  }
+};
+window.hcRestore = async function(id){
+  try { await hcApi('POST', `/trash/${id}/restore`, {}); HC_TOAST('Fichier restauré'); hcTrash(); } catch(e){ alert(e.message); }
+};
+window.hcKill = async function(id){
+  if(!confirm('Supprimer ce fichier pour toujours ? Impossible de revenir en arrière.')) return;
+  try { await hcApi('DELETE', `/trash/${id}`); hcTrash(); } catch(e){ alert(e.message); }
+};
+window.hcEmptyTrash = async function(){
+  if(!confirm('Vider la corbeille ? Tous ces fichiers seront supprimés pour toujours.')) return;
+  try { const r = await hcApi('POST', '/trash/empty', {}); if(r.message) alert(r.message); hcTrash(); } catch(e){ alert(e.message); }
 };
 
 // ---------- Envoi par morceaux, avec reprise ----------
