@@ -1108,7 +1108,8 @@ function stTextesPrompt(seul, ton){
   };
   const keys = seul ? [seul] : Object.keys(shapes);
   return `${seul ? 'REFAIRE UNE VERSION. ' : ''}TEXTES DE PUBLICATION pour la séance ${s ? (s.type || '') + ' de ' + (stPrenom(s) || 'la cliente') : ''}${ST.analyse && ST.analyse.resume ? ' (' + ST.analyse.resume + ')' : ''}.
-${seul ? `Réécris seulement la version "${ST_CANAUX.find(c => c[0] === seul)[1]}"${tonTxt ? ', ' + tonTxt : ''}. Le texte actuel : """${(ST.textes[seul] || {}).texte || ''}"""` : 'Écris une version différente pour chaque réseau.'}
+${seul ? `Écris une AUTRE version "${ST_CANAUX.find(c => c[0] === seul)[1]}"${tonTxt && ton !== 'fix' ? ', ' + tonTxt : ''}. ${typeof window.txtVariationConsigne === 'function' ? window.txtVariationConsigne(seul, ton) : ''}
+VERSION ACTUELLE À NE PAS REPRENDRE (garde seulement les faits utiles) : """${(ST.textes[seul] || {}).texte || ''}"""` : 'Écris une version différente pour chaque réseau.'}
 Structure de la page Facebook voulue par Henzo : ${struct || 'libre'}. Le titre est mis en gras par l'app : ne le répète pas dans les autres champs. Écris en lettres normales, jamais de lettres spéciales, de gras ou d'italique : l'app fait la mise en forme. Les personnes ou pages à créditer : écris "Maquillage : [[Nom]]" (crochets doubles). N'ajoute pas de ligne ©, l'app la met. Ne mets pas de hashtags dans les textes, ils vont dans "hashtags". Respecte son style appris. Utilise ce que Henzo a dit sur la séance. Pas de nom de famille.
 ${extra}
 Réponds UNIQUEMENT en JSON :
@@ -1130,12 +1131,18 @@ async function stRefaire(canal, ton){
   stSyncFields();
   ST.busy = 'refaire:' + canal; stRefresh();
   try {
-    const j = mkJson(await stIA(stTextesPrompt(canal, ton), [], 1800));
+    const avant = ST.J && ST.J[canal];
+    ST.retry = false;
+    let j = mkJson(await stIA(stTextesPrompt(canal, ton), [], 1800));
+    // Contrôle local : si le nouveau texte ressemble trop à l'ancien, on redemande UNE fois
+    if(typeof window.txtTropProche === 'function' && avant && j[canal] && window.txtTropProche(avant, j[canal])){
+      ST.retry = true; try { j = mkJson(await stIA(stTextesPrompt(canal, ton), [], 1800)); } finally { ST.retry = false; }
+    }
     ST.J = ST.J || {};
     if(j[canal]) ST.J[canal] = j[canal];
     const t = stCompose(canal);
     ST.textes[canal] = { texte: t, prop: t, copie: null };
-    agToast('Nouvelle version prête');
+    agToast(ton && ton !== 'fix' ? 'Nouvelle version prête' : 'Nouvelle version prête' + (ST.dernierAngle ? ' (angle : ' + ST.dernierAngle + ')' : ''));
   } catch(e){ agAlert(e.message || String(e)); }
   ST.busy = ''; stRefresh();
 }
@@ -1158,7 +1165,7 @@ function stStepTextes(){
     return `<div class="st-card"><div class="st-wait"><div class="mk-typing"><span></span><span></span><span></span></div><b style="color:var(--text)">L'IA écrit tes 6 textes...</b>Page Facebook, profil perso, groupes, statut WhatsApp, Instagram et TikTok.</div>
       ${ST.busy ? '' : `<button class="btn-primary" style="width:100%" onclick="stTextesGen()">Écrire mes textes</button>`}</div>${stFoot('Patiente...', { disabled: true })}`;
   }
-  return `<div class="st-card" style="padding:12px 14px"><p style="margin:0">Voici tes textes, un par réseau. <b style="color:var(--text)">Touche Copier, puis publie toi-même.</b> Tu peux tout modifier.</p></div>
+  return `<div class="st-card" style="padding:12px 14px"><p style="margin:0">Voici tes textes, un par réseau. <b style="color:var(--text)">Touche Copier, puis publie toi-même.</b> Tu peux tout modifier.</p>${typeof window.txbBandeau === 'function' ? window.txbBandeau() : ''}</div>
     ${ST_CANAUX.map(([c, nom, , col]) => { const T = ST.textes[c] || { texte: '' }; const busy = ST.busy === 'refaire:' + c;
       return `<div class="st-tx ${busy ? 'busy' : ''}" id="stTx_${c}"><div class="st-tx-h"><i style="background:${col}"></i><b>${nom}</b>${T.copie != null ? `<span class="st-tag ok">${agIcon('check', 11)} Copié</span>` : ''}${busy ? '<span class="st-tag">écrit...</span>' : ''}</div>
         <div class="st-tx-b">${stCanalInfo(c)}
@@ -1175,7 +1182,7 @@ async function stAvisTexte(c, avis){
   stSyncFields();
   const T = ST.textes[c]; if(!T || !T.texte) return;
   T.avis = avis; stRefresh();
-  if(avis === 'oui' && typeof window.txtAimer === 'function') window.txtAimer(T.texte, c, 'oui');
+  if(avis === 'oui' && typeof window.txtAimer === 'function'){ window.txtAimer(T.texte, c, 'oui').then(() => { if(typeof window.txtBiblio === 'function') agToast('Gardé dans ta bibliothèque (' + window.txtBiblio().length + ' textes)'); }); }
   const nom = (ST_CANAUX.find(x => x[0] === c) || [, c])[1];
   const extrait = stDefancy(T.texte).replace(/\s+/g, ' ').slice(0, 120);
   let regle = '';
@@ -1549,6 +1556,7 @@ async function stEnregistrer(fin, quiet){
     if(!quiet) agToast(ST.publie ? 'Bravo ! Dans 2 jours, donne tes chiffres' : 'Enregistrée dans ton plan');
     else if(ST.publie) agToast('Publiée : bravo ! La séance est marquée publiée');
     stApprendreTextes();
+    if(ST.publie && typeof window.txtValiderLot === 'function') window.txtValiderLot(ST_CANAUX.filter(([c]) => c !== 'tiktok' && ST.textes[c] && ST.textes[c].texte).map(([c]) => ({ t: ST.textes[c].texte, c })));
   } catch(e){ ST.busy = ''; stRefresh(); agAlert(e.message || String(e)); return; }
   if(fin){ stTimerStop(true); MK.tab = 'jour'; mkRenderTab(); window.scrollTo({ top: 0 }); return; }
   stRefresh();

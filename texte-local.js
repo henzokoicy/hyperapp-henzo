@@ -53,6 +53,13 @@ function txtAudit(texte, canal, autres){
   const w = txlWords(corps), seen = {}; w.filter(x => x.length >= 6).forEach(x => seen[x] = (seen[x] || 0) + 1);
   const rep = Object.entries(seen).filter(([, n]) => n >= 3).map(([k]) => k).slice(0, 2); if(rep.length) add('repete', 'Mot répété : ' + rep.join(', '), false);
   if(mots >= 6 && !/\b\d|[A-ZÀ-Ý][a-zà-ÿ]{2,}/.test(corps.replace(/^\s*\S+/, ''))) add('vague', 'Aucun détail précis (prénom, lieu, tenue, chiffre) : ça pourrait aller sur n\'importe quelle photo', false);
+  // Description de photo : pas de voix personnelle, phrases en -ant, mots poétiques vagues
+  const libre = txlClean(t).split('\n').filter((l, i) => i > 0 && !/^\s*(#|©|📍)/.test(l) && !TXL_CTA.test(l)).join(' ');
+  const mL = txlWords(libre).length;
+  if(canal !== 'tiktok' && mL >= 18 && !/\b(je|j|moi|mon|ma|mes|nous|notre|tu|toi|ton|ta|tes|vous|votre|vos)\b/i.test(txlNorm(libre).replace(/\b(j) /g, '$1 '))) add('voix', "Aucune voix personnelle : ça se lit comme la description d'une photo. Parle en « je » (ce que tu as vécu) ou à « tu »", true, 30);
+  const ger = (libre.match(/\b(?:cr[ée]ant|rappelant|offrant|r[ée]v[ée]lant|laissant|mettant en valeur|invitant|dégageant|d[ée]gageant|illustrant|incarnant|exprimant|t[ée]moignant|sublimant)\b/gi) || []); if(ger.length >= 1) add('gerondif', 'Tournure de texte automatique : « ' + ger[0].toLowerCase() + ' »', ger.length >= 2, 14 * ger.length);
+  const poe = (libre.match(/\b(?:ambiance|l[ée]g[èe]ret[ée]|d[ée]licatesse|[ée]l[ée]gance|authenticit[ée]|complicit[ée]|essence|[ée]clat|harmonie|spontan[ée]it[ée]|sensibilit[ée]|raffinement|tendresse|sérénité|s[ée]r[ée]nit[ée]|insouciance|espi[èe]gle|d[ée]contract[ée]e?)\b/gi) || []); if(poe.length >= 2) add('poesie', 'Mots vagues et poétiques : ' + [...new Set(poe.map(x => x.toLowerCase()))].slice(0, 3).join(', '), true, 22);
+  if(/\bv[êe]tue?\s+d[''’]une?\b|\ba\s+laiss[ée]\s+son\s+regard|\bregard\s+(?:balayer|perdu|rêveur|reveur)|clin\s+d[''’]œil\s+espi[èe]gle|\bun\s+rire\s+spontan[ée]\s+a\s+[ée]clat[ée]/i.test(libre)) add('cliche2', 'Description de photo façon IA (« vêtue d\'une… », « un rire spontané a éclaté »)', true, 22);
   const score = Math.max(0, 100 - out.reduce((a, x) => a + (x.pts || (x.grave ? 25 : 12)), 0));
   return { score, issues: out };
 }
@@ -107,6 +114,7 @@ Object.assign(window, { txtAudit, txtAuditLot, txtExtraPrompt, txtFixConsigne, t
 // ============================================================
 const TXB = { saisie: '', analyse: null, busy: '' };
 const txbEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const TXL_CTA = /r[ée]serv|[ée]cri[sv]|contact|message|inbox|whats?app|appel|\bdm\b|rendez-vous|prends?\s+(?:ta|ton|rdv)|commande|devis|lien en bio|cliqu/i;
 const TXB_APPEL = /r[ée]serv|[ée]cri[sv]|contact|message|inbox|whats?app|appel|\bdm\b|rendez-vous|prends?\s+(?:ta|ton|rdv)|commande|devis|lien en bio|cliqu|disponible|places?\s+(?:limit|restant)/i;
 function txbFmtTel(d){
   d = String(d).replace(/\D/g, ''); if(d.startsWith('225') && d.length >= 12) d = d.slice(3);
@@ -146,28 +154,29 @@ function txbSim(a, b){ const A = txlGrams(a, 3), B = txlGrams(b, 3); if(!A.size 
 function txbMerge(list, add){
   const out = list.slice();
   add.forEach(e => { const t = String(e.t || '').trim(); if(t.length < 25) return;
-    const i = out.findIndex(x => txbSim(x.t, t) >= 0.8);
-    if(i >= 0){ if(e.src === 'aime') out[i].src = 'aime'; return; }
+    const i = out.findIndex(x => txbSim(x.t, t) >= 0.8), pr = { aime: 3, publie: 2, ancien: 1 };
+    if(i >= 0){ if((pr[e.src] || 1) > (pr[out[i].src] || 1)) out[i].src = e.src; if(e.src !== 'ancien') out[i].t = t.slice(0, 1400); return; }
     out.push({ t: t.slice(0, 1400), src: e.src || 'ancien', canal: e.canal || '', d: new Date().toISOString().slice(0, 10) }); });
   return out.slice(-40);
 }
 // Appelee quand Henzo touche "J'aime" sur un texte (studio ou chat)
-async function txtAimer(texte, canal, avis){
+async function txtAimer(texte, canal, avis, src){
   try {
     if(avis !== 'oui' || typeof stSauverMarque !== 'function') return;
     const m = (typeof stM === 'function' ? stM() : window.ST_MARQUE) || {};
-    const biblio = txbMerge(Array.isArray(m.biblio) ? m.biblio : [], [{ t: txlClean(texte), src: 'aime', canal }]);
+    const biblio = txbMerge(Array.isArray(m.biblio) ? m.biblio : [], [{ t: txlClean(texte), src: src || 'aime', canal }]);
     if(biblio.length === (m.biblio || []).length && biblio.every((x, i) => x.t === (m.biblio[i] || {}).t && x.src === (m.biblio[i] || {}).src)) return;
     await stSauverMarque({ biblio });
   } catch(e){ console.warn('biblio', e); }
 }
 // Exemples reels envoyes a l'IA (les textes aimes d'abord, puis les plus recents)
 function txtExemplesPrompt(canal){
-  const b = txtBiblio().slice().sort((a, c) => (c.src === 'aime') - (a.src === 'aime') || String(c.d).localeCompare(String(a.d)));
+  const PR = { aime: 3, publie: 2, ancien: 1 };
+  const b = txtBiblio().slice().sort((a, c) => (PR[c.src] || 1) - (PR[a.src] || 1) || String(c.d).localeCompare(String(a.d)));
   const pick = []; const mem = (arr) => arr.forEach(x => { if(pick.length < 4 && !pick.includes(x)) pick.push(x); });
   mem(b.filter(x => canal && x.canal === canal)); mem(b);
   if(!pick.length) return '';
-  return 'EXEMPLES RÉELS DE SES TEXTES (c\'est sa vraie façon d\'écrire : imite le ton, le rythme, la longueur, la façon de commencer et de finir, SANS recopier de phrases ni de détails de ces séances) :\n' + pick.map((x, i) => `--- Exemple ${i + 1}${x.src === 'aime' ? ' (qu\'il a aimé)' : ''} ---\n${txlClean(x.t).slice(0, 700)}`).join('\n');
+  return 'EXEMPLES RÉELS DE SES TEXTES (c\'est sa vraie façon d\'écrire : imite le ton, le rythme, la longueur, la façon de commencer et de finir, SANS recopier de phrases ni de détails de ces séances) :\n' + pick.map((x, i) => `--- Exemple ${i + 1}${x.src === 'aime' ? ' (qu\'il a aimé)' : x.src === 'publie' ? ' (qu\'il a publié)' : ''} ---\n${txlClean(x.t).slice(0, 700)}`).join('\n');
 }
 (function(){ const o = txtExtraPrompt; window.txtExtraPrompt = function(canal){
   const ex = txtExemplesPrompt(canal);
@@ -175,7 +184,9 @@ function txtExemplesPrompt(canal){
 
 // ---------- Ecran dans Ma marque ----------
 function txbMarque(){ return (typeof ST !== 'undefined' && ST.m) ? ST.m : ((typeof stM === 'function') ? stM() : {}); }
-function txbCardHtml(){
+function txbCardHtml(){ return `<div class="st-card" id="txbBox">${txbInner()}</div>`; }
+function txbRender(){ const b = document.getElementById('txbBox'); if(b) b.innerHTML = txbInner(); else if(typeof stRefresh === 'function') stRefresh(); }
+function txbInner(){
   const m = txbMarque(), b = Array.isArray(m.biblio) ? m.biblio : [], A = TXB.analyse;
   const chk = (id, on, label) => `<label class="txb-ck"><input type="checkbox" id="${id}" ${on ? 'checked' : ''}> <span>${label}</span></label>`;
   const tag = h => `<span class="txb-t">${txbEsc(h)}</span>`;
@@ -193,7 +204,7 @@ function txbCardHtml(){
       ${chk('txbEmo', true, 'Régler mes emojis sur « ' + ({ aucun: 'aucun', peu: 'un peu', beaucoup: 'beaucoup' }[X.emojisParTexte === 0 ? 'aucun' : X.emojisParTexte <= 3 ? 'peu' : 'beaucoup']) + ' »')}
       <button class="btn-primary" style="width:100%;margin-top:10px" onclick="txbAppliquer()">Ajouter à ma bibliothèque et appliquer</button></div>`;
   }
-  return `<div class="st-card"><h3>${typeof agIcon === 'function' ? agIcon('note', 18) : ''} Mes anciens textes</h3>
+  return `<h3>${typeof agIcon === 'function' ? agIcon('note', 18) : ''} Mes anciens textes</h3>
     <p>Colle une ou plusieurs anciennes légendes (sépare-les par une ligne <b>---</b>), ou lis-les depuis une capture d'écran. L'app en sort tes hashtags, ton numéro WhatsApp, tes appels à réserver, ta signature et ton style, puis s'en sert pour <b>écrire comme toi</b>.</p>
     <textarea id="txbIn" rows="6" placeholder="Colle ici une ancienne publication..." oninput="TXB.saisie=this.value">${txbEsc(TXB.saisie)}</textarea>
     <div class="txb-btns"><button class="btn-secondary" onclick="txbOcr()" ${TXB.busy ? 'disabled' : ''}>${TXB.busy === 'ocr' ? 'Lecture de la capture...' : 'Lire une capture d\'écran'}</button>
@@ -201,16 +212,16 @@ function txbCardHtml(){
     ${res}
     <div class="st-sep" style="margin-top:14px">Ma bibliothèque (${b.length})</div>
     ${b.length ? `<div class="txb-lib">${b.slice().reverse().map((x, ri) => { const i = b.length - 1 - ri; const first = txlClean(x.t).split('\n').find(l => l.trim()) || '';
-      return `<div class="txb-it"><span class="txb-s ${x.src === 'aime' ? 'ok' : ''}">${x.src === 'aime' ? 'Aimé' : 'Ancien'}</span><div>${txbEsc(first.slice(0, 90))}<small>${txbEsc(txlClean(x.t).replace(/\s+/g, ' ').slice(0, 130))}</small></div><button aria-label="Retirer" onclick="txbDel(${i})">×</button></div>`; }).join('')}</div>`
+      return `<div class="txb-it"><span class="txb-s ${x.src === 'aime' || x.src === 'publie' ? 'ok' : ''}">${x.src === 'aime' ? 'Aimé' : x.src === 'publie' ? 'Publié' : 'Ancien'}</span><div>${txbEsc(first.slice(0, 90))}<small>${txbEsc(txlClean(x.t).replace(/\s+/g, ' ').slice(0, 130))}</small></div><button aria-label="Retirer" onclick="txbDel(${i})">×</button></div>`; }).join('')}</div>`
       : `<div class="ag-hint" style="margin:0">Vide pour le moment. Les textes que tu aimes dans le studio s'ajoutent ici tout seuls.</div>`}
-    <div class="ag-hint">Pense à toucher « Enregistrer ma marque » en bas si tu retires un texte.</div></div>`;
+    <div class="ag-hint">Pense à toucher « Enregistrer ma marque » en bas si tu retires un texte.</div>`;
 }
 function txbAnalyser(){
   const el = document.getElementById('txbIn'); if(el) TXB.saisie = el.value;
   const parts = String(TXB.saisie || '').split(/\n\s*-{3,}\s*\n/).map(x => x.trim()).filter(x => x.length >= 25);
   if(!parts.length){ if(typeof agToast === 'function') agToast('Colle au moins un texte', 'error'); return; }
   TXB.analyse = { x: txtExtraire(parts), parts };
-  if(typeof stRefresh === 'function') stRefresh();
+  txbRender();
 }
 function txbAppliquer(){
   const A = TXB.analyse; if(!A || !ST.m) return; const X = A.x, m = ST.m, on = id => { const e = document.getElementById(id); return !!(e && e.checked); };
@@ -226,15 +237,16 @@ function txbAppliquer(){
   if(on('txbEmo')) m.emojis = X.emojisParTexte === 0 ? 'aucun' : X.emojisParTexte <= 3 ? 'peu' : 'beaucoup';
   m.biblio = txbMerge(Array.isArray(m.biblio) ? m.biblio : [], A.parts.map(t => ({ t, src: 'ancien' })));
   TXB.analyse = null; TXB.saisie = '';
+  if(typeof agCloseSheet === 'function') agCloseSheet('txb');
   if(typeof stMarqueSave === 'function') stMarqueSave();
 }
-function txbDel(i){ const m = txbMarque(); if(Array.isArray(m.biblio)){ m.biblio.splice(i, 1); if(typeof stRefresh === 'function') stRefresh(); } }
+function txbDel(i){ const m = txbMarque(); if(Array.isArray(m.biblio)){ m.biblio.splice(i, 1); txbRender(); } }
 function txbCharger(src){ return new Promise((ok, ko) => { if(window.LecteurOCR) return ok(); const s = document.createElement('script'); s.src = src; s.onload = () => (window.LecteurOCR ? ok() : ko(new Error('Lecteur non chargé'))); s.onerror = () => ko(new Error('Lecteur de texte indisponible')); document.body.appendChild(s); }); }
 function txbOcr(){
   const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true; inp.style.display = 'none';
   inp.onchange = async () => {
     const files = [...inp.files].slice(0, 6); inp.remove(); if(!files.length) return;
-    TXB.busy = 'ocr'; if(typeof stRefresh === 'function') stRefresh();
+    TXB.busy = 'ocr'; txbRender();
     const out = []; let faible = false;
     try {
       await txbCharger('lecteur-ocr.js?v=1');
@@ -243,7 +255,7 @@ function txbOcr(){
     TXB.busy = '';
     if(out.length){ TXB.saisie = [TXB.saisie, ...out].filter(Boolean).join('\n---\n'); if(typeof agToast === 'function') agToast(faible ? 'Texte lu, vérifie-le avant d\'analyser' : 'Texte lu : vérifie puis touche Analyser'); }
     else if(typeof agToast === 'function') agToast("Je n'ai trouvé aucun texte sur cette image", 'error');
-    if(typeof stRefresh === 'function') stRefresh();
+    txbRender();
   };
   document.body.appendChild(inp); inp.click();
 }
@@ -260,3 +272,60 @@ function txbOcr(){
   document.head.appendChild(s);
 })();
 Object.assign(window, { TXB, txtExtraire, txtBiblio, txtAimer, txtExemplesPrompt, txbCardHtml, txbAnalyser, txbAppliquer, txbDel, txbOcr });
+
+// ---------- Acces direct depuis le studio (sans passer par Ma marque) ----------
+async function txbOuvrir(){
+  try { if(typeof stChargerMarque === 'function') await stChargerMarque(); } catch(e){}
+  if(typeof ST !== 'undefined' && !ST.m && typeof stMarqueFusion === 'function') ST.m = JSON.parse(JSON.stringify(stMarqueFusion(window.ST_MARQUE)));
+  TXB.analyse = null;
+  if(typeof agSheet === 'function') agSheet('txb', `<div id="txbBox">${txbInner()}</div>`);
+}
+function txbBandeau(){
+  const n = txtBiblio().length;
+  return `<div class="txb-bd"><span>${n ? `Je m'inspire de <b>${n}</b> de tes textes.` : `Je n'ai encore aucun de tes textes pour m'inspirer.`}</span><button onclick="txbOuvrir()">${n ? 'Ajouter mes textes' : 'Ajouter mes anciens textes'}</button></div>`;
+}
+(function(){ const st = document.getElementById('txbCss'); if(st) st.textContent += `.txb-bd{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05);font-size:12px}.txb-bd button{flex:none;border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer}`; })();
+// ---------- Variation : angles et tons qui changent VRAIMENT la facon d'ecrire ----------
+const TXV_ANGLES = [
+  ['anecdote', "Raconte un tout petit moment de la séance (un rire, un trac, une surprise) comme une anecdote, à la première personne (« j'ai… »), sans décrire la tenue."],
+  ['question', "Commence par une question franche adressée au lecteur, puis réponds en deux phrases courtes."],
+  ['coulisses', "Parle du travail derrière la photo : comment tu as placé la lumière, ce que tu as demandé à la personne, ce que tu cherchais. Voix de photographe qui parle de son métier."],
+  ['phrase choc', "Commence par une phrase de 5 mots maximum, forte, puis UN seul paragraphe court."],
+  ['merci', "Remercie la personne ou dis ce qu'elle t'a apporté, sincèrement, sans superlatifs ni adjectifs ronflants."],
+  ['détail', "Pars d'UN détail précis vu sur les photos (un geste, un objet, un regard) et construis tout le texte autour de lui."],
+  ['conseil', "Donne un petit conseil utile pour se préparer à une séance photo, en partant de cette séance."]
+];
+const TXV_TONS = {
+  court: "25 mots maximum AU TOTAL, une seule idée, aucun paragraphe de détail, aucune description de tenue.",
+  emotion: "Raconte un ressenti VÉCU, à la première personne, avec une phrase très courte pour finir. Interdit de décrire la tenue ou le décor.",
+  pro: "Sobre et professionnel : une accroche nette, puis deux phrases sur le travail (lumière, direction, retouche). Aucun émoji, aucune exclamation, aucune image poétique."
+};
+function txtVariationConsigne(canal, ton){
+  const base = "INTERDIT de reprendre la structure, l'accroche ou plus de 3 mots de suite de la version actuelle. Pas de description de photo façon légende de magazine (« vêtue de », « créant une ambiance », « rappelant »). Une vraie personne parle : phrases de longueurs différentes, un détail précis, une voix (« je » ou « tu »).";
+  let ang = '';
+  if(ton && TXV_TONS[ton]) ang = 'TON DEMANDÉ : ' + TXV_TONS[ton];
+  else if(!ton || ton === 'fix'){
+    ST.angles = ST.angles || {}; const dej = ST.angles[canal] = ST.angles[canal] || [];
+    let rest = TXV_ANGLES.filter(a => !dej.includes(a[0])); if(!rest.length){ ST.angles[canal] = []; rest = TXV_ANGLES.slice(); }
+    const a = rest[Math.floor(Math.random() * rest.length)]; ST.angles[canal].push(a[0]); ST.dernierAngle = a[0];
+    ang = 'ANGLE À SUIVRE (' + a[0] + ') : ' + a[1];
+  }
+  return ang + '\n' + base + (ST.retry ? '\nATTENTION : ta proposition précédente ressemblait encore trop à l\'ancienne. Recommence avec une accroche, une structure et un vocabulaire COMPLÈTEMENT différents.' : '');
+}
+function txtChamps(x){ return Object.values(x || {}).filter(v => typeof v === 'string').join(' ').replace(/\s+/g, ' '); }
+function txtTropProche(avant, apres){
+  const a = typeof avant === 'string' ? avant : txtChamps(avant), b = typeof apres === 'string' ? apres : txtChamps(apres);
+  if(!a || !b) return false;
+  const da = txlWords(a).slice(0, 3).join(' '), db = txlWords(b).slice(0, 3).join(' ');
+  return txbSim(a, b) >= 0.22 || (da && da === db);
+}
+// Plusieurs textes publies d'un coup : une seule sauvegarde (sinon ils s'ecraseraient)
+async function txtValiderLot(items){
+  try {
+    if(typeof stSauverMarque !== 'function') return;
+    const m = (typeof stM === 'function' ? stM() : window.ST_MARQUE) || {};
+    const biblio = txbMerge(Array.isArray(m.biblio) ? m.biblio : [], (items || []).map(x => ({ t: txlClean(x.t), src: 'publie', canal: x.c })));
+    await stSauverMarque({ biblio });
+  } catch(e){ console.warn('biblio lot', e); }
+}
+Object.assign(window, { txbOuvrir, txbBandeau, txbRender, txtVariationConsigne, txtTropProche, txtValiderLot, txtValider: (t, c) => txtAimer(t, c, 'oui', 'publie') });
