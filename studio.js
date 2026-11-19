@@ -30,7 +30,7 @@
 
 const ST = {
   step: 0, q: '', shoot: null, gal: null, galSure: false, galCands: [], galErr: '', galBusy: false, galAll: null,
-  photos: [], order: [], analyse: null, avantIA: null, busy: '', answers: [], skip: {}, J: null, textes: {},
+  photos: [], order: [], libre: null, analyse: null, avantIA: null, busy: '', answers: [], skip: {}, J: null, textes: {},
   cover: { open: false, fmt: '4:5', layout: 'bas', x: 0, y: 0, zoom: 1, titre: '', img: null, imgKey: null, blob: null, added: false },
   plan: { done: {} }, post: null, lien: '', publie: false, timer: null, vitesse: 1,
   m: null, marqueLoaded: false, marqueSaved: false, showAll: false
@@ -82,7 +82,7 @@ function stMarqueDefaut(){
     max: Object.assign({}, ST_MAX_DEF), gras: true, accents: 'normaux',
     // Mise en forme fixe des textes (choisie par Henzo) : titre gras, mentions et copyright en lettres fines
     mentions: 'leger', copyright: { on: true, texte: '© Henzo Photographie', style: 'leger' },
-    exemples: ['', '', ''], style: [], police: 'montserrat',
+    exemples: ['', '', ''], biblio: [], style: [], police: 'montserrat',
     couleurs: { fond: '', texte: '#ffffff', accent: '' }, logo: null
   };
 }
@@ -101,6 +101,7 @@ function stMarqueFusion(m){
   if(!Array.isArray(o.exemples)) o.exemples = d.exemples;
   while(o.exemples.length < 3) o.exemples.push('');
   if(!Array.isArray(o.style)) o.style = [];
+  if(!Array.isArray(o.biblio)) o.biblio = [];
   if(!ST_POLICES[o.police]) o.police = 'montserrat';
   return o;
 }
@@ -116,7 +117,10 @@ function stJ(o){ return stE(JSON.stringify(o)); }
 // (c'est l'app qui met en forme, toujours de la même façon)
 function stClean(s){ return stDefancy(String(s == null ? '' : s)).replace(/[\u2014\u2013]/g, '-'); }
 function stNorm(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim(); }
-function stShoot(){ return ST.shoot ? mkShoot(ST.shoot) : null; }
+function stShoot(){
+  if(ST.libre) return { id: null, _libre: true, type: ST.libre.type || 'Projet perso', client_id: null, date: mkDay(), notes: ST.libre.notes || '', location: '' };
+  return ST.shoot ? mkShoot(ST.shoot) : null;
+}
 function stClient(s){ return s ? mkClient(s.client_id) : null; }
 function stPrenom(s){ const c = stClient(s); return c ? mkFirst(c) : ''; }
 function stTypesOf(type){ const n = stNorm(type); return ST_TYPES.map(t => t[0]).filter(k => ST_TYPE_RE[k].test(n)); }
@@ -635,6 +639,12 @@ function stStepSeance(){
       <p>Cherche par prénom, type de séance ou date. Toutes tes séances sont là, même les plus anciennes.</p>
       <div class="st-q">${agIcon('search', 17)}<input id="stQ" value="${stE(ST.q)}" placeholder="Ex : Destinée, anniversaire, avril 2026" oninput="ST.q=this.value;stSeanceList()" autocomplete="off"></div>
     </div>
+    <div class="st-card"><h3>${agIcon('star', 18)} Sans séance</h3>
+      <p>Un projet perso, un shooting pour toi, des coulisses, un portfolio, ou des photos qui ne sont dans aucune séance : tu peux publier quand même.</p>
+      <input id="stLibreNom" value="${stE((ST.libreForm && ST.libreForm.nom) || '')}" placeholder="Nom du projet (ex : Shooting perso en studio)" oninput="ST.libreForm=Object.assign(ST.libreForm||{},{nom:this.value})">
+      <div class="ag-pills" style="margin-top:8px">${[['Coulisses', 'Coulisses'], ['Séance client', 'Portfolio'], ['Présentation du studio', 'Mon studio'], ['Avant / après', 'Avant / après'], ['Conseil', 'Conseil']].map(([k, l]) => `<button type="button" class="${((ST.libreForm && ST.libreForm.kind) || 'Coulisses') === k ? 'on' : ''}" onclick="ST.libreForm=Object.assign(ST.libreForm||{},{kind:'${k}'});stSyncFields();stRefresh()">${l}</button>`).join('')}</div>
+      <button class="btn-secondary" style="width:100%;margin-top:10px" onclick="stChoisirLibre()">Continuer sans séance</button>
+    </div>
     <div id="stSeList">${stSeanceListHtml(list, n)}</div>`;
 }
 function stSeanceListHtml(list, n){
@@ -642,7 +652,14 @@ function stSeanceListHtml(list, n){
   return list.slice(0, n).map(stSeanceRow).join('') + (list.length > n ? `<button class="btn-secondary" onclick="ST.showAll=true;stSeanceList()">Voir plus (${list.length - n})</button>` : '');
 }
 function stSeanceList(){ const b = document.getElementById('stSeList'); if(b) b.innerHTML = stSeanceListHtml(stSeances(ST.q), ST.showAll ? 80 : 20); }
+function stChoisirLibre(){
+  const f = ST.libreForm || {};
+  ST.photos = []; ST.order = []; ST.analyse = null; ST.J = null; ST.textes = {}; ST.answers = []; ST.gal = null; ST.post = null; ST.plan = { done: {} }; ST.publie = false; ST.lien = ''; ST.cover.titre = ''; ST.cover.img = null; ST.cover.added = false;
+  ST.shoot = null; ST.libre = { nom: String(f.nom || '').trim(), type: 'Projet perso', kind: f.kind || 'Coulisses', notes: '' };
+  ST.step = 1; stRefresh(); window.scrollTo({ top: 0 });
+}
 async function stChoisirSeance(id){
+  ST.libre = null;
   if(ST.shoot !== id){ ST.photos = []; ST.order = []; ST.analyse = null; ST.J = null; ST.textes = {}; ST.answers = []; ST.gal = null; ST.post = null; ST.plan = { done: {} }; ST.publie = false; ST.lien = ''; ST.cover.titre = ''; ST.cover.img = null; ST.cover.added = false; }
   ST.shoot = id; ST.step = 1;
   ST.answers = ST.answers.length ? ST.answers : stLireReponses(mkShoot(id));
@@ -692,7 +709,7 @@ function stGalScore(g, s){
 }
 function stGalRank(s, list){ return (list || []).map(g => ({ g, sc: stGalScore(g, s) })).sort((a, b) => b.sc - a.sc); }
 async function stTrouverGalerie(){
-  const s = stShoot(); if(!s) return;
+  const s = stShoot(); if(!s || s._libre) return;
   if(ST.gal){ if(!ST.photos.some(p => p.src === 'galerie')) await stChargerPhotos(); return; }
   ST.galBusy = true; ST.galErr = ''; stRefresh();
   try {
@@ -705,7 +722,7 @@ async function stTrouverGalerie(){
   ST.galBusy = false; stRefresh();
 }
 async function stChoisirGalerie(code){
-  const s = stShoot(); const g = (ST.galAll || []).find(x => x.code === code); if(!g || !s) return;
+  const s = stShoot(); const g = (ST.galAll || []).find(x => x.code === code); if(!g || !s || s._libre) return;
   ST.gal = g; ST.galSure = true; stLinkSet(s.id, code);
   ST.photos = ST.photos.filter(p => p.src !== 'galerie'); ST.order = ST.order.filter(k => ST.photos.some(p => p.k === k));
   agCloseSheet('stGalPick');
@@ -761,7 +778,8 @@ function stStepPhotos(){
   const s = stShoot(); if(!s) return stStepSeance();
   const c = stClient(s);
   let galBox;
-  if(ST.galBusy) galBox = `<div class="st-gal"><span class="st-gi">${agIcon('image', 20)}</span><div><b>Recherche de la galerie...</b><span>Si le serveur dormait, ça peut prendre 1 minute.</span></div></div>`;
+  if(s._libre) galBox = `<div class="ag-hint" style="margin:0">Sans séance : ajoute tes photos du téléphone, de l'ordinateur ou d'une capture d'écran avec le bouton plus bas.</div>`;
+  else if(ST.galBusy) galBox = `<div class="st-gal"><span class="st-gi">${agIcon('image', 20)}</span><div><b>Recherche de la galerie...</b><span>Si le serveur dormait, ça peut prendre 1 minute.</span></div></div>`;
   else if(ST.gal) galBox = `<div class="st-gal"><span class="st-gi">${agIcon('image', 20)}</span><div><b>Galerie trouvée</b><span>${stE(ST.gal.nomClient || ST.gal.code)} · code ${stE(ST.gal.code)}${ST.favCount ? ` · ${ST.favCount} photo${ST.favCount > 1 ? 's' : ''} aimée${ST.favCount > 1 ? 's' : ''}` : ''}</span></div><button onclick="stGalChanger()">Changer</button></div>`;
   else if(ST.galErr) galBox = `<div class="ag-hint warn" style="margin:0">${stE(ST.galErr)}</div>`;
   else galBox = `<div class="st-gal"><span class="st-gi">${agIcon('image', 20)}</span><div><b>Galerie pas trouvée à coup sûr</b><span>${ST.galCands.length ? 'Celles qui ressemblent :' : 'Aucune galerie ne ressemble à cette séance.'}</span></div>${(ST.galAll || []).length ? `<button onclick="stGalChanger()">Toutes</button>` : ''}</div>
@@ -772,9 +790,9 @@ function stStepPhotos(){
     return `<div class="st-ph ${i >= 0 ? 'sel' : sel.length ? 'off' : ''}" onclick="stTogglePhoto(${stJ(p.k)})">${stImgTag(p)}${p.src !== 'galerie' ? `<span class="st-src">${p.src === 'couverture' ? 'image titre' : p.src}</span>` : ''}${stFavHtml(p)}<span class="st-n">${i >= 0 ? i + 1 : ''}</span></div>`; };
   return `<div class="st-card">
       <div class="st-kicker">${stE(s.type || 'Séance')} · ${stE(mkDateTxt(s.date, { day: 'numeric', month: 'long', year: 'numeric' }))}</div>
-      <h3 style="margin:2px 0 10px">${stE(c ? c.name : 'Séance')}</h3>
+      <h3 style="margin:2px 0 10px">${stE(s._libre ? (ST.libre.nom || 'Projet perso') : (c ? c.name : 'Séance'))}</h3>
       ${galBox}
-      ${!ST.post && stAncien(s) ? `<div class="ag-hint warn" style="margin-top:10px">Tu as déjà préparé une publication pour cette séance avec le studio. <button class="st-link" onclick="stOuvrirPost(${stAncien(s).id})">La rouvrir</button></div>` : ''}
+      ${!s._libre && !ST.post && stAncien(s) ? `<div class="ag-hint warn" style="margin-top:10px">Tu as déjà préparé une publication pour cette séance avec le studio. <button class="st-link" onclick="stOuvrirPost(${stAncien(s).id})">La rouvrir</button></div>` : ''}
     </div>
     ${sel.length ? `<div class="st-card"><h3>${agIcon('star', 17)} Ta publication<span class="crm-count">${sel.length}</span></h3>
       <p style="margin-bottom:6px">Dans cet ordre. La 1re photo est celle que les gens voient en premier.</p>
@@ -846,7 +864,9 @@ function stContexte(){
   const pub = (MK.posts || []).filter(p => p.status === 'publie').sort((a, b) => String(b.published_at || b.date).localeCompare(String(a.published_at || a.date))).slice(0, 5);
   if(pub.length) L.push('5 DERNIÈRES PUBLICATIONS :\n' + pub.map(p => { const st = p.stats || {};
     return `- ${p.date} ${p.heure || ''} ${p.network} "${(p.title || '').slice(0, 50)}" : "${stClean(p.caption || '').replace(/\s+/g, ' ').slice(0, 140)}" -> ${typeof mkHasStats === 'function' && mkHasStats(p) && !st.ignore ? MK_STATS.filter(([k]) => st[k] != null).map(([k, l]) => `${l.toLowerCase()} ${st[k]}`).join(', ') : 'chiffres pas donnés'}`; }).join('\n'));
-  if(s){
+  if(s && s._libre){
+    L.push(`PROJET PERSO (ce n'est PAS une séance client) : ${(ST.libre.nom || '').trim() || 'projet personnel de Henzo'}${ST.libre.notes ? '. ' + ST.libre.notes : ''}. Écris à la première personne (Henzo parle de son travail), jamais comme si une cliente avait réservé.`);
+  } else if(s){
     const c = stClient(s);
     const role = c && typeof estClient === 'function' && !estClient(c) ? (typeof eqRoleLabel === 'function' ? eqRoleLabel(c) : c.role) : '';
     L.push(`SÉANCE : ${s.type || 'Séance'} du ${mkDateTxt(s.date, { day: 'numeric', month: 'long', year: 'numeric' })}${s.location ? ', lieu : ' + s.location : ''}${s.collab ? ', séance en collaboration (portfolio)' : ''}. Personne photographiée : ${stPrenom(s) || 'pas de nom'}${role ? ' (' + role + ')' : ''}.`);
@@ -1008,7 +1028,7 @@ function stLireReponses(s){
   return out;
 }
 async function stSauverReponses(){
-  const s = stShoot(); if(!s) return;
+  const s = stShoot(); if(!s || s._libre) return;
   const qs = stQuestions();
   const parts = qs.map((q, i) => ST.answers[i] && !ST.skip[i] ? `${q} ${String(ST.answers[i]).replace(/\s+/g, ' ').trim()}` : '').filter(Boolean);
   if(!parts.length) return;
@@ -1029,7 +1049,8 @@ async function stSauverReponses(){
 // ============================================================
 function stTitre(){
   if(ST.J && ST.J.titre) return stClean(ST.J.titre);
-  const s = stShoot(); const p = stPrenom(s);
+  const s = stShoot(); if(s && s._libre) return (ST.libre.nom || '').trim() || 'Projet perso';
+  const p = stPrenom(s);
   return [p, s && s.type].filter(Boolean).join(' - ') || 'Ma séance';
 }
 function stSplitTags(t){ return String(t || '').split(/[\s,]+/).map(x => x.trim()).filter(x => /^#[^\s#]{2,}/.test(x)); }
@@ -1154,6 +1175,7 @@ async function stAvisTexte(c, avis){
   stSyncFields();
   const T = ST.textes[c]; if(!T || !T.texte) return;
   T.avis = avis; stRefresh();
+  if(avis === 'oui' && typeof window.txtAimer === 'function') window.txtAimer(T.texte, c, 'oui');
   const nom = (ST_CANAUX.find(x => x[0] === c) || [, c])[1];
   const extrait = stDefancy(T.texte).replace(/\s+/g, ' ').slice(0, 120);
   let regle = '';
@@ -1512,7 +1534,7 @@ async function stEnregistrer(fin, quiet){
     const { h } = stHeure();
     const page = stSplitPage((ST.textes.page || {}).texte || '');
     const old = ST.post ? (MK.posts || []).find(p => p.id === ST.post) : null;
-    const row = { network: 'Facebook', kind: 'Séance client', shoot_id: s.id, title: stTitre(), caption: page.caption || null, hashtags: page.hashtags || null,
+    const row = { network: 'Facebook', kind: s._libre ? ((ST.libre && ST.libre.kind) || 'Coulisses') : 'Séance client', shoot_id: s._libre ? null : s.id, title: stTitre(), caption: page.caption || null, hashtags: page.hashtags || null,
       images: await stImages(), notes: stNotesJson(old && typeof mkStudioNotes === 'function' ? mkStudioNotes(old.notes) : null),
       status: ST.publie ? 'publie' : (old && old.status === 'publie' ? 'prevu' : (old ? old.status : 'prevu')) };
     if(row.status === 'annule') row.status = 'prevu';
@@ -1534,6 +1556,7 @@ async function stEnregistrer(fin, quiet){
 // Reprendre une publication faite avec le studio
 function stReprendre(p){
   const n = typeof mkStudioNotes === 'function' ? mkStudioNotes(p.notes) : null; if(!n) return;
+  if(!p.shoot_id) ST.libre = { nom: p.title || '', type: 'Projet perso', kind: p.kind || 'Coulisses', notes: '' };
   ST.post = p.id; ST.shoot = p.shoot_id || ST.shoot; ST.lien = n.lien || ''; ST.publie = p.status === 'publie';
   ST.plan = { done: (n.plan && n.plan.done) || {} };
   ST.textes = {}; Object.entries(n.versions || {}).forEach(([c, t]) => { ST.textes[c] = { texte: t, prop: (n.propose || {})[c] || t, copie: null, appris: t }; });
@@ -1655,6 +1678,7 @@ function stMarqueHtml(){
       <label style="margin-top:12px">Nombre maximum de hashtags par réseau</label>
       <div class="st-g3">${ST_CANAUX.map(([c, nom]) => `<label>${nom.replace('Profil perso Facebook', 'Profil perso').replace('Groupes Facebook', 'Groupes')}<input type="number" min="0" max="30" inputmode="numeric" value="${stE(m.max[c] != null ? m.max[c] : ST_MAX_DEF[c])}" oninput="ST.m.max['${c}']=this.value===''?null:Number(this.value)"></label>`).join('')}</div>
     </div>
+    ${typeof window.txbCardHtml === 'function' ? window.txbCardHtml() : ''}
     <div class="st-card"><h3>${agIcon('sparkles', 18)} Exemples de mes publications</h3>
       <p>Colle 2 ou 3 anciennes légendes que tu aimes. L'IA en tire ton style en règles courtes, et s'en sert pour chaque texte.</p>
       ${m.exemples.map((t, i) => `<textarea rows="3" style="margin-bottom:8px" placeholder="Légende ${i + 1}" oninput="ST.m.exemples[${i}]=this.value">${stE(t)}</textarea>`).join('')}
@@ -1715,7 +1739,7 @@ async function stMarqueSave(){
   stRefresh();
 }
 async function stApprendreStyle(){
-  const ex = (ST.m.exemples || []).map(x => String(x || '').trim()).filter(x => x.length > 20);
+  const ex = (ST.m.exemples || []).map(x => String(x || '').trim()).concat((ST.m.biblio || []).slice(-8).map(x => String(x.t || '').trim())).filter(x => x.length > 20).slice(0, 10);
   if(!ex.length){ agToast('Colle au moins une ancienne légende', 'error'); return; }
   ST.busy = 'style'; stRefresh();
   try {
