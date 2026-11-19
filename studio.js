@@ -1075,7 +1075,8 @@ function stCompose(canal){
 function stTextesPrompt(seul, ton){
   const m = stM(), s = stShoot();
   const struct = (m.structure || []).filter(b => b.on).map(b => ST_BLOCS[b.k]).join(' > ');
-  const tonTxt = ton ? { court: 'PLUS COURT (moitié moins long)', emotion: "AVEC PLUS D'ÉMOTION (histoire, ressenti)", pro: 'PLUS PRO (sobre, élégant, sérieux)' }[ton] || '' : '';
+  const tonTxt = ton ? { court: 'PLUS COURT (moitié moins long)', emotion: "AVEC PLUS D'ÉMOTION (histoire, ressenti)", pro: 'PLUS PRO (sobre, élégant, sérieux)', fix: (typeof window.txtFixConsigne === 'function' ? window.txtFixConsigne(seul) : '') || 'PLUS HUMAIN ET PLUS PRÉCIS' }[ton] || '' : '';
+  const extra = typeof window.txtExtraPrompt === 'function' ? window.txtExtraPrompt() : '';
   const shapes = {
     page: '"page":{"emotion":"1 ou 2 lignes d\'émotion ou d\'histoire","detail":"détail de la séance (tenue, décor, ambiance)","appel":"appel à réserver, court"}',
     perso: '"perso":{"texte":"texte pour son profil perso quand il partage la publication : à la première personne, personnel, différent de la page (ex : Merci Destinée pour ta confiance...)"}',
@@ -1088,6 +1089,7 @@ function stTextesPrompt(seul, ton){
   return `${seul ? 'REFAIRE UNE VERSION. ' : ''}TEXTES DE PUBLICATION pour la séance ${s ? (s.type || '') + ' de ' + (stPrenom(s) || 'la cliente') : ''}${ST.analyse && ST.analyse.resume ? ' (' + ST.analyse.resume + ')' : ''}.
 ${seul ? `Réécris seulement la version "${ST_CANAUX.find(c => c[0] === seul)[1]}"${tonTxt ? ', ' + tonTxt : ''}. Le texte actuel : """${(ST.textes[seul] || {}).texte || ''}"""` : 'Écris une version différente pour chaque réseau.'}
 Structure de la page Facebook voulue par Henzo : ${struct || 'libre'}. Le titre est mis en gras par l'app : ne le répète pas dans les autres champs. Écris en lettres normales, jamais de lettres spéciales, de gras ou d'italique : l'app fait la mise en forme. Les personnes ou pages à créditer : écris "Maquillage : [[Nom]]" (crochets doubles). N'ajoute pas de ligne ©, l'app la met. Ne mets pas de hashtags dans les textes, ils vont dans "hashtags". Respecte son style appris. Utilise ce que Henzo a dit sur la séance. Pas de nom de famille.
+${extra}
 Réponds UNIQUEMENT en JSON :
 {"titre":"titre court, ex : Destinée - 25 ans",${keys.map(k => shapes[k]).join(',')}${seul ? '' : ',"hashtags":["5 à 8 hashtags propres à cette séance"],"conseils":["2 ou 3 conseils de diffusion adaptés à ce type de séance (groupes Facebook à viser, moment)"]'}}`;
 }
@@ -1140,6 +1142,7 @@ function stStepTextes(){
       return `<div class="st-tx ${busy ? 'busy' : ''}" id="stTx_${c}"><div class="st-tx-h"><i style="background:${col}"></i><b>${nom}</b>${T.copie != null ? `<span class="st-tag ok">${agIcon('check', 11)} Copié</span>` : ''}${busy ? '<span class="st-tag">écrit...</span>' : ''}</div>
         <div class="st-tx-b">${stCanalInfo(c)}
           <textarea data-st-tx="${c}" oninput="ST.textes['${c}'].texte=this.value;stGrow(this)">${stE(T.texte)}</textarea>
+          ${typeof window.txtBadgeHtml === 'function' && T.texte ? window.txtBadgeHtml(c, window.txtAudit(T.texte, c, ST_CANAUX.slice(0, ST_CANAUX.findIndex(x => x[0] === c)).filter(x => x[0] !== 'whatsapp' && x[0] !== 'tiktok' && c !== 'whatsapp' && c !== 'tiktok').map(x => ({ texte: (ST.textes[x[0]] || {}).texte, nom: x[1] })))) : ''}
           <div class="st-tones"><button onclick="stRefaire('${c}')">${agIcon('redo', 12)} Refaire</button><button onclick="stRefaire('${c}','court')">Plus court</button><button onclick="stRefaire('${c}','emotion')">Plus d'émotion</button><button onclick="stRefaire('${c}','pro')">Plus pro</button></div>
           <div class="mk-btns"><button class="main" onclick="stCopier('${c}')">${agIcon('copy', 14)} Copier</button><button onclick="stOuvrir('${c}')">${agIcon(c === 'whatsapp' ? 'chat' : 'share', 14)} ${stOuvrirLabel(c)}</button></div>
           <div class="st-avis">${T.avis ? `<span class="st-tag ok">${T.avis === 'oui' ? 'Retenu : tu aimes ce style' : 'Retenu : pas ton style'}</span>` : `<button onclick="stAvisTexte('${c}','oui')">${agIcon('check', 13)} J'aime ce style</button><button onclick="stAvisTexte('${c}','non')">Pas mon style</button>`}</div>
