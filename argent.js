@@ -1490,7 +1490,7 @@ agSetupInstall();
 (function(){ const sc = document.createElement('script'); sc.src = 'crm.js?v=39'; document.body.appendChild(sc); })();
 // Moodboard : idees de seance (fichier mood.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'mood.js?v=4'; document.body.appendChild(sc); })();
-(function(){ const sc = document.createElement('script'); sc.src = 'marketing.js?v=9'; document.body.appendChild(sc); })();
+(function(){ const sc = document.createElement('script'); sc.src = 'marketing.js?v=10'; document.body.appendChild(sc); })();
 // Studio de publication et Ma marque (fichier studio.js)
 (function(){ const sc = document.createElement('script'); sc.src = 'studio.js?v=4'; document.body.appendChild(sc); })();
 (function(){ const sc = document.createElement('script'); sc.src = 'business-ia.js?v=1'; document.body.appendChild(sc); })();
