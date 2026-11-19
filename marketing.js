@@ -516,16 +516,21 @@ const MK_VARIA = [
 ];
 function mkVaria(){ return 'STYLE DE CE TEXTE : ' + MK_VARIA[Math.floor(Math.random() * MK_VARIA.length)] + ' Interdit : « immortalisons », « moments précieux », « sublimer », « souvenirs inoubliables » et toute formule déjà vue mille fois.'; }
 
+
+// Une legende ne doit jamais contenir l'avis sur les photos (lumiere, nettete, "les photos montrent"...)
+const MK_ANALYSE_RE = /(la lumi[èe]re (est|reste)|la nettet[ée]|capture d[''’]écran|les photos? (r[ée]v[èe]lent|montrent|sont)|en gros plan,? on voit|en plan (large|plus large)|le cadrage|points? (forts?|faibles?)|je (conseille|te conseille|recommande)|ce qui (marche|manque)|un peu (uniforme|sombre|flou)|l[''’]image (est|manque)|à am[ée]liorer|pas assez (nette?|lumineuse?))/i;
+function mkLegendeSuspecte(t){ return MK_ANALYSE_RE.test(String(t || '')); }
 // Relecteur critique : repasse sur les textes pour enlever le ton robot
-const MK_RELIRE_SYS = `Tu es un rédacteur humain exigeant qui relit des textes de publication d'un photographe de Bouaké. Pour chaque texte : repère ce qui sonne robot, générique ou rempli de clichés (formules toutes faites, adjectifs vides, phrases qui pourraient aller sur n'importe quelle photo), puis RÉÉCRIS-le pour qu'il sonne vrai, chaleureux, précis et professionnel. Garde le sens, les faits, les prénoms, les mentions [[Nom]], les @pseudos, le lien avec la réservation, et une longueur proche. Pas de tiret long, pas de mots anglais, pas de gras ni de lettres spéciales. Réponds UNIQUEMENT par un tableau JSON de chaînes, dans le même ordre : ["texte 1","texte 2"].`;
+const MK_RELIRE_SYS = `Tu es un rédacteur humain exigeant qui relit des textes de publication d'un photographe de Bouaké. Pour chaque texte : repère ce qui sonne robot, générique ou rempli de clichés (formules toutes faites, adjectifs vides, phrases qui pourraient aller sur n'importe quelle photo), puis RÉÉCRIS-le pour qu'il sonne vrai, chaleureux, précis et professionnel. Garde le sens, les faits, les prénoms, les mentions [[Nom]], les @pseudos, le lien avec la réservation, et une longueur proche. Pas de tiret long, pas de mots anglais, pas de gras ni de lettres spéciales. ATTENTION : si un texte est en réalité une ANALYSE ou un avis sur des photos (lumière, netteté, cadrage, « les photos montrent », « en gros plan on voit »), il n'a rien à faire dans une publication : transforme-le en vraie légende adressée aux abonnés, avec une accroche, un détail vivant et un appel à réserver, sans aucune critique technique ni mention de la qualité des photos. Réponds UNIQUEMENT par un tableau JSON de chaînes, dans le même ordre : ["texte 1","texte 2"].`;
 async function mkRelire(posts){
   const list = posts.filter(p => p.caption && p.caption.length > 20);
   if(!list.length) return;
+  const note = list.map(p => mkLegendeSuspecte(p.caption) ? '[CE TEXTE EST UNE ANALYSE : TRANSFORME-LE EN VRAIE LÉGENDE] ' : '');
   try {
-    const r = await mkAI({ system: MK_RELIRE_SYS, messages: [{ role: 'user', text: JSON.stringify(list.map(p => p.caption)) }], maxTokens: 3000 });
+    const r = await mkAI({ system: MK_RELIRE_SYS, messages: [{ role: 'user', text: JSON.stringify(list.map((p, i) => note[i] + p.caption)) }], maxTokens: 3000 });
     const j = mkJson(r.text);
     if(!Array.isArray(j) || j.length !== list.length) return;
-    list.forEach((p, i) => { const t = mkClean(String(j[i] || '')).trim(); if(t.length > 20 && t.length < p.caption.length * 2) p.caption = t; });
+    list.forEach((p, i) => { const t = mkClean(String(j[i] || '')).trim(); if(t.length > 20 && t.length < p.caption.length * 2 && !(mkLegendeSuspecte(t) && !mkLegendeSuspecte(p.caption))) p.caption = t; });
   } catch(e){}
 }
 
@@ -625,7 +630,7 @@ kind parmi : profil, style, prix, clients, difficulte, objectif, resultat, prefe
 \`\`\`post
 {"network":"Facebook","kind":"Séance client","date":"AAAA-MM-JJ","heure":"19:00","title":"titre court","caption":"texte prêt à publier","hashtags":"#Bouaké ...","shoot_id":null,"photos":[1]}
 \`\`\`
-network parmi : ${MK_NETS.join(', ')}. kind parmi : ${MK_KINDS.join(', ')}. shoot_id = numéro de la séance liée ou null. photos = numéros des photos jointes à mon dernier message à utiliser, dans l'ordre que tu conseilles (sinon []). Ne recopie pas la légende au-dessus du bloc.
+network parmi : ${MK_NETS.join(', ')}. kind parmi : ${MK_KINDS.join(', ')}. shoot_id = numéro de la séance liée ou null. photos = numéros des photos jointes à mon dernier message à utiliser, dans l'ordre que tu conseilles (sinon []). Ne recopie pas la légende au-dessus du bloc. IMPORTANT : le champ caption contient UNIQUEMENT le texte à publier, tel que Henzo le collera sur Facebook (phrases adressées aux abonnés ou à la première personne). Jamais d'avis sur les photos, de critique, de remarque sur la lumière, la netteté ou le cadrage, ni de « les photos montrent » : ton avis franc va dans ta réponse écrite, pas dans la légende.
 3) Quand Henzo veut publier une séance précise (ex : "publier le shooting de Destinée"), ajoute :
 \`\`\`studio
 {"shoot_id":30,"nom":"Destinée"}
@@ -866,7 +871,7 @@ function mkChatHtml(){
         <button class="mk-send" onclick="mkSend()" ${MK.busy ? 'disabled' : ''} title="Envoyer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 20 4l-6 16-3-7z"/></svg></button>
       </div>
     </div>
-    <div class="ag-sec" style="margin-top:14px"><span class="ag-hint" style="margin:0">L'agent se souvient de ce que tu lui apprends (onglet "Ce qu'il sait").</span>${msgs.length ? `<button onclick="mkNewConv()">Nouvelle conversation</button>` : ''}${MK.convFrom || MK.showOld ? `<button onclick="mkToggleOld()">${MK.showOld ? 'Masquer les anciennes' : 'Voir les anciennes'}</button>` : ''}${MK.msgs.length ? `<button onclick="mkClearChat()">Effacer tout</button>` : ''}</div>`;
+    <div class="ag-sec" style="margin-top:14px;flex-wrap:wrap;gap:6px 14px"><span class="ag-hint" style="margin:0;flex:1 1 100%">L'agent se souvient de ce que tu lui apprends (onglet "Ce qu'il sait").</span>${msgs.length ? `<button onclick="mkNewConv()">Nouvelle conversation</button>` : ''}${MK.convFrom || MK.showOld ? `<button onclick="mkToggleOld()">${MK.showOld ? 'Masquer les anciennes' : 'Voir les anciennes'}</button>` : ''}${MK.msgs.length ? `<button onclick="mkClearChat()">Effacer tout</button>` : ''}</div>`;
 }
 function mkTyping(){ return `<div class="mk-typing" id="mkTyping"><span></span><span></span><span></span>&nbsp;${MK.busy === 'voir' ? 'regarde tes photos...' : 'écrit...'}</div>`; }
 function mkGrow(t){ MK.draft = t.value; t.style.height = 'auto'; t.style.height = Math.min(160, t.scrollHeight) + 'px'; }
@@ -1130,6 +1135,7 @@ async function mkSend(text, opt){
 const MK_VOIR_SYS = `Tu es le directeur artistique d'un photographe professionnel en Côte d'Ivoire. Tu regardes des photos et tu les analyses avec précision et honnêteté, sans flatter. Réponds UNIQUEMENT par un objet JSON, sans texte autour, avec ces clés :
 {"type":"mariage|dot|portrait|grossesse|bapteme|anniversaire|enfant|couple|famille|mode|produit|evenement|autre",
 "ce_que_je_vois":"2 phrases : personnes (nombre, âge apparent), tenue, lieu, action, ce qui frappe",
+"est_capture":false,
 "ambiance":"3 mots maximum, ex : douce, solennelle, festive",
 "lumiere_couleurs":"1 phrase",
 "points_forts":["..."],
@@ -1140,7 +1146,7 @@ const MK_VOIR_SYS = `Tu es le directeur artistique d'un photographe professionne
 "details_a_utiliser":["3 détails concrets et précis visibles sur les photos (geste, regard, tenue, lieu, objet), utilisables dans un texte"],
 "verdict_franc":"1 ou 2 phrases directes : ce qui fera réagir ou non, et ce que tu changerais",
 "angles":[{"nom":"court","idee":"1 phrase : l'idée de publication"},{"nom":"...","idee":"..."},{"nom":"...","idee":"..."}]}
-Les numéros de photos vont de 1 à N dans l'ordre reçu. Les 3 angles doivent être VRAIMENT différents (ex : l'émotion du moment, le détail du travail, une question aux abonnés, un avant/après, le conseil utile, les coulisses). N'invente aucun prénom : tu ne le connais pas sauf s'il est écrit dans le message.`;
+Les numéros de photos vont de 1 à N dans l'ordre reçu. Les 3 angles doivent être VRAIMENT différents (ex : l'émotion du moment, le détail du travail, une question aux abonnés, un avant/après, le conseil utile, les coulisses). N'invente aucun prénom : tu ne le connais pas sauf s'il est écrit dans le message. Si les images sont des captures d'écran (interface Facebook ou téléphone, bandeau « Publier », mention « Publicité »), mets est_capture à true : ne juge pas la netteté ni la lumière de la capture, regarde seulement les photos qu'elle montre.`;
 
 // Reduit une photo deja en base64 (jpeg) pour l'analyse : moins de donnees envoyees a Gemini
 function mkSmallB64(b64, max){
@@ -1173,6 +1179,7 @@ function mkVoirTxt(a, n){
   const L = ['ANALYSE FAITE À L\'INSTANT SUR LES PHOTOS JOINTES (ne reprends RIEN des séances précédentes) :' + (n > MK_VOIR_MAX ? ` seules les ${MK_VOIR_MAX} premières photos sur ${n} ont été regardées, ne parle pas des autres.` : '')];
   if(a.type) L.push(`- type de séance : ${a.type}`);
   if(a.ce_que_je_vois) L.push(`- ce qu'on y voit : ${a.ce_que_je_vois}`);
+  if(a.est_capture) L.push("- ATTENTION : ces images sont une capture d'écran d'une publication ou d'une conversation. Ne parle pas de la qualité de la capture. Écris le texte pour les photos qu'elle montre.");
   if(a.ambiance) L.push(`- ambiance : ${a.ambiance}`);
   if(a.lumiere_couleurs) L.push(`- lumière et couleurs : ${a.lumiere_couleurs}`);
   if((a.points_forts || []).length) L.push(`- points forts : ${a.points_forts.slice(0, 4).join(' ; ')}`);
@@ -1181,7 +1188,7 @@ function mkVoirTxt(a, n){
   if((a.details_a_utiliser || []).length) L.push(`- détails précis à utiliser dans le texte : ${a.details_a_utiliser.slice(0, 4).join(' ; ')}`);
   if(a.verdict_franc) L.push(`- verdict franc : ${a.verdict_franc}`);
   if((a.angles || []).length) L.push('- angles possibles : ' + a.angles.slice(0, 3).map((x, i) => `(${i + 1}) ${x.nom} : ${x.idee}`).join(' ; '));
-  L.push('CONSIGNES : 1) commence par 2 phrases d\'avis franc sur ces photos (ce qui marche, ce qui manque) ; 2) donne UNE publication complète dans le meilleur angle, texte humain, précis à CES photos (détails vus sur l\'image, pas de formule toute faite) ; 3) propose les autres angles comme suites dans le bloc suivi, ex : "Fais-le en mode question aux abonnés".');
+  L.push('CONSIGNES : 1) commence par 2 phrases d\'avis franc sur ces photos (ce qui marche, ce qui manque) ; 2) donne UNE publication complète dans le meilleur angle, texte humain, précis à CES photos (détails vus sur l\'image, pas de formule toute faite). Dans le bloc post, le champ caption ne contient QUE le texte à publier : ton avis franc reste dans ta réponse, jamais dans la légende ; 3) propose les autres angles comme suites dans le bloc suivi, ex : "Fais-le en mode question aux abonnés".');
   return L.join('\n');
 }
 // Pour varier : debuts des derniers textes deja publies ou prevus, a ne pas recopier
