@@ -1095,7 +1095,7 @@ async function mkSend(text, opt){
     MK.msgs = MK.msgs.filter(m => m !== tmp); MK.busy = false; MK.pending = pend; MK.draft = text; mkRenderTab();
     agAlert("Message non envoyé : " + (e.message || e)); return;
   }
-  const recherche = opt.search != null ? opt.search : (MK.search || MK_SEARCH_RE.test(text) || /publi|poster|l[ée]gende|description|id[ée]e|quand|quel jour|astuce|conseil/i.test(text));
+  const recherche = opt.search != null ? opt.search : (MK.search || MK_SEARCH_RE.test(text) || (!pend.length && /publi|poster|l[ée]gende|description|id[ée]e|quand|quel jour|astuce|conseil/i.test(text)));
   if(/l[ée]gende|texte|publi|poster|description|post\b/i.test(text) || st.b64.length) opt.hidden = [opt.hidden, mkVaria()].filter(Boolean).join('\n\n');
   // "publier le shooting de Destinée" : on proposera d'ouvrir le studio de publication
   const intent = mkStudioIntent(text);
@@ -1141,17 +1141,36 @@ const MK_VOIR_SYS = `Tu es le directeur artistique d'un photographe professionne
 "verdict_franc":"1 ou 2 phrases directes : ce qui fera réagir ou non, et ce que tu changerais",
 "angles":[{"nom":"court","idee":"1 phrase : l'idée de publication"},{"nom":"...","idee":"..."},{"nom":"...","idee":"..."}]}
 Les numéros de photos vont de 1 à N dans l'ordre reçu. Les 3 angles doivent être VRAIMENT différents (ex : l'émotion du moment, le détail du travail, une question aux abonnés, un avant/après, le conseil utile, les coulisses). N'invente aucun prénom : tu ne le connais pas sauf s'il est écrit dans le message.`;
+
+// Reduit une photo deja en base64 (jpeg) pour l'analyse : moins de donnees envoyees a Gemini
+function mkSmallB64(b64, max){
+  return new Promise(ok => {
+    try {
+      const im = new Image();
+      im.onload = () => { try {
+        const k = Math.min(1, max / Math.max(im.width, im.height)); if(k >= 1){ ok(b64); return; }
+        const c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        ok(c.toDataURL('image/jpeg', 0.75).split(',')[1] || b64);
+      } catch(e){ ok(b64); } };
+      im.onerror = () => ok(b64);
+      im.src = 'data:image/jpeg;base64,' + b64;
+    } catch(e){ ok(b64); }
+  });
+}
+const MK_VOIR_MAX = 4;
 async function mkVoirPhotos(b64, text){
   if(!b64 || !b64.length) return null;
   try {
-    const r = await mkAI({ system: MK_VOIR_SYS, messages: [{ role: 'user', text: `Message de Henzo : "${String(text || '').slice(0, 300)}"\nAnalyse ces ${b64.length} photo(s).` }], images: b64, maxTokens: 1500 });
+    const pris = await Promise.all(b64.slice(0, MK_VOIR_MAX).map(x => mkSmallB64(x, 768)));
+    const r = await mkAI({ system: MK_VOIR_SYS, messages: [{ role: 'user', text: `Message de Henzo : "${String(text || '').slice(0, 300)}"\nAnalyse ces ${pris.length} photo(s)${b64.length > pris.length ? ` (les ${pris.length} premières sur ${b64.length})` : ''}.` }], images: pris, maxTokens: 1500 });
     const j = mkJson(r.text);
     return j && typeof j === 'object' && !Array.isArray(j) ? j : null;
   } catch(e){ MK.voirErr = e; return null; }
 }
 function mkVoirTxt(a, n){
   if(!a) return '';
-  const L = ['ANALYSE FAITE À L\'INSTANT SUR LES PHOTOS JOINTES (ne reprends RIEN des séances précédentes) :'];
+  const L = ['ANALYSE FAITE À L\'INSTANT SUR LES PHOTOS JOINTES (ne reprends RIEN des séances précédentes) :' + (n > MK_VOIR_MAX ? ` seules les ${MK_VOIR_MAX} premières photos sur ${n} ont été regardées, ne parle pas des autres.` : '')];
   if(a.type) L.push(`- type de séance : ${a.type}`);
   if(a.ce_que_je_vois) L.push(`- ce qu'on y voit : ${a.ce_que_je_vois}`);
   if(a.ambiance) L.push(`- ambiance : ${a.ambiance}`);
