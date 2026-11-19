@@ -14,8 +14,18 @@ const MK = {
   tab: 'chat', loaded: false, loadedAt: 0, busy: false, search: false,
   msgs: [], mem: [], posts: [], media: [], tarifs: [], promos: [], avis: [],
   pending: [], edit: null, signed: {}, uid: null, weekOff: 0,
-  openMsg: null, sel: new Set(), selMode: false, proposal: null, planDraft: null, ctxShoot: null
+  convFrom: 0, showOld: false, openMsg: null, sel: new Set(), selMode: false, proposal: null, planDraft: null, ctxShoot: null
 };
+try { MK.convFrom = Number(localStorage.getItem('mkConvFrom')) || 0; } catch(e){}
+// Messages de la conversation en cours (les plus anciens restent gardes, consultables)
+function mkVisible(list){ list = list || MK.msgs; return MK.showOld ? list : list.filter(m => m.id < 0 || m.id > MK.convFrom); }
+async function mkNewConv(){
+  const last = MK.msgs.reduce((a, m) => Math.max(a, Number(m.id) || 0), 0);
+  MK.convFrom = last; MK.showOld = false; MK.pending = []; MK.draft = ''; MK.openMsg = null;
+  try { localStorage.setItem('mkConvFrom', String(last)); } catch(e){}
+  mkRenderTab(); agToast('Nouvelle conversation');
+}
+function mkToggleOld(){ MK.showOld = !MK.showOld; MK.scroll = false; mkRenderTab(); }
 const MK_NETS = ['Facebook', 'Statut WhatsApp', 'Instagram', 'TikTok', 'Google Maps'];
 const MK_NET_COL = { 'Facebook': '#1877f2', 'Statut WhatsApp': '#25d366', 'Instagram': '#e1306c', 'TikTok': '#8a8a8a', 'Google Maps': '#ea4335' };
 const MK_KINDS = ['Séance client', 'Avant / après', 'Coulisses', 'Avis client', 'Promo', 'Conseil', 'Vidéo courte', 'Présentation du studio', 'Fête / événement', 'Question / sondage'];
@@ -473,6 +483,52 @@ async function mkAI(o){
   return { text, sources: [] };
 }
 
+
+// ---------- Apprendre de ce qui a marche ----------
+function mkScore(p){ const x = p.stats || {}; const n = k => Number(x[k]) || 0;
+  return n('vues') + 3 * (n('likes') + n('commentaires')) + 10 * n('partages') + 25 * n('messages') + 60 * n('clients'); }
+function mkApprentissage(){
+  const L = [];
+  const done = MK.posts.filter(p => p.status === 'publie' && mkHasStats(p) && !(p.stats || {}).ignore);
+  if(done.length >= 2){
+    const best = done.slice().sort((a, b) => mkScore(b) - mkScore(a));
+    L.push('CE QUI A LE MIEUX MARCHÉ (chiffres réels de Henzo) : ' + best.slice(0, 3).map(p => `${p.network} ${p.kind || ''} "${(p.title || '').slice(0, 40)}" (score ${mkScore(p)})`).join(' ; ') + '.');
+    const worst = best.slice(-2).filter(p => mkScore(p) < mkScore(best[0]) / 3);
+    if(worst.length) L.push('CE QUI A MOINS MARCHÉ : ' + worst.map(p => `${p.network} ${p.kind || ''} "${(p.title || '').slice(0, 40)}"`).join(' ; ') + '.');
+    const by = {}; done.forEach(p => { const k = p.network; (by[k] = by[k] || []).push(mkScore(p)); });
+    const avg = Object.entries(by).map(([k, v]) => [k, Math.round(v.reduce((a, b) => a + b, 0) / v.length)]).sort((a, b) => b[1] - a[1]);
+    if(avg.length > 1) L.push('RÉSEAUX, du plus au moins efficace : ' + avg.map(([k, v]) => `${k} ${v}`).join(', ') + '. Appuie-toi dessus pour tes conseils.');
+  } else L.push("Peu de chiffres de résultats : n'invente aucune tendance sur ce qui marche pour Henzo.");
+  const sans = MK.posts.filter(p => p.status === 'publie' && !mkHasStats(p) && p.published_at && Date.now() - new Date(p.published_at).getTime() > 48 * 3600000).slice(0, 2);
+  if(sans.length) L.push('À DEMANDER (1 seule question, à la fin) : comment ont marché ' + sans.map(p => `"${(p.title || '').slice(0, 40)}" (${p.network})`).join(' et ') + ' (vues, messages reçus, clients). Ça te permet d\'apprendre.');
+  return L.join('\n');
+}
+// Une consigne d'ecriture differente a chaque fois, pour que les textes ne se ressemblent pas
+const MK_VARIA = [
+  "Commence par un détail précis vu sur la photo, pas par un titre ni une formule.",
+  "Écris comme si tu racontais la scène à une amie, en 3 ou 4 phrases naturelles.",
+  "Commence par une courte question qui donne envie de lire la suite.",
+  "Mets d'abord une phrase très courte et forte, puis développe.",
+  "Parle de ce que la personne a ressenti, pas de la technique.",
+  "Raconte un petit moment de la séance (un rire, un regard, une surprise), sans inventer de fait précis que tu ne vois pas.",
+  "Style sobre et élégant : peu de mots, chaque mot compte, aucun cliché.",
+  "Adresse-toi directement au lecteur avec « tu » ou « vous » selon le sujet, comme à Bouaké on parle à quelqu'un de proche."
+];
+function mkVaria(){ return 'STYLE DE CE TEXTE : ' + MK_VARIA[Math.floor(Math.random() * MK_VARIA.length)] + ' Interdit : « immortalisons », « moments précieux », « sublimer », « souvenirs inoubliables » et toute formule déjà vue mille fois.'; }
+
+// Relecteur critique : repasse sur les textes pour enlever le ton robot
+const MK_RELIRE_SYS = `Tu es un rédacteur humain exigeant qui relit des textes de publication d'un photographe de Bouaké. Pour chaque texte : repère ce qui sonne robot, générique ou rempli de clichés (formules toutes faites, adjectifs vides, phrases qui pourraient aller sur n'importe quelle photo), puis RÉÉCRIS-le pour qu'il sonne vrai, chaleureux, précis et professionnel. Garde le sens, les faits, les prénoms, les mentions [[Nom]], les @pseudos, le lien avec la réservation, et une longueur proche. Pas de tiret long, pas de mots anglais, pas de gras ni de lettres spéciales. Réponds UNIQUEMENT par un tableau JSON de chaînes, dans le même ordre : ["texte 1","texte 2"].`;
+async function mkRelire(posts){
+  const list = posts.filter(p => p.caption && p.caption.length > 20);
+  if(!list.length) return;
+  try {
+    const r = await mkAI({ system: MK_RELIRE_SYS, messages: [{ role: 'user', text: JSON.stringify(list.map(p => p.caption)) }], maxTokens: 3000 });
+    const j = mkJson(r.text);
+    if(!Array.isArray(j) || j.length !== list.length) return;
+    list.forEach((p, i) => { const t = mkClean(String(j[i] || '')).trim(); if(t.length > 20 && t.length < p.caption.length * 2) p.caption = t; });
+  } catch(e){}
+}
+
 // ---------- Contexte (court) ----------
 function mkFetesTxt(){
   try { if(typeof crmFetes === 'function') return crmFetes().filter(f => f.j <= 45).slice(0, 3).map(f => `${f.n} dans ${f.j} j`).join(', '); } catch(e){}
@@ -515,6 +571,7 @@ function mkContext(){
     L.push(`- ${p.date} ${p.heure || ''} ${p.network} ${p.kind || ''} "${(p.title || '').slice(0, 50)}" : ${mkHasStats(p) && !s.ignore ? MK_STATS.filter(([k]) => s[k] != null).map(([k]) => `${k} ${s[k]}`).join(', ') : 'chiffres pas encore donnés'}`); }); }
   const plan = MK.posts.filter(p => p.status === 'prevu' && p.date >= today && p.date <= mkAddDays(today, 7));
   if(plan.length) L.push('DÉJÀ PRÉVU : ' + plan.map(p => `${p.date} ${p.heure || ''} ${p.network} "${(p.title || '').slice(0, 40)}"`).join(' ; '));
+  const ap = mkApprentissage(); if(ap) L.push('\n' + ap);
   return L.join('\n');
 }
 // Nom de la marque : kit "Ma marque", sinon page tarifs (tarif_page.marque), sinon "Henzo Photographie"
@@ -554,6 +611,7 @@ COMMENT TU RÉPONDS :
 - Ce que Henzo a VALIDÉ ou AIMÉ (dans le contexte, "preference") est la règle : reprends ces choix, ne propose pas autre chose sauf s'il le demande.
 - Tu ne peux PAS publier à la place de Henzo (ni Facebook, ni WhatsApp, ni ailleurs) et tu ne vois pas ses pages. Ne dis jamais "je publie" ni "publie dès maintenant" comme si c'était fait. Donne le texte et dis : "Voici ton texte, touche Copier puis publie."
 - Quand il y a plusieurs photos, c'est TOI qui décides laquelle mettre en premier et dans quel ordre, et tu expliques pourquoi en une phrase (sourire, regard, lumière, netteté). Ne demande jamais "laquelle tu préfères ?".
+- CHAQUE SÉANCE EST UN SUJET À PART. Quand de nouvelles photos arrivent, ou qu'une autre séance est évoquée, oublie les prénoms, lieux, tenues et détails des messages précédents : ne reprends que ce que tu vois sur les photos et ce que Henzo dit à propos de CETTE séance. Si tu n'es pas sûr du prénom, ne l'écris pas.
 - Tu n'inventes pas de chiffres sur ses résultats : utilise le contexte ci-dessous.
 - Pour apprendre à le connaître : au maximum 1 ou 2 questions par réponse, à la fin, seulement si c'est utile.
 
@@ -583,7 +641,7 @@ ${mkContext()}`;
 }
 // Historique court : les 20 derniers messages, blocs remplaces par un resume
 function mkHistory(list){
-  return (list || MK.msgs).slice(-20).map(m => {
+  return mkVisible(list).slice(-20).map(m => {
     const P = mkParse(m.text);
     return { role: m.role,
       text: P.clean + P.posts.map(p => `\n(publication proposée : ${p.title || ''}, ${p.network || ''}, ${p.date || ''})`).join('')
@@ -790,9 +848,10 @@ const MK_QUICK = [
   ['clients', 'Comment avoir plus de clients ce mois-ci ?'], ['resultats', 'Analyse mes résultats']
 ];
 function mkChatHtml(){
-  const msgs = MK.msgs;
+  const msgs = mkVisible();
+  const olds = MK.msgs.length - msgs.length;
   const empty = !msgs.length ? `<div class="mk-msg agent"><p>Salut Henzo ! Je suis ton agent marketing. Mon travail : t'aider à avoir plus de clients et à faire connaître ${agEsc(mkMarque())} partout en Côte d'Ivoire.</p><p>Envoie-moi des photos, pose-moi une question, ou touche un des boutons en bas. Plus on parle, mieux je te connais.</p></div>` : '';
-  return `<div class="mk-chat" id="mkChat">${empty}${msgs.map(mkMsgHtml).join('')}${MK.busy === 'chat' ? mkTyping() : ''}</div>
+  return `<div class="mk-chat" id="mkChat">${empty}${msgs.map(mkMsgHtml).join('')}${MK.busy === 'chat' || MK.busy === 'voir' ? mkTyping() : ''}</div>
     <div class="mk-compose">
       <div class="mk-quick">${MK_QUICK.map(([k, l]) => `<button onclick="mkQuick('${k}')" ${MK.busy ? 'disabled' : ''}>${agEsc(l)}</button>`).join('')}</div>
       ${MK.pending.length ? `<div class="mk-pend">${MK.pending.map((p, i) => `<div><img src="${agEsc(p.preview)}" alt="">${p.src === 'galerie' || p.src === 'moodboard' ? `<small>${p.src}</small>` : ''}<button onclick="mkUnpend(${i})" title="Retirer">×</button></div>`).join('')}</div>` : ''}
@@ -807,9 +866,9 @@ function mkChatHtml(){
         <button class="mk-send" onclick="mkSend()" ${MK.busy ? 'disabled' : ''} title="Envoyer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 20 4l-6 16-3-7z"/></svg></button>
       </div>
     </div>
-    <div class="ag-sec" style="margin-top:14px"><span class="ag-hint" style="margin:0">L'agent se souvient de ce que tu lui apprends (onglet "Ce qu'il sait").</span>${msgs.length ? `<button onclick="mkClearChat()">Effacer la discussion</button>` : ''}</div>`;
+    <div class="ag-sec" style="margin-top:14px"><span class="ag-hint" style="margin:0">L'agent se souvient de ce que tu lui apprends (onglet "Ce qu'il sait").</span>${msgs.length ? `<button onclick="mkNewConv()">Nouvelle conversation</button>` : ''}${MK.convFrom || MK.showOld ? `<button onclick="mkToggleOld()">${MK.showOld ? 'Masquer les anciennes' : 'Voir les anciennes'}</button>` : ''}${MK.msgs.length ? `<button onclick="mkClearChat()">Effacer tout</button>` : ''}</div>`;
 }
-function mkTyping(){ return `<div class="mk-typing" id="mkTyping"><span></span><span></span><span></span>&nbsp;écrit...</div>`; }
+function mkTyping(){ return `<div class="mk-typing" id="mkTyping"><span></span><span></span><span></span>&nbsp;${MK.busy === 'voir' ? 'regarde tes photos...' : 'écrit...'}</div>`; }
 function mkGrow(t){ MK.draft = t.value; t.style.height = 'auto'; t.style.height = Math.min(160, t.scrollHeight) + 'px'; }
 function mkAfterChat(){
   const t = document.getElementById('mkIn'); if(t && t.value) mkGrow(t);
@@ -1024,7 +1083,7 @@ async function mkSend(text, opt){
   MK.busy = 'chat'; MK.tab = 'chat'; MK.draft = ''; MK.pending = [];
   // Affichage immediat
   const tmp = { id: -Date.now(), role: 'user', text, images: pend.map(p => p.file ? { thumb: p.preview } : { url: p.url, thumb: p.thumb || p.preview }), created_at: new Date().toISOString() };
-  const hist = MK.msgs.slice();
+  const hist = pend.length ? [] : mkVisible();
   MK.msgs.push(tmp); mkRenderTab();
   let st, userRow;
   try {
@@ -1036,11 +1095,13 @@ async function mkSend(text, opt){
     MK.msgs = MK.msgs.filter(m => m !== tmp); MK.busy = false; MK.pending = pend; MK.draft = text; mkRenderTab();
     agAlert("Message non envoyé : " + (e.message || e)); return;
   }
-  const recherche = opt.search != null ? opt.search : (MK.search || MK_SEARCH_RE.test(text));
+  const recherche = opt.search != null ? opt.search : (MK.search || MK_SEARCH_RE.test(text) || /publi|poster|l[ée]gende|description|id[ée]e|quand|quel jour|astuce|conseil/i.test(text));
+  if(/l[ée]gende|texte|publi|poster|description|post\b/i.test(text) || st.b64.length) opt.hidden = [opt.hidden, mkVaria()].filter(Boolean).join('\n\n');
   // "publier le shooting de Destinée" : on proposera d'ouvrir le studio de publication
   const intent = mkStudioIntent(text);
   if(intent) opt.hidden = [opt.hidden, `Henzo veut publier une séance${intent.shoot_id ? ' (séance n°' + intent.shoot_id + ')' : ''} : réponds en 2 ou 3 phrases et ajoute le bloc studio. L'app lui proposera d'ouvrir le studio de publication.`].filter(Boolean).join('\n');
   let reply;
+  if(st.b64.length && !opt.noVoir){ MK.busy = 'voir'; mkRenderTab(); const a = await mkVoirPhotos(st.b64, text); MK.busy = 'chat'; if(a){ opt.hidden = [opt.hidden, mkVoirTxt(a, st.b64.length), mkDejaEcrit()].filter(Boolean).join('\n\n'); } }
   try {
     const res = await mkAI({ system: mkSystem(), messages: [...mkHistory(hist), { role: 'user', text: text + (opt.hidden ? '\n\n' + opt.hidden : '') + (st.b64.length ? `\n\n(${st.b64.length} photo(s) jointe(s), numérotées de 1 à ${st.b64.length})` : '') }], images: st.b64, recherche });
     reply = res;
@@ -1052,6 +1113,50 @@ async function mkSend(text, opt){
   MK.busy = false;
   if(opt.after) opt.after(out);
   mkRenderTab();
+}
+
+// ---------- Etape 1 : l'IA REGARDE les photos avant d'ecrire ----------
+const MK_VOIR_SYS = `Tu es le directeur artistique d'un photographe professionnel en Côte d'Ivoire. Tu regardes des photos et tu les analyses avec précision et honnêteté, sans flatter. Réponds UNIQUEMENT par un objet JSON, sans texte autour, avec ces clés :
+{"type":"mariage|dot|portrait|grossesse|bapteme|anniversaire|enfant|couple|famille|mode|produit|evenement|autre",
+"ce_que_je_vois":"2 phrases : personnes (nombre, âge apparent), tenue, lieu, action, ce qui frappe",
+"ambiance":"3 mots maximum, ex : douce, solennelle, festive",
+"lumiere_couleurs":"1 phrase",
+"points_forts":["..."],
+"points_faibles":["défauts réels : flou, cadrage, lumière, retouche, doublons..."],
+"meilleure":1,
+"ordre":[1,2],
+"publiable":true,
+"verdict_franc":"1 ou 2 phrases directes : ce qui fera réagir ou non, et ce que tu changerais",
+"angles":[{"nom":"court","idee":"1 phrase : l'idée de publication"},{"nom":"...","idee":"..."},{"nom":"...","idee":"..."}]}
+Les numéros de photos vont de 1 à N dans l'ordre reçu. Les 3 angles doivent être VRAIMENT différents (ex : l'émotion du moment, le détail du travail, une question aux abonnés, un avant/après, le conseil utile, les coulisses). N'invente aucun prénom : tu ne le connais pas sauf s'il est écrit dans le message.`;
+async function mkVoirPhotos(b64, text){
+  if(!b64 || !b64.length) return null;
+  try {
+    const r = await mkAI({ system: MK_VOIR_SYS, messages: [{ role: 'user', text: `Message de Henzo : "${String(text || '').slice(0, 300)}"\nAnalyse ces ${b64.length} photo(s).` }], images: b64, maxTokens: 1500 });
+    const j = mkJson(r.text);
+    return j && typeof j === 'object' && !Array.isArray(j) ? j : null;
+  } catch(e){ return null; }
+}
+function mkVoirTxt(a, n){
+  if(!a) return '';
+  const L = ['ANALYSE FAITE À L\'INSTANT SUR LES PHOTOS JOINTES (ne reprends RIEN des séances précédentes) :'];
+  if(a.type) L.push(`- type de séance : ${a.type}`);
+  if(a.ce_que_je_vois) L.push(`- ce qu'on y voit : ${a.ce_que_je_vois}`);
+  if(a.ambiance) L.push(`- ambiance : ${a.ambiance}`);
+  if(a.lumiere_couleurs) L.push(`- lumière et couleurs : ${a.lumiere_couleurs}`);
+  if((a.points_forts || []).length) L.push(`- points forts : ${a.points_forts.slice(0, 4).join(' ; ')}`);
+  if((a.points_faibles || []).length) L.push(`- points faibles : ${a.points_faibles.slice(0, 4).join(' ; ')}`);
+  if(a.meilleure) L.push(`- meilleure photo : n°${a.meilleure}${(a.ordre || []).length ? ', ordre conseillé : ' + a.ordre.join(', ') : ''}${a.publiable === false ? ' (attention : pas assez bonnes pour être publiées telles quelles)' : ''}`);
+  if(a.verdict_franc) L.push(`- verdict franc : ${a.verdict_franc}`);
+  if((a.angles || []).length) L.push('- angles possibles : ' + a.angles.slice(0, 3).map((x, i) => `(${i + 1}) ${x.nom} : ${x.idee}`).join(' ; '));
+  L.push('CONSIGNES : 1) commence par 2 phrases d\'avis franc sur ces photos (ce qui marche, ce qui manque) ; 2) donne UNE publication complète dans le meilleur angle, texte humain, précis à CES photos (détails vus sur l\'image, pas de formule toute faite) ; 3) propose les autres angles comme suites dans le bloc suivi, ex : "Fais-le en mode question aux abonnés".');
+  return L.join('\n');
+}
+// Pour varier : debuts des derniers textes deja publies ou prevus, a ne pas recopier
+function mkDejaEcrit(){
+  const L = (MK.posts || []).filter(p => p.caption).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 8)
+    .map(p => String(p.caption).replace(/\s+/g, ' ').trim().slice(0, 60)).filter(Boolean);
+  return L.length ? 'DÉBUTS DE TEXTES DÉJÀ UTILISÉS (change de façon de commencer, de rythme et de formule finale) : ' + L.map(x => '"' + x + '"').join(' | ') : '';
 }
 // Intention "publier la seance / le shooting de X" -> {shoot_id, nom} ou null
 function mkStudioIntent(text){
@@ -1073,6 +1178,7 @@ async function mkSaveReply(reply, o){
   o = o || {};
   const P = mkParse(reply.text), memos = P.memos;
   const posts = P.posts.map(x => { const p = mkFixPost(x, o.images); if(o.shoot && !p.shoot_id) p.shoot_id = o.shoot; return p; });
+  if(posts.length && !o.noRelire) await mkRelire(posts);
   const studios = P.studios.slice();
   if(o.studio && !studios.some(x => Number(x.shoot_id) === Number(o.studio.shoot_id))) studios.push(o.studio);
   let txt = mkClean(P.clean).replace(/Henzo Studio/g, mkMarque());
@@ -1099,7 +1205,7 @@ async function mkClearChat(){
   if(!await agConfirm("Effacer toute la discussion ?\nCe que l'agent sait de toi est gardé, ainsi que tes photos et ton plan.")) return;
   const { error } = await sb.from('mk_messages').delete().gte('id', 0);
   if(error){ agAlert(error.message); return; }
-  MK.msgs = []; mkRenderTab(); agToast('Discussion effacée');
+  MK.msgs = []; MK.convFrom = 0; try { localStorage.removeItem('mkConvFrom'); } catch(e){} mkRenderTab(); agToast('Discussion effacée');
 }
 
 // ---------- Partager ----------

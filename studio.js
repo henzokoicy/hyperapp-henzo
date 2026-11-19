@@ -79,7 +79,7 @@ function stMarqueDefaut(){
       grossesse: '#FutureMaman #SéanceGrossesse', enfant: '#PhotoEnfant #EnfantsBouaké', couple: '#SéanceCouple #LoveStory',
       famille: '#PhotoDeFamille #FamilleBouaké', portrait: '#PortraitStudio #Portrait', studio: '#ShootingStudio #StudioPhotoBouaké'
     },
-    max: Object.assign({}, ST_MAX_DEF), gras: true, accents: 'colles',
+    max: Object.assign({}, ST_MAX_DEF), gras: true, accents: 'normaux',
     // Mise en forme fixe des textes (choisie par Henzo) : titre gras, mentions et copyright en lettres fines
     mentions: 'leger', copyright: { on: true, texte: '© Henzo Photographie', style: 'leger' },
     exemples: ['', '', ''], style: [], police: 'montserrat',
@@ -96,6 +96,7 @@ function stMarqueFusion(m){
   if(!ST_STYLES_TXT[o.mentions]) o.mentions = d.mentions;
   if(!Array.isArray(o.structure) || !o.structure.length) o.structure = d.structure;
   Object.keys(ST_BLOCS).forEach(k => { if(!o.structure.some(b => b.k === k)) o.structure.push({ k, on: false }); });
+  if(o.accents !== 'normaux') o.accents = 'normaux';
   if(!Array.isArray(o.tons)) o.tons = d.tons;
   if(!Array.isArray(o.exemples)) o.exemples = d.exemples;
   while(o.exemples.length < 3) o.exemples.push('');
@@ -224,7 +225,7 @@ window.txtMiseEnForme = function(texte, opts){
   const L = t.split('\n'); const i = L.findIndex(x => x.trim());
   if(i >= 0 && opts.titre !== false){
     const brut = L[i].trim().replace(/^#+\s*/, '').replace(/^\*{1,2}(.+?)\*{1,2}$/, '$1').trim();
-    if(brut.length <= 90) L[i] = stTitreReseau(brut, opts.canal === 'whatsapp' ? 'whatsapp' : 'page');
+    if(brut.length <= 70 && !/[.!?…:]$/.test(brut) && !/^[#@]/.test(brut) && !/https?:/.test(brut)) L[i] = stTitreReseau(brut, opts.canal === 'whatsapp' ? 'whatsapp' : 'page');
   }
   t = L.join('\n').replace(/\*\*([^*\n]+)\*\*/g, '$1');
   return stMentionsCopyright(t, opts.canal, m);
