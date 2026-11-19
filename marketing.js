@@ -483,6 +483,52 @@ async function mkAI(o){
   return { text, sources: [] };
 }
 
+
+// ---------- Apprendre de ce qui a marche ----------
+function mkScore(p){ const x = p.stats || {}; const n = k => Number(x[k]) || 0;
+  return n('vues') + 3 * (n('likes') + n('commentaires')) + 10 * n('partages') + 25 * n('messages') + 60 * n('clients'); }
+function mkApprentissage(){
+  const L = [];
+  const done = MK.posts.filter(p => p.status === 'publie' && mkHasStats(p) && !(p.stats || {}).ignore);
+  if(done.length >= 2){
+    const best = done.slice().sort((a, b) => mkScore(b) - mkScore(a));
+    L.push('CE QUI A LE MIEUX MARCHÉ (chiffres réels de Henzo) : ' + best.slice(0, 3).map(p => `${p.network} ${p.kind || ''} "${(p.title || '').slice(0, 40)}" (score ${mkScore(p)})`).join(' ; ') + '.');
+    const worst = best.slice(-2).filter(p => mkScore(p) < mkScore(best[0]) / 3);
+    if(worst.length) L.push('CE QUI A MOINS MARCHÉ : ' + worst.map(p => `${p.network} ${p.kind || ''} "${(p.title || '').slice(0, 40)}"`).join(' ; ') + '.');
+    const by = {}; done.forEach(p => { const k = p.network; (by[k] = by[k] || []).push(mkScore(p)); });
+    const avg = Object.entries(by).map(([k, v]) => [k, Math.round(v.reduce((a, b) => a + b, 0) / v.length)]).sort((a, b) => b[1] - a[1]);
+    if(avg.length > 1) L.push('RÉSEAUX, du plus au moins efficace : ' + avg.map(([k, v]) => `${k} ${v}`).join(', ') + '. Appuie-toi dessus pour tes conseils.');
+  } else L.push("Peu de chiffres de résultats : n'invente aucune tendance sur ce qui marche pour Henzo.");
+  const sans = MK.posts.filter(p => p.status === 'publie' && !mkHasStats(p) && p.published_at && Date.now() - new Date(p.published_at).getTime() > 48 * 3600000).slice(0, 2);
+  if(sans.length) L.push('À DEMANDER (1 seule question, à la fin) : comment ont marché ' + sans.map(p => `"${(p.title || '').slice(0, 40)}" (${p.network})`).join(' et ') + ' (vues, messages reçus, clients). Ça te permet d\'apprendre.');
+  return L.join('\n');
+}
+// Une consigne d'ecriture differente a chaque fois, pour que les textes ne se ressemblent pas
+const MK_VARIA = [
+  "Commence par un détail précis vu sur la photo, pas par un titre ni une formule.",
+  "Écris comme si tu racontais la scène à une amie, en 3 ou 4 phrases naturelles.",
+  "Commence par une courte question qui donne envie de lire la suite.",
+  "Mets d'abord une phrase très courte et forte, puis développe.",
+  "Parle de ce que la personne a ressenti, pas de la technique.",
+  "Raconte un petit moment de la séance (un rire, un regard, une surprise), sans inventer de fait précis que tu ne vois pas.",
+  "Style sobre et élégant : peu de mots, chaque mot compte, aucun cliché.",
+  "Adresse-toi directement au lecteur avec « tu » ou « vous » selon le sujet, comme à Bouaké on parle à quelqu'un de proche."
+];
+function mkVaria(){ return 'STYLE DE CE TEXTE : ' + MK_VARIA[Math.floor(Math.random() * MK_VARIA.length)] + ' Interdit : « immortalisons », « moments précieux », « sublimer », « souvenirs inoubliables » et toute formule déjà vue mille fois.'; }
+
+// Relecteur critique : repasse sur les textes pour enlever le ton robot
+const MK_RELIRE_SYS = `Tu es un rédacteur humain exigeant qui relit des textes de publication d'un photographe de Bouaké. Pour chaque texte : repère ce qui sonne robot, générique ou rempli de clichés (formules toutes faites, adjectifs vides, phrases qui pourraient aller sur n'importe quelle photo), puis RÉÉCRIS-le pour qu'il sonne vrai, chaleureux, précis et professionnel. Garde le sens, les faits, les prénoms, les mentions [[Nom]], les @pseudos, le lien avec la réservation, et une longueur proche. Pas de tiret long, pas de mots anglais, pas de gras ni de lettres spéciales. Réponds UNIQUEMENT par un tableau JSON de chaînes, dans le même ordre : ["texte 1","texte 2"].`;
+async function mkRelire(posts){
+  const list = posts.filter(p => p.caption && p.caption.length > 20);
+  if(!list.length) return;
+  try {
+    const r = await mkAI({ system: MK_RELIRE_SYS, messages: [{ role: 'user', text: JSON.stringify(list.map(p => p.caption)) }], maxTokens: 3000 });
+    const j = mkJson(r.text);
+    if(!Array.isArray(j) || j.length !== list.length) return;
+    list.forEach((p, i) => { const t = mkClean(String(j[i] || '')).trim(); if(t.length > 20 && t.length < p.caption.length * 2) p.caption = t; });
+  } catch(e){}
+}
+
 // ---------- Contexte (court) ----------
 function mkFetesTxt(){
   try { if(typeof crmFetes === 'function') return crmFetes().filter(f => f.j <= 45).slice(0, 3).map(f => `${f.n} dans ${f.j} j`).join(', '); } catch(e){}
@@ -525,6 +571,7 @@ function mkContext(){
     L.push(`- ${p.date} ${p.heure || ''} ${p.network} ${p.kind || ''} "${(p.title || '').slice(0, 50)}" : ${mkHasStats(p) && !s.ignore ? MK_STATS.filter(([k]) => s[k] != null).map(([k]) => `${k} ${s[k]}`).join(', ') : 'chiffres pas encore donnés'}`); }); }
   const plan = MK.posts.filter(p => p.status === 'prevu' && p.date >= today && p.date <= mkAddDays(today, 7));
   if(plan.length) L.push('DÉJÀ PRÉVU : ' + plan.map(p => `${p.date} ${p.heure || ''} ${p.network} "${(p.title || '').slice(0, 40)}"`).join(' ; '));
+  const ap = mkApprentissage(); if(ap) L.push('\n' + ap);
   return L.join('\n');
 }
 // Nom de la marque : kit "Ma marque", sinon page tarifs (tarif_page.marque), sinon "Henzo Photographie"
@@ -1048,7 +1095,8 @@ async function mkSend(text, opt){
     MK.msgs = MK.msgs.filter(m => m !== tmp); MK.busy = false; MK.pending = pend; MK.draft = text; mkRenderTab();
     agAlert("Message non envoyé : " + (e.message || e)); return;
   }
-  const recherche = opt.search != null ? opt.search : (MK.search || MK_SEARCH_RE.test(text));
+  const recherche = opt.search != null ? opt.search : (MK.search || MK_SEARCH_RE.test(text) || /publi|poster|l[ée]gende|description|id[ée]e|quand|quel jour|astuce|conseil/i.test(text));
+  if(/l[ée]gende|texte|publi|poster|description|post\b/i.test(text) || st.b64.length) opt.hidden = [opt.hidden, mkVaria()].filter(Boolean).join('\n\n');
   // "publier le shooting de Destinée" : on proposera d'ouvrir le studio de publication
   const intent = mkStudioIntent(text);
   if(intent) opt.hidden = [opt.hidden, `Henzo veut publier une séance${intent.shoot_id ? ' (séance n°' + intent.shoot_id + ')' : ''} : réponds en 2 ou 3 phrases et ajoute le bloc studio. L'app lui proposera d'ouvrir le studio de publication.`].filter(Boolean).join('\n');
@@ -1130,6 +1178,7 @@ async function mkSaveReply(reply, o){
   o = o || {};
   const P = mkParse(reply.text), memos = P.memos;
   const posts = P.posts.map(x => { const p = mkFixPost(x, o.images); if(o.shoot && !p.shoot_id) p.shoot_id = o.shoot; return p; });
+  if(posts.length && !o.noRelire) await mkRelire(posts);
   const studios = P.studios.slice();
   if(o.studio && !studios.some(x => Number(x.shoot_id) === Number(o.studio.shoot_id))) studios.push(o.studio);
   let txt = mkClean(P.clean).replace(/Henzo Studio/g, mkMarque());
