@@ -1095,15 +1095,26 @@ async function mkSend(text, opt){
     MK.msgs = MK.msgs.filter(m => m !== tmp); MK.busy = false; MK.pending = pend; MK.draft = text; mkRenderTab();
     agAlert("Message non envoyé : " + (e.message || e)); return;
   }
-  const recherche = opt.search != null ? opt.search : (MK.search || MK_SEARCH_RE.test(text) || /publi|poster|l[ée]gende|description|id[ée]e|quand|quel jour|astuce|conseil/i.test(text));
+  const recherche = opt.search != null ? opt.search : (MK.search || MK_SEARCH_RE.test(text) || (!pend.length && /publi|poster|l[ée]gende|description|id[ée]e|quand|quel jour|astuce|conseil/i.test(text)));
   if(/l[ée]gende|texte|publi|poster|description|post\b/i.test(text) || st.b64.length) opt.hidden = [opt.hidden, mkVaria()].filter(Boolean).join('\n\n');
   // "publier le shooting de Destinée" : on proposera d'ouvrir le studio de publication
   const intent = mkStudioIntent(text);
   if(intent) opt.hidden = [opt.hidden, `Henzo veut publier une séance${intent.shoot_id ? ' (séance n°' + intent.shoot_id + ')' : ''} : réponds en 2 ou 3 phrases et ajoute le bloc studio. L'app lui proposera d'ouvrir le studio de publication.`].filter(Boolean).join('\n');
   let reply;
-  if(st.b64.length && !opt.noVoir){ MK.busy = 'voir'; mkRenderTab(); const a = await mkVoirPhotos(st.b64, text); MK.busy = 'chat'; if(a){ opt.hidden = [opt.hidden, mkVoirTxt(a, st.b64.length), mkDejaEcrit()].filter(Boolean).join('\n\n'); } }
+  // Les photos ne sont envoyees QU'UNE fois (analyse). La redaction se fait ensuite sans image : n'importe quelle IA peut la faire,
+  // et le petit quota de Gemini pour les photos n'est pas consomme deux fois.
+  let imgsIA = st.b64;
+  if(st.b64.length && !opt.noVoir){
+    MK.busy = 'voir'; MK.voirErr = null; mkRenderTab();
+    const a = await mkVoirPhotos(st.b64, text); MK.busy = 'chat';
+    if(a){ imgsIA = []; opt.hidden = [opt.hidden, mkVoirTxt(a, st.b64.length), mkDejaEcrit()].filter(Boolean).join('\n\n'); }
+    else if(MK.voirErr && (MK.voirErr.iaLimite || /limite|quota|Aucune IA/i.test(String(MK.voirErr.message || '')))){
+      imgsIA = [];
+      opt.hidden = [opt.hidden, "LES PHOTOS N'ONT PAS PU ÊTRE LUES : l'IA qui voit les photos est à la limite (" + String(MK.voirErr.message || '').replace(/\s+/g, ' ').slice(0, 160) + "). Ne décris RIEN de ce qu'on y voit et n'invente aucun détail visuel ni prénom. Dis à Henzo en une phrase que tu n'as pas pu voir ses photos et quand réessayer, puis aide-le avec ce qu'il a écrit (idée de publication, plan, conseils) sans prétendre les avoir vues."].filter(Boolean).join('\n\n');
+    }
+  }
   try {
-    const res = await mkAI({ system: mkSystem(), messages: [...mkHistory(hist), { role: 'user', text: text + (opt.hidden ? '\n\n' + opt.hidden : '') + (st.b64.length ? `\n\n(${st.b64.length} photo(s) jointe(s), numérotées de 1 à ${st.b64.length})` : '') }], images: st.b64, recherche });
+    const res = await mkAI({ system: mkSystem(), messages: [...mkHistory(hist), { role: 'user', text: text + (opt.hidden ? '\n\n' + opt.hidden : '') + (st.b64.length ? `\n\n(${st.b64.length} photo(s) jointe(s), numérotées de 1 à ${st.b64.length})` : '') }], images: imgsIA, recherche });
     reply = res;
   } catch(e){
     MK.busy = false; mkRenderTab();
@@ -1126,20 +1137,40 @@ const MK_VOIR_SYS = `Tu es le directeur artistique d'un photographe professionne
 "meilleure":1,
 "ordre":[1,2],
 "publiable":true,
+"details_a_utiliser":["3 détails concrets et précis visibles sur les photos (geste, regard, tenue, lieu, objet), utilisables dans un texte"],
 "verdict_franc":"1 ou 2 phrases directes : ce qui fera réagir ou non, et ce que tu changerais",
 "angles":[{"nom":"court","idee":"1 phrase : l'idée de publication"},{"nom":"...","idee":"..."},{"nom":"...","idee":"..."}]}
 Les numéros de photos vont de 1 à N dans l'ordre reçu. Les 3 angles doivent être VRAIMENT différents (ex : l'émotion du moment, le détail du travail, une question aux abonnés, un avant/après, le conseil utile, les coulisses). N'invente aucun prénom : tu ne le connais pas sauf s'il est écrit dans le message.`;
+
+// Reduit une photo deja en base64 (jpeg) pour l'analyse : moins de donnees envoyees a Gemini
+function mkSmallB64(b64, max){
+  return new Promise(ok => {
+    try {
+      const im = new Image();
+      im.onload = () => { try {
+        const k = Math.min(1, max / Math.max(im.width, im.height)); if(k >= 1){ ok(b64); return; }
+        const c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        ok(c.toDataURL('image/jpeg', 0.75).split(',')[1] || b64);
+      } catch(e){ ok(b64); } };
+      im.onerror = () => ok(b64);
+      im.src = 'data:image/jpeg;base64,' + b64;
+    } catch(e){ ok(b64); }
+  });
+}
+const MK_VOIR_MAX = 4;
 async function mkVoirPhotos(b64, text){
   if(!b64 || !b64.length) return null;
   try {
-    const r = await mkAI({ system: MK_VOIR_SYS, messages: [{ role: 'user', text: `Message de Henzo : "${String(text || '').slice(0, 300)}"\nAnalyse ces ${b64.length} photo(s).` }], images: b64, maxTokens: 1500 });
+    const pris = await Promise.all(b64.slice(0, MK_VOIR_MAX).map(x => mkSmallB64(x, 768)));
+    const r = await mkAI({ system: MK_VOIR_SYS, messages: [{ role: 'user', text: `Message de Henzo : "${String(text || '').slice(0, 300)}"\nAnalyse ces ${pris.length} photo(s)${b64.length > pris.length ? ` (les ${pris.length} premières sur ${b64.length})` : ''}.` }], images: pris, maxTokens: 1500 });
     const j = mkJson(r.text);
     return j && typeof j === 'object' && !Array.isArray(j) ? j : null;
-  } catch(e){ return null; }
+  } catch(e){ MK.voirErr = e; return null; }
 }
 function mkVoirTxt(a, n){
   if(!a) return '';
-  const L = ['ANALYSE FAITE À L\'INSTANT SUR LES PHOTOS JOINTES (ne reprends RIEN des séances précédentes) :'];
+  const L = ['ANALYSE FAITE À L\'INSTANT SUR LES PHOTOS JOINTES (ne reprends RIEN des séances précédentes) :' + (n > MK_VOIR_MAX ? ` seules les ${MK_VOIR_MAX} premières photos sur ${n} ont été regardées, ne parle pas des autres.` : '')];
   if(a.type) L.push(`- type de séance : ${a.type}`);
   if(a.ce_que_je_vois) L.push(`- ce qu'on y voit : ${a.ce_que_je_vois}`);
   if(a.ambiance) L.push(`- ambiance : ${a.ambiance}`);
@@ -1147,6 +1178,7 @@ function mkVoirTxt(a, n){
   if((a.points_forts || []).length) L.push(`- points forts : ${a.points_forts.slice(0, 4).join(' ; ')}`);
   if((a.points_faibles || []).length) L.push(`- points faibles : ${a.points_faibles.slice(0, 4).join(' ; ')}`);
   if(a.meilleure) L.push(`- meilleure photo : n°${a.meilleure}${(a.ordre || []).length ? ', ordre conseillé : ' + a.ordre.join(', ') : ''}${a.publiable === false ? ' (attention : pas assez bonnes pour être publiées telles quelles)' : ''}`);
+  if((a.details_a_utiliser || []).length) L.push(`- détails précis à utiliser dans le texte : ${a.details_a_utiliser.slice(0, 4).join(' ; ')}`);
   if(a.verdict_franc) L.push(`- verdict franc : ${a.verdict_franc}`);
   if((a.angles || []).length) L.push('- angles possibles : ' + a.angles.slice(0, 3).map((x, i) => `(${i + 1}) ${x.nom} : ${x.idee}`).join(' ; '));
   L.push('CONSIGNES : 1) commence par 2 phrases d\'avis franc sur ces photos (ce qui marche, ce qui manque) ; 2) donne UNE publication complète dans le meilleur angle, texte humain, précis à CES photos (détails vus sur l\'image, pas de formule toute faite) ; 3) propose les autres angles comme suites dans le bloc suivi, ex : "Fais-le en mode question aux abonnés".');
