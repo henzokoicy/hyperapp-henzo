@@ -180,7 +180,8 @@ function txtExemplesPrompt(canal){
 }
 (function(){ const o = txtExtraPrompt; window.txtExtraPrompt = function(canal){
   const ex = txtExemplesPrompt(canal);
-  return (ex ? ex + '\n' : '') + o() + '\nIMPORTANT : "emotion" et "detail" doivent se lire comme UN seul texte fluide, naturel, qui se suit, sans répéter ni ressembler à un formulaire.'; }; })();
+  const cx = typeof window.ctxPrompt === 'function' ? window.ctxPrompt() : '';
+  return (cx ? cx + '\n' : '') + (ex ? ex + '\n' : '') + o() + '\nIMPORTANT : "emotion" et "detail" doivent se lire comme UN seul texte fluide, naturel, qui se suit, sans répéter ni ressembler à un formulaire.'; }; })();
 
 // ---------- Ecran dans Ma marque ----------
 function txbMarque(){ return (typeof ST !== 'undefined' && ST.m) ? ST.m : ((typeof stM === 'function') ? stM() : {}); }
@@ -278,13 +279,13 @@ Object.assign(window, { TXB, txtExtraire, txtBiblio, txtAimer, txtExemplesPrompt
 // ---------- Acces direct depuis le studio (sans passer par Ma marque) ----------
 async function txbOuvrir(){
   try { if(typeof stChargerMarque === 'function') await stChargerMarque(); } catch(e){}
-  if(typeof ST !== 'undefined' && !ST.m && typeof stMarqueFusion === 'function') ST.m = JSON.parse(JSON.stringify(stMarqueFusion(window.ST_MARQUE)));
+  if(typeof ST !== 'undefined' && typeof stMarqueFusion === 'function') ST.m = JSON.parse(JSON.stringify(stMarqueFusion(window.ST_MARQUE)));   // toujours la version a jour
   TXB.analyse = null;
   if(typeof agSheet === 'function') agSheet('txb', `<div id="txbBox">${txbInner()}</div>`);
 }
 function txbBandeau(){
   const n = txtBiblio().length;
-  return `<div class="txb-bd"><span>${n ? `Je m'inspire de <b>${n}</b> de tes textes.` : `Je n'ai encore aucun de tes textes pour m'inspirer.`}</span><button onclick="txbOuvrir()">${n ? 'Ajouter mes textes' : 'Ajouter mes anciens textes'}</button></div>`;
+  return `<div class="txb-bd"><span>${n ? `Je m'inspire de <b>${n}</b> de tes textes.` : `Je n'ai encore aucun de tes textes pour m'inspirer.`}</span><button onclick="txbOuvrir()">${n ? 'Ajouter mes textes' : 'Ajouter mes anciens textes'}</button>${typeof window.ctxOuvrir === 'function' ? `<button onclick="ctxOuvrir()">Mon contexte (${window.ctxCount()}/${window.ctxTotal()})</button>` : ''}</div>`;
 }
 (function(){ const st = document.getElementById('txbCss'); if(st) st.textContent += `.txb-bd{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05);font-size:12px}.txb-bd span{flex:1 1 100%;min-width:0}.txb-bd button{flex:none;width:auto!important;white-space:nowrap;border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer}`; })();
 // ---------- Variation : angles et tons qui changent VRAIMENT la facon d'ecrire ----------
@@ -461,7 +462,9 @@ function txtVeille(){
   // 4. Mots rejetes dans les textes prevus
   const mo = txtMots();
   if(mo.evite.length) aVenir.forEach(p => { const w = new Set(txlWords(txlClean(p.caption))); const hit = mo.evite.filter(x => w.has(txlNorm(x))); if(hit.length) out.push({ n: 'warn', titre: `Un mot que tu remplaces d'habitude est dans « ${post(p).t} »`, detail: hit.slice(0, 3).join(', '), act: action(p) }); });
-  // 5. Bibliotheque vide
+  // 5. Contexte vide ou presque
+  if(typeof window.ctxCount === 'function' && window.ctxCount() < 5) out.push({ n: 'info', titre: 'Mon contexte est presque vide', detail: 'Réponds à quelques questions (3 minutes) : ta voix, tes mots, ce que tu refuses. L\'IA écrira beaucoup plus comme toi.', act: { l: 'Répondre aux questions', js: 'ctxOuvrir()' } });
+  // 6. Bibliotheque vide
   if(!txtBiblio().length) out.push({ n: 'info', titre: 'Je ne connais pas encore ton style', detail: 'Ajoute quelques-unes de tes anciennes légendes : j\'écrirai comme toi.', act: { l: 'Ajouter mes anciens textes', js: 'txbOuvrir()' } });
   const ordre = { bad: 0, warn: 1, info: 2, good: 3 };
   return out.sort((a, b) => ordre[a.n] - ordre[b.n]);

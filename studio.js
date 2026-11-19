@@ -82,7 +82,7 @@ function stMarqueDefaut(){
     max: Object.assign({}, ST_MAX_DEF), gras: true, accents: 'normaux',
     // Mise en forme fixe des textes (choisie par Henzo) : titre gras, mentions et copyright en lettres fines
     mentions: 'leger', copyright: { on: true, texte: '© Henzo Photographie', style: 'leger' },
-    exemples: ['', '', ''], biblio: [], mots: { evite: {}, prefere: {} }, style: [], police: 'montserrat',
+    exemples: ['', '', ''], biblio: [], mots: { evite: {}, prefere: {} }, contexte: { r: {}, extra: [] }, style: [], police: 'montserrat',
     couleurs: { fond: '', texte: '#ffffff', accent: '' }, logo: null
   };
 }
@@ -102,6 +102,9 @@ function stMarqueFusion(m){
   while(o.exemples.length < 3) o.exemples.push('');
   if(!Array.isArray(o.style)) o.style = [];
   if(!Array.isArray(o.biblio)) o.biblio = [];
+  if(!o.contexte || typeof o.contexte !== 'object') o.contexte = { r: {}, extra: [] };
+  if(!o.contexte.r || typeof o.contexte.r !== 'object') o.contexte.r = {};
+  if(!Array.isArray(o.contexte.extra)) o.contexte.extra = [];
   if(!ST_POLICES[o.police]) o.police = 'montserrat';
   return o;
 }
@@ -854,6 +857,7 @@ function stContexte(){
   const m = stM(), s = stShoot(), L = [];
   L.push(`MARQUE : ${stNom()}${m.slogan ? ', slogan "' + m.slogan + '"' : ''}. Ton : ${(m.tons || []).map(t => ({ elegant: 'élégant', chaleureux: 'chaleureux', fun: 'fun' }[t] || t)).join(', ') || 'chaleureux'}. Emojis : ${{ aucun: 'aucun', peu: 'un peu (2 ou 3 au plus)', beaucoup: 'beaucoup' }[m.emojis] || 'un peu'}.`);
   L.push(`Lieu : ${m.lieu || 'Ahougnansou, Bouaké'}. Phrase de fin : ${m.fin || 'aucune'}. Contact : ${m.contact || 'en message privé'}.`);
+  const cx = typeof window.ctxPrompt === 'function' ? window.ctxPrompt() : ''; if(cx) L.push(cx);
   const style = (m.style || []).slice(0, 10);
   const memo = (MK.mem || []).filter(x => x.kind === 'style').slice(-8).map(x => x.text);
   if(style.length || memo.length) L.push('STYLE APPRIS (à respecter) :\n' + style.concat(memo).map(x => '- ' + x).join('\n'));
@@ -1722,6 +1726,7 @@ function stMarqueHtml(){
       <label style="margin-top:12px">Nombre maximum de hashtags par réseau</label>
       <div class="st-g3">${ST_CANAUX.map(([c, nom]) => `<label>${nom.replace('Profil perso Facebook', 'Profil perso').replace('Groupes Facebook', 'Groupes')}<input type="number" min="0" max="30" inputmode="numeric" value="${stE(m.max[c] != null ? m.max[c] : ST_MAX_DEF[c])}" oninput="ST.m.max['${c}']=this.value===''?null:Number(this.value)"></label>`).join('')}</div>
     </div>
+    ${typeof window.ctxCardHtml === 'function' ? window.ctxCardHtml() : ''}
     ${typeof window.txbCardHtml === 'function' ? window.txbCardHtml() : ''}
     <div class="st-card"><h3>${agIcon('sparkles', 18)} Exemples de mes publications</h3>
       <p>Colle 2 ou 3 anciennes légendes que tu aimes. L'IA en tire ton style en règles courtes, et s'en sert pour chaque texte.</p>

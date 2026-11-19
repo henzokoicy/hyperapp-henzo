@@ -641,6 +641,7 @@ L'app lui proposera d'ouvrir le studio de publication (photos de la galerie, tex
 ["Fais-moi l'affiche promo de la fête des mères","Quel jour publier la séance de Destinée ?"]
 \`\`\`
 
+${typeof window.ctxPrompt === 'function' ? window.ctxPrompt() : ''}
 ${typeof window.txtExemplesPrompt === 'function' ? window.txtExemplesPrompt('page') : ''}
 
 CONTEXTE :
