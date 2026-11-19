@@ -180,7 +180,8 @@ function txtExemplesPrompt(canal){
 }
 (function(){ const o = txtExtraPrompt; window.txtExtraPrompt = function(canal){
   const ex = txtExemplesPrompt(canal);
-  return (ex ? ex + '\n' : '') + o() + '\nIMPORTANT : "emotion" et "detail" doivent se lire comme UN seul texte fluide, naturel, qui se suit, sans répéter ni ressembler à un formulaire.'; }; })();
+  const cx = typeof window.ctxPrompt === 'function' ? window.ctxPrompt() : '';
+  return (cx ? cx + '\n' : '') + (ex ? ex + '\n' : '') + o() + '\nIMPORTANT : "emotion" et "detail" doivent se lire comme UN seul texte fluide, naturel, qui se suit, sans répéter ni ressembler à un formulaire.'; }; })();
 
 // ---------- Ecran dans Ma marque ----------
 function txbMarque(){ return (typeof ST !== 'undefined' && ST.m) ? ST.m : ((typeof stM === 'function') ? stM() : {}); }
@@ -231,7 +232,9 @@ function txbAppliquer(){
     m.hashtags_fixes = [m.hashtags_fixes || '', ...add].join(' ').replace(/\s+/g, ' ').trim();
   }
   if(on('txbTel') && X.tels[0]) m.contact = 'WhatsApp ' + X.tels[0];
-  const r = document.querySelector('input[name="txbAppel"]:checked'); if(r && Number(r.value) >= 0 && X.appels[Number(r.value)]) m.fin = X.appels[Number(r.value)];
+  const r = document.querySelector('input[name="txbAppel"]:checked'); if(r && Number(r.value) >= 0 && X.appels[Number(r.value)]){ m.fin = X.appels[Number(r.value)];
+    // Si la phrase de fin contient deja le numéro, inutile de le répéter en contact
+    if(X.tels[0] && String(m.fin).replace(/\D/g, '').includes(String(X.tels[0]).replace(/\D/g, '').slice(-8))) m.contact = ''; }
   if(on('txbLieu') && X.lieu) m.lieu = X.lieu;
   if(on('txbCopy') && X.copyright){ m.copyright = Object.assign({ on: true, style: 'leger' }, m.copyright || {}, { texte: X.copyright.replace(/^\s*\(c\)/i, '©') }); }
   if(on('txbEmo')) m.emojis = X.emojisParTexte === 0 ? 'aucun' : X.emojisParTexte <= 3 ? 'peu' : 'beaucoup';
@@ -276,15 +279,15 @@ Object.assign(window, { TXB, txtExtraire, txtBiblio, txtAimer, txtExemplesPrompt
 // ---------- Acces direct depuis le studio (sans passer par Ma marque) ----------
 async function txbOuvrir(){
   try { if(typeof stChargerMarque === 'function') await stChargerMarque(); } catch(e){}
-  if(typeof ST !== 'undefined' && !ST.m && typeof stMarqueFusion === 'function') ST.m = JSON.parse(JSON.stringify(stMarqueFusion(window.ST_MARQUE)));
+  if(typeof ST !== 'undefined' && typeof stMarqueFusion === 'function') ST.m = JSON.parse(JSON.stringify(stMarqueFusion(window.ST_MARQUE)));   // toujours la version a jour
   TXB.analyse = null;
   if(typeof agSheet === 'function') agSheet('txb', `<div id="txbBox">${txbInner()}</div>`);
 }
 function txbBandeau(){
   const n = txtBiblio().length;
-  return `<div class="txb-bd"><span>${n ? `Je m'inspire de <b>${n}</b> de tes textes.` : `Je n'ai encore aucun de tes textes pour m'inspirer.`}</span><button onclick="txbOuvrir()">${n ? 'Ajouter mes textes' : 'Ajouter mes anciens textes'}</button></div>`;
+  return `<div class="txb-bd"><span>${n ? `Je m'inspire de <b>${n}</b> de tes textes.` : `Je n'ai encore aucun de tes textes pour m'inspirer.`}</span><button onclick="txbOuvrir()">${n ? 'Ajouter mes textes' : 'Ajouter mes anciens textes'}</button>${typeof window.ctxOuvrir === 'function' ? `<button onclick="ctxOuvrir()">Mon contexte (${window.ctxCount()}/${window.ctxTotal()})</button>` : ''}</div>`;
 }
-(function(){ const st = document.getElementById('txbCss'); if(st) st.textContent += `.txb-bd{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05);font-size:12px}.txb-bd button{flex:none;border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer}`; })();
+(function(){ const st = document.getElementById('txbCss'); if(st) st.textContent += `.txb-bd{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05);font-size:12px}.txb-bd span{flex:1 1 100%;min-width:0}.txb-bd button{flex:none;width:auto!important;white-space:nowrap;border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer}`; })();
 // ---------- Variation : angles et tons qui changent VRAIMENT la facon d'ecrire ----------
 const TXV_ANGLES = [
   ['anecdote', "Raconte un tout petit moment de la séance (un rire, un trac, une surprise) comme une anecdote, à la première personne (« j'ai… »), sans décrire la tenue."],
@@ -329,3 +332,173 @@ async function txtValiderLot(items){
   } catch(e){ console.warn('biblio lot', e); }
 }
 Object.assign(window, { txbOuvrir, txbBandeau, txbRender, txtVariationConsigne, txtTropProche, txtValiderLot, txtValider: (t, c) => txtAimer(t, c, 'oui', 'publie') });
+
+
+// ============================================================
+// RETOUCHES : comparer MA version et la proposition de l'IA (aucune IA), et en tirer des gouts
+// ============================================================
+const TXD_STOP = new Set('avec dans pour mais plus tout tous cette cette elle elles nous vous leur leurs sont etait etre avoir fait faire comme sans sous chez very votre notre entre alors aussi encore quand dont donc depuis apres avant comme leurs celle celui cela ceux mes tes ses mon ton son nos vos'.split(' '));
+function txdTok(t){ return (String(t || '').replace(/[#@][\p{L}\p{N}_]+/gu, ' ').match(/[\p{L}\p{N}'’-]+/gu) || []); }
+// Mots remplaces / ajoutes / retires entre la proposition et la version de Henzo
+function txtDiffMots(a, b){
+  const A = txdTok(a), B = txdTok(b), n = A.length, m = B.length, out = { remplace: [], ajoute: [], retire: [] };
+  if(!n || !m || n * m > 160000) return out;
+  const na = A.map(txlNorm), nb = B.map(txlNorm), W = m + 1, dp = new Int16Array((n + 1) * W);
+  for(let i = n - 1; i >= 0; i--) for(let j = m - 1; j >= 0; j--) dp[i * W + j] = na[i] === nb[j] ? dp[(i + 1) * W + j + 1] + 1 : Math.max(dp[(i + 1) * W + j], dp[i * W + j + 1]);
+  let i = 0, j = 0, del = [], add = [];
+  const flush = () => { if(del.length && add.length) out.remplace.push([del.join(' '), add.join(' ')]); else if(del.length) out.retire.push(del.join(' ')); else if(add.length) out.ajoute.push(add.join(' ')); del = []; add = []; };
+  while(i < n || j < m){
+    if(i < n && j < m && na[i] === nb[j]){ flush(); i++; j++; }
+    else if(j < m && (i >= n || dp[i * W + j + 1] >= dp[(i + 1) * W + j])){ add.push(B[j]); j++; }
+    else { del.push(A[i]); i++; }
+  }
+  flush();
+  return out;
+}
+function txdDiffTexte(d){
+  const q = x => '« ' + x + ' »';
+  const L = [];
+  d.remplace.slice(0, 12).forEach(([o, n]) => L.push('remplacé ' + q(o) + ' par ' + q(n)));
+  d.ajoute.slice(0, 8).forEach(x => L.push('ajouté ' + q(x)));
+  d.retire.slice(0, 8).forEach(x => L.push('retiré ' + q(x)));
+  return L.join(' ; ');
+}
+// Goûts appris des retouches : mots qu'il remplace (à éviter) et mots qu'il choisit (à préférer)
+let txdTimer = null;
+function txtApprendreRetouches(prop, fin){
+  try {
+    const d = txtDiffMots(txlClean(prop), txlClean(fin)); if(!d.remplace.length && !d.retire.length) return d;
+    const m = (typeof stM === 'function' ? stM() : window.ST_MARQUE) || {};
+    const mots = m.mots && typeof m.mots === 'object' ? JSON.parse(JSON.stringify(m.mots)) : {};
+    mots.evite = mots.evite || {}; mots.prefere = mots.prefere || {};
+    const bon = w => w.length >= 4 && !TXD_STOP.has(txlNorm(w));
+    d.remplace.forEach(([o, n]) => {
+      if(o.split(' ').length > 2) return;   // on apprend des mots, pas des phrases entieres
+      o.split(' ').filter(bon).forEach(w => { const k = w.toLowerCase(); mots.evite[k] = (mots.evite[k] || 0) + 1; });
+      n.split(' ').filter(bon).forEach(w => { const k = w.toLowerCase(); mots.prefere[k] = (mots.prefere[k] || 0) + 1; });
+    });
+    d.retire.forEach(w => { if(w.split(' ').length <= 2) w.split(' ').filter(bon).forEach(x => { const k = x.toLowerCase(); mots.evite[k] = (mots.evite[k] || 0) + 1; }); });
+    const cap = o => Object.fromEntries(Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, 40));
+    mots.evite = cap(mots.evite); mots.prefere = cap(mots.prefere);
+    if(window.ST_MARQUE) window.ST_MARQUE.mots = mots;
+    clearTimeout(txdTimer); txdTimer = setTimeout(() => { if(typeof stSauverMarque === 'function') stSauverMarque({ mots }); }, 1500);
+    return d;
+  } catch(e){ console.warn('retouches', e); return null; }
+}
+function txtMots(){ const m = (typeof stM === 'function' ? stM() : window.ST_MARQUE) || {}; const o = m.mots || {}; return { evite: Object.keys(o.evite || {}), prefere: Object.keys(o.prefere || {}) }; }
+// Profil de gouts calcule sur ses textes (aucune IA)
+function txtProfil(){
+  const b = txtBiblio(); const L = [];
+  if(b.length >= 2){
+    const x = txtExtraire(b.map(e => e.t));
+    L.push(`longueur habituelle : environ ${x.mots} mots ; emojis : ${x.emojisParTexte <= 0.5 ? 'presque jamais' : x.emojisParTexte <= 3 ? 'quelques-uns' : 'beaucoup'}${x.adresse ? ' ; il ' + (x.adresse === 'tutoie' ? 'tutoie' : 'vouvoie') + ' ses lecteurs' : ''}`);
+    const cnt = {}; b.forEach(e => new Set(txlWords(txlCorps(e.t) || e.t).filter(w => w.length >= 5 && !TXD_STOP.has(w))).forEach(w => { cnt[w] = (cnt[w] || 0) + 1; }));
+    const fav = Object.entries(cnt).filter(([, n]) => n >= 2).sort((a, c) => c[1] - a[1]).slice(0, 8).map(e => e[0]);
+    if(fav.length) L.push('mots qu\'il emploie souvent : ' + fav.join(', '));
+  }
+  const mo = txtMots();
+  if(mo.evite.length) L.push('mots qu\'il remplace ou retire (à éviter) : ' + mo.evite.slice(0, 12).join(', '));
+  if(mo.prefere.length) L.push('mots qu\'il choisit à la place : ' + mo.prefere.slice(0, 12).join(', '));
+  return L;
+}
+(function(){ const o = window.txtExtraPrompt; window.txtExtraPrompt = function(canal){ const base = o(canal), pr = txtProfil();
+  return base + (pr.length ? '\nSON PROFIL (calculé sur ses vrais textes et ses retouches, il est PRIORITAIRE) :\n- ' + pr.join('\n- ') : ''); }; })();
+// L'audit connait maintenant les mots qu'il a deja rejetes
+(function(){ const o = window.txtAudit; window.txtAudit = function(texte, canal, autres){
+  const a = o(texte, canal, autres), mo = txtMots(); if(!mo.evite.length) return a;
+  const w = new Set(txlWords(txlClean(texte))); const hit = mo.evite.filter(x => w.has(txlNorm(x)));
+  if(hit.length){ a.issues.push({ k: 'rejete', msg: 'Mot(s) que tu as déjà remplacé(s) : ' + hit.slice(0, 3).join(', '), grave: false, pts: 14 }); a.score = Math.max(0, a.score - 14); }
+  return a; }; })();
+Object.assign(window, { txtDiffMots, txdDiffTexte, txtApprendreRetouches, txtMots, txtProfil });
+
+// ============================================================
+// VEILLE : analyse constante de mes publications (sur l'appareil, sans quota IA)
+// ============================================================
+function vlScore(p){ return typeof mkScore === 'function' ? mkScore(p) : 0; }
+function vlTags(p){ return (String(p.hashtags || '').match(/#[\p{L}\p{N}_]{2,}/gu) || []).map(x => x.toLowerCase()); }
+function vlFeat(c){
+  const t = txlClean(c), mots = txlWords(t).length;
+  return { 'une question': /\?/.test(t), 'un texte court (moins de 45 mots)': mots > 0 && mots < 45, 'des emojis': (t.match(/\p{Extended_Pictographic}/gu) || []).some(e => !/[©®™]/.test(e)),
+    'le tutoiement': /\b(tu|ton|ta|tes|toi)\b/i.test(t), 'un appel à réserver': TXL_CTA.test(t) };
+}
+function txtVeille(){
+  const out = []; if(typeof MK === 'undefined' || !MK.posts) return out;
+  const today = new Date().toISOString().slice(0, 10), now = Date.now(), D = 864e5;
+  const post = p => ({ id: p.id, t: (p.title || 'publication').slice(0, 40), d: p.date });
+  const posts = MK.posts.filter(p => p.status !== 'annule' && p.caption);
+  const aVenir = posts.filter(p => p.status === 'prevu' && p.date && p.date >= today).slice(0, 8);
+  const publies = posts.filter(p => p.status === 'publie').sort((a, b) => String(b.published_at || b.date).localeCompare(String(a.published_at || a.date)));
+  const action = p => (p.notes && typeof mkStudioNotes === 'function' && mkStudioNotes(p.notes)) ? { l: 'Ouvrir dans le studio', js: `stOuvrirPost(${p.id})` } : { l: 'Voir mon plan', js: `mkGo('plan')` };
+  // 1. Textes prevus qui ont un probleme
+  aVenir.forEach(p => { const a = txtAudit(p.caption, 'page', []); if(a.score < 70) out.push({ n: a.score < 50 ? 'bad' : 'warn', titre: `Le texte prévu ${typeof mkDayName === 'function' ? mkDayName(p.date).toLowerCase() : p.date} (« ${post(p).t} ») a un problème`, detail: a.issues.slice(0, 3).map(x => x.msg).join(' · '), act: action(p) }); });
+  // 2. Hashtags
+  const recents = posts.filter(p => p.status !== 'prevu' || p.date <= today).slice(0, 8);
+  const trop = posts.filter(p => vlTags(p).length > 12).slice(0, 1);
+  if(trop.length) out.push({ n: 'warn', titre: 'Trop de hashtags', detail: `« ${post(trop[0]).t} » en a ${vlTags(trop[0]).length}. Au-delà de 8 à 10, ça fait spam et ça ne rapporte pas plus.`, act: action(trop[0]) });
+  const sets = recents.slice(0, 5).map(p => vlTags(p).sort().join(' ')).filter(Boolean);
+  if(sets.length >= 4 && sets.filter(x => x === sets[0]).length >= 3) out.push({ n: 'warn', titre: 'Toujours les mêmes hashtags', detail: 'Tes dernières publications ont exactement le même bloc de hashtags. Change-en la moitié selon la séance.', act: { l: 'Ma marque', js: 'stMarqueOuvrir()' } });
+  // 3. Resultats : ce qui marche ou pas (chiffres reels)
+  const sc = publies.filter(p => typeof mkHasStats === 'function' && mkHasStats(p) && !(p.stats || {}).ignore);
+  if(sc.length >= 6){
+    const med = sc.map(vlScore).sort((a, b) => a - b)[Math.floor(sc.length / 2)] || 1;
+    const tagPerf = {}; sc.forEach(p => new Set(vlTags(p)).forEach(h => { (tagPerf[h] = tagPerf[h] || []).push(vlScore(p)); }));
+    Object.entries(tagPerf).filter(([, v]) => v.length >= 3 && v.length <= sc.length - 3).forEach(([h, v]) => {
+      const avec = v.reduce((a, b) => a + b, 0) / v.length, rest = sc.filter(p => !vlTags(p).includes(h)).map(vlScore), sans = rest.reduce((a, b) => a + b, 0) / (rest.length || 1);
+      if(sans > 0 && avec < sans * 0.55) out.push({ n: 'info', titre: `${h} semble peu efficace`, detail: `Les publications avec ce hashtag ont eu en moyenne ${Math.round(avec)} points contre ${Math.round(sans)} pour les autres.`, act: { l: 'Ma marque', js: 'stMarqueOuvrir()' } });
+      else if(sans > 0 && avec > sans * 1.7) out.push({ n: 'good', titre: `${h} marche bien`, detail: `${Math.round(avec)} points en moyenne contre ${Math.round(sans)} sans lui. Garde-le.` });
+    });
+    const feats = {}; sc.forEach(p => { const f = vlFeat(p.caption); Object.entries(f).forEach(([k, v]) => { (feats[k] = feats[k] || { y: [], n: [] })[v ? 'y' : 'n'].push(vlScore(p)); }); });
+    Object.entries(feats).filter(([, o]) => o.y.length >= 3 && o.n.length >= 3).forEach(([k, o]) => {
+      const my = o.y.reduce((a, b) => a + b, 0) / o.y.length, mn = o.n.reduce((a, b) => a + b, 0) / o.n.length;
+      if(mn > 0 && my >= mn * 1.6) out.push({ n: 'good', titre: `Tes publications avec ${k} marchent mieux`, detail: `${Math.round(my)} points en moyenne contre ${Math.round(mn)} sans. Fais-en plus souvent.` });
+      else if(my > 0 && mn >= my * 1.6) out.push({ n: 'info', titre: `Tes publications avec ${k} marchent moins bien`, detail: `${Math.round(my)} points en moyenne contre ${Math.round(mn)} sans.` });
+    });
+    publies.filter(p => sc.includes(p) && now - new Date(p.published_at || p.date).getTime() > 3 * D && vlScore(p) < med * 0.35).slice(0, 2).forEach(p => {
+      const a = txtAudit(p.caption, 'page', []);
+      out.push({ n: 'warn', titre: `« ${post(p).t} » a eu peu de résultats`, detail: `${Math.round(vlScore(p))} points contre ${Math.round(med)} d'habitude.${a.issues.length ? ' Côté texte : ' + a.issues.slice(0, 2).map(x => x.msg).join(' · ') + '.' : ''}`,
+        act: { l: 'Demander pourquoi à l\'IA', js: `mkGo('chat');mkSend(${JSON.stringify('Pourquoi ma publication « ' + post(p).t + ' » a eu peu de résultats ? Voici son texte : ' + String(p.caption).replace(/\s+/g, ' ').slice(0, 400) + ' Que dois-je changer la prochaine fois ?')},{search:false})` } });
+    });
+  } else if(publies.length >= 2) out.push({ n: 'info', titre: 'Je manque de chiffres pour analyser', detail: `Je n'ai les résultats que de ${sc.length} publication(s). Dès 6, je te dirai ce qui marche (hashtags, longueur, question…).`, act: { l: 'Donner mes chiffres', js: `mkGo('res')` } });
+  // 4. Mots rejetes dans les textes prevus
+  const mo = txtMots();
+  if(mo.evite.length) aVenir.forEach(p => { const w = new Set(txlWords(txlClean(p.caption))); const hit = mo.evite.filter(x => w.has(txlNorm(x))); if(hit.length) out.push({ n: 'warn', titre: `Un mot que tu remplaces d'habitude est dans « ${post(p).t} »`, detail: hit.slice(0, 3).join(', '), act: action(p) }); });
+  // 5. Contexte vide ou presque
+  if(typeof window.ctxCount === 'function' && window.ctxCount() < 5) out.push({ n: 'info', titre: 'Mon contexte est presque vide', detail: 'Réponds à quelques questions (3 minutes) : ta voix, tes mots, ce que tu refuses. L\'IA écrira beaucoup plus comme toi.', act: { l: 'Répondre aux questions', js: 'ctxOuvrir()' } });
+  // 6. Bibliotheque vide
+  if(!txtBiblio().length) out.push({ n: 'info', titre: 'Je ne connais pas encore ton style', detail: 'Ajoute quelques-unes de tes anciennes légendes : j\'écrirai comme toi.', act: { l: 'Ajouter mes anciens textes', js: 'txbOuvrir()' } });
+  const ordre = { bad: 0, warn: 1, info: 2, good: 3 };
+  return out.sort((a, b) => ordre[a.n] - ordre[b.n]);
+}
+function txtVeilleCount(){ try { return txtVeille().filter(x => x.n === 'bad' || x.n === 'warn').length; } catch(e){ return 0; } }
+async function txtVeilleIA(){
+  if(typeof MK === 'undefined' || MK.veilleBusy) return;
+  const pubs = (MK.posts || []).filter(p => p.caption && p.status !== 'annule').sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 10);
+  if(!pubs.length){ if(typeof agToast === 'function') agToast('Pas encore de publication à analyser', 'error'); return; }
+  MK.veilleBusy = true; if(typeof mkRenderTab === 'function') mkRenderTab();
+  try {
+    const data = pubs.map(p => `- ${p.date} ${p.network} "${(p.title || '').slice(0, 40)}" [${p.status}] stats: ${typeof mkHasStats === 'function' && mkHasStats(p) ? JSON.stringify(p.stats) : 'aucune'}\n  texte: ${txlClean(p.caption).replace(/\s+/g, ' ').slice(0, 260)}\n  hashtags: ${p.hashtags || ''}`).join('\n');
+    const q = `ANALYSE CRITIQUE DE MES PUBLICATIONS. Voici mes ${pubs.length} dernières publications avec leurs résultats quand je les ai. Dis-moi franchement, en 5 points maximum : 1) ce qui ne va pas dans mes descriptions (ton, longueur, formules, voix) ; 2) ce qui ne va pas dans mes hashtags ; 3) ce qui semble marcher ou ne pas attirer de clients, SEULEMENT si les chiffres le montrent (sinon dis que tu manques de chiffres) ; 4) les 2 changements les plus utiles à faire dès la prochaine publication. Cite des publications précises. N'invente aucun chiffre.\n${data}`;
+    const r = await (typeof mkAI === 'function' ? mkAI({ system: typeof mkSystem === 'function' ? mkSystem() : '', messages: [{ role: 'user', text: q }], maxTokens: 1800 }) : Promise.reject(new Error('IA indisponible')));
+    MK.veilleIA = { texte: String(r.text || '').replace(/```[\s\S]*?```/g, '').trim(), date: Date.now() };
+  } catch(e){ if(typeof agAlert === 'function') agAlert(e.message || String(e)); }
+  MK.veilleBusy = false; if(typeof mkRenderTab === 'function') mkRenderTab();
+}
+function txtVeilleHtml(){
+  const e = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  let L = []; try { L = txtVeille(); } catch(err){ console.warn('veille', err); }
+  const ic = { bad: '!', warn: '!', info: 'i', good: '✓' };
+  const ia = MK.veilleIA ? `<div class="vl-ia"><b>Analyse de l'IA</b>${typeof mkMd === 'function' ? mkMd(MK.veilleIA.texte) : e(MK.veilleIA.texte)}</div>` : '';
+  return `<div class="mk-card vl"><h3>${typeof agIcon === 'function' ? agIcon('target', 18) : ''} Mon analyse${L.filter(x => x.n === 'bad' || x.n === 'warn').length ? `<span class="crm-count">${L.filter(x => x.n === 'bad' || x.n === 'warn').length}</span>` : ''}</h3>
+    ${L.length ? L.slice(0, 6).map(x => `<div class="vl-i vl-${x.n}"><i>${ic[x.n]}</i><div><b>${e(x.titre)}</b><span>${e(x.detail)}</span>${x.act ? `<button onclick="${e(x.act.js)}">${e(x.act.l)}</button>` : ''}</div></div>`).join('') : `<div class="ag-hint" style="margin:0">Rien à signaler : tes textes à venir et tes hashtags semblent corrects.</div>`}
+    ${ia}
+    <button class="btn-secondary mk-ib" style="margin-top:10px" ${MK.veilleBusy ? 'disabled' : ''} onclick="txtVeilleIA()">${MK.veilleBusy ? "L'IA analyse tes publications..." : 'Analyse approfondie par l\'IA (1 demande)'}</button>
+    <div class="ag-hint">Ces alertes sont calculées sur ton téléphone : elles ne consomment pas ton quota d'IA. Seul le bouton ci-dessus fait une demande.</div></div>`;
+}
+(function(){ const st = document.getElementById('txbCss'); if(st) st.textContent += `.vl-i{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid rgba(255,255,255,.08)}.vl-i:first-of-type{border-top:0}.vl-i>i{flex:none;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:700;font-size:12px;background:rgba(255,255,255,.12)}
+  .vl-bad>i{background:#ff6b5e;color:#fff}.vl-warn>i{background:#f5c04e;color:#222}.vl-good>i{background:#7ee2a8;color:#04210f}.vl-i>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;font-size:13px}.vl-i span{opacity:.75;font-size:12px}
+  .vl-i button{align-self:flex-start;margin-top:4px;width:auto;border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer}.vl-ia{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);font-size:13px;line-height:1.45}`; })();
+Object.assign(window, { txtVeille, txtVeilleCount, txtVeilleIA, txtVeilleHtml });
+
+(function(){ const st = document.getElementById('txbCss'); if(st) st.textContent += `.st-polir{margin:10px 0 4px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);display:flex;flex-direction:column;gap:6px;font-size:12px}.st-polir>b{font-size:13px}.st-polir>span{opacity:.72;line-height:1.4}
+  .st-polir button{width:auto;align-self:flex-start;border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer}.st-polir button.main{background:var(--accent,#c6f432);border-color:transparent;color:#111;font-weight:700}
+  .st-pl-r{display:flex;gap:6px;align-items:center}.st-pl-r input{flex:1;min-width:0;font-size:12px;padding:8px 10px;border-radius:10px}.st-pl-r button{flex:none}`; })();

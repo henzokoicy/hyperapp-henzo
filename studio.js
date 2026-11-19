@@ -82,7 +82,7 @@ function stMarqueDefaut(){
     max: Object.assign({}, ST_MAX_DEF), gras: true, accents: 'normaux',
     // Mise en forme fixe des textes (choisie par Henzo) : titre gras, mentions et copyright en lettres fines
     mentions: 'leger', copyright: { on: true, texte: '© Henzo Photographie', style: 'leger' },
-    exemples: ['', '', ''], biblio: [], style: [], police: 'montserrat',
+    exemples: ['', '', ''], biblio: [], mots: { evite: {}, prefere: {} }, contexte: { r: {}, extra: [] }, style: [], police: 'montserrat',
     couleurs: { fond: '', texte: '#ffffff', accent: '' }, logo: null
   };
 }
@@ -102,6 +102,9 @@ function stMarqueFusion(m){
   while(o.exemples.length < 3) o.exemples.push('');
   if(!Array.isArray(o.style)) o.style = [];
   if(!Array.isArray(o.biblio)) o.biblio = [];
+  if(!o.contexte || typeof o.contexte !== 'object') o.contexte = { r: {}, extra: [] };
+  if(!o.contexte.r || typeof o.contexte.r !== 'object') o.contexte.r = {};
+  if(!Array.isArray(o.contexte.extra)) o.contexte.extra = [];
   if(!ST_POLICES[o.police]) o.police = 'montserrat';
   return o;
 }
@@ -854,6 +857,7 @@ function stContexte(){
   const m = stM(), s = stShoot(), L = [];
   L.push(`MARQUE : ${stNom()}${m.slogan ? ', slogan "' + m.slogan + '"' : ''}. Ton : ${(m.tons || []).map(t => ({ elegant: 'élégant', chaleureux: 'chaleureux', fun: 'fun' }[t] || t)).join(', ') || 'chaleureux'}. Emojis : ${{ aucun: 'aucun', peu: 'un peu (2 ou 3 au plus)', beaucoup: 'beaucoup' }[m.emojis] || 'un peu'}.`);
   L.push(`Lieu : ${m.lieu || 'Ahougnansou, Bouaké'}. Phrase de fin : ${m.fin || 'aucune'}. Contact : ${m.contact || 'en message privé'}.`);
+  const cx = typeof window.ctxPrompt === 'function' ? window.ctxPrompt() : ''; if(cx) L.push(cx);
   const style = (m.style || []).slice(0, 10);
   const memo = (MK.mem || []).filter(x => x.kind === 'style').slice(-8).map(x => x.text);
   if(style.length || memo.length) L.push('STYLE APPRIS (à respecter) :\n' + style.concat(memo).map(x => '- ' + x).join('\n'));
@@ -1067,7 +1071,11 @@ function stEmo(){ return stM().emojis !== 'aucun'; }
 function stCompose(canal){
   const J = ST.J || {}, m = stM(), x = J[canal] || {};
   const titre = stTitre(), lieu = m.lieu ? (stEmo() ? '📍 ' : '') + m.lieu : '';
-  const appel = (t) => [stClean(t || m.fin || ''), m.contact].filter(Boolean).join('\n');
+  const appel = (t) => {
+    const f = stClean(t || m.fin || ''), c = String(m.contact || ''), dg = x => String(x).replace(/\D/g, ''), cd = dg(c);
+    const dup = c && ((cd.length >= 8 && dg(f).includes(cd.slice(-8))) || stNorm(f).includes(stNorm(c)));
+    return [f, dup ? '' : c].filter(Boolean).join('\n');
+  };
   let t = '';
   if(canal === 'page'){
     const parts = [];
@@ -1146,6 +1154,42 @@ async function stRefaire(canal, ton){
   } catch(e){ agAlert(e.message || String(e)); }
   ST.busy = ''; stRefresh();
 }
+// Mise en forme finale d'un texte retouché : titre en gras, credits, copyright
+function stFinaliser(canal, t){
+  const m = stM(); const lines = String(t || '').replace(/\r/g, '').split('\n'); const i = lines.findIndex(x => x.trim());
+  if(i >= 0 && (canal === 'page' && (m.structure || []).some(b => b.k === 'titre' && b.on) || canal === 'whatsapp')){
+    const brut = stDefancy(lines[i]).trim().replace(/^\*+|\*+$/g, '').trim();
+    if(brut && brut.length <= 90) lines[i] = stTitreReseau(brut, canal === 'whatsapp' ? 'whatsapp' : 'page');
+  }
+  return stMentionsCopyright(lines.join('\n').replace(/[\u2014\u2013]/g, '-'), canal, m);
+}
+// Henzo a retouché le texte à sa façon (ou donne une consigne) : l'IA le remet au propre sans le réécrire
+async function stPolir(canal, mode){
+  if(ST.busy) return;
+  stSyncFields();
+  const T = ST.textes[canal]; if(!T || !T.texte){ return; }
+  const cons = mode === 'consigne' ? String((document.getElementById('stCons_' + canal) || {}).value || '').trim() : '';
+  if(mode === 'consigne' && !cons){ agToast('Écris ce que tu veux changer', 'error'); return; }
+  const nom = (ST_CANAUX.find(c => c[0] === canal) || [, canal])[1];
+  const actuel = stDefancy(T.texte);
+  const d = typeof window.txtDiffMots === 'function' ? window.txtDiffMots(stDefancy(T.prop || ''), actuel) : null;
+  const chg = d && typeof window.txdDiffTexte === 'function' ? window.txdDiffTexte(d) : '';
+  ST.busy = 'polir:' + canal; stRefresh();
+  try {
+    const q = `REMISE AU PROPRE du texte "${nom}". Henzo a retouché le texte lui-même : ses mots et ses idées sont voulus et passent AVANT les tiens.
+TEXTE ACTUEL (version de Henzo) :
+"""${actuel}"""
+${chg ? `CE QU'IL A CHANGÉ par rapport à ta proposition : ${chg}.\n` : ''}${cons ? `SA CONSIGNE : ${cons}\n` : ''}Ce que tu fais : garde SES mots et SES idées exactement. Ne remets jamais un mot qu'il a retiré ou remplacé. Corrige seulement les fautes, la grammaire, les répétitions, les accords, les enchaînements et la ponctuation pour que tout se lise naturellement. Même sens, même longueur à peu près, même ton, même façon de parler. N'invente rien, n'ajoute aucun fait. ${cons ? 'Applique sa consigne en changeant le moins de choses possible. ' : ''}Garde la première ligne (titre), le lieu, l'appel à réserver, les crédits [[Nom]] et les hashtags tels quels, sauf si sa consigne dit le contraire. Pas de gras ni de lettres spéciales.
+Réponds UNIQUEMENT en JSON : {"texte":"le texte complet remis au propre"}`;
+    const r = await mkAI({ system: stSystem(), messages: [{ role: 'user', text: q }], maxTokens: 1800 });
+    const t = stClean((mkJson(r.text) || {}).texte || '');
+    if(t.length < 15) throw new Error("L'IA n'a pas rendu de texte. Réessaie.");
+    if(typeof window.txtApprendreRetouches === 'function') window.txtApprendreRetouches(T.prop || '', actuel);
+    T.texte = stFinaliser(canal, t); T.copie = null; T.avis = null;
+    agToast('Texte remis au propre');
+  } catch(e){ agAlert(e.message || String(e)); }
+  ST.busy = ''; stRefresh();
+}
 function stCanalInfo(canal){
   const J = ST.J || {}, x = J[canal] || {};
   if(canal === 'tiktok') return `<div class="st-info"><b>Idée de vidéo :</b> ${stE(stClean(x.idee || ''))}<br><b>Accroche :</b> ${stE(stClean(x.accroche || ''))}<br><b>Texte à l'écran :</b> ${stE(stClean(x.texte_ecran || ''))}<br><b>Son :</b> ${stE(stClean(x.son || 'un son tendance du moment'))}, à chercher dans TikTok (Ajouter un son).</div>`;
@@ -1166,11 +1210,14 @@ function stStepTextes(){
       ${ST.busy ? '' : `<button class="btn-primary" style="width:100%" onclick="stTextesGen()">Écrire mes textes</button>`}</div>${stFoot('Patiente...', { disabled: true })}`;
   }
   return `<div class="st-card" style="padding:12px 14px"><p style="margin:0">Voici tes textes, un par réseau. <b style="color:var(--text)">Touche Copier, puis publie toi-même.</b> Tu peux tout modifier.</p>${typeof window.txbBandeau === 'function' ? window.txbBandeau() : ''}</div>
-    ${ST_CANAUX.map(([c, nom, , col]) => { const T = ST.textes[c] || { texte: '' }; const busy = ST.busy === 'refaire:' + c;
+    ${ST_CANAUX.map(([c, nom, , col]) => { const T = ST.textes[c] || { texte: '' }; const busy = ST.busy === 'refaire:' + c || ST.busy === 'polir:' + c;
       return `<div class="st-tx ${busy ? 'busy' : ''}" id="stTx_${c}"><div class="st-tx-h"><i style="background:${col}"></i><b>${nom}</b>${T.copie != null ? `<span class="st-tag ok">${agIcon('check', 11)} Copié</span>` : ''}${busy ? '<span class="st-tag">écrit...</span>' : ''}</div>
         <div class="st-tx-b">${stCanalInfo(c)}
           <textarea data-st-tx="${c}" oninput="ST.textes['${c}'].texte=this.value;stGrow(this)">${stE(T.texte)}</textarea>
           ${typeof window.txtBadgeHtml === 'function' && T.texte ? window.txtBadgeHtml(c, window.txtAudit(T.texte, c, ST_CANAUX.slice(0, ST_CANAUX.findIndex(x => x[0] === c)).filter(x => x[0] !== 'whatsapp' && x[0] !== 'tiktok' && c !== 'whatsapp' && c !== 'tiktok').map(x => ({ texte: (ST.textes[x[0]] || {}).texte, nom: x[1] })))) : ''}
+          <div class="st-polir"><b>Retouche à ta façon</b><span>Change les mots dans le cadre ci-dessus (écris ce que tu veux), puis touche « Remettre au propre ». Je garde tes mots et je corrige seulement la forme.</span>
+            <button class="main" onclick="stPolir('${c}')">Remettre au propre</button>
+            <div class="st-pl-r"><input id="stCons_${c}" placeholder="Ou dis-lui quoi changer (ex : remplace « spontanéité » par « joie »)"><button onclick="stPolir('${c}','consigne')">Appliquer</button></div></div>
           <div class="st-tones"><button onclick="stRefaire('${c}')">${agIcon('redo', 12)} Refaire</button><button onclick="stRefaire('${c}','court')">Plus court</button><button onclick="stRefaire('${c}','emotion')">Plus d'émotion</button><button onclick="stRefaire('${c}','pro')">Plus pro</button></div>
           <div class="mk-btns"><button class="main" onclick="stCopier('${c}')">${agIcon('copy', 14)} Copier</button><button onclick="stOuvrir('${c}')">${agIcon(c === 'whatsapp' ? 'chat' : 'share', 14)} ${stOuvrirLabel(c)}</button></div>
           <div class="st-avis">${T.avis ? `<span class="st-tag ok">${T.avis === 'oui' ? 'Retenu : tu aimes ce style' : 'Retenu : pas ton style'}</span>` : `<button onclick="stAvisTexte('${c}','oui')">${agIcon('check', 13)} J'aime ce style</button><button onclick="stAvisTexte('${c}','non')">Pas mon style</button>`}</div>
@@ -1600,23 +1647,16 @@ async function stApprendreTextes(){
     pairs.push({ c, nom, prop: T.prop, fin }); T.appris = fin;
   });
   if(!pairs.length || typeof mkSaveMemos !== 'function') return;
+  // Apprentissage LOCAL (aucune demande d'IA) : longueur, emojis, et mots remplacés
   let lecons = [];
-  try {
-    const q = `LEÇONS DE STYLE. Voici des textes proposés à Henzo et ce qu'il a vraiment gardé après modification. Déduis 1 à 3 règles courtes et générales sur son style (longueur, ton, emojis, formules, ce qu'il enlève ou ajoute). Une règle = une phrase de moins de 15 mots. Pas de règle sur une seule cliente.
-${pairs.map(x => `[${x.nom}]\nProposé : """${x.prop.slice(0, 900)}"""\nGardé : """${x.fin.slice(0, 900)}"""`).join('\n\n')}
-Réponds UNIQUEMENT en JSON : {"lecons":["..."]}`;
-    const r = await mkAI({ messages: [{ role: 'user', text: q }], maxTokens: 600 });
-    lecons = (mkJson(r.text).lecons || []).map(stClean).filter(Boolean).slice(0, 3);
-  } catch(e){
-    // Sans IA : lecons simples
-    pairs.forEach(x => {
-      if(x.fin.length < x.prop.length * 0.75) lecons.push(`Préfère des textes ${x.nom === 'Page Facebook' ? 'de page ' : ''}plus courts que ceux proposés`);
-      else if(x.fin.length > x.prop.length * 1.3) lecons.push('Aime développer un peu plus ses textes');
-      const emo = s => (s.match(/\p{Extended_Pictographic}/gu) || []).length;
-      if(emo(x.fin) < emo(x.prop) - 1) lecons.push("Met moins d'emojis que proposé");
-      if(emo(x.fin) > emo(x.prop) + 1) lecons.push("Aime ajouter des emojis");
-    });
-  }
+  pairs.forEach(x => {
+    if(typeof window.txtApprendreRetouches === 'function') window.txtApprendreRetouches(x.prop, x.fin);
+    if(x.fin.length < x.prop.length * 0.75) lecons.push(`Préfère des textes ${x.nom === 'Page Facebook' ? 'de page ' : ''}plus courts que ceux proposés`);
+    else if(x.fin.length > x.prop.length * 1.3) lecons.push('Aime développer un peu plus ses textes');
+    const emo = s => (s.match(/\p{Extended_Pictographic}/gu) || []).length;
+    if(emo(x.fin) < emo(x.prop) - 1) lecons.push("Met moins d'emojis que proposé");
+    if(emo(x.fin) > emo(x.prop) + 1) lecons.push("Aime ajouter des emojis");
+  });
   lecons = [...new Set(lecons)];
   if(lecons.length) await mkSaveMemos(lecons.map(t => ({ kind: 'style', text: t })), 'studio (textes modifiés)');
 }
@@ -1686,6 +1726,7 @@ function stMarqueHtml(){
       <label style="margin-top:12px">Nombre maximum de hashtags par réseau</label>
       <div class="st-g3">${ST_CANAUX.map(([c, nom]) => `<label>${nom.replace('Profil perso Facebook', 'Profil perso').replace('Groupes Facebook', 'Groupes')}<input type="number" min="0" max="30" inputmode="numeric" value="${stE(m.max[c] != null ? m.max[c] : ST_MAX_DEF[c])}" oninput="ST.m.max['${c}']=this.value===''?null:Number(this.value)"></label>`).join('')}</div>
     </div>
+    ${typeof window.ctxCardHtml === 'function' ? window.ctxCardHtml() : ''}
     ${typeof window.txbCardHtml === 'function' ? window.txbCardHtml() : ''}
     <div class="st-card"><h3>${agIcon('sparkles', 18)} Exemples de mes publications</h3>
       <p>Colle 2 ou 3 anciennes légendes que tu aimes. L'IA en tire ton style en règles courtes, et s'en sert pour chaque texte.</p>

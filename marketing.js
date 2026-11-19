@@ -641,6 +641,7 @@ L'app lui proposera d'ouvrir le studio de publication (photos de la galerie, tex
 ["Fais-moi l'affiche promo de la fête des mères","Quel jour publier la séance de Destinée ?"]
 \`\`\`
 
+${typeof window.ctxPrompt === 'function' ? window.ctxPrompt() : ''}
 ${typeof window.txtExemplesPrompt === 'function' ? window.txtExemplesPrompt('page') : ''}
 
 CONTEXTE :
@@ -818,7 +819,7 @@ function mkFixPost(p, imgs){
 function mkBody(){ return document.getElementById('mkBody'); }
 function mkBadge(t){
   const today = mkDay();
-  if(t === 'jour') return MK.posts.filter(p => p.status === 'prevu' && p.date && p.date <= today).length;
+  if(t === 'jour') return MK.posts.filter(p => p.status === 'prevu' && p.date && p.date <= today).length + (typeof window.txtVeilleCount === 'function' ? window.txtVeilleCount() : 0);
   if(t === 'res') return MK.posts.filter(p => p.status === 'publie' && !mkHasStats(p) && p.published_at && Date.now() - new Date(p.published_at).getTime() > 48 * 3600000).length;
   return 0;
 }
@@ -1285,6 +1286,7 @@ function mkJourHtml(){
   const noStats = MK.posts.filter(p => p.status === 'publie' && !mkHasStats(p) && p.published_at && now - new Date(p.published_at).getTime() > 48 * 3600000);
   const next = MK.posts.find(p => p.status === 'prevu' && p.date > today);
   return `
+    ${typeof window.txtVeilleHtml === 'function' ? window.txtVeilleHtml() : ''}
     <div class="mk-card"><h3>${agIcon('flame', 18)} À publier aujourd'hui${due.length ? `<span class="crm-count">${due.length}</span>` : ''}</h3>
       ${due.length ? due.map(p => mkPlanCard(p)).join('') : `
         <p class="mk-intro" style="margin:0 0 10px">Rien de prévu pour aujourd'hui.${next ? ` Prochaine publication : ${agEsc(mkDayName(next.date))} sur ${agEsc(next.network)}.` : ''}</p>
