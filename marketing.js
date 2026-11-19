@@ -14,8 +14,18 @@ const MK = {
   tab: 'chat', loaded: false, loadedAt: 0, busy: false, search: false,
   msgs: [], mem: [], posts: [], media: [], tarifs: [], promos: [], avis: [],
   pending: [], edit: null, signed: {}, uid: null, weekOff: 0,
-  openMsg: null, sel: new Set(), selMode: false, proposal: null, planDraft: null, ctxShoot: null
+  convFrom: 0, showOld: false, openMsg: null, sel: new Set(), selMode: false, proposal: null, planDraft: null, ctxShoot: null
 };
+try { MK.convFrom = Number(localStorage.getItem('mkConvFrom')) || 0; } catch(e){}
+// Messages de la conversation en cours (les plus anciens restent gardes, consultables)
+function mkVisible(list){ list = list || MK.msgs; return MK.showOld ? list : list.filter(m => m.id < 0 || m.id > MK.convFrom); }
+async function mkNewConv(){
+  const last = MK.msgs.reduce((a, m) => Math.max(a, Number(m.id) || 0), 0);
+  MK.convFrom = last; MK.showOld = false; MK.pending = []; MK.draft = ''; MK.openMsg = null;
+  try { localStorage.setItem('mkConvFrom', String(last)); } catch(e){}
+  mkRenderTab(); agToast('Nouvelle conversation');
+}
+function mkToggleOld(){ MK.showOld = !MK.showOld; MK.scroll = false; mkRenderTab(); }
 const MK_NETS = ['Facebook', 'Statut WhatsApp', 'Instagram', 'TikTok', 'Google Maps'];
 const MK_NET_COL = { 'Facebook': '#1877f2', 'Statut WhatsApp': '#25d366', 'Instagram': '#e1306c', 'TikTok': '#8a8a8a', 'Google Maps': '#ea4335' };
 const MK_KINDS = ['Séance client', 'Avant / après', 'Coulisses', 'Avis client', 'Promo', 'Conseil', 'Vidéo courte', 'Présentation du studio', 'Fête / événement', 'Question / sondage'];
@@ -554,6 +564,7 @@ COMMENT TU RÉPONDS :
 - Ce que Henzo a VALIDÉ ou AIMÉ (dans le contexte, "preference") est la règle : reprends ces choix, ne propose pas autre chose sauf s'il le demande.
 - Tu ne peux PAS publier à la place de Henzo (ni Facebook, ni WhatsApp, ni ailleurs) et tu ne vois pas ses pages. Ne dis jamais "je publie" ni "publie dès maintenant" comme si c'était fait. Donne le texte et dis : "Voici ton texte, touche Copier puis publie."
 - Quand il y a plusieurs photos, c'est TOI qui décides laquelle mettre en premier et dans quel ordre, et tu expliques pourquoi en une phrase (sourire, regard, lumière, netteté). Ne demande jamais "laquelle tu préfères ?".
+- CHAQUE SÉANCE EST UN SUJET À PART. Quand de nouvelles photos arrivent, ou qu'une autre séance est évoquée, oublie les prénoms, lieux, tenues et détails des messages précédents : ne reprends que ce que tu vois sur les photos et ce que Henzo dit à propos de CETTE séance. Si tu n'es pas sûr du prénom, ne l'écris pas.
 - Tu n'inventes pas de chiffres sur ses résultats : utilise le contexte ci-dessous.
 - Pour apprendre à le connaître : au maximum 1 ou 2 questions par réponse, à la fin, seulement si c'est utile.
 
@@ -583,7 +594,7 @@ ${mkContext()}`;
 }
 // Historique court : les 20 derniers messages, blocs remplaces par un resume
 function mkHistory(list){
-  return (list || MK.msgs).slice(-20).map(m => {
+  return mkVisible(list).slice(-20).map(m => {
     const P = mkParse(m.text);
     return { role: m.role,
       text: P.clean + P.posts.map(p => `\n(publication proposée : ${p.title || ''}, ${p.network || ''}, ${p.date || ''})`).join('')
@@ -790,7 +801,8 @@ const MK_QUICK = [
   ['clients', 'Comment avoir plus de clients ce mois-ci ?'], ['resultats', 'Analyse mes résultats']
 ];
 function mkChatHtml(){
-  const msgs = MK.msgs;
+  const msgs = mkVisible();
+  const olds = MK.msgs.length - msgs.length;
   const empty = !msgs.length ? `<div class="mk-msg agent"><p>Salut Henzo ! Je suis ton agent marketing. Mon travail : t'aider à avoir plus de clients et à faire connaître ${agEsc(mkMarque())} partout en Côte d'Ivoire.</p><p>Envoie-moi des photos, pose-moi une question, ou touche un des boutons en bas. Plus on parle, mieux je te connais.</p></div>` : '';
   return `<div class="mk-chat" id="mkChat">${empty}${msgs.map(mkMsgHtml).join('')}${MK.busy === 'chat' ? mkTyping() : ''}</div>
     <div class="mk-compose">
@@ -807,7 +819,7 @@ function mkChatHtml(){
         <button class="mk-send" onclick="mkSend()" ${MK.busy ? 'disabled' : ''} title="Envoyer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 20 4l-6 16-3-7z"/></svg></button>
       </div>
     </div>
-    <div class="ag-sec" style="margin-top:14px"><span class="ag-hint" style="margin:0">L'agent se souvient de ce que tu lui apprends (onglet "Ce qu'il sait").</span>${msgs.length ? `<button onclick="mkClearChat()">Effacer la discussion</button>` : ''}</div>`;
+    <div class="ag-sec" style="margin-top:14px"><span class="ag-hint" style="margin:0">L'agent se souvient de ce que tu lui apprends (onglet "Ce qu'il sait").</span>${msgs.length ? `<button onclick="mkNewConv()">Nouvelle conversation</button>` : ''}${MK.convFrom || MK.showOld ? `<button onclick="mkToggleOld()">${MK.showOld ? 'Masquer les anciennes' : 'Voir les anciennes'}</button>` : ''}${MK.msgs.length ? `<button onclick="mkClearChat()">Effacer tout</button>` : ''}</div>`;
 }
 function mkTyping(){ return `<div class="mk-typing" id="mkTyping"><span></span><span></span><span></span>&nbsp;écrit...</div>`; }
 function mkGrow(t){ MK.draft = t.value; t.style.height = 'auto'; t.style.height = Math.min(160, t.scrollHeight) + 'px'; }
@@ -1024,7 +1036,7 @@ async function mkSend(text, opt){
   MK.busy = 'chat'; MK.tab = 'chat'; MK.draft = ''; MK.pending = [];
   // Affichage immediat
   const tmp = { id: -Date.now(), role: 'user', text, images: pend.map(p => p.file ? { thumb: p.preview } : { url: p.url, thumb: p.thumb || p.preview }), created_at: new Date().toISOString() };
-  const hist = MK.msgs.slice();
+  const hist = pend.length ? [] : mkVisible();
   MK.msgs.push(tmp); mkRenderTab();
   let st, userRow;
   try {
@@ -1099,7 +1111,7 @@ async function mkClearChat(){
   if(!await agConfirm("Effacer toute la discussion ?\nCe que l'agent sait de toi est gardé, ainsi que tes photos et ton plan.")) return;
   const { error } = await sb.from('mk_messages').delete().gte('id', 0);
   if(error){ agAlert(error.message); return; }
-  MK.msgs = []; mkRenderTab(); agToast('Discussion effacée');
+  MK.msgs = []; MK.convFrom = 0; try { localStorage.removeItem('mkConvFrom'); } catch(e){} mkRenderTab(); agToast('Discussion effacée');
 }
 
 // ---------- Partager ----------
