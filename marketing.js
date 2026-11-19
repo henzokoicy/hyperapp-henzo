@@ -641,6 +641,8 @@ L'app lui proposera d'ouvrir le studio de publication (photos de la galerie, tex
 ["Fais-moi l'affiche promo de la fête des mères","Quel jour publier la séance de Destinée ?"]
 \`\`\`
 
+${typeof window.txtExemplesPrompt === 'function' ? window.txtExemplesPrompt('page') : ''}
+
 CONTEXTE :
 ${mkContext()}`;
 }
@@ -955,6 +957,7 @@ async function mkPostAvis(a, b, avis){
   MK.avisMap = MK.avisMap || {}; MK.avisMap[a + ',' + b] = avis;
   mkRenderTab();
   const extrait = mkClean(typeof window.txtDefancy === 'function' ? window.txtDefancy(p.caption || '') : p.caption || '').replace(/\s+/g, ' ').slice(0, 110);
+  if(avis === 'oui' && typeof window.txtAimer === 'function') window.txtAimer(p.caption || '', 'page', 'oui');
   await mkSaveMemos([{ kind: 'preference', text: `${avis === 'oui' ? 'Aime' : "N'aime pas"} ce genre de publication (${p.network || 'réseau'}, ${p.kind || 'publication'}) : «${extrait}»` }], 'avis sur une publication');
 }
 function mkPropCopy(a, b){ const p = mkPropGet(a, b); if(p) mkCopy(mkPostText(p)); }
