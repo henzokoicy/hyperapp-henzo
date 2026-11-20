@@ -1121,6 +1121,64 @@ function agVarsTheme(g, clair){
   document.head.appendChild(st);
 })();
 
+
+// ---------- Mes couleurs : retouches d'un thème + mes thèmes (gardés sur l'appareil et dans le compte) ----------
+function agLire(k, d){ try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v && typeof v === 'object' ? v : d; } catch(e){ return d; } }
+let AG_PERSO = agLire('ag_themes_perso', {});   // id -> { label, clair, gen, gen0 }
+let AG_OVR = agLire('ag_theme_ovr', {});        // thème -> { bg, card, accent, text, light, deep } (les valeurs changées)
+function agHexOk(h){ return /^#[0-9a-fA-F]{6}$/.test(String(h || '')); }
+function agLum(h){ const c = agHex(h); return (c[0] * 299 + c[1] * 587 + c[2] * 114) / 255000; }
+function agVarsPerso(g, clair){
+  const v = agVarsTheme(g, clair);
+  if(g.text){ v.text = g.text; v['text-2'] = agMix(g.text, g.bg, .2); v.muted = agMix(g.text, g.bg, .5); }
+  const on = agLum(g.accent) > .45 ? '#0d0f0c' : '#ffffff';
+  v['on-accent'] = on; v['pri-bg'] = g.accent; v['pri-fg'] = on;
+  v.pink = v['accent-2']; v.gold = v.yellow;
+  return v;
+}
+function agBaseGen(k){
+  const t = AG_THEMES[k]; if(!t) return null;
+  if(t.perso) return Object.assign({}, t.gen0 || t.gen);
+  const st = document.getElementById('agPersoCss'); if(st) st.remove();
+  const d = document.createElement('div'); d.setAttribute('data-theme', k); d.style.display = 'none'; document.body.appendChild(d);
+  const cs = getComputedStyle(d), g = n => cs.getPropertyValue('--' + n).trim();
+  const r = { bg: g('bg'), card: g('card'), accent: g('accent'), text: g('text'), light: g('light'), deep: g('deep') };
+  d.remove(); if(st) document.head.appendChild(st);
+  return r;
+}
+function agGenFinal(k){
+  const t = AG_THEMES[k]; if(!t) return null;
+  if(t.perso) return Object.assign({}, t.gen);
+  return Object.assign(agBaseGen(k), AG_OVR[k] || {});
+}
+function agRegisterPerso(){
+  Object.entries(AG_PERSO).forEach(([id, p]) => {
+    if(!p || !p.gen) return;
+    AG_THEMES[id] = { label: p.label || 'Mon thème', desc: 'Mon thème', clair: !!p.clair, perso: true, gen: p.gen, gen0: p.gen0 || p.gen,
+      sw: p.clair ? [p.gen.bg, p.gen.card, p.gen.accent, p.gen.text] : [p.gen.bg, p.gen.deep, p.gen.accent, p.gen.light] };
+  });
+}
+function agApplyPersoCss(){
+  let css = '';
+  Object.entries(AG_PERSO).forEach(([id, p]) => {
+    if(!p || !p.gen) return;
+    css += `[data-theme="${id}"]{${Object.entries(agVarsPerso(p.gen, !!p.clair)).map(([n, x]) => `--${n}:${x}`).join(';')}}\n`;
+  });
+  Object.entries(AG_OVR).forEach(([k, o]) => {
+    if(!AG_THEMES[k] || AG_THEMES[k].perso || !o || !Object.keys(o).length) return;
+    const g = Object.assign(agBaseGen(k), o);
+    css += `[data-theme="${k}"]{${Object.entries(agVarsPerso(g, !!AG_THEMES[k].clair)).map(([n, x]) => `--${n}:${x}`).join(';')}}\n`;
+  });
+  let st = document.getElementById('agPersoCss'); if(st) st.remove();
+  st = document.createElement('style'); st.id = 'agPersoCss'; st.textContent = css; document.head.appendChild(st);
+  const m = document.querySelector('meta[name="theme-color"]'); const cur = AG_THEMES[agGetTheme()];
+  if(m && cur){ const g = agGenFinal(agGetTheme()); if(g && g.bg) m.setAttribute('content', g.bg); }
+}
+function agSavePerso(){
+  try { localStorage.setItem('ag_themes_perso', JSON.stringify(AG_PERSO)); localStorage.setItem('ag_theme_ovr', JSON.stringify(AG_OVR)); } catch(e){}
+}
+agRegisterPerso();
+
 // Effets, passage entre les pages, police
 const AG_STYLES = {
   classique: { label: 'Classique', desc: 'Comme maintenant' },
@@ -1175,6 +1233,7 @@ function agApplyTheme(t){
   try { localStorage.setItem('ag_theme', t); } catch(e){}
   const m = document.querySelector('meta[name="theme-color"]');
   if(m) m.setAttribute('content', AG_THEMES[t].sw[0]);
+  if(typeof agApplyPersoCss === 'function') agApplyPersoCss();
 }
 async function agSaveThemeRemote(t){
   try {
@@ -1182,7 +1241,7 @@ async function agSaveThemeRemote(t){
     if(!u || !u.user) return;
     const { data } = await sb.from('user_settings').select('id,user_preferences').eq('user_id', u.user.id).maybeSingle();
     if(data){
-      const prefs = Object.assign({}, data.user_preferences || {}, { theme: t || agGetTheme(), apparence: agApparence() });
+      const prefs = Object.assign({}, data.user_preferences || {}, { theme: t || agGetTheme(), apparence: agApparence(), themes_perso: AG_PERSO, theme_ovr: AG_OVR });
       await sb.from('user_settings').update({ user_preferences: prefs }).eq('id', data.id);
     }
   } catch(e){}
@@ -1194,7 +1253,10 @@ async function agLoadThemeRemote(){
     if(!u || !u.user) return;
     const { data } = await sb.from('user_settings').select('user_preferences').eq('user_id', u.user.id).maybeSingle();
     const p = (data && data.user_preferences) || {};
-    if(!localStorage.getItem('ag_theme') && p.theme) agApplyTheme(p.theme);
+    if(!localStorage.getItem('ag_themes_perso') && p.themes_perso && typeof p.themes_perso === 'object'){ AG_PERSO = p.themes_perso; agRegisterPerso(); }
+    if(!localStorage.getItem('ag_theme_ovr') && p.theme_ovr && typeof p.theme_ovr === 'object') AG_OVR = p.theme_ovr;
+    agSavePerso();
+    if(!localStorage.getItem('ag_theme') && p.theme) agApplyTheme(p.theme); else agApplyPersoCss();
     if(!localStorage.getItem('ag_apparence') && p.apparence) agAppliquerApparence(Object.assign(agApparence(), p.apparence));
   } catch(e){}
   // Les pages clients suivent le thème (une fois par ouverture de l'app)
