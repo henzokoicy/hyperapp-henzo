@@ -13,7 +13,7 @@ let galCurrent = null;   // code de la galerie ouverte
 let galSearch = '';
 let galAvis = [], galAvisNonLus = 0;
 
-function galApiBase(){ return (typeof GALERIE_ORIGIN !== 'undefined' ? GALERIE_ORIGIN : 'https://galerie-clients.onrender.com'); }
+function galApiBase(){ return (typeof GALERIE_ORIGIN !== 'undefined' ? GALERIE_ORIGIN : 'https://galerie-client.henzostudio.com'); }
 function galPhotoUrl(dossier, fichier, v){ return `${galApiBase()}/photo/${encodeURIComponent(dossier)}/${encodeURIComponent(fichier)}${v ? '?v=' + v : ''}`; }
 // Lien direct : le code se remplit tout seul (le client n'a rien à taper)
 function galClientLink(code){ return `${galApiBase()}/?code=${encodeURIComponent(code)}`; }
