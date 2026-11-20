@@ -363,7 +363,7 @@ if(typeof window.edOutil === 'function'){
 .mse-v{display:flex;gap:10px;align-items:center;padding:8px;border-radius:12px;background:var(--card2);border:1px solid var(--border)}
 .mse-v img,.mse-v .mse-rep-i{width:44px;height:44px;object-fit:cover;border-radius:8px;flex:none}
 .mse-v div{flex:1;min-width:0}.mse-v b{display:block;color:var(--text);font-size:13px}.mse-v b small{color:var(--muted);font-weight:500;margin-left:4px}.mse-v>div>small{display:block;color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mse-v button{width:auto !important;margin:0;padding:7px 12px;border-radius:9px;border:none;background:var(--accent,#48A89A);color:#fff;font-weight:600;cursor:pointer}
+.mse-v button{width:auto !important;margin:0;padding:7px 12px;border-radius:9px;border:none;background:var(--accent,#48A89A);color:var(--on-accent,#fff);font-weight:600;cursor:pointer}
 .mse-etat{width:auto !important;margin:0 0 0 8px;padding:4px 8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap}
 .mse-etat.ok svg{color:var(--accent,#48A89A)}
 .ed-video #brMarque{display:none !important}

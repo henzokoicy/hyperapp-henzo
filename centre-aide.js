@@ -212,7 +212,7 @@ caBoutons(); setTimeout(caBoutons, 1500); setTimeout(caBoutons, 4000);
 .ca-it .d{flex:1;min-width:0}.ca-it b{display:block;color:var(--text);font-size:13.5px}.ca-it p{margin:3px 0;color:var(--muted);font-size:12.5px;line-height:1.4}
 .ca-it small{display:flex;align-items:center;gap:4px;color:var(--accent);font-size:11.5px}
 .ca-it>button{flex:0 0 auto;width:auto!important;margin:0;padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12.5px;cursor:pointer}
-.ca-new{display:inline-block;margin-left:4px;padding:1px 7px;border-radius:99px;background:var(--accent);color:#fff;font-size:10px;font-weight:700;vertical-align:middle}`;
+.ca-new{display:inline-block;margin-left:4px;padding:1px 7px;border-radius:99px;background:var(--accent);color:var(--on-accent,#fff);font-size:10px;font-weight:700;vertical-align:middle}`;
   document.head.appendChild(st);
 })();
 })();

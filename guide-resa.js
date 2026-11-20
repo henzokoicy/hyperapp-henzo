@@ -148,7 +148,7 @@ function css(){
   var s = document.createElement('style'); s.id = 'gr-css';
   s.textContent = '' +
     '#gr-btn{position:fixed;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:60;display:flex;align-items:center;gap:8px;background:var(--card,#0a1c1a);color:var(--txt,#fff);border:1px solid var(--accent,#48A89A);border-radius:999px;padding:7px 14px 7px 7px;font:600 14px Inter,system-ui,sans-serif;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.35)}' +
-    '#gr-btn span{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--accent,#48A89A);color:#fff;font-weight:800}' +
+    '#gr-btn span{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--accent,#48A89A);color:var(--on-accent,#fff);font-weight:800}' +
     '#gr-btn em{font-style:normal}' +
     '#gr-visite{position:fixed;inset:0;z-index:200;pointer-events:none}' +
     '.gr-trou{position:fixed;border-radius:16px;box-shadow:0 0 0 9999px rgba(0,0,0,.66);outline:2px solid var(--accent,#48A89A);transition:all .3s cubic-bezier(.16,1,.3,1)}' +

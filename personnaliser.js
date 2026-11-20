@@ -403,7 +403,7 @@ if(window.CA_ITEMS){
 #nsBar{margin:4px 0 10px}
 .ns-dos{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}.ns-dos::-webkit-scrollbar{display:none}
 .ns-dos button{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:99px;border:1px solid var(--border);background:var(--card2);color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;margin:0;width:auto!important}
-.ns-dos button.on{background:var(--accent);border-color:var(--accent);color:#fff}.ns-dos small{opacity:.7}.ns-dos .ns-plus{border-style:dashed;color:var(--accent)}
+.ns-dos button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent,#fff)}.ns-dos small{opacity:.7}.ns-dos .ns-plus{border-style:dashed;color:var(--accent)}
 .ns-tri{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}.ns-tri select{flex:1;min-width:130px;margin:0;padding:8px 10px;font-size:12.5px}
 .ns-gerer{flex:0 0 auto;padding:8px 12px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12.5px;cursor:pointer;margin:0;width:auto!important}
 .note-card.ns-col{border-left:5px solid var(--ns-c)!important;background:linear-gradient(135deg,color-mix(in srgb,var(--ns-c) 16%,var(--card)),var(--card))!important}

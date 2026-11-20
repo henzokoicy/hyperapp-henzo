@@ -522,7 +522,7 @@ function coachRenderStep(){
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px">💬 Demande à l'IA à propos de cette étape :</div>
       <div style="display:flex;gap:6px">
         <input type="text" id="coachAIInput" placeholder="Ex: Comment je rédige le message ?" style="flex:1;font-size:13px;padding:10px" onkeydown="if(event.key==='Enter'){event.preventDefault();coachAskAI();}">
-        <button onclick="coachAskAI()" style="width:auto;padding:10px 14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer">🤖</button>
+        <button onclick="coachAskAI()" style="width:auto;padding:10px 14px;background:var(--accent);color:var(--on-accent,#fff);border:none;border-radius:10px;font-weight:600;cursor:pointer">🤖</button>
       </div>
       <div id="coachAIResponse" style="margin-top:10px"></div>
     </div>

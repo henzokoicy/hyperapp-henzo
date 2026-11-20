@@ -515,7 +515,7 @@ anVueEdit = function(){
   if(document.getElementById('vpCss')) return;
   const st = document.createElement('style'); st.id = 'vpCss';
   st.textContent = `
-.vp-n{font-style:normal;font-size:11px;background:var(--accent);color:#fff;border-radius:999px;padding:1px 7px;margin-left:6px}
+.vp-n{font-style:normal;font-size:11px;background:var(--accent);color:var(--on-accent,#fff);border-radius:999px;padding:1px 7px;margin-left:6px}
 .fx-l{padding:8px 10px;border-radius:12px;background:var(--card2);margin-top:6px}
 .fx-l.on{border:1px solid color-mix(in srgb,var(--accent) 40%,transparent)}
 .fx-t{display:flex;align-items:center;gap:10px}.fx-t b{flex:1;font-size:12.5px;color:var(--text);font-weight:600}.fx-t input{flex:1.2;margin:0}
@@ -527,7 +527,7 @@ anVueEdit = function(){
 .tx-h{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}.tx-h b{color:var(--text);font-size:13px}.tx-h span{flex:1;color:var(--muted);font-size:12px}
 .tx-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:6px}.tx-row label{margin:0}.tx-row input[type=range]{flex:1;min-width:120px;margin:0}
 .tx-row input[type=color]{width:38px;height:32px;padding:0;margin:0;border-radius:8px;border:1px solid var(--border);background:none}
-.mt-act button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.mt-act button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent,#fff)}
 .vp-id{margin-top:8px;padding:10px;border-radius:12px;border:1px dashed color-mix(in srgb,var(--accent) 50%,transparent)}
 .vp-id label{display:block;margin:6px 0 4px;font-size:12px;color:var(--muted)}
 .vp-idees{display:flex;flex-wrap:wrap;gap:6px}

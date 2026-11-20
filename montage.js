@@ -567,7 +567,7 @@ crChoisirModele = function(k){ if(CR.vue === 'accueil' && typeof AN !== 'undefin
 .mt-clip.cible{border-color:#f5a524}
 .mt-tr{flex:none;align-self:center;width:22px;height:30px;margin:0 2px;padding:0;border-radius:7px;border:1px solid var(--border);background:var(--card2);color:var(--accent);display:flex;align-items:center;justify-content:center;cursor:pointer}
 .mt-tr.cut{color:var(--muted)}
-.mt-tr.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.mt-tr.on{background:var(--accent);color:var(--on-accent,#fff);border-color:var(--accent)}
 .mt-plus{flex:none;width:44px;height:64px;margin:0 0 0 6px;padding:0;border-radius:9px;border:1.5px dashed var(--border);background:transparent;color:var(--muted);font-size:22px;cursor:pointer}
 .mt-tete-l{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#f5a524;pointer-events:none;border-radius:2px;box-shadow:0 0 6px rgba(245,165,36,.7)}
 .mt-pan{margin-top:8px;padding:10px;border-radius:12px;background:var(--card2)}

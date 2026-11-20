@@ -108,7 +108,7 @@ window.rtMarques = function(){
 .rt-tap-b{display:flex;align-items:center;gap:8px}
 .rt-tap-b button{margin:0;border:0;cursor:pointer;border-radius:12px;font-weight:700}
 .rt-lect{width:48px;height:48px;background:var(--card2);color:var(--text);display:flex;align-items:center;justify-content:center}
-.rt-big{flex:1;height:64px;background:var(--accent);color:#fff;font-size:22px;letter-spacing:.1em;touch-action:manipulation;user-select:none}
+.rt-big{flex:1;height:64px;background:var(--accent);color:var(--on-accent,#fff);font-size:22px;letter-spacing:.1em;touch-action:manipulation;user-select:none}
 .rt-big.pulse{animation:rtP .25s ease}@keyframes rtP{0%{transform:scale(.94)}100%{transform:scale(1)}}
 .rt-ok{padding:0 14px;height:48px;background:var(--text);color:var(--bg)}.rt-no{padding:0 12px;height:48px;background:transparent;color:var(--muted)}
 .mt-piste .rt-m{position:absolute;bottom:0;width:1px;pointer-events:none}

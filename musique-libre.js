@@ -296,7 +296,7 @@ anVideo = async function(){
 .ml-b{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;font-size:10.5px;font-weight:700;background:var(--card)}
 .ml-b i{font-style:normal;font-weight:500;color:var(--muted)}
 .ml-b.ok{color:#2fbf71}.ml-b.cr{color:var(--accent)}.ml-b.at{color:#f5a524}.ml-b.no{color:#e5484d}
-.ml-credit{display:flex;gap:8px;align-items:center;margin-top:8px;padding:8px;border-radius:10px;background:var(--card);font-size:11.5px;color:var(--text)}.ml-credit span{flex:1;min-width:0;word-break:break-word}.ml-credit button{width:auto;margin:0;padding:6px 10px;border-radius:8px;border:0;background:var(--accent);color:#fff;font-size:11.5px;cursor:pointer;white-space:nowrap}
+.ml-credit{display:flex;gap:8px;align-items:center;margin-top:8px;padding:8px;border-radius:10px;background:var(--card);font-size:11.5px;color:var(--text)}.ml-credit span{flex:1;min-width:0;word-break:break-word}.ml-credit button{width:auto;margin:0;padding:6px 10px;border-radius:8px;border:0;background:var(--accent);color:var(--on-accent,#fff);font-size:11.5px;cursor:pointer;white-space:nowrap}
 .ml-sec{margin:12px 0 6px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.ml-sec i{font-style:normal}
 .ml-son{padding:8px 10px;border-radius:10px;background:var(--card2);margin-bottom:6px}.ml-st b{display:block;font-size:12.5px;color:var(--text)}.ml-st small{font-size:11px;color:var(--muted)}
 .ml-son input[type=range]{width:100%;margin:6px 0}

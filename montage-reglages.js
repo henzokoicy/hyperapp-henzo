@@ -686,7 +686,7 @@ if(typeof window.mpxPlus === 'function'){
 .mrg-l b{font-size:12px;color:var(--text);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .mrg-btns{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
 .mrg-btns button{width:auto !important;margin:0;display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-weight:600;cursor:pointer}
-.mrg-btns button.on{background:var(--accent,#48A89A);border-color:transparent;color:#fff}
+.mrg-btns button.on{background:var(--accent,#48A89A);border-color:transparent;color:var(--on-accent,#fff)}
 .mrg-vp{margin:2px 0 4px}
 .mrg-onde{height:46px;border-radius:9px;background-color:#0b0f10;background-repeat:no-repeat;margin:2px 0 6px;border:1px solid var(--border)}
 .mrg-z{position:absolute;inset:0;z-index:5;cursor:move;touch-action:none;outline:2px dashed var(--accent,#48A89A);outline-offset:-2px;border-radius:inherit}

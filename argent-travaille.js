@@ -439,7 +439,7 @@ setTimeout(async () => { try { const s = typeof sb !== 'undefined' ? (await sb.a
 .at-ib{display:flex;gap:8px;margin-top:8px}.at-ib button{flex:1;margin:0;padding:10px;font-size:13px}
 .at-ib.small button{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:10px;cursor:pointer}
 .at-lien{background:none;border:0;color:var(--accent);cursor:pointer;font-weight:600;padding:0 4px}
-.at-msg{margin:8px 0;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.5}.at-msg.assistant{background:var(--card2);color:var(--text)}.at-msg.user{background:var(--accent);color:#fff;margin-left:30px}
+.at-msg{margin:8px 0;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.5}.at-msg.assistant{background:var(--card2);color:var(--text)}.at-msg.user{background:var(--accent);color:var(--on-accent,#fff);margin-left:30px}
 .at-card .ic{color:#f5a524}`;
   document.head.appendChild(st);
 })();

@@ -332,7 +332,7 @@ function hcStyle(){
     #hcViewer .hv-office>.ho-doc{flex:1}
     #hcViewer pre{align-self:stretch;width:100%;margin:0;padding:14px;background:rgba(255,255,255,.07);border-radius:12px;white-space:pre-wrap;word-break:break-word;overflow:auto;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;text-align:left;color:#fff}
     #hcViewer .hv-note{text-align:center;max-width:420px;color:#cfd3dc;display:flex;flex-direction:column;align-items:center;gap:12px}
-    #hcViewer .hv-note button{background:var(--accent,#6c5ce7);color:#fff;border:0;border-radius:12px;padding:10px 18px;font:inherit;cursor:pointer;margin:0;width:auto}
+    #hcViewer .hv-note button{background:var(--accent,#6c5ce7);color:var(--on-accent,#fff);border:0;border-radius:12px;padding:10px 18px;font:inherit;cursor:pointer;margin:0;width:auto}
     .hc-drop{border:2px dashed var(--border-2);border-radius:12px;padding:8px 12px;margin:4px 0 8px;text-align:center;color:var(--muted);font-size:.8rem}
     @media (hover:none){.hc-drop{display:none}}
     .hc-note summary{cursor:pointer;list-style:none}

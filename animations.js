@@ -651,7 +651,7 @@ function anMini(){
   const st = document.createElement('style'); st.id = 'anCss';
   st.textContent = `
 .an-lect{display:flex;align-items:center;gap:10px;margin-top:10px}
-.an-play{display:flex;align-items:center;justify-content:center;width:44px;height:44px;flex:none;margin:0;padding:0;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:16px;cursor:pointer}
+.an-play{display:flex;align-items:center;justify-content:center;width:44px;height:44px;flex:none;margin:0;padding:0;border-radius:50%;border:0;background:var(--accent);color:var(--on-accent,#fff);font-size:16px;cursor:pointer}
 .an-lect input{flex:1;margin:0;padding:0}
 .an-lect span{font-size:12px;color:var(--muted);white-space:nowrap;min-width:70px;text-align:right}
 .an-mus{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:var(--card2);margin-bottom:8px}

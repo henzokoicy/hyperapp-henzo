@@ -530,7 +530,7 @@ try {
 .ap-rep{margin:12px 0 4px;padding:10px;border-radius:12px;background:var(--card2)}.ap-rep label{display:block;font-size:12.5px;margin-bottom:6px}
 .ap-bdash .ap-bar{margin-top:6px;height:5px}
 .ap-ned{display:inline-flex !important;align-items:center;gap:4px;width:auto !important;padding:5px 9px !important;border-radius:999px !important;font-size:12px;font-weight:600}
-.ap-nsave{display:inline-flex;align-items:center;gap:5px;width:auto;margin:0 34px 0 auto;padding:7px 12px;border-radius:10px;border:0;background:var(--accent);color:#fff;font-weight:700;font-size:12.5px;cursor:pointer}
+.ap-nsave{display:inline-flex;align-items:center;gap:5px;width:auto;margin:0 34px 0 auto;padding:7px 12px;border-radius:10px;border:0;background:var(--accent);color:var(--on-accent,#fff);font-weight:700;font-size:12.5px;cursor:pointer}
 #noteModalBg .modal-wrap{display:flex;align-items:center;gap:8px}`;
   document.head.appendChild(st);
 })();

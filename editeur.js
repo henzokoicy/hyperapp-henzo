@@ -197,7 +197,7 @@ body.ed-ouvert #edPortail{display:block;position:fixed;inset:0;z-index:150;backg
 .ed-nom{flex:1;min-width:0;text-align:center}.ed-nom b{display:block;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ed-nom span{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ed-d{display:flex;align-items:center;gap:6px}
 .ed-ic{width:36px;height:36px;margin:0;padding:0;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;transform:scaleX(-1)}
-.ed-exp{display:flex;align-items:center;gap:6px;width:auto;margin:0;padding:9px 14px;border-radius:12px;border:0;background:var(--accent);color:#fff;font-weight:700;font-size:13px;cursor:pointer}
+.ed-exp{display:flex;align-items:center;gap:6px;width:auto;margin:0;padding:9px 14px;border-radius:12px;border:0;background:var(--accent);color:var(--on-accent,#fff);font-weight:700;font-size:13px;cursor:pointer}
 .ed-main{display:flex;flex-direction:column;gap:10px}
 .ed-outils{display:flex;gap:4px;overflow-x:auto;padding:6px;border-radius:14px;background:var(--card);border:1px solid var(--border);scrollbar-width:none;position:sticky;top:0;z-index:6}
 .ed-outils::-webkit-scrollbar{display:none}
