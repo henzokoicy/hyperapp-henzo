@@ -145,8 +145,8 @@ const LOCAL_IDEAS = [
 // ============================================================
 // 9. GALERIE CLIENTS (connexion automatique)
 // ============================================================
-const GALERIE_URL    = "https://galerie-clients.onrender.com/admin.html";
-const GALERIE_ORIGIN = "https://galerie-clients.onrender.com";
+const GALERIE_URL    = "https://galerie-client.henzostudio.com/admin.html";
+const GALERIE_ORIGIN = "https://galerie-client.henzostudio.com";
 
 // ============================================================
 // 10. ADRESSE DES LIENS ENVOYES AUX CLIENTS (tarifs, paiement, contrat...)
