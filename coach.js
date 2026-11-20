@@ -420,7 +420,7 @@ function coachRenderList(){
   };
 
   el.innerHTML = `
-    <div style="background:linear-gradient(135deg,rgba(107,142,255,.15),rgba(255,126,179,.08));border-radius:14px;padding:14px;margin-bottom:16px;border-left:3px solid var(--accent)">
+    <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 15%,transparent),color-mix(in srgb,var(--accent-2) 8%,transparent));border-radius:14px;padding:14px;margin-bottom:16px;border-left:3px solid var(--accent)">
       <div style="font-size:13px;color:var(--muted);margin-bottom:4px">🤖 Coach du jour</div>
       <div style="font-weight:700;font-size:15px">${coachSuggestions.length} point${coachSuggestions.length > 1 ? 's' : ''} à regarder</div>
     </div>
@@ -488,7 +488,7 @@ function coachRenderStep(){
       ">← Retour</button>
     </div>
 
-    <div style="background:linear-gradient(135deg,rgba(107,142,255,.15),rgba(255,126,179,.08));border-radius:14px;padding:16px;margin-bottom:16px;border-left:3px solid var(--accent)">
+    <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 15%,transparent),color-mix(in srgb,var(--accent-2) 8%,transparent));border-radius:14px;padding:16px;margin-bottom:16px;border-left:3px solid var(--accent)">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <span style="font-size:22px">${s.icon}</span>
         <span style="font-weight:700;font-size:15px">${s.title}</span>

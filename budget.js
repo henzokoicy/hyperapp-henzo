@@ -47,7 +47,7 @@ const BG_NOM_PROJETS = 'Projets prévus';
 .bg-card .d b{display:block;font-size:14px;color:var(--text)}
 .bg-card .d span{display:block;font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4}
 .bg-card .d span em{font-style:normal;color:var(--red);font-weight:600}
-.bg-card.warn{border-color:rgba(245,197,66,.55)}
+.bg-card.warn{border-color:color-mix(in srgb,var(--gold) 55%,transparent)}
 .bg-card.warn .ic{color:var(--yellow)}
 .bg-lignes{border-top:1px solid var(--border)}
 .bg-line{display:grid;grid-template-columns:minmax(0,1fr) 100px 36px;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
@@ -100,7 +100,7 @@ const BG_NOM_PROJETS = 'Projets prévus';
 .bg-tip{margin:10px 0;padding:10px 12px;border-radius:12px;background:var(--card2);border:1px solid var(--border);font-size:12.5px;line-height:1.5;color:var(--text-2)}
 .bg-tip b{color:var(--text)}
 .bg-tip.red{border-color:var(--red)}.bg-tip.red b{color:var(--red)}
-.bg-rep{margin:0 0 14px;padding:12px;border-radius:12px;border:1px dashed var(--yellow);background:rgba(245,197,66,.08);font-size:12.5px;line-height:1.5;color:var(--text)}
+.bg-rep{margin:0 0 14px;padding:12px;border-radius:12px;border:1px dashed var(--yellow);background:color-mix(in srgb,var(--gold) 8%,transparent);font-size:12.5px;line-height:1.5;color:var(--text)}
 .bg-rep b{color:var(--text)}
 .bg-rep .row{display:flex;gap:8px;align-items:center;margin-top:8px}
 .bg-rep .row input{margin:0;width:120px;padding:8px 10px;font-size:14px}

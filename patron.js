@@ -146,10 +146,10 @@ window.ptRdv = { DEFAUT: PT_RDV_DEFAUT, MOYENS: PT_MOYENS, moyens: ptRdvMoyens, 
 .pt-verif .d{flex:1;min-width:0}
 .pt-verif .d b{display:block;font-size:14px;color:var(--text)}
 .pt-verif .d span{display:block;font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4}
-.pt-verif.warn{border-color:rgba(245,197,66,.55)}.pt-verif.warn .ic{color:var(--yellow)}
+.pt-verif.warn{border-color:color-mix(in srgb,var(--gold) 55%,transparent)}.pt-verif.warn .ic{color:var(--yellow)}
 .pt-card{background:var(--card);border:1.5px solid var(--yellow);border-radius:18px;padding:14px;margin:0 0 14px}
 .pt-card-h{display:flex;gap:12px;align-items:center}
-.pt-card-h .ic{width:40px;height:40px;border-radius:12px;background:rgba(245,197,66,.14);color:var(--yellow);display:grid;place-items:center;flex-shrink:0}
+.pt-card-h .ic{width:40px;height:40px;border-radius:12px;background:color-mix(in srgb,var(--gold) 14%,transparent);color:var(--yellow);display:grid;place-items:center;flex-shrink:0}
 .pt-card-h b{display:block;font-size:15px;color:var(--text)}
 .pt-card-h span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
 .pt-card-h span b{display:inline;font-size:inherit;color:var(--text)}
@@ -180,12 +180,12 @@ window.ptRdv = { DEFAUT: PT_RDV_DEFAUT, MOYENS: PT_MOYENS, moyens: ptRdvMoyens, 
 .pt-line b{white-space:nowrap}.pt-line b.moins{color:var(--red)}.pt-line b.plus{color:var(--green)}
 .pt-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:2px 14px;margin:6px 0 10px}
 .pt-info{margin:10px 0;padding:11px 13px;border-radius:12px;background:var(--card2);border:1px solid var(--border);font-size:12.5px;line-height:1.55;color:var(--text)}
-.pt-info.warn{border-color:var(--yellow);background:rgba(245,197,66,.08)}
+.pt-info.warn{border-color:var(--yellow);background:color-mix(in srgb,var(--gold) 8%,transparent)}
 .pt-info.red{border-color:var(--red)}
 .pt-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .pt-chips button{margin:0;width:auto;padding:7px 11px;border-radius:10px;background:var(--card2);border:1px solid var(--border);color:var(--text);font:600 12px Inter,sans-serif;cursor:pointer}
 .pt-tag{font-style:normal;font-size:10px;font-weight:700;color:var(--accent);margin-left:4px}
-.pt-rep{margin:0 0 12px;padding:12px;border-radius:12px;border:1px dashed var(--yellow);background:rgba(245,197,66,.08);font-size:12.8px;line-height:1.5;color:var(--text)}
+.pt-rep{margin:0 0 12px;padding:12px;border-radius:12px;border:1px dashed var(--yellow);background:color-mix(in srgb,var(--gold) 8%,transparent);font-size:12.8px;line-height:1.5;color:var(--text)}
 .pt-rep small{display:block;color:var(--muted);margin-top:4px}
 .pt-rep button{margin:8px 0 0;width:auto;padding:8px 12px;border-radius:10px;background:var(--card2);border:1px solid var(--yellow);color:var(--text);font:600 12.5px Inter,sans-serif;cursor:pointer}
 .pt-rep.skip{border-style:solid;border-color:var(--border);background:var(--card2)}

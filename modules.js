@@ -1491,8 +1491,8 @@ function renderCoffres(){
     const p100 = pct >= 100 ? 'reached' : '';
 
     const typeTag = isMoney
-      ? '<span style="font-size:10px;color:var(--gold-soft);background:rgba(245,197,66,.12);padding:2px 8px;border-radius:8px;font-weight:700;margin-left:6px">💰 ARGENT</span>'
-      : '<span style="font-size:10px;color:var(--accent-2);background:rgba(107,142,255,.12);padding:2px 8px;border-radius:8px;font-weight:700;margin-left:6px">🔢 QUANTITÉ</span>';
+      ? '<span style="font-size:10px;color:var(--gold-soft);background:color-mix(in srgb,var(--gold) 12%,transparent);padding:2px 8px;border-radius:8px;font-weight:700;margin-left:6px">💰 ARGENT</span>'
+      : '<span style="font-size:10px;color:var(--accent-2);background:color-mix(in srgb,var(--accent) 12%,transparent);padding:2px 8px;border-radius:8px;font-weight:700;margin-left:6px">🔢 QUANTITÉ</span>';
 
         const type = getTypeCoffre(c);
     const bloque = estCoffreBloque(c);
@@ -1524,7 +1524,7 @@ function renderCoffres(){
       </div>
       <div class="coffre-message level-${mot.level}">${mot.msg}</div>
            ${bloque
-        ? `<div style="background:rgba(245,197,66,.08);border-left:3px solid var(--yellow);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;line-height:1.5">
+        ? `<div style="background:color-mix(in srgb,var(--gold) 8%,transparent);border-left:3px solid var(--yellow);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;line-height:1.5">
             <div style="font-weight:700;color:var(--yellow);margin-bottom:4px">🔒 Coffre protégé</div>
             <div style="color:var(--text)">${type.message.short}</div>
             <div style="font-size:10px;color:var(--muted);margin-top:4px">✅ Tu peux toujours ajouter · ❌ Tu dois débloquer pour retirer</div>
@@ -1536,10 +1536,10 @@ function renderCoffres(){
       ${timeInfo}
            <div class="coffre-actions">
         ${estCoffreBloque(c)
-          ? `<button class="btn-ghost" style="margin:0;background:rgba(245,197,66,.15);color:var(--yellow);border-color:var(--yellow);font-weight:700;font-size:11px" onclick="debloquerCoffre(${c.id})">🔒 Débloquer</button>`
-          : `<button class="btn-ghost" style="margin:0;background:rgba(107,142,255,.10);color:var(--accent);border-color:var(--accent);font-weight:700;font-size:11px" onclick="bloquerCoffre(${c.id})">🔓 Bloquer</button>`
+          ? `<button class="btn-ghost" style="margin:0;background:color-mix(in srgb,var(--gold) 15%,transparent);color:var(--yellow);border-color:var(--yellow);font-weight:700;font-size:11px" onclick="debloquerCoffre(${c.id})">🔒 Débloquer</button>`
+          : `<button class="btn-ghost" style="margin:0;background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);border-color:var(--accent);font-weight:700;font-size:11px" onclick="bloquerCoffre(${c.id})">🔓 Bloquer</button>`
         }
-                <button class="btn-ghost" style="margin:0;padding:8px;background:rgba(107,142,255,.10);color:var(--accent);border-color:var(--accent);font-weight:700;font-size:11px" onclick="ouvrirComprendreCoffre(${c.id})" title="Comprendre ce coffre">ℹ️</button>
+                <button class="btn-ghost" style="margin:0;padding:8px;background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);border-color:var(--accent);font-weight:700;font-size:11px" onclick="ouvrirComprendreCoffre(${c.id})" title="Comprendre ce coffre">ℹ️</button>
         <button class="btn-primary" style="margin:0;background:var(--green);font-size:11px;font-weight:700" onclick="ouvrirEpargnePerso(${c.id})">➕ Ajouter</button>
         ${!estCoffreBloque(c) && Number(c.current) > 0
           ? `<button class="btn-ghost" style="margin:0;background:rgba(255,107,107,.10);color:var(--red);border-color:var(--red);font-weight:700;font-size:11px" onclick="retirerCoffre(${c.id})">💸 Retirer</button>`
@@ -1704,7 +1704,7 @@ function renderClients(){
     const cats = Array.isArray(c.categories) ? c.categories : [];
     const catHtml = cats.length > 0
       ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
-          ${cats.map(cat => `<span style="background:linear-gradient(135deg,rgba(107,142,255,.20),rgba(255,126,179,.12));color:var(--accent-2);padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700">🏷️ ${cat}</span>`).join('')}
+          ${cats.map(cat => `<span style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 20%,transparent),color-mix(in srgb,var(--accent-2) 12%,transparent));color:var(--accent-2);padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700">🏷️ ${cat}</span>`).join('')}
         </div>`
       : '';
 
@@ -1797,7 +1797,7 @@ function ouvrirGuideRegles(){
         <button class="close" onclick="document.getElementById('reglesModal').remove()">×</button>
       </div>
 
-      <div style="background:linear-gradient(135deg,rgba(107,142,255,.12),rgba(255,126,179,.06));border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--text);line-height:1.5">
+      <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 12%,transparent),color-mix(in srgb,var(--accent-2) 6%,transparent));border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--text);line-height:1.5">
         💡 Quand tu reçois un paiement, l'app te suggère une répartition automatique selon le type de prestation.
       </div>
 
@@ -1853,7 +1853,7 @@ function ouvrirRepartitionSeance(shootId){
         <button class="close" onclick="fermerRepartition()">×</button>
       </div>
 
-      <div style="background:linear-gradient(135deg,rgba(107,142,255,.12),rgba(52,211,153,.08));border-radius:14px;padding:16px;margin-bottom:16px">
+      <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 12%,transparent),color-mix(in srgb,var(--green) 8%,transparent));border-radius:14px;padding:16px;margin-bottom:16px">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Séance</div>
         <div style="font-weight:700;font-size:15px;margin-bottom:10px">📸 ${s.type}${clientName ? ' · ' + clientName : ''}</div>
         <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">
@@ -1878,7 +1878,7 @@ function ouvrirRepartitionSeance(shootId){
         <button type="button" id="repModeAuto" onclick="setRepartMode('auto')">🤖 Automatique</button>
       </div>
 
-      <div id="repAutoInfo" style="display:none;background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.04));border:1px solid rgba(245,197,66,.25);border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--gold-soft);line-height:1.5">
+      <div id="repAutoInfo" style="display:none;background:linear-gradient(135deg,color-mix(in srgb,var(--gold) 12%,transparent),color-mix(in srgb,var(--gold) 4%,transparent));border:1px solid color-mix(in srgb,var(--gold) 25%,transparent);border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--gold-soft);line-height:1.5">
         🤖 L'IA va te proposer une répartition basée sur tes habitudes et tes objectifs. Tu pourras la modifier avant de valider.
       </div>
 
@@ -1919,7 +1919,7 @@ function ouvrirRepartitionSeance(shootId){
       </div>
 
       <div id="repDest3Box" style="display:none">
-        <div style="background:rgba(107,142,255,.08);border-radius:10px;padding:10px;font-size:12px;color:var(--muted);line-height:1.4">
+        <div style="background:color-mix(in srgb,var(--accent) 8%,transparent);border-radius:10px;padding:10px;font-size:12px;color:var(--muted);line-height:1.4">
           💼 L'argent ira dans le coffre "Épargne libre" (créé tout seul s'il n'existe pas).
         </div>
       </div>
@@ -1936,7 +1936,7 @@ function ouvrirRepartitionSeance(shootId){
         <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repAmount').value=${Math.round(disponible*0.25)}">25%</button>
         <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repAmount').value=${Math.round(disponible*0.5)}">50%</button>
         <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="document.getElementById('repAmount').value=${Math.round(disponible*0.75)}">75%</button>
-        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:rgba(52,211,153,.10);color:var(--green);border-color:var(--green)" onclick="document.getElementById('repAmount').value=${disponible}">Tout</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:color-mix(in srgb,var(--green) 10%,transparent);color:var(--green);border-color:var(--green)" onclick="document.getElementById('repAmount').value=${disponible}">Tout</button>
       </div>
 
       <button class="btn-primary" id="repSeanceBtn" style="margin-top:18px;width:100%;background:linear-gradient(135deg,var(--green),#10b981);color:#000;font-weight:800;padding:16px" onclick="validerRepartition(${shootId}, ${disponible})">
@@ -1970,7 +1970,7 @@ function setRepartDest(dest){
   for(let i = 1; i <= 3; i++){
     document.getElementById('repDest' + i).classList.toggle('active', i === dest);
     document.getElementById('repDest' + i).style.border = (i === dest) ? '1px solid var(--accent)' : '1px solid var(--border)';
-    document.getElementById('repDest' + i).style.background = (i === dest) ? 'linear-gradient(135deg,rgba(107,142,255,.15),rgba(107,142,255,.05))' : 'var(--card2)';
+    document.getElementById('repDest' + i).style.background = (i === dest) ? 'linear-gradient(135deg,color-mix(in srgb,var(--accent) 15%,transparent),color-mix(in srgb,var(--accent) 5%,transparent))' : 'var(--card2)';
   }
   document.getElementById('repDest1Box').style.display = dest === 1 ? 'block' : 'none';
   document.getElementById('repDest2Box').style.display = dest === 2 ? 'block' : 'none';
@@ -2458,7 +2458,7 @@ function openPaiementSeance(shootId, opts){
         <button class="close" onclick="fermerPaiementSeance()">×</button>
       </div>
 
-      <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.06));border-radius:14px;padding:14px;margin-bottom:16px">
+      <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--green) 12%,transparent),color-mix(in srgb,var(--accent) 6%,transparent));border-radius:14px;padding:14px;margin-bottom:16px">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Séance</div>
         <div style="font-weight:700;font-size:15px;margin-bottom:10px">📸 ${s.type}${clientName ? ' · ' + clientName : ''}</div>
         ${ligne('Prix client', fmt(prix))}
@@ -2477,7 +2477,7 @@ function openPaiementSeance(shootId, opts){
         <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="paiementSeanceMontant(${Math.min(resteAPayer, Math.round(prix*0.3))})">30%</button>
         <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="paiementSeanceMontant(${Math.min(resteAPayer, Math.round(prix*0.5))})">50%</button>
         <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="paiementSeanceMontant(${Math.min(resteAPayer, Math.round(prix*0.7))})">70%</button>
-        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:rgba(52,211,153,.10);color:var(--green);border-color:var(--green)" onclick="paiementSeanceMontant(${resteAPayer})">Solde</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:color-mix(in srgb,var(--green) 10%,transparent);color:var(--green);border-color:var(--green)" onclick="paiementSeanceMontant(${resteAPayer})">Solde</button>
       </div>
 
       ${X > 0 ? `
@@ -3054,7 +3054,7 @@ function renderShoots(){
     let rappelCharge = '';
     if(prix > 0 && s.status !== 'annule'){
       const couleurRevenu = revenuSeance < 0 ? 'var(--red)' : 'var(--accent)';
-      revenuBadge = `<span class="badge" style="background:rgba(107,142,255,.15);color:${couleurRevenu};border:1px solid ${couleurRevenu}">💰 Revenu séance : ${fmt(revenuSeance)}</span>`;
+      revenuBadge = `<span class="badge" style="background:color-mix(in srgb,var(--accent) 15%,transparent);color:${couleurRevenu};border:1px solid ${couleurRevenu}">💰 Revenu séance : ${fmt(revenuSeance)}</span>`;
 
       if(charges > 0){
         const parType = {};
@@ -3155,7 +3155,7 @@ function renderShoots(){
             💰 Paiement reçu
           </button>
         ` : `
-          <button class="btn-ghost" style="margin:0;padding:8px;background:rgba(52,211,153,.10);color:var(--green);border-color:var(--green);flex:1;font-weight:700;font-size:12px;opacity:0.7;cursor:default">
+          <button class="btn-ghost" style="margin:0;padding:8px;background:color-mix(in srgb,var(--green) 10%,transparent);color:var(--green);border-color:var(--green);flex:1;font-weight:700;font-size:12px;opacity:0.7;cursor:default">
             ✅ Payé intégralement
           </button>
         `}
@@ -3166,11 +3166,11 @@ function renderShoots(){
         ` : ''}
 
         ${canRepartir ? `
-          <button class="btn-ghost" style="margin:0;padding:8px;background:linear-gradient(135deg,rgba(107,142,255,.15),rgba(52,211,153,.10));color:var(--accent);border-color:var(--accent);font-weight:700;font-size:12px" onclick="ouvrirRepartitionSeance(${s.id})" title="Répartir vers un objectif">💰 Répartir</button>
+          <button class="btn-ghost" style="margin:0;padding:8px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 15%,transparent),color-mix(in srgb,var(--green) 10%,transparent));color:var(--accent);border-color:var(--accent);font-weight:700;font-size:12px" onclick="ouvrirRepartitionSeance(${s.id})" title="Répartir vers un objectif">💰 Répartir</button>
         ` : `
 
           ${reparti > 0 ? `
-            <button class="btn-ghost" style="margin:0;padding:8px;background:rgba(52,211,153,.08);color:var(--green);border-color:var(--green);font-weight:700;font-size:12px;opacity:0.7;cursor:default" title="Tout est réparti">✅ Réparti</button>
+            <button class="btn-ghost" style="margin:0;padding:8px;background:color-mix(in srgb,var(--green) 8%,transparent);color:var(--green);border-color:var(--green);font-weight:700;font-size:12px;opacity:0.7;cursor:default" title="Tout est réparti">✅ Réparti</button>
           ` : ''}
         `}
         ${s.payment === 'impaye' && resteAPayerClient > 0 ? `<button class="btn-ghost" style="margin:0;padding:6px;border-color:var(--wave);color:var(--wave)" onclick="genererLienPaiementClient(${s.id})" title="Envoyer lien de paiement">📤 Lien</button>` : ''}
@@ -3992,7 +3992,7 @@ function ouvrirDetailTx(txId, event){
         <button class="close" onclick="fermerDetailTx()">×</button>
       </div>
 
-      <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.06));border-radius:14px;padding:18px;margin-bottom:16px;text-align:center">
+      <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--green) 12%,transparent),color-mix(in srgb,var(--accent) 6%,transparent));border-radius:14px;padding:18px;margin-bottom:16px;text-align:center">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">${isRevenu ? 'Revenu' : 'Dépense'}</div>
         <div style="font-size:32px;font-weight:800;color:${color};letter-spacing:-1px">${sign}${fmt(t.amount)}</div>
         <div style="font-size:12px;color:var(--muted);margin-top:6px">${dateStr}</div>
@@ -5202,7 +5202,7 @@ function renderMoneyDetails(){
 
   // BLOC 1 : Revenus
   html += `
-    <div style="background:linear-gradient(135deg,rgba(52,211,153,.10),rgba(52,211,153,.02));border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid rgba(52,211,153,.25)">
+    <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--green) 10%,transparent),color-mix(in srgb,var(--green) 2%,transparent));border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid color-mix(in srgb,var(--green) 25%,transparent)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div>
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700">💰 Argent reçu</div>
@@ -5220,7 +5220,7 @@ function renderMoneyDetails(){
               <span style="color:var(--text)">• ${name}</span>
               <span style="color:var(--green);font-weight:700">${fmt(data.total)} <span style="color:var(--muted);font-weight:400">(${pct.toFixed(0)}%)</span></span>
             </div>
-            <div style="height:4px;background:rgba(52,211,153,.12);border-radius:2px;overflow:hidden">
+            <div style="height:4px;background:color-mix(in srgb,var(--green) 12%,transparent);border-radius:2px;overflow:hidden">
               <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--green),#6ee7b7);border-radius:2px"></div>
             </div>
           </div>
@@ -5261,7 +5261,7 @@ function renderMoneyDetails(){
   // BLOC 3 : Épargne
   if(totalEpargne > 0){
     html += `
-      <div style="background:linear-gradient(135deg,rgba(107,142,255,.10),rgba(107,142,255,.02));border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid rgba(107,142,255,.25)">
+      <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 10%,transparent),color-mix(in srgb,var(--accent) 2%,transparent));border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid color-mix(in srgb,var(--accent) 25%,transparent)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <div>
             <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700">🎯 Argent épargné</div>
@@ -5287,7 +5287,7 @@ function renderMoneyDetails(){
                 <span style="color:var(--text)">${emoji} ${c.name}</span>
                 <span style="color:${color};font-weight:700">${valStr} <span style="color:var(--muted);font-weight:400">/ ${goalStr}</span></span>
               </div>
-              <div style="height:4px;background:rgba(107,142,255,.12);border-radius:2px;overflow:hidden">
+              <div style="height:4px;background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:2px;overflow:hidden">
                 <div style="height:100%;width:${pct}%;background:${color};border-radius:2px"></div>
               </div>
             </div>
@@ -5301,7 +5301,7 @@ function renderMoneyDetails(){
   // BLOC 4 : À venir
   if(seancesEnCours.length > 0){
     html += `
-      <div style="background:linear-gradient(135deg,rgba(245,197,66,.10),rgba(245,197,66,.02));border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid rgba(245,197,66,.25)">
+      <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--gold) 10%,transparent),color-mix(in srgb,var(--gold) 2%,transparent));border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid color-mix(in srgb,var(--gold) 25%,transparent)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <div>
             <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700">⏳ Argent à venir</div>
@@ -5323,7 +5323,7 @@ function renderMoneyDetails(){
                 <span style="color:var(--text)">📸 ${s.type}${client ? ' · ' + client.name : ''} <span style="color:var(--muted);font-size:11px">(${dateStr})</span></span>
                 <span style="color:var(--yellow);font-weight:700">${fmt(reste)}</span>
               </div>
-              <div style="height:4px;background:rgba(245,197,66,.12);border-radius:2px;overflow:hidden">
+              <div style="height:4px;background:color-mix(in srgb,var(--gold) 12%,transparent);border-radius:2px;overflow:hidden">
                 <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--yellow),#ffd97a);border-radius:2px"></div>
               </div>
             </div>
@@ -5343,7 +5343,7 @@ function renderMoneyDetails(){
     <div style="background:var(--card2);border-radius:14px;padding:16px;border:1px solid var(--border)">
       <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;text-align:center;margin-bottom:12px">📊 Résumé du mois</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div style="text-align:center;padding:10px;background:rgba(52,211,153,.08);border-radius:10px">
+        <div style="text-align:center;padding:10px;background:color-mix(in srgb,var(--green) 8%,transparent);border-radius:10px">
           <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Reçu</div>
           <div style="font-size:16px;font-weight:800;color:var(--green)">${fmt(totalIn)}</div>
         </div>
@@ -5351,11 +5351,11 @@ function renderMoneyDetails(){
           <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Sorti</div>
           <div style="font-size:16px;font-weight:800;color:var(--red)">${fmt(totalOut)}</div>
         </div>
-        <div style="text-align:center;padding:10px;background:rgba(107,142,255,.08);border-radius:10px">
+        <div style="text-align:center;padding:10px;background:color-mix(in srgb,var(--accent) 8%,transparent);border-radius:10px">
           <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Épargné</div>
           <div style="font-size:16px;font-weight:800;color:var(--accent)">${fmt(totalEpargne)}</div>
         </div>
-        <div style="text-align:center;padding:10px;background:rgba(245,197,66,.08);border-radius:10px">
+        <div style="text-align:center;padding:10px;background:color-mix(in srgb,var(--gold) 8%,transparent);border-radius:10px">
           <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Solde net</div>
           <div style="font-size:16px;font-weight:800;color:${solde >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(solde)}</div>
         </div>
@@ -6652,7 +6652,7 @@ function ouvrirCreerLien(prefill) {
         <div id="montantCalculeValue" style="font-weight:700;color:var(--green);font-size:22px">...</div>
       </div>
      <div id="fraisWaveBox" style="display:none;margin-top:14px">
-        <button class="btn-ghost" style="margin:0;width:100%;padding:12px;background:rgba(245,197,66,.12);color:var(--gold-soft);border-color:var(--gold-soft);font-weight:700" onclick="calculerFraisWave()">
+        <button class="btn-ghost" style="margin:0;width:100%;padding:12px;background:color-mix(in srgb,var(--gold) 12%,transparent);color:var(--gold-soft);border-color:var(--gold-soft);font-weight:700" onclick="calculerFraisWave()">
           💸 Calculer les frais Wave
         </button>
         <div id="fraisWaveResult" style="display:none;margin-top:12px"></div>
@@ -7093,7 +7093,7 @@ function ouvrirRecuModal(linkId) {
       </div>
 
       <div style="text-align:center;margin-bottom:20px">
-        <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--green),#10b981);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:42px;box-shadow:0 10px 30px rgba(52,211,153,.4)">✓</div>
+        <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--green),#10b981);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:42px;box-shadow:0 10px 30px color-mix(in srgb,var(--green) 40%,transparent)">✓</div>
       </div>
 
       <div style="background:var(--card2);border-radius:14px;padding:16px;margin-bottom:16px">
@@ -7133,7 +7133,7 @@ function ouvrirRecuModal(linkId) {
         </div>
       </div>
 
-      <div style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.05));border:1px solid rgba(245,197,66,.25);border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--gold-soft);line-height:1.5">
+      <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--gold) 12%,transparent),color-mix(in srgb,var(--gold) 5%,transparent));border:1px solid color-mix(in srgb,var(--gold) 25%,transparent);border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--gold-soft);line-height:1.5">
         📄 <strong>Génère le reçu PDF</strong> et envoie-le au client pour qu'il ait une preuve officielle de son paiement.
       </div>
 
@@ -7575,7 +7575,7 @@ function renderLienItem(l, isPaid) {
     <div style="display:flex;gap:6px;flex-wrap:wrap">
       ${!isPaid
         ? `<button class="btn-ghost" style="flex:1;margin:0;padding:6px;font-size:11px;background:rgba(46,204,113,.1);color:var(--green);border-color:var(--green)" onclick="marquerLienPaye(${l.id})">✅ Paiement reçu</button>`
-        : `<button class="btn-ghost" style="flex:1;margin:0;padding:6px;font-size:11px;background:rgba(245,197,66,.12);color:var(--gold-soft);border-color:var(--gold-soft);font-weight:700" onclick="ouvrirRecuModal(${l.id})">📄 Voir le reçu</button>`
+        : `<button class="btn-ghost" style="flex:1;margin:0;padding:6px;font-size:11px;background:color-mix(in srgb,var(--gold) 12%,transparent);color:var(--gold-soft);border-color:var(--gold-soft);font-weight:700" onclick="ouvrirRecuModal(${l.id})">📄 Voir le reçu</button>`
       }
       <button class="btn-ghost" style="flex:1;margin:0;padding:6px;font-size:11px" onclick="revOirLien(${l.id})">🔗 Revoir</button>
       <button class="btn-ghost" style="margin:0;padding:6px;font-size:11px;border-color:var(--red);color:var(--red)" onclick="supprimerLien(${l.id})">🗑</button>
@@ -7637,7 +7637,7 @@ function ouvrirGuideRepartition(linkId) {
         <button class="close" onclick="fermerGuideRepartition()">×</button>
       </div>
 
-      <div style="background:linear-gradient(135deg,rgba(52,211,153,.15),rgba(107,142,255,.10));border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
+      <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--green) 15%,transparent),color-mix(in srgb,var(--accent) 10%,transparent));border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Montant reçu</div>
         <div style="font-size:32px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(montant)}</div>
         <div style="font-size:12px;color:var(--muted);margin-top:6px">${regle.icon} ${regle.label} · ${link.client_name || ''}</div>
@@ -7715,8 +7715,8 @@ function afficherPopupNotif(title, message, emoji = '🔔', duration = 10000){
         50%{ transform:scale(1.08); }
       }
       @keyframes popupSoftGlow{
-        0%, 100%{ box-shadow: 0 20px 48px rgba(0,0,0,.60), 0 0 0 1px rgba(255,255,255,.06) inset, 0 0 30px rgba(107,142,255,.20); }
-        50%      { box-shadow: 0 20px 48px rgba(0,0,0,.60), 0 0 0 1px rgba(255,255,255,.06) inset, 0 0 50px rgba(107,142,255,.45); }
+        0%, 100%{ box-shadow: 0 20px 48px rgba(0,0,0,.60), 0 0 0 1px rgba(255,255,255,.06) inset, 0 0 30px color-mix(in srgb,var(--accent) 20%,transparent); }
+        50%      { box-shadow: 0 20px 48px rgba(0,0,0,.60), 0 0 0 1px rgba(255,255,255,.06) inset, 0 0 50px color-mix(in srgb,var(--accent) 45%,transparent); }
       }
     `;
     document.head.appendChild(style);
@@ -7732,7 +7732,7 @@ function afficherPopupNotif(title, message, emoji = '🔔', duration = 10000){
     max-width: 92%;
     width: 400px;
     background: linear-gradient(135deg, #141822 0%, #1c2130 100%);
-    border: 1px solid rgba(107,142,255,.45);
+    border: 1px solid color-mix(in srgb,var(--accent) 45%,transparent);
     border-radius: 18px;
     padding: 16px 18px 20px 18px;
     z-index: 99999;
@@ -7747,7 +7747,7 @@ function afficherPopupNotif(title, message, emoji = '🔔', duration = 10000){
     animation: popupSoftGlow 3s ease-in-out infinite;
   `;
   popup.innerHTML = `
-    <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--pink));display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 8px 20px rgba(107,142,255,.45);animation: popupEmojiPulse 2s ease-in-out infinite;">${emoji}</div>
+    <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--pink));display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 8px 20px color-mix(in srgb,var(--accent) 45%,transparent);animation: popupEmojiPulse 2s ease-in-out infinite;">${emoji}</div>
     <div style="flex:1;min-width:0">
       <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:3px">${title}</div>
       <div style="font-size:13px;color:var(--muted);line-height:1.4">${message}</div>
@@ -8073,7 +8073,7 @@ function renderAssistantStep(){
 
   if(assistantStep === 0){
     el.innerHTML = `
-      <div style="background:linear-gradient(135deg,rgba(52,211,153,.15),rgba(107,142,255,.10));border-radius:14px;padding:18px;margin-bottom:20px;text-align:center">
+      <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--green) 15%,transparent),color-mix(in srgb,var(--accent) 10%,transparent));border-radius:14px;padding:18px;margin-bottom:20px;text-align:center">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Entrée enregistrée</div>
         <div style="font-size:32px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(m)}</div>
         <div style="font-size:12px;color:var(--muted);margin-top:6px">
@@ -8101,7 +8101,7 @@ function renderAssistantStep(){
         <span style="font-size:13px;color:var(--muted);font-weight:400">(transport, assistant, location matériel, repas client...)</span>
       </div>
 
-      <div style="background:linear-gradient(135deg,rgba(107,142,255,.10),rgba(255,126,179,.05));border-left:3px solid var(--accent);border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--muted);line-height:1.5">
+      <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 10%,transparent),color-mix(in srgb,var(--accent-2) 5%,transparent));border-left:3px solid var(--accent);border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--muted);line-height:1.5">
         💡 <strong>Exemple :</strong> Un mariage à Bouaké = 15 000 FCFA de transport + 10 000 FCFA d'assistant.
       </div>
 
@@ -8133,7 +8133,7 @@ function renderAssistantStep(){
       </div>
 
       ${activeGoals.length === 0 ? `
-        <div style="background:rgba(245,197,66,.12);border:1px solid rgba(245,197,66,.30);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--gold-soft);line-height:1.5">
+        <div style="background:color-mix(in srgb,var(--gold) 12%,transparent);border:1px solid color-mix(in srgb,var(--gold) 30%,transparent);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--gold-soft);line-height:1.5">
           ⚠️ Tu n'as pas encore d'objectif actif.
         </div>
       ` : `
@@ -8147,7 +8147,7 @@ function renderAssistantStep(){
             const currentStr = isMoney ? fmt(c.current) : c.current + ' ' + unit;
             const selected = assistantAnswers.goalId === c.id;
             return `
-              <button type="button" onclick="assistantSetGoal(${c.id})" style="background:${selected ? 'linear-gradient(135deg,rgba(107,142,255,.20),rgba(107,142,255,.08))' : 'var(--card2)'};border:1px solid ${selected ? 'var(--accent)' : 'var(--border)'};border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;font-family:inherit;color:var(--text);width:100%;">
+              <button type="button" onclick="assistantSetGoal(${c.id})" style="background:${selected ? 'linear-gradient(135deg,color-mix(in srgb,var(--accent) 20%,transparent),color-mix(in srgb,var(--accent) 8%,transparent))' : 'var(--card2)'};border:1px solid ${selected ? 'var(--accent)' : 'var(--border)'};border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;font-family:inherit;color:var(--text);width:100%;">
                 <div style="flex:1;min-width:0">
                   <div style="font-weight:700;font-size:14px;margin-bottom:3px">${emoji} ${c.name}</div>
                   <div style="font-size:11px;color:var(--muted)">${currentStr} / ${goalStr} · ${pct}%</div>
@@ -8156,7 +8156,7 @@ function renderAssistantStep(){
               </button>
             `;
           }).join('')}
-          <button type="button" onclick="assistantSetGoal(null)" style="background:${assistantAnswers.goalId === null ? 'linear-gradient(135deg,rgba(107,142,255,.20),rgba(107,142,255,.08))' : 'var(--card2)'};border:1px solid ${assistantAnswers.goalId === null ? 'var(--accent)' : 'var(--border)'};border-radius:12px;padding:12px 14px;text-align:center;cursor:pointer;font-family:inherit;color:var(--text);width:100%;font-weight:600;font-size:13px;">🤷 Aucun objectif pour l'instant</button>
+          <button type="button" onclick="assistantSetGoal(null)" style="background:${assistantAnswers.goalId === null ? 'linear-gradient(135deg,color-mix(in srgb,var(--accent) 20%,transparent),color-mix(in srgb,var(--accent) 8%,transparent))' : 'var(--card2)'};border:1px solid ${assistantAnswers.goalId === null ? 'var(--accent)' : 'var(--border)'};border-radius:12px;padding:12px 14px;text-align:center;cursor:pointer;font-family:inherit;color:var(--text);width:100%;font-weight:600;font-size:13px;">🤷 Aucun objectif pour l'instant</button>
         </div>
       `}
 
@@ -8175,7 +8175,7 @@ function renderAssistantStep(){
         💰 Combien veux-tu <strong>épargner</strong> sur ce montant ?
       </div>
 
-      <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.05));border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--text);line-height:1.5">
+      <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--green) 12%,transparent),color-mix(in srgb,var(--accent) 5%,transparent));border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--text);line-height:1.5">
         💡 <strong>Suggestion pour ${regle.label} :</strong> ${regle.epargne}% = <strong style="color:var(--green)">${fmt(suggested)}</strong>
       </div>
 
@@ -8185,7 +8185,7 @@ function renderAssistantStep(){
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px">
         <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="assistantQuickEpargne(${Math.round(m*0.1)})">10%</button>
         <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="assistantQuickEpargne(${Math.round(m*0.2)})">20%</button>
-        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:rgba(52,211,153,.10);color:var(--green);border-color:var(--green)" onclick="assistantQuickEpargne(${suggested})">${regle.epargne}% ✓</button>
+        <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px;background:color-mix(in srgb,var(--green) 10%,transparent);color:var(--green);border-color:var(--green)" onclick="assistantQuickEpargne(${suggested})">${regle.epargne}% ✓</button>
         <button class="btn-ghost" style="margin:0;padding:8px;font-size:11px" onclick="assistantQuickEpargne(${Math.round(m*0.5)})">50%</button>
       </div>
 
@@ -8218,7 +8218,7 @@ function renderAssistantStep(){
       <div style="font-size:13px;color:var(--muted);margin-bottom:6px">Récapitulatif</div>
       <div style="font-size:17px;font-weight:700;line-height:1.4;margin-bottom:16px">✨ Voici ta répartition intelligente</div>
 
-      <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.06));border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
+      <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--green) 12%,transparent),color-mix(in srgb,var(--accent) 6%,transparent));border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Montant reçu</div>
         <div style="font-size:28px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(m)}</div>
       </div>
@@ -8822,7 +8822,7 @@ function renderEpargneLibre(){
   }
 
   el.innerHTML = `
-    <div style="background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(107,142,255,.06));border-radius:14px;padding:16px;text-align:center">
+    <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--green) 12%,transparent),color-mix(in srgb,var(--accent) 6%,transparent));border-radius:14px;padding:16px;text-align:center">
       <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px">Total épargne libre</div>
       <div style="font-size:28px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(total)}</div>
       <div style="font-size:11px;color:var(--muted);margin-top:4px">${count} versement${count > 1 ? 's' : ''}</div>
@@ -9058,7 +9058,7 @@ function renderProjections(){
   }
 
   el.innerHTML = `
-    <div style="background:linear-gradient(135deg,rgba(107,142,255,.12),rgba(52,211,153,.06));border-radius:14px;padding:16px;margin-bottom:12px">
+    <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 12%,transparent),color-mix(in srgb,var(--green) 6%,transparent));border-radius:14px;padding:16px;margin-bottom:12px">
       <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-bottom:6px">💰 CA projeté fin de mois</div>
       <div style="font-size:28px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(totalProjete)}</div>
       <div style="font-size:12px;color:var(--muted);margin-top:6px">
@@ -9067,7 +9067,7 @@ function renderProjections(){
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-      <div style="background:rgba(52,211,153,.08);border-radius:10px;padding:12px;text-align:center">
+      <div style="background:color-mix(in srgb,var(--green) 8%,transparent);border-radius:10px;padding:12px;text-align:center">
         <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Encaissé</div>
         <div style="font-size:16px;font-weight:800;color:var(--green)">${fmt(totalIn)}</div>
       </div>
@@ -9115,7 +9115,7 @@ async function demanderSuggestionIAEpargne(){
 
   if(!cfg || !cfg.key){
     el.innerHTML = `
-      <div style="background:rgba(245,197,66,.12);border:1px solid rgba(245,197,66,.30);border-radius:12px;padding:14px;font-size:13px;color:var(--gold-soft);line-height:1.5">
+      <div style="background:color-mix(in srgb,var(--gold) 12%,transparent);border:1px solid color-mix(in srgb,var(--gold) 30%,transparent);border-radius:12px;padding:14px;font-size:13px;color:var(--gold-soft);line-height:1.5">
         ⚠️ Configure d'abord ta clé IA dans l'onglet 🤖 IA pour recevoir des suggestions personnalisées.
       </div>
     `;
@@ -9201,7 +9201,7 @@ function afficherSuggestionIAEpargne(text, dateStr){
 
   const formatted = text.replace(/\n/g, '<br>');
   el.innerHTML = `
-    <div style="background:linear-gradient(135deg,rgba(107,142,255,.10),rgba(255,126,179,.05));border-left:3px solid var(--accent);border-radius:12px;padding:14px;font-size:13px;line-height:1.7">
+    <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 10%,transparent),color-mix(in srgb,var(--accent-2) 5%,transparent));border-left:3px solid var(--accent);border-radius:12px;padding:14px;font-size:13px;line-height:1.7">
       ${formatted}
     </div>
   `;
@@ -10055,7 +10055,7 @@ function renderCoachCoffres(){
     el = document.createElement('div');
     el.id = 'coachCoffresCard';
     el.className = 'card';
-    el.style.cssText = 'background:linear-gradient(135deg,rgba(139,92,246,.10),rgba(107,142,255,.05));border-left:3px solid #8b5cf6';
+    el.style.cssText = 'background:linear-gradient(135deg,rgba(139,92,246,.10),color-mix(in srgb,var(--accent) 5%,transparent));border-left:3px solid #8b5cf6';
     container.insertBefore(el, container.firstChild);
   }
 
@@ -10195,7 +10195,7 @@ function afficherModaleRepartitionAuto(montant, source, proposition, regle){
         <button class="close" onclick="fermerRepartitionAuto()">×</button>
       </div>
 
-      <div style="background:linear-gradient(135deg,rgba(107,142,255,.12),rgba(52,211,153,.08));border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
+      <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 12%,transparent),color-mix(in srgb,var(--green) 8%,transparent));border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Tu viens de recevoir</div>
         <div style="font-size:28px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(montant)}</div>
         <div style="font-size:12px;color:var(--muted);margin-top:6px">${source || 'Revenu'} · Règle ${regle.label}</div>
@@ -10719,7 +10719,7 @@ async function calculerFraisWave(){
 
   resultEl.style.display = 'block';
   resultEl.innerHTML = `
-    <div style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.04));border:1px solid rgba(245,197,66,.35);border-radius:12px;padding:14px">
+    <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--gold) 12%,transparent),color-mix(in srgb,var(--gold) 4%,transparent));border:1px solid color-mix(in srgb,var(--gold) 35%,transparent);border-radius:12px;padding:14px">
       <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:700">💸 Frais Wave (${tauxFrais}%)</div>
       
       <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)">

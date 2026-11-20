@@ -224,7 +224,7 @@ function mkJson(t){
 .mk-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .mk-stats label{margin:0;font-size:12px}
 .mk-stats input{margin:3px 0 0}
-.mk-stats input.mk-ai{border-color:var(--accent);box-shadow:0 0 0 2px rgba(72,168,154,.2)}
+.mk-stats input.mk-ai{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 20%,transparent)}
 .mk-mini{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--muted);margin-top:4px}
 .mk-mini b{color:var(--text)}
 .mk-mem-g{margin-bottom:14px}

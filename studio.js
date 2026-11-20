@@ -303,7 +303,7 @@ async function stFontsReady(p){
 .st-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
 .st-tag{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:3px 7px;border-radius:8px;background:var(--card3);color:var(--muted)}
 .st-tag.ok{color:var(--green);background:rgba(111,224,199,.12)}
-.st-tag.mid{color:var(--yellow);background:rgba(245,197,66,.12)}
+.st-tag.mid{color:var(--yellow);background:color-mix(in srgb,var(--gold) 12%,transparent)}
 .st-tag.low{color:var(--red);background:rgba(255,123,123,.12)}
 .st-tag.acc{color:var(--accent)}
 .st-tag .ag-i{width:11px;height:11px}
