@@ -491,7 +491,7 @@ function crmCompose(ids, opt){
   opt = opt || {};
   CRM.comp = {
     ids: [...new Set(ids || [])], goal: opt.goal || (ids && ids.length === 1 ? 'relance' : 'promo'),
-    fete: opt.fete || '', promoId: opt.promoId || null, ton: 'chaleureux', vous: true,
+    fete: opt.fete || '', promoId: opt.promoId || null, ton: 'pro', vous: true,
     idea: '', questions: [], answers: {}, props: [], step: 'brief', sent: {}, busy: false
   };
   if(opt.goal === 'fete' && !opt.fete){ const f = crmFetes()[0]; if(f) CRM.comp.fete = f.n; }
@@ -591,7 +591,7 @@ ${promo ? `Bon de réduction à inclure : "${promo.title || ''}" ${crmPromoValue
 ${tarifs ? 'Mes tarifs (à citer seulement si utile) : ' + tarifs : ''}
 Ce que Henzo veut dire : ${k.idea || '(rien de précis, propose)'}
 ${k.questions.length ? 'Précisions de Henzo :\n' + k.questions.map((q, i) => `- ${q} -> ${k.answers[i] || '(pas de réponse)'}`).join('\n') : ''}
-Règles : en français simple, ton ${tons[k.ton]}, ${k.vous ? 'vouvoiement' : 'tutoiement'}, commence par saluer avec {prenom} (ce mot sera remplacé par le prénom), pas d'emoji ou au maximum 1, pas de tirets longs, une seule invitation claire à répondre ou réserver, signe "Henzo Studio". Ne jamais inventer de prix ni de réduction qui ne sont pas donnés ici.${typeof svRules === 'function' ? svRules(cs, k) : ''}`;
+Règles : en français soigné et simple, ton ${tons[k.ton]}, ${k.vous ? 'vouvoiement' : 'tutoiement'}, commence par saluer avec {prenom} (ce mot sera remplacé par le prénom), aucun emoji, pas de point d'exclamation superflu, pas de tirets longs, une seule invitation claire à répondre ou réserver, signe "Henzo Studio". Ne jamais inventer de prix ni de réduction qui ne sont pas donnés ici.${typeof svRules === 'function' ? svRules(cs, k) : ''}`;
 }
 async function crmAskQuestions(){
   const k = CRM.comp; k.busy = 'q'; crmCompRender(); crmErr('');
@@ -634,13 +634,13 @@ function crmFallback(){
   const k = CRM.comp, v = k.vous, promo = k.promoId ? CRM.promos.find(p => p.id === k.promoId) : null;
   const pr = promo ? ` Profite${v ? 'z' : ''} de ${crmPromoValue(promo)} avec le code ${promo.code}${promo.valid_until ? " jusqu'au " + crmDate(promo.valid_until, { day: 'numeric', month: 'long' }) : ''}.` : '';
   const T = {
-    relance: `Bonjour {prenom}, c'est Henzo du studio. Ça fait un moment ! J'ai pensé à ${v ? 'vous' : 'toi'} : de nouvelles idées de photos ${v ? 'vous' : "t'"}attendent au studio.${pr} ${v ? 'Dites-moi' : 'Dis-moi'} quand ${v ? 'vous êtes' : "tu es"} disponible.\nHenzo Studio`,
-    fidelite: `Bonjour {prenom}, merci pour ${v ? 'votre' : 'ta'} fidélité, ça me touche vraiment.${pr || ' Pour ' + (v ? 'vous' : 'te') + ' remercier, ' + (v ? 'votre' : 'ta') + ' prochaine séance aura un petit cadeau.'} À très vite au studio !\nHenzo Studio`,
-    anniversaire: `Joyeux anniversaire {prenom} ! Toute l'équipe Henzo Studio ${v ? 'vous' : 'te'} souhaite une très belle année.${pr} Et si on immortalisait ce moment ?\nHenzo Studio`,
-    fete: `Bonjour {prenom}, ${k.fete || 'la fête'} arrive ! C'est le moment parfait pour de belles photos en famille ou entre amis.${pr} Les places partent vite, ${v ? 'réservez' : 'réserve'} ${v ? 'votre' : 'ton'} créneau.\nHenzo Studio`,
-    promo: `Bonjour {prenom}, bonne nouvelle !${pr || ' Une offre spéciale est disponible au studio en ce moment.'} ${v ? 'Répondez' : 'Réponds'} à ce message pour réserver.\nHenzo Studio`,
+    relance: `Bonjour {prenom}, c'est Henzo du studio. Cela fait un moment que nous ne nous sommes pas vus. De nouvelles idées de photos ${v ? 'vous' : "t'"}attendent au studio.${pr} ${v ? 'Dites-moi' : 'Dis-moi'} quand ${v ? 'vous êtes' : "tu es"} disponible.\nHenzo Studio`,
+    fidelite: `Bonjour {prenom}, merci pour ${v ? 'votre' : 'ta'} fidélité, j'y suis très sensible.${pr || ' Pour ' + (v ? 'vous' : 'te') + ' remercier, ' + (v ? 'votre' : 'ta') + ' prochaine séance comprendra une attention particulière.'} Au plaisir de ${v ? 'vous' : 'te'} retrouver au studio.\nHenzo Studio`,
+    anniversaire: `Joyeux anniversaire {prenom}. Henzo Studio ${v ? 'vous' : 'te'} souhaite une très belle année.${pr} Ce serait un plaisir d'immortaliser ce moment avec ${v ? 'vous' : 'toi'}.\nHenzo Studio`,
+    fete: `Bonjour {prenom}, ${k.fete || 'la fête'} approche : un très bon moment pour de belles photos en famille ou entre amis.${pr} Les créneaux se remplissent rapidement, je ${v ? 'vous invite à réserver le vôtre' : "t'invite à réserver le tien"}.\nHenzo Studio`,
+    promo: `Bonjour {prenom}, ${pr ? 'une offre ' + (v ? 'vous' : "t'") + 'attend au studio.' + pr : 'une offre est disponible au studio en ce moment.'} ${v ? 'Répondez' : 'Réponds'} à ce message pour réserver.\nHenzo Studio`,
     merci: `Bonjour {prenom}, merci encore pour ${v ? 'votre' : 'ta'} séance au studio ! J'espère que les photos ${v ? 'vous' : 'te'} plaisent. ${v ? 'Votre' : 'Ton'} avis compte beaucoup pour moi : ${v ? 'pouvez-vous' : 'peux-tu'} me dire en une phrase ce que ${v ? 'vous avez' : 'tu as'} pensé ?\nHenzo Studio`,
-    nouveaute: `Bonjour {prenom}, du nouveau au studio ! ${k.idea || 'Un nouveau décor vient d\'arriver.'}${pr} ${v ? 'Venez' : 'Viens'} le découvrir.\nHenzo Studio`,
+    nouveaute: `Bonjour {prenom}, une nouveauté au studio : ${k.idea || 'un nouveau décor vient d\'arriver.'}${pr} ${v ? 'Venez' : 'Viens'} le découvrir.\nHenzo Studio`,
     libre: `Bonjour {prenom}, ${k.idea || ''}\nHenzo Studio`
   };
   return [{ titre: 'Modèle', texte: T[k.goal] || T.libre }];

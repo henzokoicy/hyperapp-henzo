@@ -146,7 +146,7 @@ function pxCopyLink(cid){ if(pxNeedPage()) return; crmCopy(cid ? pxColLink(pxCol
 function pxWa(cid){
   if(pxNeedPage()) return;
   const c = cid ? pxCol(cid) : null, m = (PX.page && PX.page.marque) || 'Henzo Photographie';
-  const txt = c ? `Bonjour ! Voici mes tarifs "${c.nom}". Vous pouvez choisir votre pack et réserver directement ici :\n${pxColLink(c)}\n\n${m}`
+  const txt = c ? `Bonjour, voici mes tarifs "${c.nom}". Vous pouvez choisir votre pack et réserver directement ici :\n${pxColLink(c)}\n\n${m}`
     : `Bonjour ! Voici tous mes tarifs, vous pouvez choisir votre formule directement ici :\n${pxLink()}\n\n${m}`;
   window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank');
 }

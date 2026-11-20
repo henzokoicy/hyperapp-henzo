@@ -3224,12 +3224,12 @@ function confirmerSeanceWhatsApp(id){
   const dateStr = d.toLocaleDateString('fr-FR', {weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'});
   const timeStr = d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
 
-  let message = `Bonjour ${client.name} 👋,\n\n`;
+  let message = `Bonjour ${client.name},\n\n`;
   message += `Je vous confirme votre séance *${s.type}* :\n\n`;
-  message += `📅 *Date :* ${dateStr} à ${timeStr}\n`;
-  if(s.location) message += `📍 *Lieu :* ${s.location}\n`;
-  message += `\nÀ très bientôt !\n`;
-  message += `HENZO PHOTOGRAPHIE 📸`;
+  message += `*Date :* ${dateStr} à ${timeStr}\n`;
+  if(s.location) message += `*Lieu :* ${s.location}\n`;
+  message += `\nAu plaisir de vous retrouver.\n`;
+  message += `Henzo Studio`;
 
   const clean = client.phone.replace(/[^0-9]/g, '');
   const fullPhone = clean.startsWith('225') ? clean : '225' + clean;
@@ -6994,37 +6994,37 @@ function envoyerLienWhatsAppActuel() {
     typeInfo = {icon: '💵', label: 'Acompte ' + pct + '%'};
   }
 
-  let message = `Bonjour ${data.clientName} 👋,\n\n`;
+  let message = `Bonjour ${data.clientName},\n\n`;
   message += `Voici votre lien de paiement sécurisé :\n\n`;
-  message += `📝 *Prestation :* ${data.desc}\n`;
+  message += `*Prestation :* ${data.desc}\n`;
 
   if(data.shootDate){
     const d = new Date(data.shootDate);
     const dateStr = d.toLocaleDateString('fr-FR', {weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'});
     const timeStr = d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
-    message += `📅 *Date :* ${dateStr} à ${timeStr}\n`;
+    message += `*Date :* ${dateStr} à ${timeStr}\n`;
   }
-  if(data.shootLocation){ message += `📍 *Lieu :* ${data.shootLocation}\n`; }
-  if(data.shootDuration){ message += `⏱ *Durée :* ${data.shootDuration}h\n`; }
-  if(data.photoCount){ message += `📷 *Photos :* ${data.photoCount}\n`; }
+  if(data.shootLocation){ message += `*Lieu :* ${data.shootLocation}\n`; }
+  if(data.shootDuration){ message += `*Durée :* ${data.shootDuration} h\n`; }
+  if(data.photoCount){ message += `*Photos :* ${data.photoCount}\n`; }
   message += `\n`;
 
-  message += `${typeInfo.icon} *${typeInfo.label}*\n`;
-  message += `💵 *Montant à payer :* ${fmt(data.montant)}\n`;
+  message += `*${typeInfo.label}*\n`;
+  message += `*Montant à régler :* ${fmt(data.montant)}\n`;
 
   if(data.totalAmount && data.totalAmount > data.montant){
     const reste = data.totalAmount - data.montant;
-    message += `\n📊 *Détail du paiement :*\n`;
+    message += `\n*Détail du paiement :*\n`;
     message += `• Total prestation : ${fmt(data.totalAmount)}\n`;
     message += `• Vous payez maintenant : ${fmt(data.montant)}\n`;
     message += `• Reste à payer plus tard : ${fmt(reste)}\n`;
   }
 
-  if(data.ref){ message += `\n📄 *Référence :* ${data.ref}\n`; }
+  if(data.ref){ message += `\n*Référence :* ${data.ref}\n`; }
 
-  message += `\n👉 *Cliquez ici pour payer :*\n${data.lien}\n\n`;
-  message += `Merci pour votre confiance !\n`;
-  message += `HENZO PHOTOGRAPHIE 📸`;
+  message += `\n*Pour régler en ligne :*\n${data.lien}\n\n`;
+  message += `Je vous remercie de votre confiance.\n`;
+  message += `Henzo Studio`;
 
   let url;
   if(data.phone) {
@@ -7415,14 +7415,14 @@ async function envoyerRecuWhatsApp(linkId) {
   const amountStr = fmt(link.amount);
 
   const message =
-    `Bonjour ${link.client_name || ''} 👋,\n\n` +
-    `Merci pour votre paiement de ${amountStr} 💚\n\n` +
-    `📝 Prestation : ${link.description || 'Paiement'}\n` +
-    `📄 Référence : ${ref}\n` +
-    `✅ Statut : PAYÉ\n\n` +
-    `Vous trouverez votre reçu en pièce jointe 📎\n\n` +
-    `Merci pour votre confiance !\n` +
-    `HENZO PHOTOGRAPHIE 📸`;
+    `Bonjour ${link.client_name || ''},\n\n` +
+    `Je vous remercie pour votre paiement de ${amountStr}.\n\n` +
+    `Prestation : ${link.description || 'Paiement'}\n` +
+    `Référence : ${ref}\n` +
+    `Statut : payé\n\n` +
+    `Vous trouverez votre reçu en pièce jointe.\n\n` +
+    `Je vous remercie de votre confiance.\n` +
+    `Henzo Studio`;
 
   let waUrl;
   if(link.client_phone) {

@@ -143,7 +143,7 @@ function coachAnalyzeClients(){
   const prix = Number(sh.price || 0);
   const recu = Number(sh.montant_recu || 0);
   const reste = Math.max(0, prix - recu);
-  const msg = `Bonjour ${clientName} 👋,\n\nJ'espère que tu vas bien. Je voulais prendre des nouvelles concernant ton shooting "${sh.type}". Il reste ${fmt(reste)} à régler. Veux-tu qu'on en parle ? 📸`;
+  const msg = `Bonjour ${clientName},\n\nJ'espère que vous allez bien. Je me permets de revenir vers vous au sujet de votre séance "${sh.type}" : il reste ${fmt(reste)} à régler. Souhaitez-vous que nous en parlions ?\n\nHenzo Studio`;
         const url = phone
           ? `https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}`
           : `https://wa.me/?text=${encodeURIComponent(msg)}`;
@@ -179,7 +179,7 @@ function coachAnalyzeClients(){
           fn: () => {
             const phone = c.phone ? c.phone.replace(/[^0-9]/g, '') : '';
             const fullPhone = phone.startsWith('225') ? phone : '225' + phone;
-            const msg = `Bonjour ${c.name} 👋,\n\nJ'espère que tu vas bien ! Je pensais à toi, et je me disais qu'on pourrait peut-être refaire un shooting ensemble bientôt 📸\n\nDes nouvelles idées en tête ?\n\nHENZO PHOTOGRAPHIE`;
+            const msg = `Bonjour ${c.name},\n\nJ'espère que vous allez bien. Ce serait un plaisir de vous retrouver pour une nouvelle séance prochainement.\n\nAvez-vous des idées en tête ?\n\nHenzo Studio`;
             const url = phone ? `https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
             window.open(url, '_blank');
             coachNextStep();
@@ -355,7 +355,7 @@ function coachAnalyzeNetwork(){
             if(i.phone){
               const phone = i.phone.replace(/[^0-9]/g, '');
               const fullPhone = phone.startsWith('225') ? phone : '225' + phone;
-              const msg = `Bonjour ${i.name} 👋,\n\nJ'espère que tu vas bien ! Je suis Henzo, photographe en Côte d'Ivoire. J'admire ton travail et je voulais échanger quelques idées avec toi 📸`;
+              const msg = `Bonjour ${i.name},\n\nJe suis Henzo, photographe en Côte d'Ivoire. J'apprécie beaucoup votre travail et je serais heureux d'échanger quelques idées avec vous.\n\nHenzo Studio`;
               window.open(`https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}`, '_blank');
               coachNextStep();
             }

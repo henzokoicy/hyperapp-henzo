@@ -605,18 +605,18 @@ function galMessage(code){
   const exp = g.dateExpiration ? new Date(g.dateExpiration).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
   const o = g.options || {};
   if(o.type === 'libre'){
-    return `Bonjour !\n\nLes photos de "${galTitre(g)}" sont en ligne 📸\n\nTouche ce lien pour les voir : ${galPreviewLink(code)}` +
-      `\n(Si on te demande un code : ${code}${g.protege ? (g.mdpClair ? `, mot de passe : ${g.mdpClair}` : '') : ''})` +
-      `${o.telechargement !== false ? '\n\nTu peux aussi les télécharger. Le bouton "? Aide" en bas de la page explique tout.' : ''}` +
-      `${d > 0 ? `\nDisponible jusqu'au ${exp}.` : ''}${g.message ? '\n\n' + g.message : ''}\n\nHenzo Photographie`;
+    return `Bonjour,\n\nLes photos de "${galTitre(g)}" sont disponibles.\n\nVous pouvez les consulter ici : ${galPreviewLink(code)}` +
+      `\n(Si un code vous est demandé : ${code}${g.protege ? (g.mdpClair ? `, mot de passe : ${g.mdpClair}` : '') : ''})` +
+      `${o.telechargement !== false ? '\n\nVous pouvez également les télécharger. Le bouton "Aide", en bas de la page, détaille chaque étape.' : ''}` +
+      `${d > 0 ? `\nLa galerie reste disponible jusqu'au ${exp}.` : ''}${g.message ? '\n\n' + g.message : ''}\n\nHenzo Studio`;
   }
-  return `Bonjour ${(g.nomClient || '').trim() || 'vous'},\n\nTes photos sont prêtes !${cats.length ? '\nSéance : ' + cats.join(', ') : ''}\n\n` +
-    `Pour les voir et les télécharger :\n1. Touche ce lien : ${galClientLink(code)}\n2. Ton code d'accès se remplit tout seul (sinon tape : ${code})` +
-    `${g.protege ? (g.mdpClair ? `\n3. Mot de passe : ${g.mdpClair}` : '\n3. Entre le mot de passe que je t\'ai communiqué') : ''}` +
-    `\n${g.protege ? '4' : '3'}. Touche "Télécharger les photos" et choisis la qualité` +
-    `\n\nLe bouton "? Aide" en bas de la page explique tout, étape par étape.` +
-    `${d > 0 ? `\nDisponible encore ${d} jour${d > 1 ? 's' : ''} (jusqu'au ${exp}).` : ''}` +
-    `${g.message ? '\n\n' + g.message : ''}\n\nN'hésite pas à laisser ton avis et tes photos préférées directement dans la galerie !\n\nÀ bientôt,\nHenzo Photographie`;
+  return `Bonjour ${(g.nomClient || '').trim() || ''},\n\nVos photos sont prêtes.${cats.length ? '\nSéance : ' + cats.join(', ') : ''}\n\n` +
+    `Pour les consulter et les télécharger :\n1. Ouvrez ce lien : ${galClientLink(code)}\n2. Votre code d'accès se renseigne automatiquement (à défaut, saisissez : ${code})` +
+    `${g.protege ? (g.mdpClair ? `\n3. Mot de passe : ${g.mdpClair}` : '\n3. Saisissez le mot de passe que je vous ai communiqué') : ''}` +
+    `\n${g.protege ? '4' : '3'}. Sélectionnez "Télécharger les photos" et choisissez la qualité` +
+    `\n\nLe bouton "Aide", en bas de la page, détaille chaque étape.` +
+    `${d > 0 ? `\nLa galerie reste disponible ${d} jour${d > 1 ? 's' : ''} (jusqu'au ${exp}).` : ''}` +
+    `${g.message ? '\n\n' + g.message : ''}\n\nVotre avis et vos photos préférées sont les bienvenus directement dans la galerie.\n\nCordialement,\nHenzo Studio`;
 }
 function galWhatsApp(code){
   const g = galList.find(x => x.code === code);
@@ -632,8 +632,8 @@ async function galCopy(code){
 // ---------- Envoyer juste le code (court) ----------
 function galMessageCode(code){
   const g = galList.find(x => x.code === code); if(!g) return '';
-  return `Voici ton accès à la galerie photo :\n\nLien direct : ${galPreviewLink(code)}\nCode : ${code}` +
-    `${g.protege && g.mdpClair ? `\nMot de passe : ${g.mdpClair}` : ''}\n\nHenzo Photographie`;
+  return `Voici votre accès à la galerie photo :\n\nLien direct : ${galPreviewLink(code)}\nCode : ${code}` +
+    `${g.protege && g.mdpClair ? `\nMot de passe : ${g.mdpClair}` : ''}\n\nHenzo Studio`;
 }
 function galEnvoyerCode(code){
   const g = galList.find(x => x.code === code); if(!g) return;

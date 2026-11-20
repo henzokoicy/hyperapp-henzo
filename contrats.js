@@ -215,7 +215,7 @@ window.ctEnvoyer = async function(){
   if(!r) return;
   const i = CT.liste.findIndex(x => x.id === r.id); if(i >= 0) CT.liste[i] = r; CT.ed = JSON.parse(JSON.stringify(r));
   const d = r.donnees || {}, tel = String(d.client_tel || '').replace(/\D/g, ''), num = tel.length === 10 ? '225' + tel : tel;
-  const msg = `Bonjour ${d.client || ''},\nVoici votre contrat pour ${d.prestation || 'votre prestation'}${d.date ? ' du ' + new Date(d.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : ''}.\nLisez-le tranquillement, puis signez avec le doigt en bas de la page :\n${ctLien(r)}\n\nSi une question, je suis là.\n${d.studio || 'Henzo Photographie'}`;
+  const msg = `Bonjour ${d.client || ''},\nVoici votre contrat pour ${d.prestation || 'votre prestation'}${d.date ? ' du ' + new Date(d.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : ''}.\nLisez-le tranquillement, puis signez avec le doigt en bas de la page :\n${ctLien(r)}\n\nSi une question, je suis là.\n${d.studio || 'Henzo Studio'}`;
   window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
   ctEdRendre(); agToast('Lien du contrat envoyé');
 };

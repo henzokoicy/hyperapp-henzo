@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Contrat - Henzo Photographie</title>
+<title>Contrat - Henzo Studio</title>
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#faf9f6">
 <link rel="icon" href="icon-192.png">
@@ -50,7 +50,7 @@ async function init(){
     C = r && r.data;
   } catch(e){ C = null; }
   if(!C){ app.innerHTML = '<div class="vide">Ce contrat n\'est pas disponible. Demandez un nouveau lien à votre photographe.</div>'; return; }
-  document.title = C.titre + ' - ' + (C.marque || 'Henzo Photographie');
+  document.title = C.titre + ' - ' + (C.marque || 'Henzo Studio');
   rendre();
 }
 function rendre(){

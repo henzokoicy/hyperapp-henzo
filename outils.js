@@ -725,7 +725,7 @@ async function otAcceptResa(id){
   await sb.from('reservations').update({ status: 'acceptee', shoot_id: s.id }).eq('id', id);
   r.status = 'acceptee'; r.shoot_id = s.id;
   agCloseSheet('otResa'); refreshAll(); if(typeof crmRender === 'function') crmRender();
-  const msg = `Bonjour ${String(r.nom).split(' ')[0]}, c'est Henzo Studio. Votre séance est confirmée pour le ${new Date(date).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}.${r.code ? `\nVotre code ${r.code} est appliqué : ${agN(price)} F au lieu de ${agN(r.prix_estime)} F.` : `\nMontant : ${agN(price)} F.`}\nÀ très vite au studio, Ahougnansou en face du Restaurant Le Rosier.\nHenzo Studio`;
+  const msg = `Bonjour ${String(r.nom).split(' ')[0]}, c'est Henzo Studio. Votre séance est confirmée pour le ${new Date(date).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}.${r.code ? `\nVotre code ${r.code} est appliqué : ${agN(price)} F au lieu de ${agN(r.prix_estime)} F.` : `\nMontant : ${agN(price)} F.`}\nAu plaisir de vous accueillir au studio, à Ahougnansou, en face du Restaurant Le Rosier.\nHenzo Studio`;
   if(await agConfirm('Séance créée. Envoyer la confirmation au client sur WhatsApp ?')) crmWaRaw(crmPhone(r.telephone), msg);
 }
 async function otResaStatus(id, status){

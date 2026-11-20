@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="theme-color" content="#0a0c11">
-  <meta name="description" content="Portail de paiement sécurisé Henzo Photographie. Réglez votre séance via Wave.">
+  <meta name="description" content="Portail de paiement sécurisé Henzo Studio. Réglez votre séance via Wave.">
 
   <!-- Open Graph (partage WhatsApp, réseaux) -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Paiement Henzo Photographie">
+  <meta property="og:title" content="Paiement Henzo Studio">
   <meta property="og:description" content="Portail de paiement sécurisé. Réglez votre séance via Wave.">
-  <meta property="og:site_name" content="Henzo Photographie">
+  <meta property="og:site_name" content="Henzo Studio">
 
-  <title>Paiement · Henzo Photographie</title>
+  <title>Paiement · Henzo Studio</title>
 
   <!-- Favicon -->
   <link rel="icon" href="favicon.ico" sizes="any">
@@ -416,15 +416,15 @@
 <body>
 
 <!-- Bandeau pour les navigateurs intégrés (WhatsApp, Facebook, Instagram...) -->
-<div id="inAppBanner" style="display:none; position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, var(--accent), var(--pink)); color: #fff; padding: 14px; text-align: center; z-index: 9999; box-shadow: 0 8px 24px rgba(0,0,0,.4);">
-  <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">📱 Ouvre dans Chrome pour payer</div>
-  <div style="font-size: 12px; opacity: 0.92; margin-bottom: 10px;">WhatsApp ne peut pas finaliser le paiement</div>
-  <button onclick="ouvrirDansNavigateur()" style="background: #fff; color: #000; border: none; padding: 10px 22px; border-radius: 22px; font-weight: 700; font-size: 13px; cursor: pointer;">Ouvrir dans Chrome</button>
+<div id="inAppBanner" style="display:none; position: fixed; top: 0; left: 0; right: 0; background: var(--accent); color: var(--on-accent); padding: 14px; text-align: center; z-index: 9999; box-shadow: 0 8px 24px rgba(0,0,0,.4);">
+  <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">Ouvrez cette page dans Chrome pour payer</div>
+  <div style="font-size: 12px; opacity: 0.92; margin-bottom: 10px;">Le paiement ne peut pas être finalisé depuis WhatsApp</div>
+  <button onclick="ouvrirDansNavigateur()" style="background: var(--on-accent); color: var(--accent); border: none; padding: 10px 22px; border-radius: 22px; font-weight: 700; font-size: 13px; cursor: pointer;">Ouvrir dans Chrome</button>
 </div>
 
 <div id="loader" class="loader">
-  <div class="loader-icon">⏳</div>
-  <p>Chargement du paiement...</p>
+  <div class="loader-icon"></div>
+  <p>Chargement du paiement</p>
 </div>
 
 <div class="container" id="mainContent" style="display:none">
@@ -463,7 +463,7 @@
       </div>
       <div class="details-row">
         <span>Destinataire</span>
-        <span>HENZO PHOTOGRAPHIE</span>
+        <span>Henzo Studio</span>
       </div>
       <div class="details-row">
         <span>Mode de paiement</span>
@@ -473,11 +473,11 @@
   </div>
 
   <div class="card">
-    <div class="steps-title">📋 Comment payer</div>
+    <div class="steps-title">Comment régler</div>
     <div class="steps" style="margin-bottom: 20px;">
       <div class="step">
         <div class="step-num">1</div>
-        <div class="step-text">Clique sur le bouton <strong>"Payer avec Wave"</strong> ci-dessous</div>
+        <div class="step-text">Touchez le bouton <strong>"Payer avec Wave"</strong> ci-dessous</div>
       </div>
       <div class="step">
         <div class="step-num">2</div>
@@ -485,25 +485,24 @@
       </div>
       <div class="step">
         <div class="step-num">3</div>
-        <div class="step-text">Valide avec ton <strong>code PIN Wave</strong></div>
+        <div class="step-text">Validez avec votre <strong>code PIN Wave</strong></div>
       </div>
       <div class="step">
         <div class="step-num">4</div>
-        <div class="step-text">Henzo Photographie reçoit la <strong>confirmation</strong></div>
+        <div class="step-text">Henzo Studio reçoit la <strong>confirmation</strong></div>
       </div>
     </div>
 
     <a id="btnWave" href="#" class="btn-wave" aria-label="Payer avec Wave">
-      <span style="font-size:22px">💳</span>
       Payer avec Wave
     </a>
 
-    <div class="trust">🔒 Paiement sécurisé et crypté</div>
+    <div class="trust">Paiement sécurisé et chiffré</div>
   </div>
 
   <div class="footer">
     Une question ?<br>
-    <a href="https://wa.me/2250170998964" target="_blank" rel="noopener">📱 Nous contacter sur WhatsApp</a>
+    <a href="https://wa.me/2250170998964" target="_blank" rel="noopener">Nous contacter sur WhatsApp</a>
   </div>
 
 </div>
@@ -645,7 +644,7 @@
       btnWave.href = '#';
       btnWave.onclick = (e) => {
         e.preventDefault();
-        alert('Lien Wave indisponible. Contactez Henzo Photographie.');
+        alert('Lien Wave indisponible. Contactez Henzo Studio.');
       };
     }
   }
@@ -657,11 +656,11 @@
     document.getElementById('loader').style.display = 'none';
     document.body.innerHTML = `
       <div class="status-page">
-        <div class="status-icon">✅</div>
+        <div class="status-icon">✓</div>
         <div class="status-title" style="color: var(--green)">Paiement déjà validé</div>
         <div class="status-text">
           Ce paiement a déjà été réglé.<br>
-          Merci ${data.client_name || ''} pour votre confiance !
+          Je vous remercie ${data.client_name || ''} pour votre confiance.
         </div>
         <div style="background: var(--card2); border-radius: 12px; padding: 16px; margin-top: 24px; text-align: left; max-width: 320px; margin-left: auto; margin-right: auto;">
           <div style="font-size: 12px; color: var(--muted); margin-bottom: 4px;">Montant payé</div>
@@ -669,7 +668,7 @@
             ${new Intl.NumberFormat('fr-FR').format(data.amount)} FCFA
           </div>
         </div>
-        <p style="color: var(--muted); font-size: 13px; margin-top: 32px;">📸 Henzo Photographie</p>
+        <p style="color: var(--muted); font-size: 13px; margin-top: 32px;">Henzo Studio</p>
       </div>
     `;
   }
@@ -681,15 +680,15 @@
     document.getElementById('loader').style.display = 'none';
     document.body.innerHTML = `
       <div class="status-page">
-        <div class="status-icon">⚠️</div>
+        <div class="status-icon">!</div>
         <div class="status-title">Lien invalide</div>
         <div class="status-text">
           Ce lien de paiement n'est plus valide ou a été mal copié.<br><br>
-          Contacte Henzo Photographie pour recevoir un nouveau lien.
+          Veuillez contacter Henzo Studio pour recevoir un nouveau lien.
         </div>
         <div style="margin-top: 32px;">
-          <a href="https://wa.me/2250170998964" style="display: inline-block; background: linear-gradient(135deg, var(--green), #10b981); color: #000; padding: 14px 26px; border-radius: 12px; text-decoration: none; font-weight: 700; box-shadow: 0 8px 24px rgba(52,211,153,.35);">
-            📱 Contacter Henzo
+          <a href="https://wa.me/2250170998964" style="display: inline-block; background: var(--accent); color: var(--on-accent); padding: 14px 26px; border-radius: 10px; text-decoration: none; font-weight: 700;">
+            Contacter Henzo
           </a>
         </div>
       </div>
