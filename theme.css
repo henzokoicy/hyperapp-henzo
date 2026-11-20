@@ -3,7 +3,7 @@
    Charge APRES styles.css : remplace les couleurs et ajoute
    l'onglet Argent (comptes, coffres, transferts).
    ============================================================ */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Outfit:wght@500;600&display=swap');
+@import url('polices/polices.css');
 
 /* ---------- THEMES (choisis par l'utilisateur) ---------- */
 /* Dégradé lumineux (barres de progression...) : par défaut les couleurs du thème */
