@@ -1,0 +1,51 @@
+/* ============================================================
+   CHARTE HENZO STUDIO pour les pages clients (reservation, paiement, ...)
+   Valeurs par défaut = thème "Henzo Studio" (sombre) ; passent au clair
+   quand la page reçoit le thème clair (data-clair="1"). Si la Super App
+   envoie un autre thème (appliquerApparencePage), ses couleurs gardent la
+   priorité car elles sont posées directement sur <html>.
+   ============================================================ */
+:root{
+  --bg:#0d0f0c;--bg-2:#12150f;--card:#161913;--card2:#1d2118;--card3:#262a1f;
+  --text:#f4f2ec;--txt:#f4f2ec;--muted:#a8ab9d;
+  --accent:#8a9a5b;--accent-2:#a3b273;--accent-dk:#4f5a35;
+  --light:#c5cd9f;--deep:#4f5a35;--forest:#2b3320;
+  --green:#7fbf8a;--red:#e07a6b;--gold:#c9b37e;--gold-soft:#dccb9d;
+  --border:#2a2d23;--border-2:#383c2d;--line:#2a2d23;
+  --on-accent:#0d0f0c;--pri-bg:#8a9a5b;--pri-fg:#0d0f0c;
+  --pink:#a3b273;
+  --font-display:Fraunces,Georgia,serif;
+}
+[data-clair="1"]{
+  --bg:#faf9f6;--bg-2:#f5f3ee;--card:#f1efe9;--card2:#eae7df;--card3:#e2e0d6;
+  --text:#13150f;--txt:#13150f;--muted:#5c5f54;
+  --accent:#5f6e3a;--accent-2:#748549;--accent-dk:#4a572c;
+  --light:#5f6e3a;--deep:#5f6e3a;--forest:#4a572c;
+  --green:#3f7d4f;--red:#b5483c;--gold:#a68a4f;--gold-soft:#c9b37e;
+  --border:#e2e0d6;--border-2:#d3d0c3;--line:#e2e0d6;
+  --on-accent:#faf9f6;--pri-bg:#5f6e3a;--pri-fg:#faf9f6;
+  --pink:#748549;
+}
+body{
+  font-family:Inter,system-ui,sans-serif;
+  background:radial-gradient(900px 500px at 110% -10%,color-mix(in srgb,var(--accent) 12%,transparent),transparent 60%),var(--bg);
+  color:var(--text);
+}
+/* Titres : Fraunces */
+h1,h2,.brand h1,.rdv h2,.sum .t b,.client-name,.amount,.promo .v{font-family:var(--font-display);font-weight:600;letter-spacing:-.2px}
+h1{background:none;-webkit-text-fill-color:var(--text);color:var(--text)}
+/* Logo officiel : version claire sur fond sombre, sombre sur fond clair */
+.brand{text-align:center;opacity:1;letter-spacing:0;text-transform:none}
+.brand img{width:170px;max-width:60%;height:auto;margin:0 auto 14px}
+.hz-on-light{display:none !important}
+[data-clair="1"] .hz-on-dark{display:none !important}
+[data-clair="1"] .hz-on-light{display:block !important}
+/* Texte lisible sur les surfaces vert olive */
+.tag,.rdv .ri i{color:var(--on-accent)}
+.chk{color:var(--on-accent)}
+.st button{color:var(--text)}
+.err{color:var(--red)}
+.promo.bad{border-color:var(--border-2)}
+/* Réservation : contenu aligné à gauche, le logo aussi (le bouton "Comment faire" reste libre à droite) */
+.wrap .brand{text-align:left}
+.wrap .brand img{margin-left:0;width:150px}
