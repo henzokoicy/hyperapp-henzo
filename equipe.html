@@ -6,37 +6,36 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>Espace équipe - Henzo Photographie</title>
-<meta name="theme-color" content="#053931">
+<meta name="theme-color" content="#0d0f0c">
 <link rel="icon" href="icon-192.png">
 <link href="polices/polices.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{--deep:#00524D;--deeper:#053931;--accent:#48A89A;--light:#CBEFEB;--bg:#F3F7F6;--card:#fff;--line:#E1EAE8;--txt:#10201E;--muted:#5F7572;--soft:#EEF5F4;--ok:#1E9E6A;--warn:#C98A12;--bad:#D2463C;--shadow:0 1px 2px rgba(5,57,49,.06),0 8px 24px rgba(5,57,49,.06)}
-@media (prefers-color-scheme: dark){:root{--bg:#030b0a;--card:#0a1c1a;--line:#173b37;--txt:#fff;--muted:#9cbdb8;--soft:#0f2a27;--shadow:none}}
+:root{--soft:var(--card2);--ok:var(--green);--bad:var(--red);--warn:var(--muted);--shadow:none;--deeper:var(--card3)}
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
 body{font-family:Inter,system-ui,sans-serif;color:var(--txt);background:var(--bg);min-height:100vh;line-height:1.45;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
 button,input,textarea{font:inherit;color:inherit}
 a{color:var(--accent)}
-.hero{background:radial-gradient(700px 300px at 90% -20%,rgba(72,168,154,.45),transparent 60%),linear-gradient(160deg,var(--deep),var(--deeper));color:#fff;padding:26px 16px 58px}
+.hero{background:var(--bg-2);border-bottom:1px solid var(--line);color:var(--txt);padding:22px 16px 58px}
 .hero-in,.wrap{max-width:640px;margin:0 auto}
-.brand{font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--light);opacity:.9}
-.hero h1{font-size:28px;font-weight:800;margin:14px 0 4px;letter-spacing:-.01em}
-.hero p{color:var(--light);font-size:14px}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:12px}.hero .brand img{width:140px;max-width:55%;height:auto;margin:0}.brand small{font-size:12px;color:var(--muted)}
+.hero h1{font-family:var(--font-display);font-size:28px;font-weight:600;margin:14px 0 4px;letter-spacing:-.01em}
+.hero p{color:var(--muted);font-size:14px}
 .wrap{padding:0 16px;margin-top:-38px}
 .nav{position:sticky;top:0;z-index:10;display:flex;gap:6px;overflow-x:auto;padding:10px 0;margin:0 -16px 6px;padding-left:16px;padding-right:16px;scrollbar-width:none;background:linear-gradient(var(--bg) 70%,transparent)}
 .nav::-webkit-scrollbar{display:none}
 .nav a{flex:0 0 auto;text-decoration:none;font-size:12.5px;font-weight:600;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 13px}
 .nav a b{color:var(--accent);margin-left:3px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px 16px;margin-bottom:14px;box-shadow:var(--shadow);scroll-margin-top:60px}
-.card h2{font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 16px;margin-bottom:14px;box-shadow:var(--shadow);scroll-margin-top:60px}
+.card h2{font-family:var(--font-display);font-size:17px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .card h2 .n{font-size:12px;font-weight:700;color:var(--accent);background:var(--soft);border-radius:8px;padding:2px 8px}
 .card h3{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px}
 .ic{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:var(--soft);color:var(--accent);flex-shrink:0}
 .ic svg{width:17px;height:17px}
 .muted{color:var(--muted);font-size:13px}
 .empty{color:var(--muted);font-size:13.5px;padding:6px 0}
-.cons{background:linear-gradient(150deg,rgba(72,168,154,.14),rgba(72,168,154,.04));border-color:rgba(72,168,154,.4)}
+.cons{background:color-mix(in srgb,var(--accent) 10%,var(--card));border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
 .cons p{font-size:14px;white-space:pre-line}
 .sh{display:flex;gap:12px;padding:14px 0;border-top:1px solid var(--line)}
 .sh:first-of-type{border-top:0;padding-top:4px}
@@ -49,15 +48,14 @@ a{color:var(--accent)}
 .note{margin-top:8px;font-size:13.5px;background:var(--soft);border-radius:12px;padding:9px 11px;white-space:pre-line}
 .note b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin-bottom:2px}
 .row-b{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.btn{border:0;border-radius:12px;padding:11px 15px;font-weight:700;font-size:14px;cursor:pointer;background:var(--deep);color:#fff;display:inline-flex;align-items:center;gap:7px;text-decoration:none}
-.btn.sec{background:var(--soft);color:var(--deep)}
-@media (prefers-color-scheme: dark){.btn.sec{color:var(--light)}}
-.btn.ok{background:var(--ok)}
+.btn{border:0;border-radius:12px;padding:11px 15px;font-weight:700;font-size:14px;cursor:pointer;background:var(--pri-bg);color:var(--pri-fg);display:inline-flex;align-items:center;gap:7px;text-decoration:none}
+.btn.sec{background:var(--soft);color:var(--txt)}
+.btn.ok{background:var(--pri-bg);color:var(--pri-fg)}
 .btn.ghost{background:none;border:1px solid var(--line);color:var(--muted)}
 .btn:disabled{opacity:.55;cursor:default}
 .btn svg{width:16px;height:16px}
 .chip{display:inline-block;font-size:11.5px;font-weight:700;border-radius:8px;padding:3px 9px;background:var(--soft);color:var(--muted)}
-.chip.ok{color:var(--ok);background:rgba(30,158,106,.12)}.chip.warn{color:var(--warn);background:rgba(201,138,18,.13)}.chip.bad{color:var(--bad);background:rgba(210,70,60,.12)}.chip.acc{color:var(--accent);background:rgba(72,168,154,.14)}
+.chip.ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}.chip.warn{color:var(--muted);background:var(--soft)}.chip.bad{color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}.chip.acc{color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
 .past{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:8px 0;border-top:1px solid var(--line)}
 .past span{color:var(--muted)}
 .task{border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:10px}
@@ -65,12 +63,12 @@ a{color:var(--accent)}
 .task.done{background:var(--soft)}
 .task-h{display:flex;gap:10px;align-items:flex-start}
 .ck{flex-shrink:0;width:26px;height:26px;border-radius:9px;border:2px solid var(--line);background:var(--card);cursor:pointer;display:grid;place-items:center;padding:0}
-.ck.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.ck.on{background:var(--pri-bg);border-color:var(--pri-bg);color:var(--pri-fg)}
 .ck svg{width:15px;height:15px}
 .task-t{flex:1;min-width:0}.task-t b{display:block;font-size:14.5px}
 .task-t .meta{font-size:12.5px}
 .task p{font-size:13.5px;margin-top:6px;white-space:pre-line}
-.henzo{margin-top:8px;font-size:13px;border-left:3px solid var(--bad);padding:4px 10px;background:rgba(210,70,60,.06);border-radius:0 10px 10px 0}
+.henzo{margin-top:8px;font-size:13px;border-left:3px solid var(--bad);padding:4px 10px;background:color-mix(in srgb,var(--bad) 7%,transparent);border-radius:0 10px 10px 0}
 textarea,input.f{width:100%;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 12px;font-size:14px;outline:none;resize:vertical}
 textarea:focus,input.f:focus{border-color:var(--accent)}
 .more{margin-top:8px}
@@ -92,14 +90,14 @@ textarea:focus,input.f:focus{border-color:var(--accent)}
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .tile{border-radius:16px;padding:14px;background:var(--soft)}
 .tile b{display:block;font-size:21px;font-weight:800}.tile span{font-size:12px;color:var(--muted)}
-.tile.du b{color:var(--warn)}.tile.pa b{color:var(--ok)}
+.tile.du b{color:var(--txt)}.tile.pa b{color:var(--accent)}
 .line{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:13.5px}
 .line:first-child{border-top:0}
 .line div{min-width:0}.line div span{display:block;font-size:12px;color:var(--muted)}
 .line .r{text-align:right;flex-shrink:0}.line .r b{display:block}
-.promo-b{border-radius:16px;padding:14px;background:linear-gradient(150deg,var(--deep),var(--deeper));color:#fff;margin-bottom:12px}
-.promo-b b{display:block;font-size:20px;font-weight:800}.promo-b span{font-size:13px;color:var(--light)}
-.promo-b p{font-size:13.5px;margin-top:8px;color:#fff;opacity:.92;white-space:pre-line}
+.promo-b{border-radius:10px;padding:14px;background:var(--accent);color:var(--on-accent);margin-bottom:12px}
+.promo-b b{display:block;font-family:var(--font-display);font-size:20px;font-weight:600}.promo-b span{font-size:13px;color:var(--on-accent)}
+.promo-b p{font-size:13.5px;margin-top:8px;color:var(--on-accent);white-space:pre-line}
 .code{display:flex;align-items:center;gap:10px;border:1px dashed var(--accent);border-radius:14px;padding:10px 12px;margin-bottom:8px}
 .code div{flex:1;min-width:0}.code b{display:block;font-size:17px;letter-spacing:.06em}.code span{display:block;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .code button{border:0;background:var(--soft);color:var(--accent);font-weight:700;font-size:12.5px;border-radius:10px;padding:8px 11px;cursor:pointer}
@@ -109,11 +107,11 @@ textarea:focus,input.f:focus{border-color:var(--accent)}
 .prog{display:flex;align-items:center;gap:10px;margin-top:10px}
 .prog .bar{flex:1;height:9px}
 .prog strong{font-size:14px}
-.rew{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--warn)}
+.rew{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;font-weight:600;color:var(--accent)}
 .rank{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
 .rank:first-child{border-top:0}
 .rank .pos{width:32px;height:32px;border-radius:11px;display:grid;place-items:center;font-weight:800;background:var(--soft);color:var(--accent);flex-shrink:0}
-.rank:nth-child(1) .pos{background:#E8B931;color:#3b2d00}
+.rank:nth-child(1) .pos{background:var(--accent);color:var(--on-accent)}
 .rank.me{background:var(--soft);border-radius:14px;padding:10px;border-top-color:transparent}
 .rank>div:not(.pos){flex:1}.rank>div span{display:block;font-size:12px;color:var(--muted)}
 .state{text-align:center;padding:40px 16px}
@@ -123,14 +121,16 @@ textarea:focus,input.f:focus{border-color:var(--accent)}
 .state p{color:var(--muted);font-size:14.5px;margin-top:6px}
 .sk{height:84px;border-radius:22px;margin-bottom:14px;background:linear-gradient(90deg,var(--card) 25%,var(--soft) 50%,var(--card) 75%);background-size:300% 100%;animation:sk 1.2s infinite}
 @keyframes sk{to{background-position:-150% 0}}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;background:var(--deeper);color:#fff;padding:11px 16px;border-radius:14px;font-size:14px;font-weight:600;transition:.2s;z-index:50;max-width:calc(100% - 32px);text-align:center;pointer-events:none}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;background:var(--card3);color:var(--txt);border:1px solid var(--border-2);padding:11px 16px;border-radius:10px;font-size:14px;font-weight:600;transition:.2s;z-index:50;max-width:calc(100% - 32px);text-align:center;pointer-events:none}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 .foot{text-align:center;font-size:12px;color:var(--muted);padding:12px 0 20px}
 </style>
+<link href="charte-pages.css?v=1" rel="stylesheet">
+<script>try{if(matchMedia("(prefers-color-scheme: light)").matches)document.documentElement.setAttribute("data-clair","1")}catch(e){}</script>
 </head>
 <body>
 <header class="hero"><div class="hero-in">
-  <div class="brand">Henzo Photographie · Espace équipe</div>
+  <div class="brand"><img class="hz-on-dark" src="logos/logo-horizontal-clair-fondsombre.png" alt="Henzo Studio"><img class="hz-on-light" src="logos/logo-horizontal-sombre-fondclair.png" alt="Henzo Studio"><small>Espace équipe</small></div>
   <h1 id="hello">Bonjour</h1>
   <p id="sub">Ton espace personnel</p>
 </div></header>
@@ -386,10 +386,10 @@ function curve(serie){
   var path = pts.map(function(p, i){ return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
   var area = path + ' L' + pts[n - 1][0].toFixed(1) + ' ' + (Hh - pad) + ' L' + pts[0][0].toFixed(1) + ' ' + (Hh - pad) + ' Z';
   return '<svg class="curve" viewBox="0 0 ' + W + ' ' + Hh + '" preserveAspectRatio="none" role="img" aria-label="Évolution de mes notes">'
-    + '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#48A89A" stop-opacity=".35"/><stop offset="1" stop-color="#48A89A" stop-opacity="0"/></linearGradient></defs>'
+    + '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent)" stop-opacity=".35"/><stop offset="1" style="stop-color:var(--accent)" stop-opacity="0"/></linearGradient></defs>'
     + [1, 3, 5].map(function(v){ var y = Hh - pad - (v - 1) / 4 * (Hh - 2 * pad); return '<line x1="' + pad + '" x2="' + (W - pad) + '" y1="' + y + '" y2="' + y + '" stroke="currentColor" stroke-opacity=".12"/>'; }).join('')
-    + '<path d="' + area + '" fill="url(#g)"/><path d="' + path + '" fill="none" stroke="#48A89A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>'
-    + pts.map(function(p, i){ return '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="3.5" fill="' + (serie[i].client ? '#E8B931' : '#00524D') + '" stroke="#fff" stroke-width="1.5" vector-effect="non-scaling-stroke"/>'; }).join('') + '</svg>';
+    + '<path d="' + area + '" fill="url(#g)"/><path d="' + path + '" fill="none" style="stroke:var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>'
+    + pts.map(function(p, i){ return '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="3.5" style="fill:' + (serie[i].client ? 'var(--accent-2)' : 'var(--accent-dk)') + ';stroke:var(--card)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>'; }).join('') + '</svg>';
 }
 function secNotes(n){
   var h = '<section class="card" id="notes"><h2><span class="ic">' + I.star + '</span>Mes notes</h2>';
