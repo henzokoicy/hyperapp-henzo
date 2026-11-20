@@ -21,7 +21,7 @@ const C = {
   olive:  [95, 110, 58],     // #5f6e3a
   surOlive: [250, 249, 246]  // #faf9f6 (texte sur fond olive)
 };
-const LOGO = { data: null, w: 825, h: 360 };
+const LOGO = { data: null, w: 783, h: 360 };
 function charger(){
   try {
     fetch('logos/logo-horizontal-sombre-fondclair.png').then(r => r.ok ? r.blob() : Promise.reject()).then(b => {
