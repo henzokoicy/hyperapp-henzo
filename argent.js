@@ -1097,7 +1097,7 @@ function agVarsTheme(g, clair){
     return { bg: g.bg, 'bg-2': agMix(g.bg, g.light, .03), card: g.card, card2: agMix(g.card, g.light, .045), card3: agMix(g.card, g.light, .09),
       text: '#ffffff', 'text-2': agMix(g.light, '#ffffff', .45), muted: agMix(g.light, g.bg, .42),
       accent: g.accent, 'accent-2': a2, 'accent-dk': g.deep, light: g.light, deep: g.deep, forest: agMix(g.deep, g.bg, .55),
-      green: '#6fe0c7', red: '#ff7b7b', yellow: '#f5c542', border: g.light + '12', 'border-2': g.light + '22',
+      green: '#6fe0c7', red: '#ff7b7b', yellow: agMix(g.light, '#ffffff', .45), border: g.light + '12', 'border-2': g.light + '22',
       'hero-1': g.deep, 'hero-2': agMix(g.deep, g.bg, .5), 'hero-3': agMix(g.deep, g.bg, .85), 'hero-border': agMix(g.deep, g.light, .18), glow: a2,
       'pri-bg': g.priBg || '#ffffff', 'pri-fg': g.priFg || g.deep, 'nav-bg': g.bg + 'f2', 'head-bg': g.bg + 'd9', 'shadow-glow': 'none' };
   }

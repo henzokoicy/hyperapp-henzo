@@ -428,7 +428,7 @@ input,select,textarea{border-radius:12px}
 .crm-row .m{font-weight:700;font-size:14px;text-align:right;white-space:nowrap}
 .crm-sug-b{display:flex;gap:6px}
 .crm-tag{font-style:normal;font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;background:var(--card3);color:var(--accent);margin-right:4px;text-transform:uppercase;letter-spacing:.03em}
-.crm-tag.k-anniversaire{color:#ffd166}.crm-tag.k-merci{color:#8fd3ff}.crm-tag.k-fidelite{color:#c6a6ff}
+.crm-tag.k-anniversaire{color:var(--accent-2)}.crm-tag.k-merci{color:#8fd3ff}.crm-tag.k-fidelite{color:#c6a6ff}
 .crm-segs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
 .crm-segs::-webkit-scrollbar{display:none}
 .crm-segs button{flex-shrink:0}.ag-pills button i{font-style:normal;opacity:.6;margin-left:3px}
@@ -477,7 +477,7 @@ input,select,textarea{border-radius:12px}
 .crm-coupon b{display:inline-block;margin:8px 0;padding:6px 14px;border-radius:10px;background:rgba(255,255,255,.12);letter-spacing:.12em;font-size:16px}
 .crm-coupon i{display:block;font-style:normal;font-size:12px;opacity:.8}
 .crm-marge{display:inline-block!important;font-size:11px!important;font-weight:600;padding:2px 8px;border-radius:8px;margin-top:5px!important;background:var(--card3)}
-.crm-marge.good{color:var(--accent)}.crm-marge.mid{color:#ffd166}.crm-marge.bad{color:#ff8b8b}
+.crm-marge.good{color:var(--accent)}.crm-marge.mid{color:var(--yellow)}.crm-marge.bad{color:#ff8b8b}
 .crm-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .crm-sim p{font-size:14px;line-height:1.55;margin:10px 0}
 .crm-ana{padding:6px 16px 12px}.crm-ana h4{font-size:14px;margin:14px 0 6px;color:var(--accent)}
@@ -567,7 +567,7 @@ body:has(.ag-sheet) .ot-selbar,body:has(.modal-bg.show) .ot-selbar,body:has(.ag-
 .mb-tile.sel{border-color:var(--accent)}
 .mb-chk{position:absolute;top:8px;left:8px;width:24px;height:24px;border-radius:8px;border:2px solid #fff;background:rgba(0,0,0,.35);display:grid;place-items:center;color:#fff}
 .mb-tile.sel .mb-chk{background:var(--accent);border-color:var(--accent)}
-.mb-r{position:absolute;bottom:6px;left:6px;font-size:11px;color:#ffd166;background:rgba(0,0,0,.55);padding:2px 6px;border-radius:8px}
+.mb-r{position:absolute;bottom:6px;left:6px;font-size:11px;color:var(--accent-2);background:rgba(0,0,0,.55);padding:2px 6px;border-radius:8px}
 .mb-tg{position:absolute;bottom:6px;right:6px;font-size:10px;color:#fff;background:rgba(0,0,0,.55);padding:2px 6px;border-radius:8px;max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mb-cp{position:absolute;top:6px;right:6px;display:flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#fff;background:#ff6b8b;padding:3px 7px;border-radius:9px}
 .mb-cp svg{fill:#fff}
@@ -590,7 +590,7 @@ body:has(.ag-sheet) .ot-selbar,body:has(.modal-bg.show) .ot-selbar,body:has(.ag-
 .mb-stars{display:inline-flex;gap:2px}
 .mb-star{width:auto !important;margin:0 !important;padding:2px !important;background:none !important;border:0 !important;cursor:pointer}
 .mb-star svg{fill:none;stroke:var(--muted);stroke-width:1.6}
-.mb-star.on svg{fill:#ffd166;stroke:#ffd166}
+.mb-star.on svg{fill:var(--accent-2);stroke:var(--accent-2)}
 .mb-sharebtn{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 10px}
 .mb-fb{display:flex;align-items:center;gap:12px;padding:12px 14px;margin:0 0 12px;border-radius:16px;background:var(--card);border:1px solid var(--border);cursor:pointer}
 .mb-fb.new{border-color:#ff6b8b}
@@ -691,19 +691,19 @@ body:has(.ag-sheet) .ot-selbar,body:has(.modal-bg.show) .ot-selbar,body:has(.ag-
 .ot-addh{width:auto;margin:0;padding:9px 12px;border-radius:12px;background:var(--card3);border:1px dashed var(--border);color:var(--text);font:600 12px Inter,sans-serif;cursor:pointer}
 /* ===== TARIFS COLLECTIONS (prix.js) ===== */
 .px-colrow .d span + span{margin-top:1px}
-.px-warn-n{font-style:normal;font-size:11px;font-weight:700;padding:2px 7px;border-radius:8px;background:color-mix(in srgb,var(--gold) 14%,transparent);color:#f5c542;white-space:nowrap}
+.px-warn-n{font-style:normal;font-size:11px;font-weight:700;padding:2px 7px;border-radius:8px;background:color-mix(in srgb,var(--yellow) 14%,transparent);color:var(--yellow);white-space:nowrap}
 .px-colhead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 2px 12px}
 .px-colhead .d{min-width:0}.px-colhead h3{margin:0;font-size:21px;font-weight:800;line-height:1.2;color:var(--text)}
 .px-colhead .d > span{display:block;font-size:13px;color:var(--muted);margin-top:4px}
 .px-ord{display:flex;gap:6px;flex-shrink:0}
 .ag-i.px-up{transform:rotate(-90deg)}.ag-i.px-dn{transform:rotate(90deg)}
 .ag-ibtn:disabled{opacity:.3;cursor:default}
-.ag-ibtn.on{color:#f5c542 !important;border-color:color-mix(in srgb,var(--gold) 50%,transparent) !important}
+.ag-ibtn.on{color:var(--accent-2) !important;border-color:color-mix(in srgb,var(--accent) 50%,transparent) !important}
 .ag-ibtn.on svg{fill:currentColor}
 .px-kpis{margin-bottom:16px}
 .px-colact{grid-template-columns:repeat(4,1fr);row-gap:12px}
-.px-warn{margin:0 0 18px;padding:12px 14px;border-radius:16px;background:color-mix(in srgb,var(--gold) 8%,transparent);border:1px solid color-mix(in srgb,var(--gold) 35%,transparent)}
-.px-warn b{display:block;font-size:13px;color:#f5c542;margin-bottom:4px}
+.px-warn{margin:0 0 18px;padding:12px 14px;border-radius:16px;background:color-mix(in srgb,var(--yellow) 8%,transparent);border:1px solid color-mix(in srgb,var(--yellow) 35%,transparent)}
+.px-warn b{display:block;font-size:13px;color:var(--yellow);margin-bottom:4px}
 .px-warn p{font-size:13px;line-height:1.45;margin:6px 0 0;color:var(--text-2)}
 .px-packs{padding:2px 14px}
 .px-pack{padding:12px 0 10px;border-bottom:1px solid var(--border)}
@@ -831,3 +831,16 @@ body:has(.ot-selbar):has(.ot-bas.show) #otTop{bottom:calc(264px + env(safe-area-
 .hz-on-light{display:none !important}
 [data-clair="1"] .hz-on-dark{display:none !important}
 [data-clair="1"] .hz-on-light{display:block !important}
+
+/* ---------- OR RESERVE AU PREMIUM (charte) ----------
+   --premium / --premium-soft : le seul or de l'app, pour les mentions premium.
+   --yellow (avertissements) devient neutre ; --gold / --gold-soft (anciens
+   surlignages : Wave, reçus, infos) suivent maintenant la couleur du thème. */
+:root,[data-theme]{
+  --premium:#c9b37e; --premium-soft:#dccb9d;
+  --yellow:var(--text-2);
+  --gold:var(--accent); --gold-soft:var(--light);
+}
+[data-theme="henzo-clair"],[data-theme="ivoire"]{ --premium:#a68a4f; --premium-soft:#c9b37e; }
+/* Mentions premium : seul endroit où l'or est utilisé */
+.tag.tag-premium,.badge-premium{color:var(--premium);background:color-mix(in srgb,var(--premium) 14%,transparent);border:1px solid color-mix(in srgb,var(--premium) 40%,transparent)}
