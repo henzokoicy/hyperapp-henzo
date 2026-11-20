@@ -197,7 +197,7 @@ function galOpenCreate(prefill){
     <details class="gal-plus"><summary>Apparence et autorisations</summary>${galOptsHtml('gc', libre ? { type: 'libre', couvertureVisible: true } : {})}</details>
     <button class="btn-primary" id="galCreateBtn" style="width:100%" onclick="galCreate()">Créer la galerie</button>
   `);
-  galTypeMaj();
+  galTypeMaj(); galFilInit('gc');
   if(prefill.clientId) galFillClient();
 }
 function galTypeMaj(){
@@ -245,7 +245,8 @@ function galOptsHtml(p, o){
     </div>
     ${ck('qo', q.includes('original'), 'Qualité originale (impression)')}
     ${ck('qm', q.includes('web1200'), 'Qualité moyenne (réseaux sociaux)')}
-    ${ck('fil', o.filigrane === true, 'Mettre mon nom (filigrane) sur les photos téléchargées')}
+    ${ck('fil', o.filigrane === true, 'Mettre le logo Henzo Studio (filigrane) sur les photos téléchargées')}
+    ${galFiligraneHtml(p, o)}
     <label>Ce que les visiteurs peuvent faire</label>
     ${ck('avis', o.avis !== false, 'Donner un avis')}
     ${ck('sel', o.selection !== false, 'Envoyer leurs photos préférées au studio')}
@@ -257,6 +258,65 @@ function galOptsHtml(p, o){
     <textarea id="${p}_fin" rows="2" placeholder="Ex : Merci à tous, à très vite !">${agEsc(o.fin || '')}</textarea>
     <label>Ton numéro WhatsApp (bouton d'aide pour les clients)</label>
     <input id="${p}_contact" value="${agEsc(o.contact || galContact())}" placeholder="+225 07 ..." inputmode="tel">`;
+}
+// ---------- Filigrane : logos officiels (blanc / noir), placement, taille, opacite ----------
+const GAL_FIL_LOGO = { blanc: 'logos/logo-filigrane-blanc.png', noir: 'logos/logo-filigrane-noir.png' };
+const GAL_FIL_PLACE = [['bas-droite', 'Bas droite'], ['bas-gauche', 'Bas gauche'], ['haut-droite', 'Haut droite'], ['haut-gauche', 'Haut gauche'], ['centre', 'Centre']];
+function galFilReglages(o){
+  o = o || {};
+  const n = (v, d, a, b) => { v = Number(v); return isFinite(v) && v >= a && v <= b ? v : d; };
+  return {
+    couleur: o.filigraneCouleur === 'noir' ? 'noir' : 'blanc',
+    place: GAL_FIL_PLACE.some(x => x[0] === o.filigranePlace) ? o.filigranePlace : 'bas-droite',
+    taille: n(o.filigraneTaille, 25, 10, 60),   // % de la largeur de la photo
+    opacite: n(o.filigraneOpacite, 60, 10, 100)  // %
+  };
+}
+function galFiligraneHtml(p, o){
+  const f = galFilReglages(o);
+  return `<div class="gal-fil" id="${p}_filbox" ${o && o.filigrane === true ? '' : 'hidden'}>
+    <label>Couleur du logo</label>
+    <div class="ag-pills" id="${p}_fcol">
+      <button type="button" data-v="blanc" class="${f.couleur === 'blanc' ? 'on' : ''}" onclick="agPick(this);galFilApercu('${p}')">Blanc</button>
+      <button type="button" data-v="noir" class="${f.couleur === 'noir' ? 'on' : ''}" onclick="agPick(this);galFilApercu('${p}')">Noir</button>
+    </div>
+    <label>Emplacement</label>
+    <div class="ag-pills" id="${p}_fpos">${GAL_FIL_PLACE.map(x => `<button type="button" data-v="${x[0]}" class="${x[0] === f.place ? 'on' : ''}" onclick="agPick(this);galFilApercu('${p}')">${x[1]}</button>`).join('')}</div>
+    <label>Taille : <span id="${p}_ftaiv">${f.taille}</span> % de la largeur</label>
+    <input type="range" id="${p}_ftai" min="10" max="60" step="5" value="${f.taille}" oninput="galFilApercu('${p}')">
+    <label>Visibilité : <span id="${p}_fopav">${f.opacite}</span> %</label>
+    <input type="range" id="${p}_fopa" min="10" max="100" step="5" value="${f.opacite}" oninput="galFilApercu('${p}')">
+    <div class="gal-fil-prev" id="${p}_fprev" data-c="${f.couleur}"><img alt="Aperçu du filigrane" src="${GAL_FIL_LOGO[f.couleur]}"></div>
+    <div class="ag-hint">Aperçu sur une photo type. Le logo est posé seulement sur les photos téléchargées.</div>
+  </div>`;
+}
+function galFilLire(p){
+  const v = id => document.getElementById(p + '_' + id);
+  return galFilReglages({
+    filigraneCouleur: document.querySelector(`#${p}_fcol button.on`)?.dataset.v,
+    filigranePlace: document.querySelector(`#${p}_fpos button.on`)?.dataset.v,
+    filigraneTaille: v('ftai')?.value, filigraneOpacite: v('fopa')?.value
+  });
+}
+function galFilApercu(p){
+  const f = galFilLire(p), box = document.getElementById(p + '_fprev'); if(!box) return;
+  const img = box.querySelector('img');
+  box.dataset.c = f.couleur; img.src = GAL_FIL_LOGO[f.couleur];
+  img.style.width = f.taille + '%'; img.style.opacity = f.opacite / 100;
+  const m = '4%';
+  Object.assign(img.style, { top: 'auto', bottom: 'auto', left: 'auto', right: 'auto', transform: 'none' });
+  if(f.place === 'centre'){ img.style.top = '50%'; img.style.left = '50%'; img.style.transform = 'translate(-50%,-50%)'; }
+  else {
+    img.style[f.place.startsWith('haut') ? 'top' : 'bottom'] = m;
+    img.style[f.place.endsWith('gauche') ? 'left' : 'right'] = m;
+  }
+  const t = document.getElementById(p + '_ftaiv'), q = document.getElementById(p + '_fopav');
+  if(t) t.textContent = f.taille; if(q) q.textContent = f.opacite;
+}
+function galFilInit(p){
+  const c = document.getElementById(p + '_fil'); if(!c) return;
+  c.addEventListener('change', () => { const b = document.getElementById(p + '_filbox'); if(b) b.hidden = !c.checked; });
+  galFilApercu(p);
 }
 function galOptsLire(p){
   const v = id => document.getElementById(p + '_' + id);
@@ -270,7 +330,8 @@ function galOptsLire(p){
     couvertureVisible: on('couv'),
     telechargement: document.querySelector(`#${p}_dl button.on`)?.dataset.v !== 'non',
     qualites: qualites.length ? qualites : ['original', 'web1200'],
-    filigrane: on('fil'), avis: on('avis'), selection: on('sel'), tirages: on('tir'), compteur: on('cpt'),
+    filigrane: on('fil'), ...(() => { const f = galFilLire(p); return { filigraneCouleur: f.couleur, filigranePlace: f.place, filigraneTaille: f.taille, filigraneOpacite: f.opacite }; })(),
+    avis: on('avis'), selection: on('sel'), tirages: on('tir'), compteur: on('cpt'),
     accueil: (v('acc')?.value || '').trim(), fin: (v('fin')?.value || '').trim(),
     contact: typeof crmPhone === 'function' && contact ? crmPhone(contact) : contact.replace(/[^0-9+]/g, '')
   };
@@ -652,6 +713,7 @@ async function galApparence(code){
     ${galOptsHtml('ga', o)}
     <button class="btn-primary" id="gaBtn" style="width:100%" onclick="galApparenceOk('${agEsc(code)}')">Enregistrer</button>
     <button class="btn-ghost" style="width:100%;margin-top:8px" onclick="window.open(galPreviewLink('${agEsc(code)}'),'_blank')">Voir le résultat</button>`);
+  galFilInit('ga');
   try {
     const r = await galApi('/api/admin/galeries/' + encodeURIComponent(code) + '/photos');
     const ph = r.photos || [];
@@ -714,7 +776,7 @@ setTimeout(async () => { try { galPwd = await getGaleriePwd(); if(galPwd && !gal
 // ---------- Avis clients (laisses sur la page merci) ----------
 function galStars(n, size){
   size = size || 15; let h = '';
-  for(let i = 1; i <= 5; i++) h += `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="vertical-align:-2px"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z" fill="${i <= n ? '#ffd166' : 'none'}" stroke="${i <= n ? '#ffd166' : 'currentColor'}" stroke-width="1.5" stroke-linejoin="round" opacity="${i <= n ? 1 : .35}"/></svg>`;
+  for(let i = 1; i <= 5; i++) h += `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="vertical-align:-2px"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z" fill="${i <= n ? 'var(--accent-2)' : 'none'}" stroke="${i <= n ? 'var(--accent-2)' : 'currentColor'}" stroke-width="1.5" stroke-linejoin="round" opacity="${i <= n ? 1 : .35}"/></svg>`;
   return h;
 }
 // Etat d'un avis pour le site : en attente / sur le site / refuse
@@ -779,6 +841,11 @@ try { if(new URLSearchParams(location.search).get('avis')) window.__galAvisDeep 
 .gal-row input{flex:1;margin:0}
 .gal-row button{width:auto;margin:0;flex:none;padding:11px 14px}
 .gal-ibtns{display:flex;gap:6px;flex:none}
+.gal-fil[hidden]{display:none}
+.gal-fil input[type=range]{width:100%;accent-color:var(--accent)}
+.gal-fil-prev{position:relative;width:100%;aspect-ratio:3/2;border-radius:10px;overflow:hidden;border:1px solid var(--border);margin:8px 0 4px;background:linear-gradient(135deg,#6b7a6f,#2b3a31 55%,#8d7f6a)}
+.gal-fil-prev[data-c=noir]{background:linear-gradient(135deg,#e9e4d8,#c9d3c4 55%,#f3efe6)}
+.gal-fil-prev img{position:absolute;height:auto;pointer-events:none}
 .gal-themes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 8px}
 .gal-themes button{display:flex;flex-direction:column;align-items:center;gap:6px;margin:0;padding:10px 6px;border-radius:14px;background:var(--card2);border:1px solid var(--border);color:var(--text-2);font:500 12px Inter,sans-serif;cursor:pointer}
 .gal-themes button span{width:100%;height:34px;border-radius:9px;display:grid;place-items:center;font:600 15px Inter,sans-serif;border:1px solid rgba(128,128,128,.25)}

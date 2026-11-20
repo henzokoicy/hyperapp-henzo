@@ -24,7 +24,7 @@
   <link rel="apple-touch-icon" href="icon-180.png">
 
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="theme.css?v=3">
+  <link rel="stylesheet" href="theme.css?v=6">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -108,7 +108,7 @@
       <span>Ajouter une note</span>
     </button>
     <button class="drawer-quick" onclick="drawerAction('analyze')">
-      <span class="quick-icon" style="background:rgba(245,185,66,.2);color:var(--yellow)">🤖</span>
+      <span class="quick-icon" style="background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent-2)">🤖</span>
       <span>Analyser avec l'IA</span>
     </button>
   </div>
@@ -290,7 +290,7 @@
           <div class="quick-label">Note</div>
         </button>
         <button class="quick-action" onclick="openChat()">
-          <div class="quick-icon" style="background:rgba(245,185,66,.15);color:var(--yellow)">🤖</div>
+          <div class="quick-icon" style="background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent-2)">🤖</div>
           <div class="quick-label">IA</div>
         </button>
       </div>
@@ -373,8 +373,8 @@
     <div class="card">
       <h2>📅 Revenus vs Dépenses sur 6 mois</h2>
       <div class="bars-6m-legend">
-        <span><span class="dot" style="background:var(--green)"></span>Revenus</span>
-        <span><span class="dot" style="background:var(--red)"></span>Dépenses</span>
+        <span><span class="dot" style="background:var(--chart-1)"></span>Revenus</span>
+        <span><span class="dot" style="background:var(--chart-2)"></span>Dépenses</span>
       </div>
       <div class="bars-6m" id="bars6m"></div>
     </div>
@@ -1191,7 +1191,7 @@
       </div>
 
       <!-- LIGNE 2 : REVENU STUDIO -->
-      <div class="rep-ligne" style="background:linear-gradient(135deg,rgba(245,197,66,.10),rgba(245,197,66,.02));border-left:3px solid var(--gold-soft);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div class="rep-ligne" style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 10%,transparent),color-mix(in srgb,var(--accent) 2%,transparent));border-left:3px solid var(--gold-soft);border-radius:10px;padding:12px;margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <div style="font-weight:700;font-size:13px;color:var(--gold-soft)">💼 Revenu Studio</div>
           <div style="font-size:11px;color:var(--muted)" id="repStudioCoffreNom">Coffre par défaut</div>
@@ -1659,7 +1659,10 @@
 <script src="argent.js?v=71"></script>
 <script src="theme-perso.js?v=1"></script>
 <script src="vision.js?v=1"></script>
+<script src="pdf-charte.js?v=2"></script>
 <script src="prochain-pas.js?v=1"></script>
+<script src="regles.js?v=1"></script>
+<script src="croissance.js?v=1"></script>
 <script src="lecteur.js?v=4"></script>
 
 </body>

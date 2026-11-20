@@ -1,346 +1,267 @@
 // ============================================================
-// PROCHAIN-PAS.JS v1 - Bloc « Prochain pas » sur l'écran d'accueil
-//   UNE seule action du moment, avec la raison en UNE phrase, choisie selon la vision
-//   de Henzo Studio (faire grandir l'entreprise). Calcul 100 % local, sans IA,
-//   à partir des séances, clients, devis, contrats, paiements et relances déjà dans l'app.
-//   Règles absolues : jamais de prix bradés, contrat signé + acompte avant une séance,
-//   une seule relance polie par client, promos seulement pour un grand événement.
-//   Mémoire sur l'appareil (localStorage 'hz_prochain_pas') : pas « faits » ou « plus tard ».
+// PROCHAIN-PAS.JS - "Prochain pas" sur l'accueil
+// ------------------------------------------------------------
+// UNE seule action du moment, avec la raison en une phrase, un bouton direct
+// et "Plus tard". Calcul 100 % local (pas d'IA), à partir des séances, clients,
+// contrats, devis et messages de l'app. Suit la Vision Henzo Studio :
+// contrat signé + acompte avant la séance, une seule relance par client,
+// jamais de baisse de prix. Pas faits / "plus tard" gardés sur l'appareil.
 // ============================================================
 (function(){
 'use strict';
 const CLE = 'hz_prochain_pas';
-const DEVIS_JOURS = 5;          // un devis sans réponse depuis X jours reçoit UNE relance polie
-const PP = { cur: null, steps: [], loading: false };
-const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const nf = n => new Intl.NumberFormat('fr-FR').format(Math.round(Number(n) || 0)).replace(/ | /g, ' ') + ' F';
-const pad = n => String(n).padStart(2, '0');
-const jourDe = d => { d = d || new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
-const ecart = (a, b) => Math.round((Date.parse(a + 'T12:00:00') - Date.parse(b + 'T12:00:00')) / 864e5); // a - b en jours
-// Accès sûrs aux données globales de l'app (déclarées dans les autres fichiers)
-const g = nom => { try { switch(nom){
-  case 'shoots': return typeof shoots !== 'undefined' ? shoots : undefined;
-  case 'clients': return typeof clients !== 'undefined' ? clients : undefined;
-  case 'PX': return typeof PX !== 'undefined' ? PX : undefined;
-  case 'CT': return typeof CT !== 'undefined' ? CT : window.CT;
-  case 'CRM': return typeof CRM !== 'undefined' ? CRM : undefined;
-} } catch(e){} return undefined; };
-const dateFr = iso => { try { return new Date(String(iso).slice(0, 10) + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); } catch(e){ return String(iso).slice(0, 10); } };
-const dateCourte = iso => { try { return new Date(String(iso).slice(0, 10) + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }); } catch(e){ return String(iso).slice(0, 10); } };
+const JOUR = 864e5;
+const esc = s => (typeof agEsc === 'function' ? agEsc(String(s == null ? '' : s)) : String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])));
+const F = n => (typeof agF === 'function' ? agF(n) : Math.round(n) + ' F');
 
-// ---------- Mémoire sur l'appareil ----------
-// { jour: 'AAAA-MM-JJ', vus: [clés vues ou reportées aujourd'hui], faits: { clé: 'AAAA-MM-JJ' } }
-function lire(){
-  let m = null; try { m = JSON.parse(localStorage.getItem(CLE) || 'null'); } catch(e){}
-  if(!m || typeof m !== 'object') m = {};
-  if(!Array.isArray(m.vus)) m.vus = [];
-  if(!m.faits || typeof m.faits !== 'object') m.faits = {};
-  if(!m.hist || typeof m.hist !== 'object') m.hist = {};
-  const auj = jourDe();
-  if(m.jour !== auj){ m.jour = auj; m.vus = []; }
-  Object.keys(m.faits).forEach(k => { if(Math.abs(ecart(auj, m.faits[k])) > 400) delete m.faits[k]; });
-  Object.keys(m.hist).forEach(k => { if(ecart(auj, k) > 60) delete m.hist[k]; });
-  return m;
-}
-function garder(m){ try { localStorage.setItem(CLE, JSON.stringify(m)); } catch(e){} }
-// Après « Fait », combien de jours avant de reproposer le même pas (null = jamais : une seule relance par devis)
-const ATTENTE = { charges: 2, paiement: 7, contrat: 1, devis: null, relance: 45, anniversaire: 300, creux: 3, offre: 60, avis: 90 };
-function masque(step, m){
-  if(m.vus.includes(step.cle)) return true;
-  const f = m.faits[step.cle]; if(!f) return false;
-  const att = ATTENTE[step.type];
-  return att == null || ecart(jourDe(), f) < att;
+// ---------- Mémoire (sur l'appareil) ----------
+function memoLire(){ try { const m = JSON.parse(localStorage.getItem(CLE) || 'null'); return m && typeof m === 'object' ? m : {}; } catch(e){ return {}; } }
+function memoEcrire(m){
+  const now = Date.now();
+  Object.keys(m).forEach(k => { if(!(m[k] > now)) delete m[k]; }); // on oublie ce qui est expiré
+  try { localStorage.setItem(CLE, JSON.stringify(m)); } catch(e){}
 }
 
-// Pas faits depuis lundi (suivi de la semaine)
-function faitsSemaine(m){
-  const auj = jourDe(), dow = (new Date().getDay() + 6) % 7; // 0 = lundi
-  return Object.keys(m.hist).filter(k => { const e = ecart(auj, k); return e >= 0 && e <= dow; }).reduce((a, k) => a + (Number(m.hist[k]) || 0), 0);
+// ---------- Outils de date ----------
+const jourStr = d => { d = new Date(d); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const jourDe = s => String(s || '').slice(0, 10);
+function ecart(now, dateStr){ // jours entre aujourd'hui et une date (positif = dans le futur)
+  const a = new Date(jourStr(now) + 'T12:00:00'), b = new Date(jourDe(dateStr) + 'T12:00:00');
+  return Math.round((b - a) / JOUR);
 }
+const dateLongue = s => new Date(jourDe(s) + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+const quand = n => n === 0 ? "aujourd'hui" : n === 1 ? 'demain' : 'dans ' + n + ' jours';
+const prenom = c => { const n = String((c && c.name) || '').replace(/^(mr|mme|mlle|m\.)\s+/i, '').trim().split(/\s+/)[0] || ''; return n; };
 
-// ---------- Messages polis, prêts à envoyer (vouvoiement, sans IA, jamais de baisse de prix) ----------
-const prenom = id => String((client(id) || {}).name || '').trim().split(/\s+/)[0] || '';
-function bonjour(id){ const p = prenom(id); return 'Bonjour' + (p ? ' ' + p : '') + ','; }
-const SIGNE = '\nHenzo Studio';
+// ---------- Le calcul (pur : reçoit tout, ne touche à rien) ----------
+// ctx : { now, shoots, clients, contrats, devis, msgs, suggestions }
+// Renvoie la liste des pas possibles, du plus important au moins important.
+function calculer(ctx){
+  const now = ctx.now || new Date();
+  const shoots = (ctx.shoots || []).filter(s => !/annul/i.test(s.status || ''));
+  const clients = ctx.clients || [];
+  const contrats = ctx.contrats || [];
+  const msgs = ctx.msgs || [];
+  const client = id => clients.find(c => c.id === id) || null;
+  const nom = s => { const c = client(s.client_id); return c ? c.name : (s.client_name || 'Un client'); };
+  const joursDernierMsg = id => {
+    const m = msgs.filter(x => x.client_id === id).map(x => new Date(x.created_at).getTime()).sort((a, b) => b - a)[0];
+    return m ? Math.floor((now.getTime() - m) / JOUR) : null;
+  };
+  const out = [];
+  const add = p => out.push(p);
 
-// ---------- Vision (lue dans VISION_HENZO, avec valeurs de secours si absente ou désactivée) ----------
-const REGLES_SECOURS = {
-  prix: "Ne jamais brader mes prix",
-  contrat: "Toujours un contrat signé et un acompte avant une séance",
-  relance: "Une seule relance polie par client, puis attendre",
-  promo: "Une promo n'est possible que pour un grand événement populaire, limitée dans le temps, sans baisser le tarif de base."
-};
-function vision(){ try { return (typeof window.VISION_HENZO === 'function' && window.VISION_HENZO()) || {}; } catch(e){ return {}; } }
-function lignes(t){ return String(t || '').split('\n').map(x => x.trim()).filter(Boolean); }
-function regle(re, secours){
-  const l = lignes(vision().regles).find(x => re.test(x));
-  return (l || secours).replace(/[.\s]+$/, '');
-}
-function zone(){ const z = String(vision().zone || '').trim(); return z || "Bouaké d'abord, puis Abidjan."; }
-function idees(){ const l = lignes(vision().idees); return l.length ? l : ['Mini-séances thématiques pour les jours creux']; }
-
-// ---------- Mots refusés de « Mon contexte » : jamais dans les textes du bloc ----------
-function motsRefuses(){
-  const out = new Set();
-  try { const ev = (window.ST_MARQUE && window.ST_MARQUE.mots && window.ST_MARQUE.mots.evite) || {}; Object.keys(ev).forEach(k => out.add(k)); } catch(e){}
-  try { if(typeof cxTexte === 'function') String(cxTexte('mots_refuses')).split(/[,;\n]+/).forEach(w => { w = w.trim().toLowerCase(); if(w && w.length <= 40) out.add(w); }); } catch(e){}
-  return [...out].filter(Boolean);
-}
-function propre(t){
-  let s = String(t || '');
-  let change = false;
-  motsRefuses().forEach(w => {
-    const e = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp('(^|[^\\p{L}])' + e + '([^\\p{L}]|$)', 'giu');
-    if(re.test(s)){ change = true; s = s.replace(re, '$1$2'); }
+  // 1. Paiement en retard (séance passée, reste à payer)
+  shoots.forEach(s => {
+    if(!s.date || !(Number(s.price) > 0)) return;
+    const j = ecart(now, s.date); // négatif = passée
+    const reste = Number(s.price) - (Number(s.montant_recu) || 0);
+    if(j <= -2 && reste > 0 && s.payment !== 'paye'){
+      const dm = s.client_id ? joursDernierMsg(s.client_id) : null;
+      if(dm != null && dm < 5) return; // une seule relance polie, puis on attend
+      add({ cle: 'paiement:' + s.id, p: 10, tri: j, type: 'paiement', icone: 'wallet',
+        titre: `Paiement en retard : ${nom(s)}`,
+        raison: `Il reste ${F(reste)} à encaisser pour la séance du ${dateLongue(s.date)}.`,
+        bouton: 'Envoyer le lien de paiement', agir: { fn: 'lienPaiement', id: s.id }, jours: 2 });
+    }
   });
-  return change ? s.replace(/\s{2,}/g, ' ').replace(/\s+([.,;!?])/g, '$1').trim() : s;
-}
 
-// ---------- Données ----------
-const annule = s => /annul/i.test((s && s.status) || '');
-const prix = s => Number(s.price) || 0;
-const recu = s => Number(s.montant_recu) || (s.payment === 'paye' ? prix(s) : 0);
-const seances = () => (g('shoots') || []).filter(s => s && s.date && !annule(s) && !s.collab);
-const client = id => (g('clients') || []).find(c => c.id === Number(id));
-const nomDe = id => { const c = client(id); return c && c.name ? c.name : 'ce client'; };
-function crmJours(id){ // jours depuis le dernier message au client (null si jamais)
-  try { const msgs = ((g('CRM') || {}).msgs || []).filter(m => m.client_id === Number(id)); if(!msgs.length) return null;
-    return Math.max(0, Math.floor((Date.now() - new Date(msgs[0].created_at).getTime()) / 864e5)); } catch(e){ return null; }
-}
-function contratSigne(shootId){
-  const CT = g('CT'); if(!CT || !CT.charge) return null; // inconnu tant que les contrats ne sont pas chargés
-  return (CT.liste || []).some(c => c.shoot_id === shootId && c.statut === 'signe');
-}
-function contratDe(shootId){ const CT = g('CT'); return CT && CT.liste ? CT.liste.find(c => c.shoot_id === shootId) : null; }
-
-// ---------- Calcul des pas, du plus important au moins important ----------
-function calculer(){
-  const aujourdhui = jourDe(), S = seances(), L = [];
-  const rP = regle(/prix|brader/i, REGLES_SECOURS.prix), rC = regle(/contrat|acompte/i, REGLES_SECOURS.contrat), rR = regle(/relance/i, REGLES_SECOURS.relance);
-
-  // 1) Paiement ou acompte en retard (séance passée, reste à payer)
-  S.filter(s => String(s.date).slice(0, 10) < aujourdhui && s.payment !== 'paye' && prix(s) - recu(s) > 0)
-    .map(s => ({ s, reste: prix(s) - recu(s), j: ecart(aujourdhui, String(s.date).slice(0, 10)) }))
-    .sort((a, b) => b.j - a.j || b.reste - a.reste)
-    .forEach(({ s, reste, j }) => L.push({ type: 'paiement', cle: 'paiement:' + s.id, p: 1,
-      titre: 'Relancer le paiement de ' + nomDe(s.client_id),
-      raison: `${nomDe(s.client_id)} doit encore ${nf(reste)} pour la séance du ${dateCourte(s.date)}, il y a ${j} jour${j > 1 ? 's' : ''}.`,
-      regle: rR, bouton: 'Encaisser ou relancer', fait: 'Relance envoyée', cid: s.client_id,
-      msg: `${bonjour(s.client_id)} j'espère que vous allez bien. Il reste ${nf(reste)} à régler pour votre séance du ${dateCourte(s.date)}. Pourriez-vous effectuer le règlement dès que possible ? Merci beaucoup.${SIGNE}`,
-      go: () => typeof openPaiementSeance === 'function' ? openPaiementSeance(s.id) : openShootModal(s.id) }));
-
-  // 2) Séance à venir (14 jours) sans contrat signé ou sans acompte
-  S.filter(s => { const j = ecart(String(s.date).slice(0, 10), aujourdhui); return j >= 0 && j <= 14 && prix(s) > 0; })
-    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
-    .forEach(s => {
-      const signe = contratSigne(s.id), acompte = recu(s) > 0;
-      if(signe !== false && acompte) return;
-      const sans = signe === false && !acompte ? 'sans contrat signé ni acompte' : signe === false ? 'sans contrat signé' : "sans acompte";
-      const j = ecart(String(s.date).slice(0, 10), aujourdhui);
-      const ct = contratDe(s.id);
-      L.push({ type: 'contrat', cle: 'contrat:' + s.id, p: 2,
-        titre: signe === false ? 'Sécuriser la séance de ' + nomDe(s.client_id) : "Demander l'acompte de " + nomDe(s.client_id),
-        raison: `La séance de ${nomDe(s.client_id)} a lieu ${j === 0 ? "aujourd'hui" : j === 1 ? 'demain' : 'le ' + dateFr(s.date)} ${sans}.`,
-        regle: rC, bouton: signe === false ? (ct ? 'Ouvrir le contrat' : 'Préparer le contrat') : "Enregistrer l'acompte", fait: signe === false ? 'Contrat prêt' : 'Acompte reçu',
-        go: () => { if(signe === false){ if(ct && typeof ctEditer === 'function') ctEditer(ct.id); else if(typeof ctNouveau === 'function') ctNouveau(s.id); else openShootModal(s.id); }
-          else if(typeof openPaiementSeance === 'function') openPaiementSeance(s.id); else openShootModal(s.id); } });
-    });
-
-  // 3) Devis envoyé sans réponse depuis X jours : UNE seule relance polie, puis attendre
-  (((g('PX') || {}).devis) || []).filter(d => d.status === 'envoye' && d.created_at)
-    .map(d => ({ d, j: ecart(aujourdhui, jourDe(new Date(d.created_at))) })).filter(x => x.j >= DEVIS_JOURS).sort((a, b) => b.j - a.j)
-    .forEach(({ d, j }) => L.push({ type: 'devis', cle: 'devis:' + d.id, p: 3,
-      titre: 'Relancer poliment le devis de ' + (d.client_name || nomDe(d.client_id)),
-      raison: `Le devis de ${nf(d.total)} attend une réponse depuis ${j} jours : une seule relance polie, puis on attend.`,
-      regle: rR, bouton: 'Ouvrir le devis', fait: 'Relance envoyée', cid: d.client_id,
-      msg: `${bonjour(d.client_id)} je me permets de revenir vers vous au sujet du devis de ${nf(d.total)}. Avez-vous pu en prendre connaissance ? Je reste à votre disposition pour toute question.${SIGNE}`,
-      go: () => typeof pxOpenQuote === 'function' ? pxOpenQuote(d.id) : (typeof agGoTab === 'function' && agGoTab('tarifs')) }));
-
-  // 4) Client à relancer ou anniversaire (crm.js)
-  try {
-    if(typeof crmSuggestions === 'function') crmSuggestions().filter(x => x.k === 'anniversaire' || x.k === 'relance').forEach(x => {
-      const an = x.k === 'anniversaire', nom = x.c.name || 'ce client';
-      L.push({ type: an ? 'anniversaire' : 'relance', cle: (an ? 'anniv:' : 'relance:') + x.c.id + (an ? ':' + aujourdhui.slice(0, 4) : ''), p: 4, sous: an ? 0 : 1,
-        titre: an ? 'Souhaiter son anniversaire à ' + nom : 'Reprendre contact avec ' + nom,
-        raison: an ? `L'anniversaire de ${nom} ${x.s.bday === 0 ? "est aujourd'hui" : 'est dans ' + x.s.bday + ' jour' + (x.s.bday > 1 ? 's' : '')} : un mot attentionné fidélise.`
-          : `${nom} n'est pas revenu depuis ${x.s.days >= 60 ? Math.round(x.s.days / 30) + ' mois' : x.s.days + ' jours'} : un message courtois et unique peut le faire revenir.`,
-        regle: rR, bouton: 'Ouvrir la fiche', fait: 'Message envoyé', cid: x.c.id,
-        msg: an ? `${bonjour(x.c.id)} toute l'équipe de Henzo Studio vous souhaite un très bel anniversaire. Belle journée à vous.${SIGNE}`
-          : `${bonjour(x.c.id)} cela fait un moment que nous ne nous sommes pas vus au studio. Si vous souhaitez une nouvelle séance, ce sera un plaisir de vous accueillir. Belle journée.${SIGNE}`,
-        go: () => crmOpenClient(x.c.id) });
-    });
-  } catch(e){}
-
-  // 5) Jour creux à remplir : mini-séance thématique, au tarif habituel
-  try {
-    const libres = [];
-    for(let i = 1; i <= 7; i++){ const d = new Date(); d.setDate(d.getDate() + i); const j = jourDe(d);
-      if(!(g('shoots') || []).some(s => s.date && !annule(s) && String(s.date).slice(0, 10) === j)) libres.push({ j, dow: d.getDay() }); }
-    if(libres.length >= 4){
-      const pref = libres.find(x => x.dow >= 2 && x.dow <= 4) || libres[0];
-      let theme = '';
-      try { const f = typeof crmFetes === 'function' ? crmFetes().find(x => x.j >= 7 && x.j <= 45) : null; if(f) theme = f.n; } catch(e){}
-      const idee = idees().find(x => /mini/i.test(x)) || idees()[0];
-      L.push({ type: 'creux', cle: 'creux:' + pref.j, p: 5,
-        titre: 'Remplir ' + dateFr(pref.j),
-        raison: `Aucune séance n'est prévue le ${dateFr(pref.j)} : ${theme ? 'une mini-séance autour de « ' + theme + ' »' : 'une mini-séance thématique'} peut remplir ce jour, au tarif habituel.`,
-        regle: idee.replace(/[.\s]+$/, '') + '. ' + zone().replace(/[.\s]+$/, ''),
-        bouton: 'Créer la séance', fait: 'Mini-séance annoncée', go: () => openShootModal() });
+  // 2. Séance à venir sans contrat signé, puis sans acompte
+  const venir = shoots.filter(s => s.date && ecart(now, s.date) >= 0 && ecart(now, s.date) <= 21).sort((a, b) => jourDe(a.date).localeCompare(jourDe(b.date)));
+  venir.forEach(s => {
+    const j = ecart(now, s.date);
+    const urg = j <= 3 ? 0 : j <= 10 ? 1 : 2;
+    const cts = contrats.filter(c => c.shoot_id === s.id && c.statut !== 'archive');
+    const signe = cts.some(c => c.statut === 'signe');
+    if(!signe){
+      const ct = cts[0];
+      add({ cle: 'contrat:' + s.id, p: 20 + urg, tri: j, type: 'contrat', icone: 'note',
+        titre: ct ? `Faire signer le contrat de ${nom(s)}` : `Préparer le contrat de ${nom(s)}`,
+        raison: `La séance a lieu ${quand(j)} (${dateLongue(s.date)}) et la règle est : contrat signé avant la séance.`,
+        bouton: ct ? 'Ouvrir le contrat' : 'Préparer le contrat', agir: ct ? { fn: 'contrat', id: ct.id } : { fn: 'nouveauContrat', id: s.id }, jours: 2 });
     }
-  } catch(e){}
-
-  // Charges fixes : il manque de l'argent de côté pour une échéance proche (budget.js)
-  try {
-    const BGv = typeof BG !== 'undefined' ? BG : null;
-    if(BGv && BGv.loaded && typeof bgChargesResume === 'function' && BGv.charges.some(c => c.actif !== false)){
-      const r = bgChargesResume(), pro = r.prochaines.find(o => !o.paye && o.jours <= 7);
-      if(pro && r.manque > 0){
-        const quand = pro.jours < 0 ? 'est en retard' : pro.jours === 0 ? "tombe aujourd'hui" : pro.jours === 1 ? 'tombe demain' : 'tombe dans ' + pro.jours + ' jours';
-        L.push({ type: 'charges', cle: 'charges:' + pro.id + ':' + pro.periode, p: 5, sous: 1,
-          titre: 'Mettre de côté ' + nf(r.manque) + ' pour les charges',
-          raison: `La charge « ${pro.nom} » ${quand}, et il manque ${nf(r.manque)} de côté pour couvrir les charges fixes du mois.`,
-          bouton: 'Voir mon argent', fait: 'Argent mis de côté', go: () => typeof agGoTab === 'function' && agGoTab('argent') });
-      }
+    if(Number(s.price) > 0 && !(Number(s.montant_recu) > 0)){
+      add({ cle: 'acompte:' + s.id, p: 23 + urg, tri: j, type: 'acompte', icone: 'wallet',
+        titre: `Acompte à demander : ${nom(s)}`,
+        raison: `Aucun acompte reçu pour la séance ${quand(j)} (${dateLongue(s.date)}) : il est requis avant de réserver la date.`,
+        bouton: "Envoyer le lien d'acompte", agir: { fn: 'lienPaiement', id: s.id }, jours: 2 });
     }
-  } catch(e){}
+  });
 
-  // 6) Album, tirage, cadre, forfait famille ou parrainage à un client récent
-  // 7) Demander un avis ou une recommandation après la séance
-  try {
-    const par = {}; S.filter(s => String(s.date).slice(0, 10) <= aujourdhui && s.client_id).forEach(s => { (par[s.client_id] = par[s.client_id] || []).push(s); });
-    Object.keys(par).forEach(id => {
-      const c = client(id); if(!c || (typeof window.estClient === 'function' && !window.estClient(c))) return;
-      const l = par[id].sort((a, b) => String(b.date).localeCompare(String(a.date))), der = l[0], j = ecart(aujourdhui, String(der.date).slice(0, 10)), mj = crmJours(id);
-      if(((g('shoots') || []).some(s => s.client_id === c.id && !annule(s) && String(s.date).slice(0, 10) > aujourdhui))) return; // il a déjà une séance prévue
-      const solde = prix(der) - recu(der) <= 0;
-      if(j >= 7 && j <= 45 && solde && (mj == null || mj >= 14)){
-        const fam = l.length >= 2;
-        L.push({ type: 'offre', cle: 'offre:' + id, p: 6,
-          titre: (fam ? 'Proposer un forfait famille à ' : 'Proposer un album à ') + c.name,
-          raison: fam ? `${c.name} revient régulièrement : le forfait famille ou le parrainage prolonge la relation, sans toucher au tarif de base.`
-            : `La séance de ${c.name} date d'il y a ${j} jours : c'est le bon moment de présenter un album, des tirages ou un cadre.`,
-          regle: rP, bouton: 'Ouvrir la fiche', fait: 'Offre proposée', cid: c.id,
-          msg: fam ? `${bonjour(c.id)} merci pour votre fidélité. Nous proposons un forfait famille à l'année, avec avantages pour vos proches si vous les parrainez. Souhaitez-vous que je vous en présente le détail ?${SIGNE}`
-            : `${bonjour(c.id)} vos photos sont prêtes à prendre place chez vous : nous proposons des albums, des tirages et des cadres au tarif habituel. Souhaitez-vous que je vous envoie le détail ?${SIGNE}`,
-          go: () => crmOpenClient(c.id) });
-      }
-      if(j >= 2 && j <= 21 && solde && (mj == null || mj >= 7))
-        L.push({ type: 'avis', cle: 'avis:' + id + ':' + String(der.date).slice(0, 10), p: 7,
-          titre: 'Demander un avis à ' + c.name,
-          raison: `${c.name} a vu ses photos il y a ${j} jours : un avis ou une recommandation amène de nouveaux clients à Henzo Studio.`,
-          regle: rR, bouton: 'Ouvrir la fiche', fait: 'Message envoyé', cid: c.id,
-          msg: `${bonjour(c.id)} merci encore pour votre confiance lors de votre séance. Si vos photos vous plaisent, un avis ou une recommandation auprès de vos proches nous ferait très plaisir. Merci beaucoup.${SIGNE}`,
-          go: () => crmOpenClient(c.id) });
-    });
-  } catch(e){}
+  // 3. Devis sans réponse : UNE seule relance, puis on attend
+  (ctx.devis || []).forEach(d => {
+    if(d.status !== 'envoye' || !d.client_id || !d.created_at) return;
+    const age = Math.floor((now.getTime() - new Date(d.created_at).getTime()) / JOUR);
+    if(age < 4 || age > 45) return;
+    const dejaRelance = msgs.some(m => m.client_id === d.client_id && new Date(m.created_at) > new Date(d.created_at));
+    if(dejaRelance) return;
+    const c = client(d.client_id); if(!c) return;
+    add({ cle: 'devis:' + d.id, p: 30, tri: -age, type: 'devis', icone: 'note',
+      titre: `Devis sans réponse : ${c.name}`,
+      raison: `Envoyé il y a ${age} jours, sans nouvelles. Une seule relance polie, puis on attend.`,
+      bouton: 'Écrire la relance', agir: { fn: 'ecrire', ids: [c.id], goal: 'relance', idee: `Relance polie et unique du devis envoyé il y a ${age} jours. Ne pas baisser le prix, ne pas proposer de réduction.` }, jours: 30 });
+  });
 
-  return L.sort((a, b) => a.p - b.p || (a.sous || 0) - (b.sous || 0));
-}
+  // 4. Clients (anniversaire, remerciement et avis, relance) – calculés par crm.js
+  (ctx.suggestions || []).forEach(x => {
+    if(!x || !x.c) return;
+    const k = x.k;
+    const p = k === 'anniversaire' ? 40 : k === 'merci' ? 41 : k === 'relance' ? 44 : 46;
+    const titre = k === 'anniversaire' ? `Anniversaire de ${x.c.name}` : k === 'merci' ? `Demander un avis à ${x.c.name}` : k === 'relance' ? `Faire revenir ${x.c.name}` : `Remercier ${x.c.name}`;
+    const raison = k === 'merci' ? `Sa séance date de ${x.s.days} jour${x.s.days > 1 ? 's' : ''} : c'est le bon moment pour un remerciement et une recommandation.`
+      : k === 'anniversaire' ? `${x.t}. Un message élégant renforce la relation.`
+      : k === 'relance' ? `${x.t}. Un message poli pour lui donner envie de revenir.`
+      : `${x.t} : un mot de remerciement pour sa fidélité.`;
+    add({ cle: 'client:' + k + ':' + x.c.id, p, tri: x.s.days == null ? 0 : -x.s.days, type: 'client', icone: 'users', titre, raison,
+      bouton: k === 'merci' ? 'Écrire le message' : 'Écrire le message', agir: { fn: 'ecrire', ids: [x.c.id], goal: k }, jours: 30 });
+  });
 
-// ---------- Rendu ----------
-function css(){
-  if(document.getElementById('ppCss')) return;
-  const s = document.createElement('style'); s.id = 'ppCss';
-  s.textContent = `#ppCard{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;padding:16px;margin:12px 0;color:var(--text)}
-  #ppCard .pp-k{font-family:var(--font-display,Fraunces,Georgia,serif);font-size:20px;font-weight:600;margin:0 0 10px;color:var(--text);letter-spacing:.2px}
-  #ppCard .pp-t{font-size:16px;font-weight:700;margin:0 0 6px;line-height:1.3;color:var(--text)}
-  #ppCard .pp-r{font-size:14px;line-height:1.5;margin:0 0 10px;color:var(--text)}
-  #ppCard .pp-g{font-size:12px;line-height:1.4;margin:0 0 14px;color:var(--muted)}
-  #ppCard .pp-go{display:block;width:100%;min-height:50px;border:0;border-radius:4px;background:var(--accent);color:var(--on-accent,var(--bg));font:inherit;font-size:16px;font-weight:700;cursor:pointer;padding:12px 16px}
-  #ppCard .pp-row{display:flex;gap:8px;margin-top:8px}
-  #ppCard .pp-sec{flex:1;min-height:44px;border:1px solid var(--border-2,var(--border));border-radius:4px;background:transparent;color:var(--text);font:inherit;font-size:14px;cursor:pointer;padding:10px 12px}
-  #ppCard button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  #ppCard .pp-w{font-size:12px;margin:10px 0 0;color:var(--muted)}
-  #ppCard .pp-vide{font-size:14px;line-height:1.5;margin:0 0 12px;color:var(--text)}`;
-  document.head.appendChild(s);
-}
-function semaine(m){
-  const n = faitsSemaine(m); if(!n) return '';
-  return `<p class="pp-w">Cette semaine : ${n} pas fait${n > 1 ? 's' : ''}.</p>`;
-}
-function html(){
-  const m = lire(), restants = PP.steps.filter(x => !masque(x, m));
-  PP.cur = restants[0] || null;
-  if(!PP.cur){
-    const reportes = PP.steps.filter(x => m.vus.includes(x.cle)).length;
-    return `<div class="pp-k">Prochain pas</div><p class="pp-vide">Rien d'urgent pour le moment. Continuez à faire grandir Henzo Studio, un pas à la fois.</p>${reportes ? '<button class="pp-sec" style="width:100%" onclick="ppRevoir()">Revoir les pas reportés</button>' : ''}${semaine(m)}`;
+  // 5. Client récent : album, tirage, forfait famille, parrainage
+  const parClient = {};
+  shoots.forEach(s => { if(s.client_id) (parClient[s.client_id] = parClient[s.client_id] || []).push(s); });
+  Object.keys(parClient).forEach(id => {
+    const ss = parClient[id];
+    const faites = ss.filter(s => s.date && ecart(now, s.date) < 0);
+    const aVenir = ss.some(s => s.date && ecart(now, s.date) >= 0);
+    if(!faites.length || aVenir) return;
+    const derniere = faites.map(s => jourDe(s.date)).sort().pop();
+    const age = -ecart(now, derniere);
+    if(age < 4 || age > 30) return;
+    const c = client(ss[0].client_id); if(!c) return;
+    if(joursDernierMsg(c.id) != null && joursDernierMsg(c.id) < 21) return;
+    const fidele = faites.length >= 2;
+    const idee = fidele ? 'Proposer le forfait famille à l\'année et le parrainage, sans réduction de tarif.' : 'Proposer un album photo, des tirages ou un cadre avec ses photos, au tarif normal.';
+    add({ cle: 'offre:' + c.id, p: 50, tri: age, type: 'offre', icone: 'sparkles',
+      titre: fidele ? `Proposer le forfait famille à ${c.name}` : `Proposer un album ou des tirages à ${c.name}`,
+      raison: `Sa dernière séance date de ${age} jours : ses photos sont encore fraîches, c'est le moment ${fidele ? 'du forfait famille et du parrainage' : "d'un album ou d'un tirage"}.`,
+      bouton: 'Écrire la proposition', agir: { fn: 'ecrire', ids: [c.id], goal: 'relance', idee }, jours: 30 });
+  });
+
+  // 6. Jour creux : peu de séances dans les 7 prochains jours
+  const sem = shoots.filter(s => s.date && ecart(now, s.date) >= 0 && ecart(now, s.date) <= 7);
+  if(sem.length < 2){
+    add({ cle: 'creux:' + jourStr(new Date(now.getTime() - ((now.getDay() + 6) % 7) * JOUR)), p: 60, tri: 0, type: 'creux', icone: 'camera',
+      titre: 'Semaine calme : lancer une mini-séance',
+      raison: sem.length ? 'Une seule séance prévue ces 7 prochains jours : une mini-séance thématique, au tarif normal, remplit les jours creux.' : 'Aucune séance prévue ces 7 prochains jours : une mini-séance thématique, au tarif normal, remplit les jours creux.',
+      bouton: 'Préparer le message', agir: { fn: 'miniSeance' }, jours: 7 });
   }
-  const s = PP.cur;
-  return `<div class="pp-k">Prochain pas</div>
-    <p class="pp-t">${esc(propre(s.titre))}</p>
-    <p class="pp-r">${esc(propre(s.raison))}</p>
-    ${s.regle ? `<p class="pp-g">${esc(propre(s.regle))}</p>` : ''}
-    <button class="pp-go" onclick="ppAller()">${esc(s.bouton)}</button>
-    ${s.msg ? `<div class="pp-row"><button class="pp-sec" onclick="ppCopier()">Copier le message</button><button class="pp-sec" onclick="ppWhats()">WhatsApp</button></div>` : ''}
-    <div class="pp-row"><button class="pp-sec" onclick="ppFait()">${esc(s.fait || 'Fait')}</button><button class="pp-sec" onclick="ppPlusTard()">Plus tard</button></div>${semaine(m)}`;
+
+  return out.sort((a, b) => a.p - b.p || a.tri - b.tri);
+}
+// Premier pas qui n'est ni fait ni remis à plus tard
+function choisir(liste, memo, now){
+  const t = (now || new Date()).getTime();
+  return liste.find(x => !(memo[x.cle] > t)) || null;
+}
+
+// ---------- Les actions ----------
+const ACTIONS = {
+  lienPaiement: a => { if(typeof genererLienPaiementClient === 'function') genererLienPaiementClient(a.id); else if(typeof openShootModal === 'function') openShootModal(a.id); },
+  nouveauContrat: a => { if(typeof ctNouveau === 'function') ctNouveau(a.id); else agGoTab('studio'); },
+  contrat: a => { if(typeof ctEditer === 'function'){ const go = () => ctEditer(a.id); if(typeof ctListe === 'function' && !(window.CT && CT.charge)) ctListe().then(go); else go(); } },
+  ecrire: a => {
+    if(typeof crmCompose !== 'function') return agGoTab('clients');
+    crmCompose(a.ids, { goal: a.goal });
+    if(a.idee && window.CRM && CRM.comp){ CRM.comp.idea = a.idee; if(typeof crmCompRender === 'function') crmCompRender(); }
+  },
+  miniSeance: () => {
+    if(typeof crmCompose !== 'function') return agGoTab('clients');
+    const t = Date.now();
+    const recents = id => { const m = (CRM.msgs || []).filter(x => x.client_id === id).map(x => new Date(x.created_at).getTime()).sort((a, b) => b - a)[0]; return m && (t - m) < 21 * JOUR; };
+    const ids = (typeof crmSegment === 'function' ? crmSegment('fideles').concat(crmSegment('inactifs')) : []).map(x => x.c.id).filter(id => !recents(id)).slice(0, 15);
+    if(!ids.length) return agGoTab('clients');
+    crmCompose(ids, { goal: 'relance' });
+    if(window.CRM && CRM.comp){ CRM.comp.idea = 'Annoncer une mini-séance thématique, places limitées, au tarif habituel (sans réduction).'; if(typeof crmCompRender === 'function') crmCompRender(); }
+  }
+};
+
+// ---------- Affichage ----------
+let donnees = { contrats: [], devis: [], charge: false, enCours: false };
+function contexte(){
+  let sug = []; try { if(typeof crmSuggestions === 'function' && window.CRM && CRM.loaded) sug = crmSuggestions(); } catch(e){}
+  return { now: new Date(), shoots: typeof shoots !== 'undefined' ? shoots : [], clients: typeof clients !== 'undefined' ? clients : [],
+    contrats: donnees.contrats, devis: donnees.devis, msgs: (window.CRM && CRM.msgs) || [], suggestions: sug };
+}
+async function charger(){
+  if(donnees.enCours || donnees.charge || typeof sb === 'undefined') return;
+  donnees.enCours = true;
+  try { if(window.CRM && !CRM.loaded && typeof crmLoad === 'function') await crmLoad(); } catch(e){}
+  try { const r = await sb.from('contrats').select('id,shoot_id,client_id,statut'); if(!r.error) donnees.contrats = r.data || []; } catch(e){}
+  try { const r = await sb.from('devis').select('id,client_id,status,created_at'); if(!r.error) donnees.devis = r.data || []; } catch(e){}
+  donnees.charge = true; donnees.enCours = false;
+  rendre();
+}
+let courant = null;
+function carteHtml(){
+  if(!donnees.charge) return '';
+  let pas = null;
+  try { pas = choisir(calculer(contexte()), memoLire()); } catch(e){ console.warn('prochain pas', e); }
+  courant = pas;
+  const ic = n => (typeof agIcon === 'function' ? agIcon(n, 20) : '');
+  if(!pas) return `<div class="pp-card pp-calme"><div class="pp-tag">Prochain pas</div><div class="pp-titre">Tout est en ordre pour le moment</div><div class="pp-raison">Aucun contrat, acompte ou relance en attente. Bon moment pour penser à une nouvelle idée pour Henzo Studio.</div></div>`;
+  return `<div class="pp-card"><div class="pp-tag">Prochain pas</div>
+    <div class="pp-ligne"><div class="pp-ic">${ic(pas.icone)}</div><div class="pp-txt"><div class="pp-titre">${esc(pas.titre)}</div><div class="pp-raison">${esc(pas.raison)}</div></div></div>
+    <div class="pp-btns"><button class="pp-go" onclick="ppFaire()">${esc(pas.bouton)}</button><button class="pp-plus" onclick="ppPlusTard()">Plus tard</button></div></div>`;
 }
 function rendre(){
-  css();
-  const hote = document.getElementById('agDashMini'); if(!hote) return;
-  let el = document.getElementById('ppCard');
-  if(!el){
-    el = document.createElement('div'); el.id = 'ppCard'; el.setAttribute('aria-live', 'polite');
-    const salut = hote.querySelector('.ag-hello');
-    if(salut && salut.nextSibling) hote.insertBefore(el, salut.nextSibling); else hote.insertBefore(el, hote.firstChild);
+  const el = document.getElementById('agDashMini'); if(!el) return;
+  let h = document.getElementById('ppCarte');
+  const html = carteHtml();
+  if(!html){ if(h) h.remove(); return; }
+  if(!h){
+    h = document.createElement('div'); h.id = 'ppCarte';
+    const tete = el.querySelector('.ag-hello');
+    if(tete && tete.nextSibling) el.insertBefore(h, tete.nextSibling); else el.insertBefore(h, el.firstChild);
   }
-  try { PP.steps = calculer(); el.innerHTML = html(); } catch(e){ console.warn('prochain-pas', e); el.remove(); }
+  h.innerHTML = html;
 }
-// Données lourdes à charger une fois (devis, contrats, historique de messages), puis on redessine
-async function charger(){
-  if(PP.loading) return; PP.loading = true;
-  try {
-    const jobs = [];
-    const CT = g('CT'); if(CT && !CT.charge && typeof ctCharger === 'function') jobs.push(ctCharger());
-    const PXv = g('PX'); if(PXv && !PXv.loaded && typeof pxLoad === 'function') jobs.push(pxLoad());
-    const CR = g('CRM'); if(CR && !CR.loaded && typeof crmLoad === 'function') jobs.push(crmLoad());
-    if(jobs.length){ await Promise.allSettled(jobs); if(document.getElementById('ppCard')) rendre(); }
-  } catch(e){} PP.loading = false;
-}
-
-// ---------- Boutons ----------
-window.ppAller = function(){
-  const s = PP.cur; if(!s) return;
-  const m = lire(); m.vus.push(s.cle); garder(m);   // pas répété le même jour
-  try { s.go(); } catch(e){ console.warn('prochain-pas', e); }
+window.ppFaire = function(){
+  const pas = courant; if(!pas) return;
+  const m = memoLire(); m[pas.cle] = Date.now() + (pas.jours || 2) * JOUR; memoEcrire(m);
+  try { const f = ACTIONS[pas.agir.fn]; if(f) f(pas.agir); } catch(e){ console.warn('prochain pas', e); }
   rendre();
-};
-window.ppFait = function(){
-  const s = PP.cur; if(!s) return;
-  const m = lire(); m.faits[s.cle] = jourDe(); m.vus.push(s.cle); m.hist[jourDe()] = (Number(m.hist[jourDe()]) || 0) + 1; garder(m); rendre();
 };
 window.ppPlusTard = function(){
-  const s = PP.cur; if(!s) return;
-  const m = lire(); m.vus.push(s.cle); garder(m); rendre();
-};
-function texteMsg(){ return PP.cur && PP.cur.msg ? propre(PP.cur.msg) : ''; }
-async function copier(t){
-  try { if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(t); return true; } } catch(e){}
-  try { const a = document.createElement('textarea'); a.value = t; a.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(a); a.select(); const ok = document.execCommand('copy'); a.remove(); return ok; } catch(e){ return false; }
-}
-function avis(t){ try { if(typeof agToast === 'function') agToast(t); } catch(e){} }
-window.ppCopier = async function(){ const t = texteMsg(); if(!t) return; avis(await copier(t) ? 'Message copié' : 'Copie impossible'); };
-window.ppWhats = async function(){
-  const t = texteMsg(), s = PP.cur; if(!t || !s) return;
-  let tel = String((client(s.cid) || {}).phone || '').replace(/[^\d+]/g, '').replace(/^\+/, '');
-  if(tel.length === 10 && tel[0] === '0') tel = '225' + tel; else if(tel.length === 8) tel = '225' + tel;
-  const m = lire(); m.vus.push(s.cle); garder(m);   // pas répété le même jour
-  if(!tel){ await copier(t); avis('Pas de numéro : message copié'); }
-  else window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(t), '_blank');
+  const pas = courant; if(!pas) return;
+  const m = memoLire(); m[pas.cle] = Date.now() + JOUR; memoEcrire(m);
   rendre();
 };
-window.ppRevoir = function(){ const m = lire(); m.vus = []; garder(m); rendre(); };
-window.prochainPas = function(){ return PP.steps.slice(); };   // pour les tests
+window.ppRecharger = function(){ donnees.charge = false; donnees.enCours = false; charger(); };
+window.ppCalculer = calculer; window.ppChoisir = choisir;
 
-// ---------- Branchement sur l'accueil ----------
-if(typeof agRenderDashMini === 'function'){
-  const _o = agRenderDashMini;
-  agRenderDashMini = window.agRenderDashMini = function(){
-    const r = _o.apply(this, arguments);
-    try { rendre(); charger(); } catch(e){ console.warn('prochain-pas', e); }
-    return r;
-  };
-  const p = document.getElementById('page-dash');
-  if(p && p.classList.contains('active')) setTimeout(() => { try { agRenderDashMini(); } catch(e){} }, 300);
+// ---------- Style (couleurs et arrondis de la charte, via les variables du thème) ----------
+function style(){
+  if(document.getElementById('ppStyle')) return;
+  const s = document.createElement('style'); s.id = 'ppStyle';
+  s.textContent = `
+  .pp-card{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius-md,10px);padding:16px;margin:0 0 14px}
+  .pp-tag{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:10px}
+  .pp-ligne{display:flex;gap:12px;align-items:flex-start}
+  .pp-ic{flex:0 0 auto;width:36px;height:36px;border-radius:var(--radius-md,10px);background:var(--card2);color:var(--accent);display:flex;align-items:center;justify-content:center}
+  .pp-txt{min-width:0}
+  .pp-titre{font-family:var(--font-display,inherit);font-size:16px;font-weight:600;color:var(--text);line-height:1.3}
+  .pp-raison{font-size:14px;color:var(--muted);margin-top:4px;line-height:1.45}
+  .pp-btns{display:flex;gap:10px;margin-top:14px;align-items:center;flex-wrap:wrap}
+  .pp-go{background:var(--accent);color:var(--on-accent,var(--bg));border:0;border-radius:var(--radius-sm,4px);padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+  .pp-plus{background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm,4px);padding:10px 14px;font-size:14px;cursor:pointer;font-family:inherit}
+  .pp-calme{border-left-color:var(--border)}`;
+  document.head.appendChild(s);
+}
+
+function brancher(){
+  style();
+  if(typeof agRenderDashMini === 'function' && !agRenderDashMini.__pp){
+    const base = agRenderDashMini;
+    agRenderDashMini = window.agRenderDashMini = function(){ const r = base.apply(this, arguments); try { rendre(); } catch(e){} return r; };
+    agRenderDashMini.__pp = true;
+  }
+  charger();
+}
+if(typeof document !== 'undefined' && typeof window !== 'undefined' && document.body){
+  let essais = 0;
+  const t = setInterval(() => {
+    if(typeof agRenderDashMini === 'function' && typeof crmSuggestions === 'function' && typeof shoots !== 'undefined'){ clearInterval(t); brancher(); }
+    else if(++essais > 60) clearInterval(t);
+  }, 500);
 }
 })();

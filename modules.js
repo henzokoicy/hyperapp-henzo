@@ -258,7 +258,7 @@ function noteIcon(n, on){
 .note-flags{display:flex;gap:8px;margin:2px 0 12px;flex-wrap:wrap}
 .note-flag{width:auto;margin:0;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:12px;border:1px solid var(--border);background:var(--card2);color:var(--text-2);font:500 13px Inter,sans-serif;cursor:pointer}
 .note-flag.on{border-color:var(--accent);color:var(--text);background:var(--card3)}
-#noteFavBtn.on svg{color:#f5c542}
+#noteFavBtn.on svg{color:var(--accent-2)}
 .note-rem-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
 .note-rem-head label{margin:0}
 .note-sw{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;color:var(--muted);margin:0 !important}
@@ -274,7 +274,7 @@ function noteIcon(n, on){
 .note-quick button{width:32px;height:32px;margin:0;padding:0;display:grid;place-items:center;border-radius:10px;border:none;background:transparent;color:var(--muted);cursor:pointer}
 .note-quick button:hover{background:var(--card2);color:var(--text)}
 .note-quick button.on{color:var(--text)}
-.note-quick button.fav.on{color:#f5c542}
+.note-quick button.fav.on{color:var(--accent-2)}
 .note-pin-tag{font-size:11px;color:var(--accent);font-weight:600;margin-right:6px}
 `;
   document.head.appendChild(st);
@@ -2637,9 +2637,9 @@ function ouvrirRecuHorsApp(shootId){
   modal.onclick = e => { if(e.target === modal) fermerRecuHorsApp(); };
   const li = t => `<li style="margin:4px 0">${t}</li>`;
   modal.innerHTML = `
-    <div class="modal" style="border:1px solid #f59e0b">
+    <div class="modal" style="border:1px solid var(--yellow)">
       <div class="modal-wrap">
-        <h3 style="color:#f59e0b">⚠️ Reçu sans répartition</h3>
+        <h3 style="color:var(--yellow)">⚠️ Reçu sans répartition</h3>
         <button class="close" onclick="fermerRecuHorsApp()">×</button>
       </div>
 
@@ -2761,7 +2761,7 @@ function voirSeancesHorsApp(){
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${st.total.n} séance${st.total.n > 1 ? 's' : ''} · ${fmt(st.total.m)} pas comptés dans tes comptes ni tes coffres.</div>
       ${st.liste.map(s => `<div style="display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px">
         <span>📸 ${s.type || 'Séance'}${nom(s) ? ' · ' + nom(s) : ''}<br><span style="font-size:11px;color:var(--muted)">${s.recu_hors_app_at ? new Date(s.recu_hors_app_at).toLocaleDateString('fr-FR') : ''}</span></span>
-        <b style="color:#f59e0b">${fmt(s.recu_hors_app)}</b></div>`).join('')}
+        <b style="color:var(--yellow)">${fmt(s.recu_hors_app)}</b></div>`).join('')}
     </div>`;
   document.body.appendChild(modal);
 }
@@ -2883,7 +2883,7 @@ function renderShoots(){
     const st = statsHorsApp();
     if(st.total.n > 0){
       if(!ha){ ha = document.createElement('div'); ha.id = 'shootHorsAppLine'; statsEl.insertAdjacentElement('afterend', ha); }
-      ha.innerHTML = `<button type="button" onclick="voirSeancesHorsApp()" style="background:none;border:none;padding:6px 0;margin:4px 0 0;width:auto;color:#f59e0b;font-size:12px;cursor:pointer;text-decoration:underline">${st.total.n} séance${st.total.n > 1 ? 's' : ''} payée${st.total.n > 1 ? 's' : ''} hors app (${fmt(st.total.m)})</button>`;
+      ha.innerHTML = `<button type="button" onclick="voirSeancesHorsApp()" style="background:none;border:none;padding:6px 0;margin:4px 0 0;width:auto;color:var(--yellow);font-size:12px;cursor:pointer;text-decoration:underline">${st.total.n} séance${st.total.n > 1 ? 's' : ''} payée${st.total.n > 1 ? 's' : ''} hors app (${fmt(st.total.m)})</button>`;
     } else if(ha) ha.remove();
   }
 
@@ -3189,7 +3189,7 @@ function renderShoots(){
           <span class="shoot-status ${stat.class}">${stat.label}</span>
           ${paymentBadge}
           ${revenuBadge}
-          ${Number(s.recu_hors_app || 0) > 0 ? `<span class="badge" style="background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid #f59e0b" title="Argent reçu avant l'app ou déjà dépensé : pas compté dans tes comptes ni tes coffres">Reçu hors app : ${fmt(s.recu_hors_app)}</span>` : ''}
+          ${Number(s.recu_hors_app || 0) > 0 ? `<span class="badge" style="background:color-mix(in srgb,var(--yellow) 12%,transparent);color:var(--yellow);border:1px solid var(--yellow)" title="Argent reçu avant l'app ou déjà dépensé : pas compté dans tes comptes ni tes coffres">Reçu hors app : ${fmt(s.recu_hors_app)}</span>` : ''}
           ${chargeTags}
         </div>
       </div>
@@ -3296,7 +3296,7 @@ function renderArgentAEncaisser(){
 
   box.style.display = 'block';
   box.innerHTML = `
-    <div style="background:rgba(245,185,66,.10);border:1px solid var(--yellow);border-radius:12px;padding:12px;margin-bottom:12px">
+    <div style="background:color-mix(in srgb,var(--yellow) 10%,transparent);border:1px solid var(--yellow);border-radius:12px;padding:12px;margin-bottom:12px">
       <div style="font-weight:700;font-size:13px;color:var(--yellow)">💰 ${concernees.length} séance${concernees.length > 1 ? 's' : ''} à encaisser · ${fmt(total)}</div>
       <div style="font-size:11px;color:var(--muted);margin-top:4px">Reste à payer sur des séances non annulées. Utilise le filtre "Reste à payer élevé" pour les voir en premier.</div>
     </div>
@@ -3719,12 +3719,12 @@ function renderRevDepDonut(){
   }
 
   const pctIn = (s.totalIn / total) * 100;
-  donut.style.background = `conic-gradient(var(--green) 0% ${pctIn}%, var(--red) ${pctIn}% 100%)`;
+  donut.style.background = `conic-gradient(var(--chart-1) 0% ${pctIn}%, var(--chart-2) ${pctIn}% 100%)`;
   if(centerText) centerText.innerHTML = `<div><div style="font-size:14px">${Math.round(pctIn)}%</div><div style="font-size:9px;color:var(--muted)">Revenus</div></div>`;
 
   if(legend) legend.innerHTML = `
-    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div><div class="legend-label">Revenus</div><div class="legend-value" style="color:var(--green)">${fmt(s.totalIn)}</div></div>
-    <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div><div class="legend-label">Dépenses</div><div class="legend-value" style="color:var(--red)">${fmt(s.totalOut)}</div></div>`;
+    <div class="legend-item"><div class="legend-dot" style="background:var(--chart-1)"></div><div class="legend-label">Revenus</div><div class="legend-value">${fmt(s.totalIn)}</div></div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--chart-2)"></div><div class="legend-label">Dépenses</div><div class="legend-value">${fmt(s.totalOut)}</div></div>`;
 }
 
 function renderShootTypesChart(){
@@ -3739,7 +3739,7 @@ function renderShootTypesChart(){
 
   el.innerHTML = entries.map(([type, count]) => {
     const pct = (count / total) * 100;
-    return `<div class="cat-row"><div class="top"><span>📸 ${type}</span><span>${count} · ${pct.toFixed(0)}%</span></div><div class="bar"><div style="width:${pct}%;background:var(--pink)"></div></div></div>`;
+    return `<div class="cat-row"><div class="top"><span>📸 ${type}</span><span>${count} · ${pct.toFixed(0)}%</span></div><div class="bar"><div style="width:${pct}%;background:var(--chart-1)"></div></div></div>`;
   }).join('');
 }
 
@@ -3766,11 +3766,11 @@ function renderBars6m(){
       <div class="bar-6m-pair">
         <div class="bar-6m-col" title="Revenus : ${fmt(m.totalIn)}">
           <div class="bar-6m-value">${m.totalIn > 0 ? Math.round(m.totalIn/1000)+'k' : ''}</div>
-          <div class="bar-6m-fill" style="height:${hIn}%;background:linear-gradient(180deg,var(--green),#1f9d6f)"></div>
+          <div class="bar-6m-fill" style="height:${hIn}%;background:var(--chart-1)"></div>
         </div>
         <div class="bar-6m-col" title="Dépenses : ${fmt(m.totalOut)}">
           <div class="bar-6m-value">${m.totalOut > 0 ? Math.round(m.totalOut/1000)+'k' : ''}</div>
-          <div class="bar-6m-fill" style="height:${hOut}%;background:linear-gradient(180deg,var(--red),#b23b3b)"></div>
+          <div class="bar-6m-fill" style="height:${hOut}%;background:var(--chart-2)"></div>
         </div>
       </div>
       <div class="bar-label">${m.label}</div>
@@ -4243,7 +4243,7 @@ function exportHistoryPDF(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  doc.setFillColor(108, 140, 255);
+  doc.setFillColor(95, 110, 58);
   doc.rect(0, 0, 210, 30, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22);
@@ -4292,7 +4292,7 @@ function generateIdeas(){
     <div class="idea">
       <div class="t">💡 ${i.t}</div>
       <div class="d">${i.d}</div>
-      <div>${i.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+      <div>${i.tags.map(t => `<span class="tag${t === 'Premium' ? ' tag-premium' : ''}">${t}</span>`).join('')}</div>
       <button class="btn-ghost" style="margin-top:8px;font-size:13px;padding:8px" onclick='saveIdea(${JSON.stringify(i).replace(/'/g, "&#39;")})'>⭐ Sauvegarder</button>
     </div>`).join('');
 }
@@ -4463,7 +4463,7 @@ function exportIdeasAIPDF(){
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFillColor(255, 107, 157);
+  doc.setFillColor(95, 110, 58);
   doc.rect(0, 0, 210, 32, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
@@ -4473,7 +4473,7 @@ function exportIdeasAIPDF(){
   if(date) doc.text(date, 14, 24);
 
   const cleanText = nettoyerPourPDF(text.replace(/\*\*/g, '').replace(/→/g, '-'));
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(19, 21, 15);
   doc.setFontSize(11);
   const splitText = doc.splitTextToSize(cleanText, 180);
   let y = 42;
@@ -5324,7 +5324,7 @@ function renderMoneyDetails(){
                 <span style="color:var(--yellow);font-weight:700">${fmt(reste)}</span>
               </div>
               <div style="height:4px;background:color-mix(in srgb,var(--gold) 12%,transparent);border-radius:2px;overflow:hidden">
-                <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--yellow),#ffd97a);border-radius:2px"></div>
+                <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:2px"></div>
               </div>
             </div>
           `;
@@ -5656,7 +5656,7 @@ function exportAnalysisPDF(){
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFillColor(108, 140, 255);
+  doc.setFillColor(95, 110, 58);
   doc.rect(0, 0, 210, 32, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
@@ -5666,7 +5666,7 @@ function exportAnalysisPDF(){
   if(date) doc.text(date, 14, 24);
 
     const cleanText = nettoyerPourPDF(text.replace(/\*\*/g, ''));
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(19, 21, 15);
   doc.setFontSize(11);
   const splitText = doc.splitTextToSize(cleanText, 180);
   let y = 42;
@@ -6266,7 +6266,7 @@ function exportChatPDF(){
   const margin = 14;
   let y = 20;
 
-  doc.setFillColor(108, 140, 255);
+  doc.setFillColor(95, 110, 58);
   doc.rect(0, 0, 210, 28, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(18);
@@ -6295,7 +6295,7 @@ function exportChatPDF(){
     y += 7;
 
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(40, 40, 40);
+    doc.setTextColor(19, 21, 15);
     doc.setFontSize(10);
 
     const lines = doc.splitTextToSize(cleanContent, pageWidth);
@@ -6312,7 +6312,7 @@ function exportChatPDF(){
   for(let i = 1; i <= pageCount; i++){
     doc.setPage(i);
     doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
+    doc.setTextColor(168, 171, 157);
     doc.text('Conversation exportée depuis Super App Henzo', 105, 290, { align: 'center' });
   }
 
@@ -6421,7 +6421,7 @@ function ouvrirAppWave() {
       </div>
       ${isMobile
         ? `<button class="btn-primary" style="background:var(--wave);color:#000;font-weight:700;width:100%;margin-bottom:8px" onclick="tenterOuvrirWave()">📲 Essayer d'ouvrir Wave</button>`
-        : `<div style="background:rgba(245,185,66,.15);border-radius:10px;padding:12px;font-size:13px;color:var(--yellow);text-align:center;margin-bottom:12px">⚠️ Cette action fonctionne uniquement depuis un téléphone</div>`
+        : `<div style="background:color-mix(in srgb,var(--yellow) 15%,transparent);border-radius:10px;padding:12px;font-size:13px;color:var(--yellow);text-align:center;margin-bottom:12px">⚠️ Cette action fonctionne uniquement depuis un téléphone</div>`
       }
       <button class="btn-ghost" style="width:100%;margin:0" onclick="fermerInstructionsWave()">J'ai compris</button>
     </div>
@@ -7141,7 +7141,7 @@ function ouvrirRecuModal(linkId) {
         <button class="btn-primary" style="margin:0;background:linear-gradient(135deg,#25D366,#128C7E);width:100%;color:#fff" onclick="envoyerRecuWhatsApp(${l.id})">
           💬 Envoyer le reçu sur WhatsApp
         </button>
-        <button class="btn-primary" style="margin:0;background:linear-gradient(135deg,var(--gold),#e0b02f);color:#000;width:100%" onclick="telechargerRecuClient(${l.id})">
+        <button class="btn-primary" style="margin:0;background:var(--accent);color:var(--on-accent,#0d0f0c);width:100%" onclick="telechargerRecuClient(${l.id})">
           ⬇️ Télécharger le reçu PDF
         </button>
         <button class="btn-ghost" style="margin:0;width:100%" onclick="fermerRecuModal()">
@@ -7186,31 +7186,34 @@ function genererRecuPDFClient(link) {
     'solde': 'Solde restant'
   };
 
-  doc.setFillColor(107, 142, 255);
-  doc.rect(0, 0, pageWidth, 40, 'F');
+  // En-tête charte Henzo Studio : logo à gauche, titre à droite, filet vert olive
+  const H = window.hzPdf || null;
+  const lh = H ? H.logo(doc, margin, 12, 46) : 0;
+  if(!lh){
+    doc.setTextColor(19, 21, 15);
+    doc.setFont('times', 'bold');
+    doc.setFontSize(20);
+    doc.text('HENZO STUDIO', margin, 22);
+  }
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
-  doc.setFont('helvetica', 'bold');
-  doc.text('HENZO PHOTOGRAPHIE', margin, 18);
+  doc.setTextColor(19, 21, 15);
+  doc.setFont('times', 'bold');
+  doc.setFontSize(20);
+  doc.text('Reçu de paiement', pageWidth - margin, 20, { align: 'right' });
 
+  doc.setTextColor(92, 95, 84);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('Photographe professionnel · Côte d\'Ivoire', margin, 25);
-  doc.text('WhatsApp : +225 01 70 99 89 64', margin, 31);
+  doc.text('N° ' + ref, pageWidth - margin, 27, { align: 'right' });
+  doc.text(paidDate.toLocaleDateString('fr-FR'), pageWidth - margin, 33, { align: 'right' });
 
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('REÇU DE PAIEMENT', pageWidth - margin, 18, { align: 'right' });
+  doc.setDrawColor(95, 110, 58);
+  doc.setLineWidth(0.6);
+  doc.line(margin, 40, pageWidth - margin, 40);
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('N° ' + ref, pageWidth - margin, 25, { align: 'right' });
-  doc.text(paidDate.toLocaleDateString('fr-FR'), pageWidth - margin, 31, { align: 'right' });
-
-  doc.setFillColor(240, 255, 245);
+  doc.setFillColor(241, 239, 233);
   doc.roundedRect(margin, 50, pageWidth - margin * 2, 14, 2, 2, 'F');
-  doc.setTextColor(16, 130, 80);
+  doc.setTextColor(95, 110, 58);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text('PAIEMENT REÇU ET CONFIRMÉ', pageWidth / 2, 59, { align: 'center' });
@@ -7218,48 +7221,48 @@ function genererRecuPDFClient(link) {
   let y = 78;
   const colWidth = (pageWidth - margin * 2 - 6) / 2;
 
-  doc.setTextColor(120, 120, 120);
+  doc.setTextColor(92, 95, 84);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text('ÉMETTEUR', margin, y);
 
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(19, 21, 15);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('HENZO PHOTOGRAPHIE', margin, y + 6);
+  doc.text('HENZO STUDIO', margin, y + 6);
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(90, 90, 90);
+  doc.setTextColor(92, 95, 84);
   doc.text('Photographe professionnel', margin, y + 12);
   doc.text('Abidjan · Bouaké, Côte d\'Ivoire', margin, y + 17);
   doc.text('+225 01 70 99 89 64', margin, y + 22);
   doc.text('henzophotographie@gmail.com', margin, y + 27);
 
   const colRight = margin + colWidth + 6;
-  doc.setTextColor(120, 120, 120);
+  doc.setTextColor(92, 95, 84);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text('CLIENT', colRight, y);
 
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(19, 21, 15);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text(cleanStr(link.client_name) || '-', colRight, y + 6);
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(90, 90, 90);
+  doc.setTextColor(92, 95, 84);
   if(link.client_phone) doc.text('Tel : ' + cleanStr(link.client_phone), colRight, y + 12);
 
   y += 38;
 
-  doc.setDrawColor(220, 220, 220);
+  doc.setDrawColor(226, 224, 214);
   doc.setLineWidth(0.3);
   doc.line(margin, y, pageWidth - margin, y);
   y += 6;
 
-  doc.setTextColor(120, 120, 120);
+  doc.setTextColor(92, 95, 84);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text('DÉTAILS DE LA PRESTATION', margin, y);
@@ -7281,17 +7284,17 @@ function genererRecuPDFClient(link) {
   if(link.photo_count) details.push(['Nombre de photos', link.photo_count + ' photos']);
   if(link.payment_method) details.push(['Mode de paiement', cleanStr(link.payment_method)]);
 
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(19, 21, 15);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
 
   details.forEach(([label, value]) => {
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(90, 90, 90);
+    doc.setTextColor(92, 95, 84);
     doc.text(label + ' :', margin, y);
 
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(40, 40, 40);
+    doc.setTextColor(19, 21, 15);
     const valueLines = doc.splitTextToSize(value, pageWidth - margin * 2 - 50);
     doc.text(valueLines, margin + 45, y);
     y += Math.max(6, valueLines.length * 5);
@@ -7301,18 +7304,18 @@ function genererRecuPDFClient(link) {
 
   if(link.shoot_notes){
     y += 4;
-    doc.setDrawColor(240, 240, 240);
+    doc.setDrawColor(226, 224, 214);
     doc.line(margin, y, pageWidth - margin, y);
     y += 6;
 
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(90, 90, 90);
+    doc.setTextColor(92, 95, 84);
     doc.setFontSize(8);
     doc.text('NOTES', margin, y);
     y += 5;
 
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(40, 40, 40);
+    doc.setTextColor(19, 21, 15);
     doc.setFontSize(10);
     const noteLines = doc.splitTextToSize(cleanStr(link.shoot_notes), pageWidth - margin * 2);
     noteLines.forEach(line => {
@@ -7324,7 +7327,7 @@ function genererRecuPDFClient(link) {
 
   y += 6;
   doc.setFontSize(10);
-  doc.setTextColor(90, 90, 90);
+  doc.setTextColor(92, 95, 84);
   doc.setFont('helvetica', 'normal');
   doc.text('Type de paiement : ' + (typeLabels[link.payment_type] || 'Paiement'), margin, y);
 
@@ -7336,28 +7339,28 @@ function genererRecuPDFClient(link) {
   y += 14;
 
   const boxHeight = 48;
-  doc.setFillColor(248, 250, 255);
+  doc.setFillColor(241, 239, 233);
   doc.roundedRect(margin, y, pageWidth - margin * 2, boxHeight, 3, 3, 'F');
 
-  doc.setDrawColor(107, 142, 255);
+  doc.setDrawColor(95, 110, 58);
   doc.setLineWidth(0.5);
   doc.roundedRect(margin, y, pageWidth - margin * 2, boxHeight, 3, 3, 'S');
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(80, 90, 120);
+  doc.setTextColor(92, 95, 84);
   doc.text('MONTANT PAYÉ', margin + 8, y + 13);
 
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(16, 130, 80);
+  doc.setTextColor(95, 110, 58);
   const amountStr = formatNum(link.amount) + ' FCFA';
   doc.text(amountStr, margin + 8, y + 32);
 
   if(link.total_amount && link.total_amount > link.amount) {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(120, 120, 120);
+    doc.setTextColor(92, 95, 84);
     const totalStr = 'sur un total de ' + formatNum(link.total_amount) + ' FCFA';
     const restStr = 'Reste à payer : ' + formatNum(link.total_amount - link.amount) + ' FCFA';
     doc.text(totalStr, margin + 8, y + 42);
@@ -7365,24 +7368,24 @@ function genererRecuPDFClient(link) {
   } else {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(120, 120, 120);
+    doc.setTextColor(92, 95, 84);
     doc.text('Paiement intégral', margin + 8, y + 42);
   }
 
   y += boxHeight + 12;
 
-  doc.setDrawColor(220, 220, 220);
+  doc.setDrawColor(226, 224, 214);
   doc.setLineWidth(0.3);
   doc.line(margin, y, pageWidth - margin, y);
 
   doc.setFontSize(9);
-  doc.setTextColor(120, 120, 120);
+  doc.setTextColor(92, 95, 84);
   doc.setFont('helvetica', 'normal');
-  doc.text('Ce reçu atteste du paiement reçu par HENZO PHOTOGRAPHIE.', pageWidth / 2, y + 8, { align: 'center' });
+  doc.text('Ce reçu atteste du paiement reçu par HENZO STUDIO.', pageWidth / 2, y + 8, { align: 'center' });
   doc.text('Merci pour votre confiance !', pageWidth / 2, y + 14, { align: 'center' });
 
   doc.setFontSize(8);
-  doc.setTextColor(150, 150, 150);
+  doc.setTextColor(168, 171, 157);
   doc.text('henzophotographie@gmail.com  ·  +225 01 70 99 89 64  ·  Côte d\'Ivoire', pageWidth / 2, 285, { align: 'center' });
 
   return doc;
@@ -9255,7 +9258,7 @@ function exportSuggestionIAEpargnePDF(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  doc.setFillColor(107, 142, 255);
+  doc.setFillColor(95, 110, 58);
   doc.rect(0, 0, 210, 32, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
@@ -9266,7 +9269,7 @@ function exportSuggestionIAEpargnePDF(){
   if(date) doc.text(date, 14, 24);
 
   const cleanText = text.replace(/\*\*/g, '').replace(/[—–]/g, '-');
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(19, 21, 15);
   doc.setFontSize(11);
   const splitText = doc.splitTextToSize(cleanText, 180);
   let y = 42;
@@ -9414,7 +9417,7 @@ const COFFRE_TYPES = {
     id: 'entreprise',
     label: '💼 Entreprise / Charges',
     icon: '💼',
-    color: '#f5c542',
+    color: '#a8ab9d',
     desc: 'Pour les charges de ton activité. Libre mais chaque retrait est noté.',
     lockLevel: 1,          // 1 = pas de blocage mais noté
     autoLock: false,
@@ -10555,7 +10558,7 @@ function exportClientsPDF(){
   const donnees = construireDonneesClientsEnrichies();
   
   // En-tête
-  doc.setFillColor(107, 142, 255);
+  doc.setFillColor(95, 110, 58);
   doc.rect(0, 0, pageWidth, 30, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
@@ -10572,7 +10575,7 @@ function exportClientsPDF(){
   const totalCA = donnees.reduce((sum, c) => sum + c.totalDepense, 0);
   const totalSeances = donnees.reduce((sum, c) => sum + c.nombreSeances, 0);
   
-  doc.setFillColor(240, 245, 255);
+  doc.setFillColor(241, 239, 233);
   doc.roundedRect(margin, y - 4, pageWidth - margin * 2, 18, 2, 2, 'F');
   doc.setTextColor(50, 50, 50);
   doc.setFontSize(11);
@@ -10611,12 +10614,12 @@ function exportClientsPDF(){
     doc.text(ligne1.join('   '), margin + 4, y + 13);
     
     // Stats
-    doc.setTextColor(16, 130, 80);
+    doc.setTextColor(95, 110, 58);
     doc.setFont('helvetica', 'bold');
         doc.text(`${c.nombreSeances} séance(s) · ${nettoyerPourPDF(fmt(c.totalDepense))} encaissés`, margin + 4, y + 20);
     
     if(c.derniereSeance !== 'Aucune'){
-      doc.setTextColor(120, 120, 120);
+      doc.setTextColor(92, 95, 84);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.text(`Dernière séance : ${c.derniereSeance}`, margin + 4, y + 26);
@@ -10640,7 +10643,7 @@ function exportClientsPDF(){
   for(let i = 1; i <= pageCount; i++){
     doc.setPage(i);
     doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
+    doc.setTextColor(168, 171, 157);
     doc.text('HENZO PHOTOGRAPHIE · ' + (BRAND?.phone || '') + ' · Base de données clients', pageWidth / 2, 290, { align: 'center' });
   }
   
@@ -10737,7 +10740,7 @@ async function calculerFraisWave(){
         <span style="font-weight:800;font-size:20px;color:var(--gold-soft)">${fmt(montantAvecFrais)}</span>
       </div>
       
-      <button class="btn-primary" style="margin:12px 0 0;width:100%;background:linear-gradient(135deg,var(--gold),#e0b02f);color:#000;font-weight:800" onclick="copierMontantWave(${montantAvecFrais})">
+      <button class="btn-primary" style="margin:12px 0 0;width:100%;background:var(--accent);color:var(--on-accent,#0d0f0c);font-weight:800" onclick="copierMontantWave(${montantAvecFrais})">
         📋 Copier ${fmt(montantAvecFrais)}
       </button>
       
@@ -10808,7 +10811,7 @@ function afficherToast(message, type){
   const colors = {
     success: { bg: 'linear-gradient(135deg, #10b981, #059669)', icon: '✅' },
     error:   { bg: 'linear-gradient(135deg, #ef4444, #dc2626)', icon: '❌' },
-    warning: { bg: 'linear-gradient(135deg, #f59e0b, #d97706)', icon: '⚠️' },
+    warning: { bg: 'linear-gradient(135deg, #5c5f54, #3a3d32)', icon: '⚠️' },
     info:    { bg: 'linear-gradient(135deg, #6b8eff, #4a6ee0)', icon: 'ℹ️' }
   };
   
@@ -10877,7 +10880,7 @@ function confirmer(message, options){
     
     const colors = {
       danger:  { bg: 'linear-gradient(135deg, #ef4444, #dc2626)', icon: '🗑️' },
-      warning: { bg: 'linear-gradient(135deg, #f59e0b, #d97706)', icon: '⚠️' },
+      warning: { bg: 'linear-gradient(135deg, #5c5f54, #3a3d32)', icon: '⚠️' },
       info:    { bg: 'linear-gradient(135deg, #6b8eff, #4a6ee0)', icon: '❓' }
     };
     const c = colors[typeBouton] || colors.info;
@@ -11930,7 +11933,7 @@ function mettreAJourCompteur(total, salaire, studio, epargne){
     canValidate = true;
   } else if(reste > 0){
     couleur = 'var(--yellow)';
-    bg = 'linear-gradient(90deg, var(--yellow), #ffd97a)';
+    bg = 'linear-gradient(90deg, var(--muted), var(--yellow))';
     emoji = '🟡'; message = 'Il reste ' + fmt(reste) + ' à répartir';
     canValidate = false;
   } else {

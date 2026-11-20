@@ -15,6 +15,7 @@ var CARTES = '.f,.o,.sum,.rdv,.par,.cols button,.src button,.col,.hint,.cond,.pr
 window.appliquerApparencePage = function(a){
   if(!a || !a.vars) return;
   var v = a.vars, r = document.documentElement.style;
+  document.documentElement.setAttribute('data-clair', a.clair ? '1' : '0');
   var set = function(n, x){ if(x) r.setProperty('--' + n, x); };
   set('bg', v.bg); set('card', v.card); set('card2', v.card2); set('line', v.line); set('txt', v.txt); set('muted', v.muted);
   set('accent', v.accent); set('light', v.light); set('deep', v.deep); set('forest', v.forest);

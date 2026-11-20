@@ -484,7 +484,7 @@ async function mbCollage(){
   const cw = (W - pad * (cols + 1)) / cols, ch = (H - foot - pad * (rows + 1)) / rows;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d');
-  g.fillStyle = '#0b1513'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#0d0f0c'; g.fillRect(0, 0, W, H);
   const load = u => new Promise((ok, ko) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => ok(i); i.onerror = ko; i.src = u + (u.includes('?') ? '&' : '?') + 'c=1'; });
   for(let k = 0; k < n; k++){
     try {
@@ -495,9 +495,9 @@ async function mbCollage(){
       g.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, x, y, cw, ch); g.restore();
     } catch(e){}
   }
-  g.fillStyle = '#ffffff'; g.font = '700 40px Inter, sans-serif'; g.textBaseline = 'middle';
+  g.fillStyle = '#f4f2ec'; g.font = '600 40px Fraunces, Georgia, serif'; g.textBaseline = 'middle';
   g.fillText((b.title || 'Moodboard').slice(0, 38), pad + 8, H - foot / 2 - 14);
-  g.fillStyle = '#9cbdb8'; g.font = '500 26px Inter, sans-serif';
+  g.fillStyle = '#a8ab9d'; g.font = '500 26px Inter, sans-serif';
   g.fillText('Henzo Studio · Bouaké · idées pour votre séance', pad + 8, H - foot / 2 + 26);
   c.toBlob(async blob => {
     const file = new File([blob], 'moodboard-henzo.jpg', { type: 'image/jpeg' });

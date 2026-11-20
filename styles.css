@@ -20,13 +20,13 @@
   --accent-dk: #4a6ee0;
 
   /* Accent chaud "golden hour" (photographe) */
-  --gold:      #f5c542;
-  --gold-soft: #ffd97a;
+  --gold:      #8a9a5b;   /* surlignage (couleur du thème, voir theme.css) ; l'or premium = --premium */
+  --gold-soft: #c5cd9f;
 
   /* Couleurs sémantiques */
   --green:     #34d399;
   --red:       #ff6b6b;
-  --yellow:    #f5c542;
+  --yellow:    #d9d7cd;   /* avertissements : neutre */
   --pink:      #ff7eb3;
   --wave:      #1DC8FF;
 
@@ -1548,8 +1548,8 @@ body:not(.logged-out) #loginScreen{display:none;}
 }
 .insp-btn-call:hover{box-shadow:0 8px 20px color-mix(in srgb,var(--green) 50%,transparent);}
 .insp-btn-mail{
-  background:linear-gradient(135deg,var(--gold),#e0b02f);
-  color:#000;box-shadow:0 4px 14px color-mix(in srgb,var(--gold) 30%,transparent);
+  background:var(--accent);
+  color:var(--on-accent,#0d0f0c);box-shadow:0 4px 14px color-mix(in srgb,var(--gold) 30%,transparent);
 }
 .insp-btn-mail:hover{box-shadow:0 8px 20px color-mix(in srgb,var(--gold) 50%,transparent);}
 .insp-btn-edit{
@@ -1731,7 +1731,7 @@ body:not(.logged-out) #loginScreen{display:none;}
 .ai-section.good .ai-section-body strong{color:var(--green);}
 .ai-section.warn{border-left-color:var(--yellow);}
 .ai-section.warn .ai-section-title{color:var(--yellow);}
-.ai-section.warn .ai-section-num{background:var(--yellow);color:#000;}
+.ai-section.warn .ai-section-num{background:var(--yellow);color:var(--bg);}
 .ai-section.warn .ai-section-body strong{color:var(--yellow);}
 .ai-section.bad{border-left-color:var(--red);}
 .ai-section.bad .ai-section-title{color:var(--red);}

@@ -108,7 +108,7 @@ function iaUsage(){
   const reste = gratuits.reduce((a, x) => a + Math.max(0, x.limite - x.utilise), 0);
   return { items, total, max, reste };
 }
-function iaCouleur(pc){ return pc >= 85 ? '#ff6b6b' : pc >= 60 ? '#f5c542' : '#3ecf8e'; }
+function iaCouleur(pc){ return pc >= 85 ? 'var(--red)' : pc >= 60 ? 'var(--muted)' : 'var(--green)'; }
 function iaBarre(u, lim){
   if(!lim) return `<div class="ia-bar off"><i style="width:0"></i></div>`;
   const pc = Math.min(100, Math.round(u / lim * 100));
@@ -554,7 +554,7 @@ function iaCss(){
 .ia-r{font-size:13px;line-height:1.45;padding:8px 10px;border-radius:10px;background:var(--card2,#262626)}
 .ia-r.ok b{color:#3ecf8e}.ia-r.ko b{color:#ff6b6b}
 .ia-cpt{font-size:13px;line-height:1.7}
-.ia-cpt .pz{color:var(--yellow,#f5c542);font-size:12px}
+.ia-cpt .pz{color:var(--yellow,var(--text-2));font-size:12px}
 .ia-note{font-size:12px;color:var(--muted,#999);margin-top:8px;line-height:1.5}
 .ia-bar{height:8px;border-radius:6px;background:var(--border,rgba(127,127,127,.18));overflow:hidden;margin:4px 0 8px}
 .ia-bar i{display:block;height:100%;border-radius:6px;transition:width .4s}
