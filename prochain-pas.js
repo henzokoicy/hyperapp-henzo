@@ -35,20 +35,33 @@ function lire(){
   if(!m || typeof m !== 'object') m = {};
   if(!Array.isArray(m.vus)) m.vus = [];
   if(!m.faits || typeof m.faits !== 'object') m.faits = {};
+  if(!m.hist || typeof m.hist !== 'object') m.hist = {};
   const auj = jourDe();
   if(m.jour !== auj){ m.jour = auj; m.vus = []; }
   Object.keys(m.faits).forEach(k => { if(Math.abs(ecart(auj, m.faits[k])) > 400) delete m.faits[k]; });
+  Object.keys(m.hist).forEach(k => { if(ecart(auj, k) > 60) delete m.hist[k]; });
   return m;
 }
 function garder(m){ try { localStorage.setItem(CLE, JSON.stringify(m)); } catch(e){} }
 // Après « Fait », combien de jours avant de reproposer le même pas (null = jamais : une seule relance par devis)
-const ATTENTE = { paiement: 7, contrat: 1, devis: null, relance: 45, anniversaire: 300, creux: 3, offre: 60, avis: 90 };
+const ATTENTE = { charges: 2, paiement: 7, contrat: 1, devis: null, relance: 45, anniversaire: 300, creux: 3, offre: 60, avis: 90 };
 function masque(step, m){
   if(m.vus.includes(step.cle)) return true;
   const f = m.faits[step.cle]; if(!f) return false;
   const att = ATTENTE[step.type];
   return att == null || ecart(jourDe(), f) < att;
 }
+
+// Pas faits depuis lundi (suivi de la semaine)
+function faitsSemaine(m){
+  const auj = jourDe(), dow = (new Date().getDay() + 6) % 7; // 0 = lundi
+  return Object.keys(m.hist).filter(k => { const e = ecart(auj, k); return e >= 0 && e <= dow; }).reduce((a, k) => a + (Number(m.hist[k]) || 0), 0);
+}
+
+// ---------- Messages polis, prêts à envoyer (vouvoiement, sans IA, jamais de baisse de prix) ----------
+const prenom = id => String((client(id) || {}).name || '').trim().split(/\s+/)[0] || '';
+function bonjour(id){ const p = prenom(id); return 'Bonjour' + (p ? ' ' + p : '') + ','; }
+const SIGNE = '\nHenzo Studio';
 
 // ---------- Vision (lue dans VISION_HENZO, avec valeurs de secours si absente ou désactivée) ----------
 const REGLES_SECOURS = {
@@ -113,7 +126,8 @@ function calculer(){
     .forEach(({ s, reste, j }) => L.push({ type: 'paiement', cle: 'paiement:' + s.id, p: 1,
       titre: 'Relancer le paiement de ' + nomDe(s.client_id),
       raison: `${nomDe(s.client_id)} doit encore ${nf(reste)} pour la séance du ${dateCourte(s.date)}, il y a ${j} jour${j > 1 ? 's' : ''}.`,
-      regle: rR, bouton: 'Encaisser ou relancer', fait: 'Relance envoyée',
+      regle: rR, bouton: 'Encaisser ou relancer', fait: 'Relance envoyée', cid: s.client_id,
+      msg: `${bonjour(s.client_id)} j'espère que vous allez bien. Il reste ${nf(reste)} à régler pour votre séance du ${dateCourte(s.date)}. Pourriez-vous effectuer le règlement dès que possible ? Merci beaucoup.${SIGNE}`,
       go: () => typeof openPaiementSeance === 'function' ? openPaiementSeance(s.id) : openShootModal(s.id) }));
 
   // 2) Séance à venir (14 jours) sans contrat signé ou sans acompte
@@ -139,7 +153,8 @@ function calculer(){
     .forEach(({ d, j }) => L.push({ type: 'devis', cle: 'devis:' + d.id, p: 3,
       titre: 'Relancer poliment le devis de ' + (d.client_name || nomDe(d.client_id)),
       raison: `Le devis de ${nf(d.total)} attend une réponse depuis ${j} jours : une seule relance polie, puis on attend.`,
-      regle: rR, bouton: 'Ouvrir le devis', fait: 'Relance envoyée',
+      regle: rR, bouton: 'Ouvrir le devis', fait: 'Relance envoyée', cid: d.client_id,
+      msg: `${bonjour(d.client_id)} je me permets de revenir vers vous au sujet du devis de ${nf(d.total)}. Avez-vous pu en prendre connaissance ? Je reste à votre disposition pour toute question.${SIGNE}`,
       go: () => typeof pxOpenQuote === 'function' ? pxOpenQuote(d.id) : (typeof agGoTab === 'function' && agGoTab('tarifs')) }));
 
   // 4) Client à relancer ou anniversaire (crm.js)
@@ -150,7 +165,10 @@ function calculer(){
         titre: an ? 'Souhaiter son anniversaire à ' + nom : 'Reprendre contact avec ' + nom,
         raison: an ? `L'anniversaire de ${nom} ${x.s.bday === 0 ? "est aujourd'hui" : 'est dans ' + x.s.bday + ' jour' + (x.s.bday > 1 ? 's' : '')} : un mot attentionné fidélise.`
           : `${nom} n'est pas revenu depuis ${x.s.days >= 60 ? Math.round(x.s.days / 30) + ' mois' : x.s.days + ' jours'} : un message courtois et unique peut le faire revenir.`,
-        regle: rR, bouton: 'Ouvrir la fiche', fait: 'Message envoyé', go: () => crmOpenClient(x.c.id) });
+        regle: rR, bouton: 'Ouvrir la fiche', fait: 'Message envoyé', cid: x.c.id,
+        msg: an ? `${bonjour(x.c.id)} toute l'équipe de Henzo Studio vous souhaite un très bel anniversaire. Belle journée à vous.${SIGNE}`
+          : `${bonjour(x.c.id)} cela fait un moment que nous ne nous sommes pas vus au studio. Si vous souhaitez une nouvelle séance, ce sera un plaisir de vous accueillir. Belle journée.${SIGNE}`,
+        go: () => crmOpenClient(x.c.id) });
     });
   } catch(e){}
 
@@ -172,6 +190,21 @@ function calculer(){
     }
   } catch(e){}
 
+  // Charges fixes : il manque de l'argent de côté pour une échéance proche (budget.js)
+  try {
+    const BGv = typeof BG !== 'undefined' ? BG : null;
+    if(BGv && BGv.loaded && typeof bgChargesResume === 'function' && BGv.charges.some(c => c.actif !== false)){
+      const r = bgChargesResume(), pro = r.prochaines.find(o => !o.paye && o.jours <= 7);
+      if(pro && r.manque > 0){
+        const quand = pro.jours < 0 ? 'est en retard' : pro.jours === 0 ? "tombe aujourd'hui" : pro.jours === 1 ? 'tombe demain' : 'tombe dans ' + pro.jours + ' jours';
+        L.push({ type: 'charges', cle: 'charges:' + pro.id + ':' + pro.periode, p: 5, sous: 1,
+          titre: 'Mettre de côté ' + nf(r.manque) + ' pour les charges',
+          raison: `La charge « ${pro.nom} » ${quand}, et il manque ${nf(r.manque)} de côté pour couvrir les charges fixes du mois.`,
+          bouton: 'Voir mon argent', fait: 'Argent mis de côté', go: () => typeof agGoTab === 'function' && agGoTab('argent') });
+      }
+    }
+  } catch(e){}
+
   // 6) Album, tirage, cadre, forfait famille ou parrainage à un client récent
   // 7) Demander un avis ou une recommandation après la séance
   try {
@@ -187,13 +220,18 @@ function calculer(){
           titre: (fam ? 'Proposer un forfait famille à ' : 'Proposer un album à ') + c.name,
           raison: fam ? `${c.name} revient régulièrement : le forfait famille ou le parrainage prolonge la relation, sans toucher au tarif de base.`
             : `La séance de ${c.name} date d'il y a ${j} jours : c'est le bon moment de présenter un album, des tirages ou un cadre.`,
-          regle: rP, bouton: 'Ouvrir la fiche', fait: 'Offre proposée', go: () => crmOpenClient(c.id) });
+          regle: rP, bouton: 'Ouvrir la fiche', fait: 'Offre proposée', cid: c.id,
+          msg: fam ? `${bonjour(c.id)} merci pour votre fidélité. Nous proposons un forfait famille à l'année, avec avantages pour vos proches si vous les parrainez. Souhaitez-vous que je vous en présente le détail ?${SIGNE}`
+            : `${bonjour(c.id)} vos photos sont prêtes à prendre place chez vous : nous proposons des albums, des tirages et des cadres au tarif habituel. Souhaitez-vous que je vous envoie le détail ?${SIGNE}`,
+          go: () => crmOpenClient(c.id) });
       }
       if(j >= 2 && j <= 21 && solde && (mj == null || mj >= 7))
         L.push({ type: 'avis', cle: 'avis:' + id + ':' + String(der.date).slice(0, 10), p: 7,
           titre: 'Demander un avis à ' + c.name,
           raison: `${c.name} a vu ses photos il y a ${j} jours : un avis ou une recommandation amène de nouveaux clients à Henzo Studio.`,
-          regle: rR, bouton: 'Ouvrir la fiche', fait: 'Message envoyé', go: () => crmOpenClient(c.id) });
+          regle: rR, bouton: 'Ouvrir la fiche', fait: 'Message envoyé', cid: c.id,
+          msg: `${bonjour(c.id)} merci encore pour votre confiance lors de votre séance. Si vos photos vous plaisent, un avis ou une recommandation auprès de vos proches nous ferait très plaisir. Merci beaucoup.${SIGNE}`,
+          go: () => crmOpenClient(c.id) });
     });
   } catch(e){}
 
@@ -213,15 +251,20 @@ function css(){
   #ppCard .pp-row{display:flex;gap:8px;margin-top:8px}
   #ppCard .pp-sec{flex:1;min-height:44px;border:1px solid var(--border-2,var(--border));border-radius:4px;background:transparent;color:var(--text);font:inherit;font-size:14px;cursor:pointer;padding:10px 12px}
   #ppCard button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  #ppCard .pp-w{font-size:12px;margin:10px 0 0;color:var(--muted)}
   #ppCard .pp-vide{font-size:14px;line-height:1.5;margin:0 0 12px;color:var(--text)}`;
   document.head.appendChild(s);
+}
+function semaine(m){
+  const n = faitsSemaine(m); if(!n) return '';
+  return `<p class="pp-w">Cette semaine : ${n} pas fait${n > 1 ? 's' : ''}.</p>`;
 }
 function html(){
   const m = lire(), restants = PP.steps.filter(x => !masque(x, m));
   PP.cur = restants[0] || null;
   if(!PP.cur){
     const reportes = PP.steps.filter(x => m.vus.includes(x.cle)).length;
-    return `<div class="pp-k">Prochain pas</div><p class="pp-vide">Rien d'urgent pour le moment. Continuez à faire grandir Henzo Studio, un pas à la fois.</p>${reportes ? '<button class="pp-sec" style="width:100%" onclick="ppRevoir()">Revoir les pas reportés</button>' : ''}`;
+    return `<div class="pp-k">Prochain pas</div><p class="pp-vide">Rien d'urgent pour le moment. Continuez à faire grandir Henzo Studio, un pas à la fois.</p>${reportes ? '<button class="pp-sec" style="width:100%" onclick="ppRevoir()">Revoir les pas reportés</button>' : ''}${semaine(m)}`;
   }
   const s = PP.cur;
   return `<div class="pp-k">Prochain pas</div>
@@ -229,7 +272,8 @@ function html(){
     <p class="pp-r">${esc(propre(s.raison))}</p>
     ${s.regle ? `<p class="pp-g">${esc(propre(s.regle))}</p>` : ''}
     <button class="pp-go" onclick="ppAller()">${esc(s.bouton)}</button>
-    <div class="pp-row"><button class="pp-sec" onclick="ppFait()">${esc(s.fait || 'Fait')}</button><button class="pp-sec" onclick="ppPlusTard()">Plus tard</button></div>`;
+    ${s.msg ? `<div class="pp-row"><button class="pp-sec" onclick="ppCopier()">Copier le message</button><button class="pp-sec" onclick="ppWhats()">WhatsApp</button></div>` : ''}
+    <div class="pp-row"><button class="pp-sec" onclick="ppFait()">${esc(s.fait || 'Fait')}</button><button class="pp-sec" onclick="ppPlusTard()">Plus tard</button></div>${semaine(m)}`;
 }
 function rendre(){
   css();
@@ -263,11 +307,27 @@ window.ppAller = function(){
 };
 window.ppFait = function(){
   const s = PP.cur; if(!s) return;
-  const m = lire(); m.faits[s.cle] = jourDe(); m.vus.push(s.cle); garder(m); rendre();
+  const m = lire(); m.faits[s.cle] = jourDe(); m.vus.push(s.cle); m.hist[jourDe()] = (Number(m.hist[jourDe()]) || 0) + 1; garder(m); rendre();
 };
 window.ppPlusTard = function(){
   const s = PP.cur; if(!s) return;
   const m = lire(); m.vus.push(s.cle); garder(m); rendre();
+};
+function texteMsg(){ return PP.cur && PP.cur.msg ? propre(PP.cur.msg) : ''; }
+async function copier(t){
+  try { if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(t); return true; } } catch(e){}
+  try { const a = document.createElement('textarea'); a.value = t; a.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(a); a.select(); const ok = document.execCommand('copy'); a.remove(); return ok; } catch(e){ return false; }
+}
+function avis(t){ try { if(typeof agToast === 'function') agToast(t); } catch(e){} }
+window.ppCopier = async function(){ const t = texteMsg(); if(!t) return; avis(await copier(t) ? 'Message copié' : 'Copie impossible'); };
+window.ppWhats = async function(){
+  const t = texteMsg(), s = PP.cur; if(!t || !s) return;
+  let tel = String((client(s.cid) || {}).phone || '').replace(/[^\d+]/g, '').replace(/^\+/, '');
+  if(tel.length === 10 && tel[0] === '0') tel = '225' + tel; else if(tel.length === 8) tel = '225' + tel;
+  const m = lire(); m.vus.push(s.cle); garder(m);   // pas répété le même jour
+  if(!tel){ await copier(t); avis('Pas de numéro : message copié'); }
+  else window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(t), '_blank');
+  rendre();
 };
 window.ppRevoir = function(){ const m = lire(); m.vus = []; garder(m); rendre(); };
 window.prochainPas = function(){ return PP.steps.slice(); };   // pour les tests
