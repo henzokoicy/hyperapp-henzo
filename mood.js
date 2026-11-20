@@ -515,7 +515,7 @@ async function mbShareCollage(){
 function mbDlCollage(){ const f = MB.collage; if(!f) return; const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); }
 
 // ---------- Partager au client ----------
-function mbShareLink(b){ return `${location.origin}/mood.html?t=${encodeURIComponent(b.share_token)}`; }
+function mbShareLink(b){ return `${CLIENT_URL}/mood.html?t=${encodeURIComponent(b.share_token)}`; }
 async function mbShare(id){
   const b = mbBoard(id);
   if(!b.share_token || !b.share_on){

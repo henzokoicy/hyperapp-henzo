@@ -625,7 +625,7 @@ async function otLoadResas(){
 function otHasPage(){ return !!(typeof PX !== 'undefined' && PX.page && PX.page.slug); }
 function otResaLink(code){
   if(!otHasPage()) return '';
-  return `${location.origin}/reserver.html?s=${encodeURIComponent(PX.page.slug)}${code ? '&code=' + encodeURIComponent(code) : ''}`;
+  return `${CLIENT_URL}/reserver.html?s=${encodeURIComponent(PX.page.slug)}${code ? '&code=' + encodeURIComponent(code) : ''}`;
 }
 // Ouvre Tarifs > Partager pour creer la page
 function otOpenPartage(){

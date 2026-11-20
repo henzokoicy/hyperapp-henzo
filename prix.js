@@ -137,7 +137,7 @@ function pxWarn(c){
 }
 
 // ---------- Liens ----------
-function pxLink(){ return PX.page && PX.page.slug ? `${location.origin}/tarifs.html?s=${encodeURIComponent(PX.page.slug)}` : ''; }
+function pxLink(){ return PX.page && PX.page.slug ? `${CLIENT_URL}/tarifs.html?s=${encodeURIComponent(PX.page.slug)}` : ''; }
 function pxColLink(c){ const l = pxLink(); return l && c ? l + '&c=' + encodeURIComponent(c.slug || '') : l; }
 function pxPdfLink(c){ const l = c ? pxColLink(c) : pxLink(); return l ? l + '&pdf=1' : ''; }
 function pxNeedPage(){ if(pxLink()) return false; agToast("Crée d'abord ta page dans Partager", 'error'); PX.view = 'partage'; PX.col = null; crmRenderTarifs(); return true; }

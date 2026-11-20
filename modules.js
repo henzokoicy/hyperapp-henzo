@@ -6905,7 +6905,7 @@ function afficherLienGenere(link) {
     w: link.wave_link || '',
     ref: ref
   });
-  const lien = `${APP_URL}/pay.html?${params.toString()}`;
+  const lien = `${CLIENT_URL}/pay.html?${params.toString()}`;
 
   window.__lienCourant = {
     lien: lien,
