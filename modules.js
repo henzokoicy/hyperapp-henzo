@@ -3719,12 +3719,12 @@ function renderRevDepDonut(){
   }
 
   const pctIn = (s.totalIn / total) * 100;
-  donut.style.background = `conic-gradient(var(--green) 0% ${pctIn}%, var(--red) ${pctIn}% 100%)`;
+  donut.style.background = `conic-gradient(var(--chart-1) 0% ${pctIn}%, var(--chart-2) ${pctIn}% 100%)`;
   if(centerText) centerText.innerHTML = `<div><div style="font-size:14px">${Math.round(pctIn)}%</div><div style="font-size:9px;color:var(--muted)">Revenus</div></div>`;
 
   if(legend) legend.innerHTML = `
-    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div><div class="legend-label">Revenus</div><div class="legend-value" style="color:var(--green)">${fmt(s.totalIn)}</div></div>
-    <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div><div class="legend-label">Dépenses</div><div class="legend-value" style="color:var(--red)">${fmt(s.totalOut)}</div></div>`;
+    <div class="legend-item"><div class="legend-dot" style="background:var(--chart-1)"></div><div class="legend-label">Revenus</div><div class="legend-value">${fmt(s.totalIn)}</div></div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--chart-2)"></div><div class="legend-label">Dépenses</div><div class="legend-value">${fmt(s.totalOut)}</div></div>`;
 }
 
 function renderShootTypesChart(){
@@ -3739,7 +3739,7 @@ function renderShootTypesChart(){
 
   el.innerHTML = entries.map(([type, count]) => {
     const pct = (count / total) * 100;
-    return `<div class="cat-row"><div class="top"><span>📸 ${type}</span><span>${count} · ${pct.toFixed(0)}%</span></div><div class="bar"><div style="width:${pct}%;background:var(--pink)"></div></div></div>`;
+    return `<div class="cat-row"><div class="top"><span>📸 ${type}</span><span>${count} · ${pct.toFixed(0)}%</span></div><div class="bar"><div style="width:${pct}%;background:var(--chart-1)"></div></div></div>`;
   }).join('');
 }
 
@@ -3766,11 +3766,11 @@ function renderBars6m(){
       <div class="bar-6m-pair">
         <div class="bar-6m-col" title="Revenus : ${fmt(m.totalIn)}">
           <div class="bar-6m-value">${m.totalIn > 0 ? Math.round(m.totalIn/1000)+'k' : ''}</div>
-          <div class="bar-6m-fill" style="height:${hIn}%;background:linear-gradient(180deg,var(--green),#1f9d6f)"></div>
+          <div class="bar-6m-fill" style="height:${hIn}%;background:var(--chart-1)"></div>
         </div>
         <div class="bar-6m-col" title="Dépenses : ${fmt(m.totalOut)}">
           <div class="bar-6m-value">${m.totalOut > 0 ? Math.round(m.totalOut/1000)+'k' : ''}</div>
-          <div class="bar-6m-fill" style="height:${hOut}%;background:linear-gradient(180deg,var(--red),#b23b3b)"></div>
+          <div class="bar-6m-fill" style="height:${hOut}%;background:var(--chart-2)"></div>
         </div>
       </div>
       <div class="bar-label">${m.label}</div>
