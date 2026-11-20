@@ -5,30 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Contrat - Henzo Photographie</title>
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#030b0a">
+<meta name="theme-color" content="#faf9f6">
 <link rel="icon" href="icon-192.png">
 <link href="polices/polices.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="contrat-commun.js?v=1"></script>
 <style>
 *{box-sizing:border-box}
-body{margin:0;font-family:Inter,system-ui,sans-serif;background:#e9eeed;color:#1d2b29;padding:16px 12px 40px}
+body{margin:0;font-family:Inter,system-ui,sans-serif;background:#faf9f6;color:#13150f;padding:16px 12px 40px}
 .wrap{max-width:780px;margin:0 auto}
-.info{max-width:760px;margin:0 auto 12px;padding:12px 14px;border-radius:14px;background:#fff;border:1px solid #d3e2df;font-size:14px;line-height:1.5}
-.info b{color:#00524D}
-.signer{max-width:760px;margin:16px auto 0;background:#fff;border-radius:14px;padding:18px;border:2px solid #48A89A}
-.signer h2{margin:0 0 6px;font-size:18px;color:#053931}.signer p{margin:0 0 10px;font-size:14px;color:#4b5d5a}
+.info{max-width:760px;margin:0 auto 12px;padding:12px 14px;border-radius:14px;background:#fff;border:1px solid #e2e0d6;font-size:14px;line-height:1.5}
+.info b{color:#5f6e3a}
+.signer{max-width:760px;margin:16px auto 0;background:#fff;border-radius:14px;padding:18px;border:2px solid #5f6e3a}
+.signer h2{font-family:Fraunces,Georgia,serif;font-weight:600;margin:0 0 6px;font-size:18px;color:#13150f}.signer p{margin:0 0 10px;font-size:14px;color:#5c5f54}
 .signer label{display:block;font-size:13px;font-weight:600;margin:12px 0 6px}
-.signer input[type=text]{width:100%;padding:12px;border-radius:12px;border:1px solid #c4d4d1;font:inherit;font-size:16px}
-canvas{width:100%;aspect-ratio:600/220;background:#f7fbfa;border:1px dashed #9fbab5;border-radius:12px;touch-action:none;display:block}
+.signer input[type=text]{width:100%;padding:12px;border-radius:12px;border:1px solid #d3d0c3;font:inherit;font-size:16px}
+canvas{width:100%;aspect-ratio:600/220;background:#faf9f6;border:1px dashed #b7c08f;border-radius:12px;touch-action:none;display:block}
 .ok{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px}.ok input{width:22px;height:22px;flex-shrink:0;margin-top:1px}
 .btns{display:flex;gap:8px;margin-top:14px}
 button{border:0;border-radius:12px;padding:13px 16px;font:700 15px Inter,sans-serif;cursor:pointer}
-.b1{flex:1;background:#00524D;color:#fff}.b2{background:#eef3f2;color:#1d2b29}
-.err{color:#c0392b;font-size:13px;margin-top:8px;min-height:1em}
-.fini{max-width:760px;margin:16px auto 0;background:#e9f8ef;border:1px solid #34c759;border-radius:14px;padding:16px;text-align:center}
-.fini b{display:block;font-size:17px;color:#1f7a44}.fini button{margin-top:10px;background:#00524D;color:#fff}
-.vide{text-align:center;padding:60px 10px;color:#4b5d5a}
+.b1{flex:1;background:#5f6e3a;color:#fff}.b2{background:#f1efe9;color:#13150f}
+.err{color:#b5483c;font-size:13px;margin-top:8px;min-height:1em}
+.fini{max-width:760px;margin:16px auto 0;background:#f1efe9;border:1px solid #5f6e3a;border-radius:14px;padding:16px;text-align:center}
+.fini b{font-family:Fraunces,Georgia,serif;font-weight:600;display:block;font-size:17px;color:#3f7d4f}.fini button{margin-top:10px;background:#5f6e3a;color:#fff}
+.vide{text-align:center;padding:60px 10px;color:#5c5f54}
 @media print{body{background:#fff;padding:0}.info,.signer,.fini button{display:none}}
 </style>
 </head>
@@ -69,7 +69,7 @@ function rendre(){
 var vide = true, g = null, cv = null;
 function pad(){
   cv = document.getElementById('cv'); g = cv.getContext('2d'); var des = false, last = null;
-  g.lineWidth = 3.2; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#10302c';
+  g.lineWidth = 3.2; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#13150f';
   function pt(e){ var r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * cv.width / r.width, y: (e.clientY - r.top) * cv.height / r.height }; }
   cv.addEventListener('pointerdown', function(e){ des = true; last = pt(e); cv.setPointerCapture(e.pointerId); e.preventDefault(); });
   cv.addEventListener('pointermove', function(e){ if(!des) return; var p = pt(e); g.beginPath(); g.moveTo(last.x, last.y); g.lineTo(p.x, p.y); g.stroke(); last = p; vide = false; e.preventDefault(); });
