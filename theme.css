@@ -826,3 +826,8 @@ body:has(.ot-bas.show) #otTop{bottom:calc(146px + env(safe-area-inset-bottom))}
 body:has(.ot-selbar) .ot-bas{bottom:calc(210px + env(safe-area-inset-bottom))}
 body:has(.ot-selbar):has(.ot-bas.show) #otTop{bottom:calc(264px + env(safe-area-inset-bottom))}
 @media (min-width:1000px){body:has(.ot-bas.show) #otTop{bottom:78px}body:has(.ot-selbar) .ot-bas{bottom:150px}body:has(.ot-selbar):has(.ot-bas.show) #otTop{bottom:204px}}
+
+/* Logo : version claire sur fond sombre, version sombre sur fond clair */
+.hz-on-light{display:none !important}
+[data-clair="1"] .hz-on-dark{display:none !important}
+[data-clair="1"] .hz-on-light{display:block !important}
