@@ -4243,7 +4243,7 @@ function exportHistoryPDF(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  doc.setFillColor(108, 140, 255);
+  doc.setFillColor(95, 110, 58);
   doc.rect(0, 0, 210, 30, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22);
@@ -4463,7 +4463,7 @@ function exportIdeasAIPDF(){
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFillColor(255, 107, 157);
+  doc.setFillColor(95, 110, 58);
   doc.rect(0, 0, 210, 32, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
@@ -4473,7 +4473,7 @@ function exportIdeasAIPDF(){
   if(date) doc.text(date, 14, 24);
 
   const cleanText = nettoyerPourPDF(text.replace(/\*\*/g, '').replace(/→/g, '-'));
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(19, 21, 15);
   doc.setFontSize(11);
   const splitText = doc.splitTextToSize(cleanText, 180);
   let y = 42;
@@ -5656,7 +5656,7 @@ function exportAnalysisPDF(){
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFillColor(108, 140, 255);
+  doc.setFillColor(95, 110, 58);
   doc.rect(0, 0, 210, 32, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
@@ -5666,7 +5666,7 @@ function exportAnalysisPDF(){
   if(date) doc.text(date, 14, 24);
 
     const cleanText = nettoyerPourPDF(text.replace(/\*\*/g, ''));
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(19, 21, 15);
   doc.setFontSize(11);
   const splitText = doc.splitTextToSize(cleanText, 180);
   let y = 42;
@@ -6266,7 +6266,7 @@ function exportChatPDF(){
   const margin = 14;
   let y = 20;
 
-  doc.setFillColor(108, 140, 255);
+  doc.setFillColor(95, 110, 58);
   doc.rect(0, 0, 210, 28, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(18);
@@ -6295,7 +6295,7 @@ function exportChatPDF(){
     y += 7;
 
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(40, 40, 40);
+    doc.setTextColor(19, 21, 15);
     doc.setFontSize(10);
 
     const lines = doc.splitTextToSize(cleanContent, pageWidth);
@@ -6312,7 +6312,7 @@ function exportChatPDF(){
   for(let i = 1; i <= pageCount; i++){
     doc.setPage(i);
     doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
+    doc.setTextColor(168, 171, 157);
     doc.text('Conversation exportée depuis Super App Henzo', 105, 290, { align: 'center' });
   }
 
@@ -7186,31 +7186,34 @@ function genererRecuPDFClient(link) {
     'solde': 'Solde restant'
   };
 
-  doc.setFillColor(107, 142, 255);
-  doc.rect(0, 0, pageWidth, 40, 'F');
+  // En-tête charte Henzo Studio : logo à gauche, titre à droite, filet vert olive
+  const H = window.hzPdf || null;
+  const lh = H ? H.logo(doc, margin, 12, 46) : 0;
+  if(!lh){
+    doc.setTextColor(19, 21, 15);
+    doc.setFont('times', 'bold');
+    doc.setFontSize(20);
+    doc.text('HENZO STUDIO', margin, 22);
+  }
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
-  doc.setFont('helvetica', 'bold');
-  doc.text('HENZO PHOTOGRAPHIE', margin, 18);
+  doc.setTextColor(19, 21, 15);
+  doc.setFont('times', 'bold');
+  doc.setFontSize(20);
+  doc.text('Reçu de paiement', pageWidth - margin, 20, { align: 'right' });
 
+  doc.setTextColor(92, 95, 84);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('Photographe professionnel · Côte d\'Ivoire', margin, 25);
-  doc.text('WhatsApp : +225 01 70 99 89 64', margin, 31);
+  doc.text('N° ' + ref, pageWidth - margin, 27, { align: 'right' });
+  doc.text(paidDate.toLocaleDateString('fr-FR'), pageWidth - margin, 33, { align: 'right' });
 
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('REÇU DE PAIEMENT', pageWidth - margin, 18, { align: 'right' });
+  doc.setDrawColor(95, 110, 58);
+  doc.setLineWidth(0.6);
+  doc.line(margin, 40, pageWidth - margin, 40);
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('N° ' + ref, pageWidth - margin, 25, { align: 'right' });
-  doc.text(paidDate.toLocaleDateString('fr-FR'), pageWidth - margin, 31, { align: 'right' });
-
-  doc.setFillColor(240, 255, 245);
+  doc.setFillColor(241, 239, 233);
   doc.roundedRect(margin, 50, pageWidth - margin * 2, 14, 2, 2, 'F');
-  doc.setTextColor(16, 130, 80);
+  doc.setTextColor(95, 110, 58);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text('PAIEMENT REÇU ET CONFIRMÉ', pageWidth / 2, 59, { align: 'center' });
@@ -7218,48 +7221,48 @@ function genererRecuPDFClient(link) {
   let y = 78;
   const colWidth = (pageWidth - margin * 2 - 6) / 2;
 
-  doc.setTextColor(120, 120, 120);
+  doc.setTextColor(92, 95, 84);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text('ÉMETTEUR', margin, y);
 
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(19, 21, 15);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('HENZO PHOTOGRAPHIE', margin, y + 6);
+  doc.text('HENZO STUDIO', margin, y + 6);
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(90, 90, 90);
+  doc.setTextColor(92, 95, 84);
   doc.text('Photographe professionnel', margin, y + 12);
   doc.text('Abidjan · Bouaké, Côte d\'Ivoire', margin, y + 17);
   doc.text('+225 01 70 99 89 64', margin, y + 22);
   doc.text('henzophotographie@gmail.com', margin, y + 27);
 
   const colRight = margin + colWidth + 6;
-  doc.setTextColor(120, 120, 120);
+  doc.setTextColor(92, 95, 84);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text('CLIENT', colRight, y);
 
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(19, 21, 15);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text(cleanStr(link.client_name) || '-', colRight, y + 6);
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(90, 90, 90);
+  doc.setTextColor(92, 95, 84);
   if(link.client_phone) doc.text('Tel : ' + cleanStr(link.client_phone), colRight, y + 12);
 
   y += 38;
 
-  doc.setDrawColor(220, 220, 220);
+  doc.setDrawColor(226, 224, 214);
   doc.setLineWidth(0.3);
   doc.line(margin, y, pageWidth - margin, y);
   y += 6;
 
-  doc.setTextColor(120, 120, 120);
+  doc.setTextColor(92, 95, 84);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text('DÉTAILS DE LA PRESTATION', margin, y);
@@ -7281,17 +7284,17 @@ function genererRecuPDFClient(link) {
   if(link.photo_count) details.push(['Nombre de photos', link.photo_count + ' photos']);
   if(link.payment_method) details.push(['Mode de paiement', cleanStr(link.payment_method)]);
 
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(19, 21, 15);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
 
   details.forEach(([label, value]) => {
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(90, 90, 90);
+    doc.setTextColor(92, 95, 84);
     doc.text(label + ' :', margin, y);
 
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(40, 40, 40);
+    doc.setTextColor(19, 21, 15);
     const valueLines = doc.splitTextToSize(value, pageWidth - margin * 2 - 50);
     doc.text(valueLines, margin + 45, y);
     y += Math.max(6, valueLines.length * 5);
@@ -7301,18 +7304,18 @@ function genererRecuPDFClient(link) {
 
   if(link.shoot_notes){
     y += 4;
-    doc.setDrawColor(240, 240, 240);
+    doc.setDrawColor(226, 224, 214);
     doc.line(margin, y, pageWidth - margin, y);
     y += 6;
 
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(90, 90, 90);
+    doc.setTextColor(92, 95, 84);
     doc.setFontSize(8);
     doc.text('NOTES', margin, y);
     y += 5;
 
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(40, 40, 40);
+    doc.setTextColor(19, 21, 15);
     doc.setFontSize(10);
     const noteLines = doc.splitTextToSize(cleanStr(link.shoot_notes), pageWidth - margin * 2);
     noteLines.forEach(line => {
@@ -7324,7 +7327,7 @@ function genererRecuPDFClient(link) {
 
   y += 6;
   doc.setFontSize(10);
-  doc.setTextColor(90, 90, 90);
+  doc.setTextColor(92, 95, 84);
   doc.setFont('helvetica', 'normal');
   doc.text('Type de paiement : ' + (typeLabels[link.payment_type] || 'Paiement'), margin, y);
 
@@ -7336,28 +7339,28 @@ function genererRecuPDFClient(link) {
   y += 14;
 
   const boxHeight = 48;
-  doc.setFillColor(248, 250, 255);
+  doc.setFillColor(241, 239, 233);
   doc.roundedRect(margin, y, pageWidth - margin * 2, boxHeight, 3, 3, 'F');
 
-  doc.setDrawColor(107, 142, 255);
+  doc.setDrawColor(95, 110, 58);
   doc.setLineWidth(0.5);
   doc.roundedRect(margin, y, pageWidth - margin * 2, boxHeight, 3, 3, 'S');
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(80, 90, 120);
+  doc.setTextColor(92, 95, 84);
   doc.text('MONTANT PAYÉ', margin + 8, y + 13);
 
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(16, 130, 80);
+  doc.setTextColor(95, 110, 58);
   const amountStr = formatNum(link.amount) + ' FCFA';
   doc.text(amountStr, margin + 8, y + 32);
 
   if(link.total_amount && link.total_amount > link.amount) {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(120, 120, 120);
+    doc.setTextColor(92, 95, 84);
     const totalStr = 'sur un total de ' + formatNum(link.total_amount) + ' FCFA';
     const restStr = 'Reste à payer : ' + formatNum(link.total_amount - link.amount) + ' FCFA';
     doc.text(totalStr, margin + 8, y + 42);
@@ -7365,24 +7368,24 @@ function genererRecuPDFClient(link) {
   } else {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(120, 120, 120);
+    doc.setTextColor(92, 95, 84);
     doc.text('Paiement intégral', margin + 8, y + 42);
   }
 
   y += boxHeight + 12;
 
-  doc.setDrawColor(220, 220, 220);
+  doc.setDrawColor(226, 224, 214);
   doc.setLineWidth(0.3);
   doc.line(margin, y, pageWidth - margin, y);
 
   doc.setFontSize(9);
-  doc.setTextColor(120, 120, 120);
+  doc.setTextColor(92, 95, 84);
   doc.setFont('helvetica', 'normal');
-  doc.text('Ce reçu atteste du paiement reçu par HENZO PHOTOGRAPHIE.', pageWidth / 2, y + 8, { align: 'center' });
+  doc.text('Ce reçu atteste du paiement reçu par HENZO STUDIO.', pageWidth / 2, y + 8, { align: 'center' });
   doc.text('Merci pour votre confiance !', pageWidth / 2, y + 14, { align: 'center' });
 
   doc.setFontSize(8);
-  doc.setTextColor(150, 150, 150);
+  doc.setTextColor(168, 171, 157);
   doc.text('henzophotographie@gmail.com  ·  +225 01 70 99 89 64  ·  Côte d\'Ivoire', pageWidth / 2, 285, { align: 'center' });
 
   return doc;
@@ -9255,7 +9258,7 @@ function exportSuggestionIAEpargnePDF(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  doc.setFillColor(107, 142, 255);
+  doc.setFillColor(95, 110, 58);
   doc.rect(0, 0, 210, 32, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
@@ -9266,7 +9269,7 @@ function exportSuggestionIAEpargnePDF(){
   if(date) doc.text(date, 14, 24);
 
   const cleanText = text.replace(/\*\*/g, '').replace(/[—–]/g, '-');
-  doc.setTextColor(40, 40, 40);
+  doc.setTextColor(19, 21, 15);
   doc.setFontSize(11);
   const splitText = doc.splitTextToSize(cleanText, 180);
   let y = 42;
@@ -10555,7 +10558,7 @@ function exportClientsPDF(){
   const donnees = construireDonneesClientsEnrichies();
   
   // En-tête
-  doc.setFillColor(107, 142, 255);
+  doc.setFillColor(95, 110, 58);
   doc.rect(0, 0, pageWidth, 30, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
@@ -10572,7 +10575,7 @@ function exportClientsPDF(){
   const totalCA = donnees.reduce((sum, c) => sum + c.totalDepense, 0);
   const totalSeances = donnees.reduce((sum, c) => sum + c.nombreSeances, 0);
   
-  doc.setFillColor(240, 245, 255);
+  doc.setFillColor(241, 239, 233);
   doc.roundedRect(margin, y - 4, pageWidth - margin * 2, 18, 2, 2, 'F');
   doc.setTextColor(50, 50, 50);
   doc.setFontSize(11);
@@ -10611,12 +10614,12 @@ function exportClientsPDF(){
     doc.text(ligne1.join('   '), margin + 4, y + 13);
     
     // Stats
-    doc.setTextColor(16, 130, 80);
+    doc.setTextColor(95, 110, 58);
     doc.setFont('helvetica', 'bold');
         doc.text(`${c.nombreSeances} séance(s) · ${nettoyerPourPDF(fmt(c.totalDepense))} encaissés`, margin + 4, y + 20);
     
     if(c.derniereSeance !== 'Aucune'){
-      doc.setTextColor(120, 120, 120);
+      doc.setTextColor(92, 95, 84);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.text(`Dernière séance : ${c.derniereSeance}`, margin + 4, y + 26);
@@ -10640,7 +10643,7 @@ function exportClientsPDF(){
   for(let i = 1; i <= pageCount; i++){
     doc.setPage(i);
     doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
+    doc.setTextColor(168, 171, 157);
     doc.text('HENZO PHOTOGRAPHIE · ' + (BRAND?.phone || '') + ' · Base de données clients', pageWidth / 2, 290, { align: 'center' });
   }
   
