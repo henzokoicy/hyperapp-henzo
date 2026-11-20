@@ -639,10 +639,10 @@ function showTab(name, btn){
   if(btn) btn.classList.add('active');
 
   const titres = {
-    dash:        '📸 Intelligence Financière',
+    dash:        'Intelligence Financière',
     historique:  '📜 Historique',
     objectifs:   '🎯 Mes Objectifs',
-    photo:       '📸 Photo & Clients',
+    photo:       'Photo & Clients',
     business:    '💡 Business',
     inspiration: '💫 Inspiration',
     notes:       '📝 Notes & À faire',
@@ -650,7 +650,7 @@ function showTab(name, btn){
     ia:          '🤖 Analyse IA',
     galerie:     '🖼️ Galerie clients'
   };
-  document.getElementById('headerTitle').textContent = titres[name] || 'Super App Henzo';
+  document.getElementById('headerTitle').textContent = titres[name] || 'Henzo Studio';
 
   if(name === 'motiv' && typeof newQuote === 'function') newQuote();
   if(name === 'dash' && typeof renderDashboard === 'function') renderDashboard();
