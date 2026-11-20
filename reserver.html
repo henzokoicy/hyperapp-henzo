@@ -76,6 +76,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .rdv-m span{display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:6px;font-size:13.5px;padding:8px 12px;border-radius:12px;background:var(--card2);border:1px solid var(--line)}
 .rdv-m b{font-weight:600}.rdv-m small{font-size:12.5px;color:var(--muted)}
 </style>
+<link href="charte-pages.css?v=1" rel="stylesheet">
 </head>
 <body>
 <div class="wrap" id="app"><div class="empty">Chargement...</div></div>
@@ -91,7 +92,7 @@ var sb;
 function notif(o){ try { fetch(SUPABASE_URL + '/functions/v1/notifier', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY }, body: JSON.stringify(o), keepalive: true }).catch(function(){}); } catch(e){} }
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 function F(n){ return new Intl.NumberFormat('fr-FR').format(Math.round(Number(n) || 0)) + ' F'; }
-var tick = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+var tick = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
 async function init(){
   var q = new URLSearchParams(location.search), slug = (q.get('s') || 'henzo').toLowerCase();
@@ -234,7 +235,7 @@ function srcValue(){ var fm = S.form; if(fm.source !== 'Autre') return fm.source
 function render(){
   if(S.sent) return renderOk();
   var P = S.page, c = calc(), fm = S.form;
-  var h = '<div class="brand">' + esc(P.marque || 'Henzo Studio') + '</div><h1>Réserver ma séance</h1>' + (P.intro ? '<p class="intro">' + esc(P.intro) + '</p>' : '') + parHtml() + promoHtml();
+  var h = '<div class="brand"><img class="hz-on-dark" src="logos/logo-horizontal-clair-fondsombre.png" alt="' + esc(P.marque || 'Henzo Studio') + '"><img class="hz-on-light" src="logos/logo-horizontal-sombre-fondclair.png" alt="' + esc(P.marque || 'Henzo Studio') + '"></div><h1>Réserver ma séance</h1>' + (P.intro ? '<p class="intro">' + esc(P.intro) + '</p>' : '') + parHtml() + promoHtml();
   var col = curCol(), k = 1;
   if(S.cols.length > 1){
     h += '<h2>' + (k++) + '. Votre séance</h2><div class="cols" data-g="cols">' + S.cols.map(function(x){
