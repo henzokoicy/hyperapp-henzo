@@ -925,7 +925,7 @@ function eqNewToken(){
 }
 function eqPortUrl(c){
   if(!c || !c.portail_token) return '';
-  const base = /^https?:/.test(location.origin) ? location.origin : 'https://hyperapp-henzo.vercel.app';
+  const base = /^https?:/.test(location.origin) ? location.origin : 'https://superapp.henzostudio.com';
   return base + '/equipe.html?t=' + encodeURIComponent(c.portail_token);
 }
 function eqPromoCfg(){ return Object.assign({ bonus_type: 'montant', valeur: 0, message: '', classement: true, depuis: null }, EQ.promo || {}); }

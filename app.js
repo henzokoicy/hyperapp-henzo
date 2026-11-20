@@ -204,7 +204,7 @@ async function handleForgotPassword(){
 
   try {
     const { error } = await sb.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://hyperapp-henzo.vercel.app'
+      redirectTo: 'https://superapp.henzostudio.com'
     });
 
     if(error){

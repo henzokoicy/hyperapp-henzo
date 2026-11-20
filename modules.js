@@ -12,7 +12,7 @@ let paymentLinks = [];
 // Charges de séance
 let currentShootExpenses = [];
 
-const APP_URL = 'https://hyperapp-henzo.vercel.app';
+const APP_URL = 'https://superapp.henzostudio.com';
 const WAVE_MERCHANT_ID = 'M_ci_gF0f5OK6l1I2';
 
 const VILLES_CI = [
@@ -837,7 +837,7 @@ async function showLocalNotification(title, body, url){
           renotify: true,
           requireInteraction: true,
           silent: false,
-          data: { url: url || 'https://hyperapp-henzo.vercel.app' }
+          data: { url: url || 'https://superapp.henzostudio.com' }
         });
         return true;
       }
