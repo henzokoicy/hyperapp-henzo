@@ -506,7 +506,7 @@ setTimeout(async () => { try { const s = typeof sb !== 'undefined' ? (await sb.a
 .pr-ring{--p:0;flex-shrink:0;width:64px;height:64px;border-radius:50%;background:conic-gradient(var(--accent) calc(var(--p)*1%),var(--card2) 0);display:flex;align-items:center;justify-content:center;position:relative}
 .pr-ring::before{content:'';position:absolute;inset:6px;border-radius:50%;background:var(--card)}.pr-ring b{position:relative;font-size:15px!important}
 .pr-ring.big{width:96px;height:96px;margin:6px auto 10px}.pr-ring.big b{font-size:22px!important}
-.pr-score.pret .pr-ring{background:conic-gradient(#34c759 calc(var(--p)*1%),var(--card2) 0)}
+.pr-score.pret .pr-ring{background:conic-gradient(var(--green) calc(var(--p)*1%),var(--card2) 0)}
 .pr-cons{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:12px;background:var(--card2);font-size:13px;color:var(--text);line-height:1.45}
 .pr-cons div{display:flex;gap:6px;align-items:flex-start}.pr-cons svg{flex-shrink:0;margin-top:2px;color:#f5a524}
 .pr-acts{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.pr-acts button{flex:1;margin:0;min-width:120px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
