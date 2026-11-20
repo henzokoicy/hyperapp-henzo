@@ -1854,7 +1854,7 @@ function coNegoDevis(){
 .co-nhead{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .co-nhead>div:nth-child(2){flex:1;min-width:0}.co-nhead b{display:block;font-size:15px;color:var(--text)}.co-nhead span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .co-st{display:inline-block;font:700 10.5px Inter,sans-serif;font-style:normal;padding:3px 8px;border-radius:10px;background:var(--card3);color:var(--muted);margin-top:3px;white-space:nowrap}
-.co-st.st-accepte{color:var(--green);background:rgba(111,224,199,.12)}.co-st.st-refuse{color:var(--red);background:rgba(255,123,123,.12)}.co-st.st-en_cours{color:var(--yellow);background:rgba(245,197,66,.12)}
+.co-st.st-accepte{color:var(--green);background:rgba(111,224,199,.12)}.co-st.st-refuse{color:var(--red);background:rgba(255,123,123,.12)}.co-st.st-en_cours{color:var(--yellow);background:color-mix(in srgb,var(--gold) 12%,transparent)}
 .crm-row .m .co-st{display:block;text-align:center;margin-top:4px}
 .co-form label{margin-top:12px}
 .co-form label:first-child{margin-top:0}
@@ -1865,7 +1865,7 @@ function coNegoDevis(){
 .co-verdict b{display:block;font-size:24px;font-weight:800;margin:4px 0 6px}
 .co-verdict p{margin:0;font-size:13.5px;line-height:1.5;color:var(--text-2)}
 .co-verdict.v-bon{border-color:var(--green);background:linear-gradient(150deg,rgba(111,224,199,.14),var(--card) 70%)}.co-verdict.v-bon b{color:var(--green)}
-.co-verdict.v-acceptable{border-color:var(--yellow);background:linear-gradient(150deg,rgba(245,197,66,.13),var(--card) 70%)}.co-verdict.v-acceptable b{color:var(--yellow)}
+.co-verdict.v-acceptable{border-color:var(--yellow);background:linear-gradient(150deg,color-mix(in srgb,var(--gold) 13%,transparent),var(--card) 70%)}.co-verdict.v-acceptable b{color:var(--yellow)}
 .co-verdict.v-bas{border-color:var(--red);background:linear-gradient(150deg,rgba(255,123,123,.13),var(--card) 70%)}.co-verdict.v-bas b{color:var(--red)}
 .co-prices{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
 .co-prices div{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px;text-align:center;min-width:0}

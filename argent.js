@@ -1067,6 +1067,8 @@ const AG_TAB_ICONS = { dash: 'home', argent: 'wallet', coffres: 'lock', objectif
 // Couleurs : les 5 premiers sont écrits dans theme.css ; les autres sont
 // calculés ici à partir de 5 couleurs (fond, cartes, accent, clair, foncé).
 const AG_THEMES = {
+  henzo:      { label: 'Henzo Studio',        desc: 'Charte officielle, sombre', sw: ['#0d0f0c', '#161913', '#8a9a5b', '#f4f2ec'] },
+  'henzo-clair': { label: 'Henzo Studio clair', desc: 'Charte officielle, clair', sw: ['#faf9f6', '#f1efe9', '#5f6e3a', '#13150f'], clair: true },
   aurora:     { label: 'Aurora',      desc: 'Vert profond et blanc', sw: ['#030b0a', '#00524D', '#48A89A', '#CBEFEB'] },
   graphite:   { label: 'Graphite',    desc: 'Gris anthracite et vert citron', sw: ['#141414', '#262626', '#b6f23a', '#e9e9e9'] },
   minuit:     { label: 'Minuit',      desc: 'Bleu nuit et bleu clair', sw: ['#070a14', '#1d2a5c', '#6b8eff', '#c9d4ff'] },
@@ -1165,9 +1167,9 @@ function agAppliquerApparence(a){
 }
 agAppliquerApparence();
 
-function agGetTheme(){ try { return localStorage.getItem('ag_theme') || 'aurora'; } catch(e){ return 'aurora'; } }
+function agGetTheme(){ try { return localStorage.getItem('ag_theme') || 'henzo'; } catch(e){ return 'henzo'; } }
 function agApplyTheme(t){
-  if(!AG_THEMES[t]) t = 'aurora';
+  if(!AG_THEMES[t]) t = 'henzo';
   document.documentElement.setAttribute('data-theme', t);
   document.documentElement.setAttribute('data-clair', AG_THEMES[t].clair ? '1' : '0');
   try { localStorage.setItem('ag_theme', t); } catch(e){}

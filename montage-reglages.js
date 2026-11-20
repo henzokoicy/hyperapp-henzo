@@ -693,7 +693,7 @@ if(typeof window.mpxPlus === 'function'){
 .mrg-z i{position:absolute;display:none;background:#f5a524;pointer-events:none}
 .mrg-z .mrg-gx{left:50%;top:0;bottom:0;width:1px}.mrg-z .mrg-gy{top:50%;left:0;right:0;height:1px}
 .mrg-z.gx .mrg-gx,.mrg-z.gy .mrg-gy{display:block}
-.mpb-clip.mrg-o{background-color:rgba(72,168,154,.35)}
+.mpb-clip.mrg-o{background-color:color-mix(in srgb,var(--accent) 35%,transparent)}
 .mt-clip.mrg-r::before{content:"";position:absolute;right:4px;bottom:4px;width:7px;height:7px;border-radius:50%;background:#f5a524;box-shadow:0 0 0 2px rgba(0,0,0,.4);z-index:2;pointer-events:none}
 .mt-clip.mrg-fi,.mpb-clip.mrg-fi{background-image:linear-gradient(to right,rgba(0,0,0,.55),transparent var(--mrg-fi,0px))}
 .mt-clip.mrg-fi>img{-webkit-mask-image:linear-gradient(to right,rgba(0,0,0,.35),#000 var(--mrg-fi,0px));mask-image:linear-gradient(to right,rgba(0,0,0,.35),#000 var(--mrg-fi,0px))}

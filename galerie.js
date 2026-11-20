@@ -745,8 +745,8 @@ try { if(new URLSearchParams(location.search).get('avis')) window.__galAvisDeep 
   st.id = 'galAvisCss';
   st.textContent = `
 .gal-av-etat{display:inline-block;font-style:normal;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:1px;border:1px solid var(--border)}
-.gal-av-etat.attente{background:rgba(245,197,66,.15);color:var(--yellow);border-color:rgba(245,197,66,.35)}
-.gal-av-etat.site{background:rgba(52,211,153,.14);color:var(--green);border-color:rgba(52,211,153,.35)}
+.gal-av-etat.attente{background:color-mix(in srgb,var(--gold) 15%,transparent);color:var(--yellow);border-color:color-mix(in srgb,var(--gold) 35%,transparent)}
+.gal-av-etat.site{background:color-mix(in srgb,var(--green) 14%,transparent);color:var(--green);border-color:color-mix(in srgb,var(--green) 35%,transparent)}
 .gal-av-etat.refuse{background:var(--card2);color:var(--muted)}
 .gal-av-etat.prive{background:var(--card2);color:var(--muted)}
 .gal-av-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
