@@ -397,7 +397,7 @@ window.bgChargesContexte = bgChargesContexte;
 .oc-big.retard span{color:#f5a524}.oc-big.depasse span{color:#ff453a}.oc-big.pret span,.oc-big.avance span{color:#34c759}
 .oc-mot{text-align:center;font-size:13px;color:var(--text);margin:6px 0 12px;font-style:italic}
 .oc-dir{margin-top:12px;padding:12px;border-radius:12px;background:var(--card2)}.oc-dir b{color:var(--text)}.oc-dir ul{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:13px;line-height:1.5}
-.oc-step{display:flex;gap:10px;margin:12px 0}.oc-step>i{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-style:normal;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center}
+.oc-step{display:flex;gap:10px;margin:12px 0}.oc-step>i{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--on-accent,#fff);font-style:normal;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center}
 .oc-step b{display:block;color:var(--text);font-size:13.5px}.oc-step span{display:block;color:var(--muted);font-size:12.5px;line-height:1.45;margin-top:2px}
 .oc-mini{margin-top:6px}.oc-mini div{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--border);color:var(--muted)}.oc-mini b{color:var(--text)}
 .oc-form{margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--card2)}

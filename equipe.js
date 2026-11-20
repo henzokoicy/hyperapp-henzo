@@ -1570,7 +1570,7 @@ function eqStyle(){
 #shootPrice:disabled{opacity:.55}
 .eq-team{margin-top:14px;padding:12px;border-radius:14px;background:var(--card2);border:1px solid var(--border)}
 .eq-team-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.eq-team-h b{font-size:13px}
-.eq-team-h button{width:auto;margin:0;padding:5px 12px;border-radius:9px;border:0;background:var(--accent);color:#fff;font:700 12px Inter,sans-serif;cursor:pointer}
+.eq-team-h button{width:auto;margin:0;padding:5px 12px;border-radius:9px;border:0;background:var(--accent);color:var(--on-accent,#fff);font:700 12px Inter,sans-serif;cursor:pointer}
 .eq-team-row{display:flex;align-items:center;gap:6px;padding:8px 0;border-top:1px solid var(--border);flex-wrap:wrap}
 .eq-team-n{flex:1 1 150px;min-width:0;display:flex;flex-direction:column;gap:4px}.eq-team-n b{font-size:13px}
 .eq-team-n select,.eq-team-row input,.eq-link select{margin:0;padding:6px;font-size:12px}
@@ -1579,7 +1579,7 @@ function eqStyle(){
 .eq-x{width:auto !important;margin:0;padding:4px 10px;border:1px solid var(--red);border-radius:8px;background:none;color:var(--red);font-size:14px;cursor:pointer}
 .eq-team-empty{font-size:12px;color:var(--muted);padding:4px 0}
 .eq-sugg{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--accent);font-size:12.5px}
-.eq-sugg span{flex:1}.eq-sugg button{width:auto;margin:0;padding:6px 12px;border-radius:9px;border:0;background:var(--accent);color:#fff;font:700 12px Inter,sans-serif;cursor:pointer}
+.eq-sugg span{flex:1}.eq-sugg button{width:auto;margin:0;padding:6px 12px;border-radius:9px;border:0;background:var(--accent);color:var(--on-accent,#fff);font:700 12px Inter,sans-serif;cursor:pointer}
 .eq-links{margin-top:10px;padding-top:8px;border-top:1px solid var(--border)}
 .eq-links-h{display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px}
 .eq-link{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px}.eq-link span{flex:1;min-width:0}.eq-link select{flex:0 0 46%}
@@ -1599,7 +1599,7 @@ function eqStyle(){
 .eq-port-b{display:flex;flex-wrap:wrap;gap:6px}
 .eq-port-b button{display:inline-flex;align-items:center;gap:6px;width:auto;margin:0;padding:8px 11px;border-radius:11px;border:1px solid var(--border);background:var(--card);color:var(--text);font:600 12.5px Inter,sans-serif;cursor:pointer}
 .eq-port-b button .ag-i{color:var(--accent)}
-.eq-port-b button.main{background:var(--accent);border-color:var(--accent);color:#fff}.eq-port-b button.main .ag-i{color:#fff}
+.eq-port-b button.main{background:var(--accent);border-color:var(--accent);color:var(--on-accent,#fff)}.eq-port-b button.main .ag-i{color:#fff}
 .eq-port-b button.danger{color:var(--red)}.eq-port-b button.danger .ag-i{color:var(--red)}
 .eq-sub{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 6px}
 .eq-voir{border-radius:14px;background:var(--card);border:1px solid var(--border);overflow:hidden}
@@ -1612,7 +1612,7 @@ function eqStyle(){
 .eq-tg input:checked+i{background:var(--accent)}.eq-tg input:checked+i:after{left:20px}
 .eq-tg input:focus-visible+i{outline:2px solid var(--accent);outline-offset:2px}
 .eq-port textarea{margin:0}
-.eq-mini{width:auto !important;margin:6px 0 0 !important;padding:7px 14px !important;border-radius:10px;border:0;background:var(--accent);color:#fff;font:700 12px Inter,sans-serif;cursor:pointer}
+.eq-mini{width:auto !important;margin:6px 0 0 !important;padding:7px 14px !important;border-radius:10px;border:0;background:var(--accent);color:var(--on-accent,#fff);font:700 12px Inter,sans-serif;cursor:pointer}
 .eq-cons{margin-top:8px;padding:10px;border-radius:12px;background:var(--card);border:1px solid var(--border)}
 .eq-cons-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}.eq-cons-h b{font-size:12.5px}
 .eq-ok,.eq-wait{font-style:normal;font-size:11px;font-weight:700}.eq-ok{color:var(--green)}.eq-wait{color:var(--yellow)}

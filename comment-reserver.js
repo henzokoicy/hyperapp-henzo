@@ -69,7 +69,7 @@ window.rdvBasculer = function(ouvrir){
     '.rdv.pli .rdv-c{display:none;padding:0 16px 16px}.rdv.pli.open .rdv-c{display:block}' +
     '.rdv-imp{margin-top:12px;padding:12px 14px;border-radius:14px;background:color-mix(in srgb,#f5a524 14%,transparent);border:1px solid color-mix(in srgb,#f5a524 55%,transparent)}' +
     '.rdv-imp b{display:block;font-size:14px;color:var(--txt)}.rdv-imp span{display:block;font-size:13px;line-height:1.5;color:var(--txt);opacity:.85;margin-top:4px}' +
-    '.rdv-m span.reco{border-color:var(--accent)}.rdv-m em{font-style:normal;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#fff;background:var(--accent);padding:2px 7px;border-radius:99px}';
+    '.rdv-m span.reco{border-color:var(--accent)}.rdv-m em{font-style:normal;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--on-accent,#fff);background:var(--accent);padding:2px 7px;border-radius:99px}';
   document.head.appendChild(st);
 })();
 })();

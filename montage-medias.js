@@ -1019,10 +1019,10 @@ crRender = async function(){
 .mmd-ico{color:var(--muted);display:flex}
 .mmd-t>b{display:block;font-size:11px;font-weight:600;color:var(--text);padding:4px 30px 5px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mmd-d{position:absolute;left:5px;bottom:28px;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.62);padding:1px 5px;border-radius:6px;display:flex;align-items:center;gap:2px}
-.mmd-u{position:absolute;left:5px;top:5px;width:18px;height:18px;border-radius:50%;background:var(--accent,#48A89A);color:#fff;display:flex;align-items:center;justify-content:center}
+.mmd-u{position:absolute;left:5px;top:5px;width:18px;height:18px;border-radius:50%;background:var(--accent,#48A89A);color:var(--on-accent,#fff);display:flex;align-items:center;justify-content:center}
 .mmd-bad{position:absolute;left:4px;top:4px;right:4px;font-size:10px;font-weight:700;color:#fff;background:#e5484d;padding:2px 5px;border-radius:6px;display:flex;align-items:center;gap:3px}
 .mmd-t.manq .mmd-v{opacity:.55}
-.mmd-add{position:absolute;right:4px;bottom:3px;width:26px !important;height:22px;margin:0;padding:0;border-radius:7px;border:none;background:var(--accent,#48A89A);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.mmd-add{position:absolute;right:4px;bottom:3px;width:26px !important;height:22px;margin:0;padding:0;border-radius:7px;border:none;background:var(--accent,#48A89A);color:var(--on-accent,#fff);display:flex;align-items:center;justify-content:center;cursor:pointer}
 .mmd-t.manq .mmd-add{background:#e5484d}
 .mmd-dern{width:100% !important;margin:0 0 8px;padding:9px;border-radius:10px;border:1px dashed var(--accent,#48A89A);background:transparent;color:var(--accent,#48A89A);font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
 .mmd-vide{padding:18px 8px}
@@ -1045,14 +1045,14 @@ crRender = async function(){
 .mmd-ghost.ok{border-color:var(--accent,#48A89A)}
 .mmd-ghost img{width:100%;height:56px;object-fit:cover;display:block}.mmd-ghost .mmd-ico{height:56px;align-items:center;justify-content:center}
 .mmd-ghost b{display:block;font-size:10px;color:var(--text);padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mmd-ghost[data-txt]:not([data-txt=""])::after{content:attr(data-txt);position:absolute;left:50%;top:-22px;transform:translateX(-50%);white-space:nowrap;font-size:11px;font-weight:700;color:#fff;background:var(--accent,#48A89A);padding:2px 7px;border-radius:6px}
+.mmd-ghost[data-txt]:not([data-txt=""])::after{content:attr(data-txt);position:absolute;left:50%;top:-22px;transform:translateX(-50%);white-space:nowrap;font-size:11px;font-weight:700;color:var(--on-accent,#fff);background:var(--accent,#48A89A);padding:2px 7px;border-radius:6px}
 .mmd-ghost{overflow:visible}
 .mmd-mark{position:fixed;z-index:2900;width:0;pointer-events:none}
 .mmd-mark i{position:absolute;left:-1.5px;top:0;bottom:0;width:3px;border-radius:2px;background:var(--accent,#48A89A);box-shadow:0 0 10px var(--accent,#48A89A)}
 .mmd-mark.incrust i{background:#f5a524;box-shadow:0 0 10px #f5a524}.mmd-mark.son i{background:#7c8cff;box-shadow:0 0 10px #7c8cff}
 .mmd-mark span{position:absolute;left:6px;top:2px;white-space:nowrap;font-size:11px;font-weight:700;color:#fff;background:rgba(0,0,0,.75);padding:2px 7px;border-radius:6px}
 body.mmd-glisse,body.mmd-glisse *{cursor:grabbing !important}
-body.mmd-depot #edPortail::after{content:"Dépose tes vidéos, photos et sons : dans la bibliothèque, ou sur la table de montage pour les placer";position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:3000;padding:10px 16px;border-radius:12px;background:var(--accent,#48A89A);color:#fff;font-weight:700;font-size:13px;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+body.mmd-depot #edPortail::after{content:"Dépose tes vidéos, photos et sons : dans la bibliothèque, ou sur la table de montage pour les placer";position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:3000;padding:10px 16px;border-radius:12px;background:var(--accent,#48A89A);color:var(--on-accent,#fff);font-weight:700;font-size:13px;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.4)}
 .mt-piste-w.mmd-depot-ici{outline:2px dashed var(--accent,#48A89A);outline-offset:-2px}
 .mt-clip.mmd-manq,.mpb-clip.mmd-manq{outline:2px dashed #e5484d;outline-offset:-2px}
 .mt-clip.mmd-manq::after{content:"Manquant";position:absolute;left:3px;top:3px;font-size:9px;font-weight:800;color:#fff;background:#e5484d;padding:1px 4px;border-radius:4px;pointer-events:none}

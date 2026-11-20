@@ -326,7 +326,7 @@ crRender = async function(){
 .br-d small{display:block;color:var(--muted);font-size:11.5px;margin:2px 0 6px}
 .br-b{display:flex;gap:6px}
 .br-b button{width:auto;flex:none;margin:0;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:12px;cursor:pointer;display:flex;align-items:center}
-.br-b button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.br-b button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent,#fff)}
 .br-b button.no{color:#e5484d;padding:6px 8px}
 .br-tout{float:right;font-size:12px}
 .br-marque{display:inline-block;margin-left:10px;font-size:11.5px;color:var(--muted);opacity:0}
@@ -335,7 +335,7 @@ crRender = async function(){
 .br-exemple{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;margin:6px 0 10px;border-radius:14px;background:color-mix(in srgb,var(--accent) 12%,var(--card));border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);font-size:13px;color:var(--text)}
 .br-ex-b{display:flex;flex-wrap:wrap;gap:6px}
 .br-ex-b button{width:auto;margin:0;padding:7px 12px;border-radius:999px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:12.5px;cursor:pointer}
-.br-ex-b button.on{background:var(--accent);border-color:var(--accent);color:#fff}`;
+.br-ex-b button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent,#fff)}`;
   document.head.appendChild(st);
 })();
 
