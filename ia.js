@@ -436,7 +436,7 @@ async function iaRelais(opts){
     const e = new Error("Configure ta clé IA dans Réglages IA (onglet Coach, Connexion IA)."); e.iaCle = true; throw e;
   }
   const o = {
-    system: opts.system || '',
+    system: [(!opts.sansVision && typeof window.visionPourIA === 'function') ? window.visionPourIA() : '', opts.system || ''].filter(Boolean).join('\n\n'),
     tours: iaTours(opts.messages || [{ role: 'user', text: opts.prompt || '' }]),
     recherche: !!opts.recherche,
     maxTokens: Math.max(256, Number(opts.maxTokens) || 2500),
