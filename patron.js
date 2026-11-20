@@ -90,8 +90,8 @@ function ptRdvAcompteNb(){
 function ptRdvPageCache(){ try { return JSON.parse(localStorage.getItem(PT_KEY_RDV) || 'null'); } catch(e){ return null; } }
 function ptRdvLiens(page){
   const slug = page && page.slug;
-  const t = typeof pxLink === 'function' && typeof PX !== 'undefined' && PX && PX.page ? pxLink() : (slug ? `${location.origin}/tarifs.html?s=${encodeURIComponent(slug)}` : '');
-  const r = typeof otResaLink === 'function' && typeof PX !== 'undefined' && PX && PX.page ? otResaLink('') : (slug ? `${location.origin}/reserver.html?s=${encodeURIComponent(slug)}` : '');
+  const t = typeof pxLink === 'function' && typeof PX !== 'undefined' && PX && PX.page ? pxLink() : (slug ? `${CLIENT_URL}/tarifs.html?s=${encodeURIComponent(slug)}` : '');
+  const r = typeof otResaLink === 'function' && typeof PX !== 'undefined' && PX && PX.page ? otResaLink('') : (slug ? `${CLIENT_URL}/reserver.html?s=${encodeURIComponent(slug)}` : '');
   return { tarifs: t || '', resa: r || '' };
 }
 function ptPrenom(c){

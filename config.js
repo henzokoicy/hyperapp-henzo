@@ -148,3 +148,10 @@ const LOCAL_IDEAS = [
 const GALERIE_URL    = "https://galerie-clients.onrender.com/admin.html";
 const GALERIE_ORIGIN = "https://galerie-clients.onrender.com";
 
+// ============================================================
+// 10. ADRESSE DES LIENS ENVOYES AUX CLIENTS (tarifs, paiement, contrat...)
+// ============================================================
+const CLIENT_URL = /^https:\/\/(superapp\.henzostudio\.com|hyperapp-henzo\.vercel\.app)$/.test(location.origin)
+  ? "https://client.henzostudio.com"
+  : location.origin;
+

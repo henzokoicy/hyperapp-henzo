@@ -31,7 +31,7 @@ function ctStudio(){
   const p = typeof PX !== 'undefined' && PX.page ? PX.page : {};
   return { studio: p.marque || (typeof BRAND !== 'undefined' ? BRAND.name.replace(/\b(\w)(\w*)/g, (m, a, b) => a + b.toLowerCase()) : 'Henzo Photographie'), studio_adresse: p.adresse || 'Ahougnansou, en face du Restaurant Le Rosier, Bouaké', studio_tel: p.phone ? '+' + String(p.phone).replace(/\D/g, '') : '', ville: 'Bouaké' };
 }
-function ctLien(c){ return `${location.origin}/contrat.html?t=${c.token}`; }
+function ctLien(c){ return `${CLIENT_URL}/contrat.html?t=${c.token}`; }
 
 // ---------- La liste ----------
 window.ctListe = async function(){
