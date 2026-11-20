@@ -4,73 +4,75 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Préparons votre séance - Henzo Studio</title>
-<meta name="theme-color" content="#030b0a">
+<meta name="theme-color" content="#0d0f0c">
 <link rel="icon" href="icon-192.png">
 <link href="polices/polices.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{--bg:#030b0a;--card:#0a1c1a;--card2:#0f2a27;--line:#173b37;--txt:#fff;--muted:#9cbdb8;--accent:#48A89A;--light:#CBEFEB;--deep:#00524D;--pink:#ff6b8b;--violet:#7c6cff}
+:root{--violet:var(--muted);--pink:var(--accent);--soft:var(--card2)}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Inter,system-ui,sans-serif;color:var(--txt);background:radial-gradient(1000px 500px at 85% -10%,rgba(72,168,154,.25),transparent 60%),var(--bg);min-height:100vh;padding-bottom:110px}
+body{font-family:Inter,system-ui,sans-serif;color:var(--txt);background:var(--bg);min-height:100vh;padding-bottom:110px}
 .wrap{max-width:900px;margin:0 auto;padding:24px 14px}
-.brand{font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--light);opacity:.8}
-h1{font-size:27px;font-weight:800;line-height:1.15;margin:8px 0 6px}
+.brand img{width:150px;max-width:60%;height:auto;margin:0 0 6px}
+h1{font-family:var(--font-display);font-size:27px;font-weight:600;line-height:1.15;margin:8px 0 6px}
 .intro{color:var(--muted);font-size:15px;line-height:1.55}
-.steps{position:sticky;top:0;z-index:20;display:flex;gap:6px;margin:18px -14px 14px;padding:10px 14px;background:rgba(3,11,10,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
-.steps button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:14px;padding:8px 4px;font:600 12px Inter,sans-serif;cursor:pointer}
+.steps{position:sticky;top:0;z-index:20;display:flex;gap:6px;margin:18px -14px 14px;padding:10px 14px;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.steps button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:10px;padding:8px 4px;font:600 12px Inter,sans-serif;cursor:pointer}
 .steps button b{font-size:15px;color:var(--txt)}
-.steps button.on{border-color:var(--accent);color:var(--light);background:linear-gradient(160deg,rgba(0,82,77,.6),var(--card))}
-h2{font-size:19px;font-weight:700;margin:6px 0 4px}
+.steps button.on{border-color:var(--accent);color:var(--txt);background:var(--card3)}
+h2{font-family:var(--font-display);font-size:19px;font-weight:600;margin:6px 0 4px}
 .sub{font-size:14px;color:var(--muted);line-height:1.5;margin-bottom:14px}
 .grid{columns:2;column-gap:10px}
 @media(min-width:700px){.grid{columns:3}}
-.t{position:relative;break-inside:avoid;margin-bottom:10px;border-radius:16px;overflow:hidden;border:2px solid transparent;background:var(--card)}
+.t{position:relative;break-inside:avoid;margin-bottom:10px;border-radius:10px;overflow:hidden;border:2px solid transparent;background:var(--card)}
 .t img.ph{display:block;width:100%;height:auto;cursor:zoom-in}
 .t.on{border-color:var(--pink)}
 .t.mine{border-color:var(--violet)}
-.h{position:absolute;top:8px;right:8px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);border:0;cursor:pointer}
-.h svg{width:21px;height:21px;fill:none;stroke:#fff;stroke-width:2}
-.t.on .h{background:var(--pink)}.t.on .h svg{fill:#fff}
-.x{position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:18px;cursor:pointer}
+.h{position:absolute;top:8px;right:8px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 60%,transparent);backdrop-filter:blur(6px);border:0;cursor:pointer}
+.h svg{width:21px;height:21px;fill:none;stroke:var(--txt);stroke-width:2}
+.t.on .h{background:var(--accent)}.t.on .h svg{fill:var(--on-accent);stroke:var(--on-accent)}
+.x{position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:50%;border:0;background:color-mix(in srgb,var(--bg) 70%,transparent);color:var(--txt);font-size:18px;cursor:pointer}
 .tb{padding:8px;border-top:1px solid var(--line);background:var(--card)}
 .tb input{width:100%;border:0;background:var(--card2);color:var(--txt);font:inherit;font-size:13px;padding:9px 10px;border-radius:10px;outline:none}
-.var{display:block;width:100%;margin-top:6px;border:1px dashed var(--violet);background:none;color:#c9c2ff;font:600 12px Inter,sans-serif;padding:8px;border-radius:10px;cursor:pointer}
+.var{display:block;width:100%;margin-top:6px;border:1px dashed var(--violet);background:none;color:var(--txt);font:600 12px Inter,sans-serif;padding:8px;border-radius:10px;cursor:pointer}
 .ref{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);padding:6px 8px 0}
 .ref img{width:28px;height:28px;object-fit:cover;border-radius:6px}
-.drop{display:flex;flex-direction:column;align-items:center;gap:8px;padding:26px 16px;border:2px dashed var(--line);border-radius:20px;background:var(--card);text-align:center;cursor:pointer;margin-bottom:14px}
+.drop{display:flex;flex-direction:column;align-items:center;gap:8px;padding:26px 16px;border:2px dashed var(--line);border-radius:10px;background:var(--card);text-align:center;cursor:pointer;margin-bottom:14px}
 .drop b{font-size:16px}.drop span{font-size:13px;color:var(--muted)}
-.drop.over{border-color:var(--violet);background:rgba(124,108,255,.12)}
-.drop .ic{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:rgba(124,108,255,.18);color:#c9c2ff}
-.prog{font-size:13px;color:var(--light);margin:-6px 0 12px;min-height:18px}
+.drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.drop .ic{width:52px;height:52px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+.prog{font-size:13px;color:var(--accent);margin:-6px 0 12px;min-height:18px}
 label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
-input.f,textarea{width:100%;background:var(--card);border:1px solid var(--line);border-radius:14px;color:var(--txt);font:inherit;font-size:15px;padding:13px 14px;outline:none}
+input.f,textarea{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--txt);font:inherit;font-size:15px;padding:13px 14px;outline:none}
 .sum{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 4px}
-.sum div{padding:14px;border-radius:16px;background:var(--card);border:1px solid var(--line)}
+.sum div{padding:14px;border-radius:10px;background:var(--card);border:1px solid var(--line)}
 .sum b{display:block;font-size:24px}.sum span{font-size:12px;color:var(--muted)}
 .mini{display:flex;gap:6px;overflow-x:auto;margin-top:10px;padding-bottom:4px}
 .mini img{width:58px;height:58px;object-fit:cover;border-radius:10px;flex-shrink:0;border:2px solid var(--pink)}
 .mini img.v{border-color:var(--violet)}
-.bar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:rgba(3,11,10,.95);backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--bg) 95%,transparent);backdrop-filter:blur(14px);border-top:1px solid var(--line)}
 .bar-in{max-width:900px;margin:0 auto;display:flex;align-items:center;gap:12px}
-.bar .c{flex:1;font-size:13px;color:var(--muted);line-height:1.4}.bar .c b{color:#fff}
-.btn{border:0;border-radius:14px;padding:14px 18px;font:700 15px Inter,sans-serif;cursor:pointer;background:#fff;color:var(--deep);white-space:nowrap}
+.bar .c{flex:1;font-size:13px;color:var(--muted);line-height:1.4}.bar .c b{color:var(--txt)}
+.btn{border:0;border-radius:10px;padding:14px 18px;font:700 15px Inter,sans-serif;cursor:pointer;background:var(--pri-bg);color:var(--pri-fg);white-space:nowrap}
 .btn:disabled{opacity:.5}
-.err{color:#ff8b8b;font-size:14px;margin-top:8px;min-height:18px}
+.err{color:var(--red);font-size:14px;margin-top:8px;min-height:18px}
 .ok{text-align:center;padding:40px 10px}
-.ok .ic{width:70px;height:70px;border-radius:50%;margin:0 auto 18px;display:grid;place-items:center;background:linear-gradient(150deg,var(--accent),var(--deep))}
+.ok .ic{width:70px;height:70px;border-radius:50%;margin:0 auto 18px;display:grid;place-items:center;background:var(--accent);color:var(--on-accent)}
 .ok p{color:var(--muted);line-height:1.55;margin-top:10px}
 .empty{text-align:center;color:var(--muted);padding:40px 10px}
-.foot{text-align:center;color:#5f8580;font-size:12px;margin-top:26px}
-.full{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.foot{text-align:center;color:var(--muted);font-size:12px;margin-top:26px}
+.full{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 94%,transparent);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
 .full img{max-width:100%;max-height:100%;border-radius:12px}
 .full.show{display:flex}
-.srcq{margin:16px 0 4px;padding:16px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
+.srcq{margin:16px 0 4px;padding:16px;border-radius:10px;background:var(--card);border:1px solid var(--line)}
 .srcq b{display:block;font-size:15px}.srcq p{font-size:13px;color:var(--muted);margin:4px 0 10px}
 .srcq .bt{display:flex;flex-wrap:wrap;gap:8px}
-.srcq .bt button{border:1px solid var(--line);background:var(--card2);color:var(--txt);border-radius:12px;padding:9px 12px;font:500 13px Inter,sans-serif;cursor:pointer}
+.srcq .bt button{border:1px solid var(--line);background:var(--card2);color:var(--txt);border-radius:10px;padding:9px 12px;font:500 13px Inter,sans-serif;cursor:pointer}
 .srcq .skip{background:none;border:0;color:var(--muted);font:500 13px Inter,sans-serif;margin-top:10px;cursor:pointer;text-decoration:underline}
 .srcq .row{display:flex;gap:8px;margin-top:10px}.srcq .row input{flex:1}
 </style>
+<link href="charte-pages.css?v=1" rel="stylesheet">
+<script>try{if(matchMedia("(prefers-color-scheme: light)").matches)document.documentElement.setAttribute("data-clair","1")}catch(e){}</script>
 </head>
 <body>
 <div class="wrap" id="app"><div class="empty">Chargement...</div></div>
@@ -128,7 +130,7 @@ function go(n){ S.step = n; render(); window.scrollTo({ top: 0, behavior: 'smoot
 function render(){
   if(S.sent) return renderOk();
   var b = S.b, np = Object.keys(S.picks).length, nm = S.mine.length;
-  var h = '<div class="brand">Henzo Studio</div><h1>' + esc(b.title || 'Préparons votre séance') + '</h1>' +
+  var h = '<div class="brand"><img class="hz-on-dark" src="logos/logo-horizontal-clair-fondsombre.png" alt="Henzo Studio"><img class="hz-on-light" src="logos/logo-horizontal-sombre-fondclair.png" alt="Henzo Studio"></div><h1>' + esc(b.title || 'Préparons votre séance') + '</h1>' +
     '<p class="intro">' + (b.type ? esc(b.type) + '. ' : '') + (b.notes ? esc(b.notes) : 'Dites-moi ce que vous aimez pour que votre séance vous ressemble.') + '</p>' +
     srcHtml() + '<div class="steps"><button class="' + (S.step === 1 ? 'on' : '') + '" onclick="go(1)"><b>' + np + '</b>1. Coups de cœur</button>' +
     '<button class="' + (S.step === 2 ? 'on' : '') + '" onclick="go(2)"><b>' + nm + '</b>2. Mes idées</button>' +
@@ -229,7 +231,7 @@ async function envoyer(){
 function renderOk(){
   var np = Object.keys(S.picks).length, nm = S.mine.length;
   var msg = 'Bonjour Henzo Studio, je viens d\'envoyer mes idées pour la séance (' + np + ' coup' + (np > 1 ? 's' : '') + ' de cœur, ' + nm + ' photo' + (nm > 1 ? 's' : '') + ' ajoutée' + (nm > 1 ? 's' : '') + ').' + (S.msg ? '\n' + S.msg : '');
-  document.getElementById('app').innerHTML = '<div class="ok"><div class="ic"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>' +
+  document.getElementById('app').innerHTML = '<div class="ok"><div class="ic"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>' +
     '<h1>Merci' + (S.nom ? ' ' + esc(S.nom.split(' ')[0]) : '') + ' !</h1><p>Henzo a bien reçu vos ' + (np + nm) + ' idée' + (np + nm > 1 ? 's' : '') + '. Il prépare votre séance avec. Vous pouvez revenir sur ce lien pour ajouter ou changer quelque chose.</p>' +
     (S.b.phone ? '<a class="btn" style="display:inline-block;margin-top:18px;text-decoration:none" href="https://wa.me/' + esc(S.b.phone) + '?text=' + encodeURIComponent(msg) + '" target="_blank">Prévenir Henzo sur WhatsApp</a>' : '') +
     '<p><a href="#" style="color:var(--light)" onclick="S.sent=false;S.step=1;render();return false">Modifier mes choix</a></p></div>';
