@@ -892,7 +892,7 @@ h2{
   box-shadow:var(--shadow-lg);
 }
 .login-logo{
-  text-align:center;font-size:52px;margin-bottom:12px;
+  text-align:center;font-size:52px;margin-bottom:12px;display:flex;justify-content:center;
   display:inline-block;
   animation:logoIn .6s var(--ease-spring);
 }
