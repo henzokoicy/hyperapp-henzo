@@ -331,9 +331,13 @@
 
     /* Payer autrement (Orange Money, Moov Money) */
     .autres { margin-top:16px; border:1px solid var(--border-2, rgba(255,255,255,.15)); border-radius:16px; background:var(--card2, rgba(255,255,255,.04)); overflow:hidden; }
-    .autres summary { list-style:none; cursor:pointer; padding:15px 16px; font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:space-between; }
+    .autres summary { list-style:none; cursor:pointer; padding:16px; font-weight:800; font-size:15px; display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--txt, #f4f2ec); color:var(--bg, #0d0f0c); box-shadow:0 6px 20px rgba(0,0,0,.35); }
+    .autres summary .pts { display:inline-flex; gap:4px; margin-right:8px; vertical-align:middle; }
+    .autres summary .pt { width:12px; height:12px; border-radius:50%; display:inline-block; border:1px solid rgba(0,0,0,.25); }
+    .autres summary .pt.orange { background:#FF7900; }
+    .autres summary .pt.moov { background:#0A5CB8; }
     .autres summary::-webkit-details-marker { display:none; }
-    .autres summary::after { content:'▾'; color:var(--muted); transition:transform .2s; }
+    .autres summary::after { content:'▾'; color:inherit; font-size:18px; transition:transform .2s; }
     .autres[open] summary::after { transform:rotate(180deg); }
     .autres .corps { padding:0 16px 16px; }
     .moyen { margin-top:12px; padding:14px; border-radius:14px; background:var(--card, rgba(255,255,255,.05)); border:1px solid var(--border, rgba(255,255,255,.08)); }
@@ -346,6 +350,18 @@
     .moyen .m-montant .m-regle { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.5; }
     .moyen button.m-btn, .moyen a.m-btn { display:flex; align-items:center; justify-content:center; width:100%; margin-top:8px; padding:12px; border-radius:12px; border:1px solid var(--border-2, rgba(255,255,255,.2)); background:transparent; color:var(--txt, var(--text)); font-size:14px; font-weight:600; cursor:pointer; text-decoration:none; font-family:inherit; }
     .moyen a.m-btn.plein { background:var(--accent); border-color:var(--accent); color:var(--on-accent, #0d0f0c); font-weight:800; }
+    /* Couleurs des marques : Orange Money (orange) et Moov Money (bleu), comme Wave a son bleu */
+    .moyen.orange { --marque:#FF7900; --sur-marque:#000; border:2px solid #FF7900; }
+    .moyen.moov   { --marque:#0A5CB8; --sur-marque:#fff; border:2px solid #0A5CB8; }
+    .moyen .m-nom { display:inline-block; padding:6px 14px; border-radius:999px; background:var(--marque, var(--accent)); color:var(--sur-marque, #0d0f0c); font-weight:800; font-size:14px; letter-spacing:.2px; }
+    .moyen .m-num { color:var(--marque, inherit); }
+    .moyen.moov .m-num { color:#5AA2F0; }
+    .moyen .m-montant { border-color:var(--marque, var(--accent)); background:color-mix(in srgb, var(--marque, var(--accent)) 14%, transparent); }
+    .moyen .m-montant .m-frais { color:var(--marque, var(--accent)); }
+    .moyen.moov .m-montant .m-frais { color:#5AA2F0; }
+    .moyen .m-etapes strong { color:var(--marque, inherit); }
+    .moyen.moov .m-etapes strong { color:#5AA2F0; }
+    .moyen a.m-btn.plein, .moyen button.m-btn.plein { background:var(--marque, var(--accent)); border-color:var(--marque, var(--accent)); color:var(--sur-marque, #0d0f0c); font-weight:800; }
     .moyen .m-etapes { margin:10px 0 4px 18px; padding:0; font-size:13px; color:var(--muted); line-height:1.65; }
     .moyen .m-etapes strong { color:var(--txt, var(--text)); }
     .moyen .m-apercu { display:none; margin-top:10px; text-align:center; }
@@ -565,7 +581,7 @@
     <div class="trust">🔒 Paiement sécurisé et crypté</div>
 
     <details class="autres" id="autresPaiements">
-      <summary>💳 Payer autrement (Orange Money, Moov Money)</summary>
+      <summary><span><span class="pts"><span class="pt orange"></span><span class="pt moov"></span></span>Payer autrement : Orange Money ou Moov Money</span></summary>
       <div class="corps">
         <div id="listeMoyens"></div>
         <div class="m-note">Ton paiement est confirmé quand nous recevons la <strong>capture</strong> de ton paiement. Sans capture, rien n'est envoyé.</div>
@@ -899,7 +915,7 @@
     const liste = choisi ? [choisi].concat(AUTRES_MOYENS.filter(function(m) { return m !== choisi; })) : AUTRES_MOYENS;
     if(choisi) { const d = document.getElementById('autresPaiements'); if(d) d.open = true; }
     liste.forEach(function(m) {
-      const bloc = document.createElement('div'); bloc.className = 'moyen';
+      const bloc = document.createElement('div'); bloc.className = 'moyen ' + m.id;
       const nom = document.createElement('div'); nom.className = 'm-nom'; nom.textContent = m.nom + (m === choisi ? ' · moyen choisi ✓' : '');
       const num = document.createElement('div'); num.className = 'm-num'; num.textContent = m.numero;
       const calcM = calcPourMoyen(info, m.nom);
