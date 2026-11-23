@@ -330,14 +330,12 @@
     }
 
     /* Payer autrement (Orange Money, Moov Money) */
-    .autres { margin-top:16px; border:1px solid var(--border-2, rgba(255,255,255,.15)); border-radius:16px; background:var(--card2, rgba(255,255,255,.04)); overflow:hidden; }
-    .autres summary { list-style:none; cursor:pointer; padding:16px; font-weight:800; font-size:15px; display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--txt, #f4f2ec); color:var(--bg, #0d0f0c); box-shadow:0 6px 20px rgba(0,0,0,.35); }
-    .autres summary .pts { display:inline-flex; gap:4px; margin-right:8px; vertical-align:middle; }
-    .autres summary .pt { width:12px; height:12px; border-radius:50%; display:inline-block; border:1px solid rgba(0,0,0,.25); }
-    .autres summary .pt.orange { background:#FF7900; }
-    .autres summary .pt.moov { background:#0A5CB8; }
+    .autres { margin-top:16px; border:2px solid rgba(255,255,255,.22); border-radius:16px; background:var(--card2, rgba(255,255,255,.04)); overflow:hidden; }
+    .autres summary { list-style:none; cursor:pointer; padding:18px 16px; font-weight:800; font-size:16px; line-height:1.3; display:flex; align-items:center; justify-content:space-between; gap:12px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.45); background:linear-gradient(100deg,#FF7900 0%,#E85D2A 38%,#2D6FC4 62%,#0A5CB8 100%); box-shadow:0 8px 26px rgba(255,121,0,.28), 0 8px 26px rgba(10,92,184,.28); }
+    .autres summary .pts { display:none; }
+    .autres summary .s-texte small { display:block; font-weight:600; font-size:12px; opacity:.95; margin-top:2px; }
     .autres summary::-webkit-details-marker { display:none; }
-    .autres summary::after { content:'▾'; color:inherit; font-size:18px; transition:transform .2s; }
+    .autres summary::after { content:'▾'; color:#fff; background:rgba(0,0,0,.28); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex:none; font-size:18px; transition:transform .2s; text-shadow:none; }
     .autres[open] summary::after { transform:rotate(180deg); }
     .autres .corps { padding:0 16px 16px; }
     .moyen { margin-top:12px; padding:14px; border-radius:14px; background:var(--card, rgba(255,255,255,.05)); border:1px solid var(--border, rgba(255,255,255,.08)); }
@@ -375,9 +373,12 @@
     .wave-ligne { margin-top:12px; text-align:center; font-size:14px; line-height:1.55; }
     .wave-ligne b { font-size:16px; }
     .wave-ligne .wl-frais { color:var(--accent); font-weight:700; }
-    .qr-wave { margin-top:12px; border:1px solid var(--border-2, rgba(255,255,255,.15)); border-radius:14px; overflow:hidden; }
-    .qr-wave summary { cursor:pointer; padding:13px 14px; font-weight:700; font-size:14px; list-style:none; }
-    .qr-wave summary::-webkit-details-marker { display:none; }
+    .qr-wave { margin-top:12px; border:2px solid #1DC8FF; border-radius:14px; overflow:hidden; }
+    .qr-wave summary { cursor:pointer; padding:16px; list-style:none; display:flex; align-items:center; justify-content:space-between; gap:12px; font-weight:800; font-size:16px; line-height:1.3; color:#06202e; background:linear-gradient(135deg,#1DC8FF,#0EA5E9); box-shadow:0 8px 24px rgba(29,200,255,.30); }
+    .qr-wave summary small { display:block; font-weight:700; font-size:12px; opacity:.85; margin-top:2px; }
+    .qr-wave summary::after { content:'▾'; color:#fff; background:rgba(0,0,0,.30); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex:none; font-size:18px; transition:transform .2s; }
+    .qr-wave[open] summary::after { transform:rotate(180deg); }
+    .qr-wave .qr-etapes { text-align:left; margin:6px 0 14px 18px; padding:0; font-size:14px; line-height:1.6; }
     .qr-wave .qr-corps { padding:4px 14px 16px; text-align:center; }
     .qr-wave #qrImage { display:inline-block; background:#fff; padding:12px; border-radius:12px; }
     .qr-wave #qrImage img { display:block; width:200px; height:200px; }
@@ -568,11 +569,16 @@
     <div class="wave-ligne" id="waveLigne" style="display:none"></div>
 
     <details class="qr-wave" id="qrWave" style="display:none">
-      <summary>💻 Sur ordinateur ou un autre écran : QR code Wave</summary>
+      <summary><span>📷 Payer en scannant le QR code Wave<small>Sur un ordinateur, ou avec un autre téléphone</small></span></summary>
       <div class="qr-corps">
+        <ol class="qr-etapes">
+          <li>Prends <b>un autre téléphone</b> qui a l'application <b>Wave</b>.</li>
+          <li>Ouvre Wave et touche <b>« Scanner un code QR »</b>.</li>
+          <li><b>Scanne le QR code</b> ci-dessous : le montant est déjà rempli.</li>
+        </ol>
         <div id="qrImage"></div>
         <div class="qr-montant" id="qrMontant"></div>
-        <div class="qr-note">Scanne ce QR avec l'application <b>Wave</b> d'un autre téléphone. Il contient le <b>même montant que le bouton</b>, frais compris.</div>
+        <div class="qr-note">Ce QR code contient <b>exactement le même montant que le bouton Wave</b>, frais compris.</div>
       </div>
     </details>
 
@@ -581,7 +587,7 @@
     <div class="trust">🔒 Paiement sécurisé et crypté</div>
 
     <details class="autres" id="autresPaiements">
-      <summary><span><span class="pts"><span class="pt orange"></span><span class="pt moov"></span></span>Payer autrement : Orange Money ou Moov Money</span></summary>
+      <summary><span class="s-texte">📱 Payer autrement<small>Orange Money ou Moov Money</small></span></summary>
       <div class="corps">
         <div id="listeMoyens"></div>
         <div class="m-note">Ton paiement est confirmé quand nous recevons la <strong>capture</strong> de ton paiement. Sans capture, rien n'est envoyé.</div>
