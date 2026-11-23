@@ -328,6 +328,22 @@
       transform: translateY(-1px) scale(.98);
     }
 
+    /* Payer autrement (Orange Money, Moov Money) */
+    .autres { margin-top:16px; border:1px solid var(--border-2, rgba(255,255,255,.15)); border-radius:16px; background:var(--card2, rgba(255,255,255,.04)); overflow:hidden; }
+    .autres summary { list-style:none; cursor:pointer; padding:15px 16px; font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:space-between; }
+    .autres summary::-webkit-details-marker { display:none; }
+    .autres summary::after { content:'▾'; color:var(--muted); transition:transform .2s; }
+    .autres[open] summary::after { transform:rotate(180deg); }
+    .autres .corps { padding:0 16px 16px; }
+    .moyen { margin-top:12px; padding:14px; border-radius:14px; background:var(--card, rgba(255,255,255,.05)); border:1px solid var(--border, rgba(255,255,255,.08)); }
+    .moyen .m-nom { font-weight:800; font-size:14px; }
+    .moyen .m-num { font-size:22px; font-weight:800; letter-spacing:.5px; margin:6px 0 2px; font-variant-numeric:tabular-nums; }
+    .moyen .m-montant { font-size:13px; color:var(--muted); margin-bottom:10px; }
+    .moyen .m-montant strong { color:var(--txt, var(--text)); }
+    .moyen button.m-btn, .moyen a.m-btn { display:flex; align-items:center; justify-content:center; width:100%; margin-top:8px; padding:12px; border-radius:12px; border:1px solid var(--border-2, rgba(255,255,255,.2)); background:transparent; color:var(--txt, var(--text)); font-size:14px; font-weight:600; cursor:pointer; text-decoration:none; font-family:inherit; }
+    .moyen a.m-btn.plein { background:var(--accent); border-color:var(--accent); color:var(--on-accent, #0d0f0c); font-weight:800; }
+    .autres .m-note { font-size:12px; color:var(--muted); margin-top:12px; line-height:1.6; }
+
     /* Aide « Wave ne s'ouvre pas ? » */
     .lien-aide { display:block; margin:14px auto 0; background:none; border:none; color:var(--accent); font-size:13px; font-weight:600; text-decoration:underline; cursor:pointer; font-family:inherit; }
     .aide-wave { margin-top:14px; padding:16px; border-radius:16px; background:var(--card2, rgba(255,255,255,.05)); border:1px solid var(--border-2, rgba(255,255,255,.15)); font-size:13px; line-height:1.6; }
@@ -510,6 +526,14 @@
 
     <div class="trust">🔒 Paiement sécurisé et crypté</div>
 
+    <details class="autres" id="autresPaiements">
+      <summary>💳 Payer autrement (Orange Money, Moov Money)</summary>
+      <div class="corps">
+        <div id="listeMoyens"></div>
+        <div class="m-note">Après l'envoi, garde le message de confirmation et touche « J'ai payé » : tu nous écris sur WhatsApp et nous confirmons ton paiement.</div>
+      </div>
+    </details>
+
     <button type="button" class="lien-aide" id="btnAideWave">Wave ne s'ouvre pas ? Besoin d'aide</button>
     <div class="aide-wave" id="aideWave" style="display:none">
       <div class="aide-titre">📲 Pas de panique, voici comment faire</div>
@@ -522,6 +546,7 @@
         <li>Wave s'ouvre avec le montant, valide avec ton code PIN.</li>
         <li>Une difficulté ? Écris-nous, on t'aide tout de suite.</li>
       </ol>
+      <button type="button" class="aide-btn" id="btnVersAutres">📱 Payer avec Orange Money ou Moov Money</button>
       <a class="aide-btn" id="btnAideWa" href="https://wa.me/2250170998964" target="_blank" rel="noopener">💬 Écrire à Henzo Studio sur WhatsApp</a>
     </div>
   </div>
@@ -540,6 +565,16 @@
   const SUPABASE_URL = 'https://lzxvktkryxizclkdetaa.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6eHZrdGtyeXhpemNsa2RldGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMzM5MTEsImV4cCI6MjEwNDkwOTkxMX0.w3jWwb5Lrc0-1sQsltunWh_Lanx3jdYSwwZYen-ux8A';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  // ============================================================
+  // AUTRES MOYENS DE PAIEMENT : à modifier ici (numéro, nom affiché, message)
+  // Pour en ajouter un : copier une ligne. Pour en retirer un : supprimer sa ligne.
+  // ============================================================
+  const NUMERO_WHATSAPP = '2250170998964';
+  const AUTRES_MOYENS = [
+    { id: 'orange', nom: 'Orange Money', numero: '07 88 39 55 85', nomAffiche: '' },
+    { id: 'moov',   nom: 'Moov Money',   numero: '01 70 99 89 64', nomAffiche: '' }
+  ];
+
   // Données de l'aide « Wave ne s'ouvre pas ? » (définies avant l'affichage de la page)
   const aideEtat = { lien: '', montant: 0, ref: '' };
 
@@ -678,6 +713,8 @@
       totalEl.textContent = '';
     }
 
+    afficherAutresMoyens(info);
+
     // Bouton Wave
     const btnWave = document.getElementById('btnWave');
     if(btnWave && info.waveLink) {
@@ -718,6 +755,36 @@
     try { document.execCommand('copy'); } catch(e) {}
     document.body.removeChild(ta); ok();
   }
+  function afficherAutresMoyens(info) {
+    const zone = document.getElementById('listeMoyens'); if(!zone) return;
+    const montantTxt = new Intl.NumberFormat('fr-FR').format(info.amount) + ' FCFA';
+    zone.innerHTML = '';
+    AUTRES_MOYENS.forEach(function(m) {
+      const bloc = document.createElement('div'); bloc.className = 'moyen';
+      const nom = document.createElement('div'); nom.className = 'm-nom'; nom.textContent = m.nom;
+      const num = document.createElement('div'); num.className = 'm-num'; num.textContent = m.numero;
+      const mont = document.createElement('div'); mont.className = 'm-montant';
+      mont.innerHTML = 'Envoie exactement <strong></strong>' + (m.nomAffiche ? ' à <strong></strong>' : '');
+      mont.querySelectorAll('strong')[0].textContent = montantTxt;
+      if(m.nomAffiche) mont.querySelectorAll('strong')[1].textContent = m.nomAffiche;
+      const copier1 = document.createElement('button'); copier1.type = 'button'; copier1.className = 'm-btn'; copier1.textContent = '📋 Copier le numéro';
+      copier1.addEventListener('click', function(){ copierDirect(m.numero.replace(/\s+/g, ''), copier1, '✓ Numéro copié'); });
+      const copier2 = document.createElement('button'); copier2.type = 'button'; copier2.className = 'm-btn'; copier2.textContent = '📋 Copier le montant';
+      copier2.addEventListener('click', function(){ copierDirect(String(Math.round(info.amount)), copier2, '✓ Montant copié'); });
+      const paye = document.createElement('a'); paye.className = 'm-btn plein'; paye.target = '_blank'; paye.rel = 'noopener';
+      paye.textContent = '✅ J\'ai payé avec ' + m.nom;
+      paye.href = 'https://wa.me/' + NUMERO_WHATSAPP + '?text=' + encodeURIComponent('Bonjour, j\'ai payé ' + montantTxt + ' par ' + m.nom + ' (réf. ' + info.ref + ', ' + info.clientName + '). Voici ma preuve de paiement.');
+      bloc.appendChild(nom); bloc.appendChild(num); bloc.appendChild(mont);
+      bloc.appendChild(copier1); bloc.appendChild(copier2); bloc.appendChild(paye);
+      zone.appendChild(bloc);
+    });
+  }
+  function copierDirect(texte, bouton, message) {
+    const avant = bouton.textContent;
+    const fini = function(){ bouton.textContent = message; setTimeout(function(){ bouton.textContent = avant; }, 2200); };
+    try { if(navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(texte).then(fini, function(){ copierSecours(texte, fini); }); return; } } catch(e) {}
+    copierSecours(texte, fini);
+  }
   function ouvrirAideWave() {
     const bloc = document.getElementById('aideWave');
     if(bloc) bloc.style.display = 'block';
@@ -729,6 +796,7 @@
     const chromeNatif = /Chrome\//i.test(ua) && !/; wv\)|Version\/\d+\.\d+ Chrome|OPR\/|SamsungBrowser|MiuiBrowser|UCBrowser|EdgA|FBAN|FBAV|Instagram|WhatsApp/i.test(ua);
     const bouton = (id, fn) => { const e = document.getElementById(id); if(e) e.addEventListener('click', fn); };
     bouton('btnAideWave', ouvrirAideWave);
+    bouton('btnVersAutres', function(){ const d = document.getElementById('autresPaiements'); if(d){ d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'center' }); } });
     bouton('btnCopierLien', () => copier(aideEtat.lien, 'Lien Wave copié ✓'));
     bouton('btnCopierMontant', () => copier(String(Math.round(aideEtat.montant)), 'Montant copié ✓'));
     bouton('btnChromeAide', () => ouvrirDansNavigateur());
