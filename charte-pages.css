@@ -6,33 +6,33 @@
    priorité car elles sont posées directement sur <html>.
    ============================================================ */
 :root{
-  --bg:#0d0f0c;--bg-2:#12150f;--card:#161913;--card2:#1d2118;--card3:#262a1f;
-  --text:#f4f2ec;--txt:#f4f2ec;--muted:#a8ab9d;
-  --accent:#8a9a5b;--accent-2:#a3b273;--accent-dk:#4f5a35;
+  --bg:#0a0a09;--bg-2:#121311;--card:#121311;--card2:#191a17;--card3:#1f201c;
+  --text:#f2f2ee;--txt:#f2f2ee;--muted:#8f918a;
+  --accent:#a9b893;--accent-2:#a9b893;--accent-dk:#4f5c44;
   --light:#c5cd9f;--deep:#4f5a35;--forest:#2b3320;
   --green:#7fbf8a;--red:#e07a6b;--gold:#c9b37e;--gold-soft:#dccb9d;
-  --border:#2a2d23;--border-2:#383c2d;--line:#2a2d23;
-  --on-accent:#0d0f0c;--pri-bg:#8a9a5b;--pri-fg:#0d0f0c;
+  --border:rgba(255,255,255,.08);--border-2:rgba(255,255,255,.15);--line:rgba(255,255,255,.08);
+  --on-accent:#0a0a09;--pri-bg:#f2f2ee;--pri-fg:#0a0a09;
   --pink:#a3b273;
-  --font-display:Fraunces,Georgia,serif;
+  --font-display:Montserrat,Arial,sans-serif;
 }
 [data-clair="1"]{
-  --bg:#faf9f6;--bg-2:#f5f3ee;--card:#f1efe9;--card2:#eae7df;--card3:#e2e0d6;
-  --text:#13150f;--txt:#13150f;--muted:#5c5f54;
-  --accent:#5f6e3a;--accent-2:#748549;--accent-dk:#4a572c;
+  --bg:#fafaf8;--bg-2:#f3f4f0;--card:#ffffff;--card2:#f3f4f0;--card3:#e9eae4;
+  --text:#0d0e0c;--txt:#0d0e0c;--muted:#63665f;
+  --accent:#4f5c44;--accent-2:#4f5c44;--accent-dk:#3f4a36;
   --light:#5f6e3a;--deep:#5f6e3a;--forest:#4a572c;
   --green:#3f7d4f;--red:#b5483c;--gold:#a68a4f;--gold-soft:#c9b37e;
-  --border:#e2e0d6;--border-2:#d3d0c3;--line:#e2e0d6;
-  --on-accent:#faf9f6;--pri-bg:#5f6e3a;--pri-fg:#faf9f6;
+  --border:rgba(0,0,0,.08);--border-2:rgba(0,0,0,.16);--line:rgba(0,0,0,.08);
+  --on-accent:#fafaf8;--pri-bg:#0d0e0c;--pri-fg:#fafaf8;
   --pink:#748549;
 }
 body{
-  font-family:Inter,system-ui,sans-serif;
-  background:radial-gradient(900px 500px at 110% -10%,color-mix(in srgb,var(--accent) 12%,transparent),transparent 60%),var(--bg);
+  font-family:Montserrat,Arial,sans-serif;font-size:15px;-webkit-font-smoothing:antialiased;
+  background:radial-gradient(90% 60% at 50% 0%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 62%),var(--bg);
   color:var(--text);
 }
 /* Titres : Fraunces */
-h1,h2,.brand h1,.rdv h2,.sum .t b,.client-name,.amount,.promo .v{font-family:var(--font-display);font-weight:600;letter-spacing:-.2px}
+h1,h2,.brand h1,.rdv h2,.sum .t b,.client-name,.amount,.promo .v{font-family:var(--font-display);font-weight:400;letter-spacing:-.035em}
 h1{background:none;-webkit-text-fill-color:var(--text);color:var(--text)}
 /* Logo officiel : version claire sur fond sombre, sombre sur fond clair */
 .brand{text-align:center;opacity:1;letter-spacing:0;text-transform:none}
@@ -49,3 +49,13 @@ h1{background:none;-webkit-text-fill-color:var(--text);color:var(--text)}
 /* Réservation : contenu aligné à gauche, le logo aussi (le bouton "Comment faire" reste libre à droite) */
 .wrap .brand{text-align:left}
 .wrap .brand img{margin-left:0;width:150px}
+
+/* ===== Même habillage que henzostudio.com : Montserrat, boutons pilule, cartes arrondies ===== */
+button,input,select,textarea{font-family:Montserrat,Arial,sans-serif}
+.btn,.btn2,button.btn,a.btn{border-radius:999px !important;font-weight:500;letter-spacing:0;box-shadow:none}
+.btn:not(.ghost):not(.sec):not(.dis):not(:disabled){background:var(--pri-bg);color:var(--pri-fg);border:1px solid var(--pri-bg)}
+.btn.ghost,.btn.sec,.btn2{background:transparent;color:var(--text);border:1px solid var(--border-2)}
+.btn.ghost:hover,.btn.sec:hover,.btn2:hover{border-color:var(--text)}
+.card,.box,.sum,.rdv,.promo{border-radius:22px}
+input,select,textarea{border-radius:14px}
+::selection{background:var(--accent);color:var(--on-accent)}
