@@ -25,6 +25,7 @@ const E = s => (typeof coE === 'function' ? coE(s) : String(s == null ? '' : s).
 const aujourdhui = d => (typeof coToday === 'function' ? coToday(d) : new Date().toISOString().slice(0, 10));
 const decaler = (iso, n) => aujourdhui(new Date(new Date(iso + 'T12:00:00').getTime() + n * 864e5));
 const enMin = h => { const m = /^(\d{1,2}):(\d{2})$/.exec(h || ''); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+const heureFin = n => n >= 1440 ? 'minuit' : enHeure(n);
 const enHeure = n => { n = Math.max(0, Math.min(1439, Math.round(n))); return String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0'); };
 const duree = m => m >= 60 ? Math.floor(m / 60) + ' h' + (m % 60 ? String(m % 60).padStart(2, '0') : '') : m + ' min';
 const maintenantMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
@@ -167,7 +168,16 @@ window.jrEditer = function(id){ JR.edit = JR.edit === id ? null : id; JR.ajout =
 window.jrEnregistrer = async function(iso, id){
   const g = k => (document.getElementById(k) || {}).value;
   const t = String(g('jrNouv') || '').trim(); if(!t){ coToast && coToast('Écris la tâche', 'error'); return; }
-  const min = Math.max(5, Math.min(600, Number(g('jrDuree')) || 30)), debut = g('jrDebut') || '';
+  const libre = (document.getElementById('jrLibre') || {}).checked;
+  let debut = '', min;
+  if(libre){ min = Number(g('jrDuree')) || 60; }
+  else {
+    const d = enMin(g('jrDebut')); let f = enMin(g('jrFin'));
+    if(d == null || f == null){ coToast && coToast('Choisis l\'heure de début et l\'heure de fin', 'error'); return; }
+    if(f === 0) f = 1440;
+    if(f <= d){ coToast && coToast('La fin doit être après le début (pour finir à minuit, mets 00:00)', 'error'); return; }
+    debut = enHeure(d); min = f - d;
+  }
   const rep = (document.getElementById('jrRep') || {}).checked;
   const j = jour(iso);
   let x = id ? j.taches.find(a => a.id === id) : null;
@@ -179,6 +189,14 @@ window.jrEnregistrer = async function(iso, id){
     JR.data.routines.push(r); x.routine = r.id;
   }
   trier(j); JR.ajout = false; JR.edit = null; sauver(); await synchroRappels(iso); jrR();
+};
+window.jrFormMaj = function(){
+  const g = k => (document.getElementById(k) || {}).value;
+  const libre = (document.getElementById('jrLibre') || {}).checked;
+  const h = document.getElementById('jrHoraire'), l = document.getElementById('jrLibreBox'); if(h) h.style.display = libre ? 'none' : ''; if(l) l.style.display = libre ? '' : 'none';
+  const o = document.getElementById('jrCalc'); if(!o) return;
+  const d = enMin(g('jrDebut')); let f = enMin(g('jrFin')); if(f === 0) f = 1440;
+  o.textContent = !libre && d != null && f != null && f > d ? 'Ça fait ' + duree(f - d) : '';
 };
 window.jrDeplacer = function(iso, id, sens){
   const j = jour(iso), l = j.taches, i = l.findIndex(t => t.id === id), k = i + sens; if(i < 0 || k < 0 || k >= l.length) return;
@@ -258,17 +276,28 @@ window.jrAnnulerPlan = function(){ JR.plan = null; JR.chat = []; jrR(); };
 // ---------- Affichage ----------
 function formTache(iso, x){
   const id = x ? `'${x.id}'` : "''";
+  const sansHeure = x && !x.debut;
+  const dMin = x && enMin(x.debut) != null ? enMin(x.debut) : null;
+  const debutV = dMin != null ? x.debut : '', finV = dMin != null ? (dMin + Number(x.min || 30) >= 1440 ? '00:00' : enHeure(dMin + Number(x.min || 30))) : '';
+  const durees = [[15, '15 min'], [30, '30 min'], [60, '1 h'], [90, '1 h 30'], [120, '2 h'], [180, '3 h'], [240, '4 h'], [360, '6 h']];
+  const dv = x ? Number(x.min) : 60;
   return `<div class="jr-form">
     <input id="jrNouv" placeholder="Ex : Retoucher les photos de Destinée" value="${E(x ? x.t : '')}">
-    <div class="jr-2"><label>Durée (minutes)<input id="jrDuree" type="number" min="5" step="5" value="${x ? x.min : 60}"></label>
-      <label>Heure de début<input id="jrDebut" type="time" value="${E(x ? x.debut : '')}"></label></div>
+    <div id="jrHoraire" style="${sansHeure ? 'display:none' : ''}">
+      <div class="jr-2"><label>De<input id="jrDebut" type="time" value="${E(debutV)}" oninput="jrFormMaj()" onchange="jrFormMaj()"></label>
+        <label>À<input id="jrFin" type="time" value="${E(finV)}" oninput="jrFormMaj()" onchange="jrFormMaj()"></label></div>
+      <small class="jr-hint" id="jrCalc"></small>
+      <small class="jr-hint">Exemples : de 14:00 à 00:00 (minuit), de 18:00 à 20:00.</small>
+    </div>
+    <label class="ag-check"><input type="checkbox" id="jrLibre" ${sansHeure ? 'checked' : ''} onchange="jrFormMaj()"> Je ne sais pas l'heure : le patron la place</label>
+    <div id="jrLibreBox" style="${sansHeure ? '' : 'display:none'}"><label>Combien de temps ?<select id="jrDuree">${durees.map(([m, l]) => `<option value="${m}" ${m === dv ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
     <label class="ag-check"><input type="checkbox" id="jrRep"> Se répète chaque jour de travail (routine)</label>
     <div class="jr-act"><button class="btn-primary" onclick="jrEnregistrer('${iso}',${id})">Enregistrer</button><button class="btn-ghost" onclick="${x ? `jrEditer('${x.id}')` : 'jrAjouterForm()'}">Annuler</button></div>
   </div>`;
 }
 function ligne(iso, x, maintenant){
-  const fin = enMin(x.debut) != null ? enHeure(enMin(x.debut) + Number(x.min || 30)) : '';
-  const retard = !x.fait && iso === aujourdhui() && fin && enMin(fin) < maintenantMin();
+  const finMin = enMin(x.debut) != null ? enMin(x.debut) + Number(x.min || 30) : null, fin = finMin != null ? heureFin(finMin) : '';
+  const retard = !x.fait && iso === aujourdhui() && finMin != null && finMin < maintenantMin();
   const encours = maintenant && maintenant.id === x.id;
   return `<div class="jr-l ${x.fait ? 'ok' : ''} ${encours ? 'now' : ''} ${retard ? 'late' : ''}">
     <button class="jr-ck" onclick="jrFait('${iso}','${x.id}')" aria-label="Fait">${x.fait ? '✓' : ''}</button>
@@ -310,11 +339,16 @@ function renderJournee(v){
       ${total ? `<div class="jr-pct" style="--p:${pct}"><b>${pct}%</b></div>` : ''}</div>
     ${fixes.length ? `<div class="jr-seance">${fixes.map(f => `📷 ${enHeure(f.debut)}-${enHeure(f.fin)} ${E(f.titre)}`).join('<br>')}</div>` : ''}
     ${maintenant ? `<div class="jr-now"><small>${estAuj ? 'MAINTENANT' : 'PREMIÈRE TÂCHE'}</small><h3>${E(maintenant.t)}</h3>
-      <p>${maintenant.debut ? `${E(maintenant.debut)} → ${enHeure(enMin(maintenant.debut) + (Number(maintenant.min) || 30))} · ` : ''}${duree(Number(maintenant.min) || 30)}</p>
+      <p>${maintenant.debut ? `${E(maintenant.debut)} → ${heureFin(enMin(maintenant.debut) + (Number(maintenant.min) || 30))} · ` : ''}${duree(Number(maintenant.min) || 30)}</p>
       <div class="jr-act"><button class="btn-primary" onclick="jrFait('${iso}','${maintenant.id}')">C'est fait</button>${estAuj ? `<button class="btn-ghost" onclick="jrDecaler('${iso}')">Je suis en retard : décaler la suite</button>` : ''}</div>
       ${suivante ? `<div class="jr-next">Ensuite : <b>${E(suivante.t)}</b>${suivante.debut ? ' à ' + E(suivante.debut) : ''}</div>` : '<div class="jr-next">C\'est la dernière.</div>'}
       <div class="jr-regle">Une seule chose à la fois. Ne touche à rien d'autre avant d'avoir coché.</div></div>`
       : total && !reste.length ? `<div class="jr-now fin"><h3>Journée terminée</h3><p>Tout est coché. Prépare demain pendant que tu as les idées claires.</p></div>` : ''}
+    ${!total ? `<div class="jr-card jr-aide"><h3>Comment ça marche</h3><ol>
+      <li><b>+ Tâche</b> : écris ce que tu dois faire et choisis l'heure, par exemple de 14:00 à 18:00. Tu es alerté à 14:00.</li>
+      <li>Le jour J, l'écran te montre <b>une seule tâche</b> : celle de maintenant. Tu ne regardes que celle-là.</li>
+      <li>Quand c'est fini, tu coches « C'est fait ». En retard ? « Décaler la suite » refait les heures.</li>
+      <li>Les idées pas claires ? <b>Demander au patron</b> : il te pose des questions et fait le planning avec toi.</li></ol></div>` : ''}
     <div class="jr-barre"><button class="btn-primary" onclick="jrAjouterForm()">+ Tâche</button><button class="btn-secondary" onclick="jrPatronVoir()">Demander au patron</button>${reste.some(t => !t.debut) || reste.length > 1 ? `<button class="btn-ghost" onclick="jrRanger('${iso}')">Ranger mes heures</button>` : ''}</div>
     ${JR.ajout ? formTache(iso, null) : ''}
     ${blocPatron()}
@@ -400,6 +434,7 @@ setTimeout(() => { charger().then(() => { const iso = aujourdhui(); if(JR.data.j
 .jr-say{display:flex;gap:8px;align-items:flex-end;margin-top:8px}.jr-say textarea{margin:0;flex:1}.jr-say button{margin:0;width:auto}
 .jr-plan{margin-top:8px}.jr-plan h4{margin:0 0 6px}.jr-pj{margin-bottom:10px}.jr-pj b{display:block;text-transform:capitalize;font-size:13px;color:var(--text);margin-bottom:4px}
 .jr-pi{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13.5px;color:var(--text)}.jr-pi span{flex:none;width:48px;color:var(--accent);font-weight:700}.jr-pi small{display:block;color:var(--muted);font-size:11.5px}
+.jr-aide ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:13.5px;color:var(--text);line-height:1.4}
 .jr-hint{display:block;color:var(--muted);font-size:11.5px;margin-top:6px}
 .jr-rt{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;font-size:13px;color:var(--text)}.jr-rt button{margin:0;width:auto;padding:4px 10px;font-size:12px}
 `;
