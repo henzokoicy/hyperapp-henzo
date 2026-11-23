@@ -42,7 +42,7 @@ security definer
 set search_path = public
 as $$
   select row_to_json(t) from (
-    select id, amount, total_amount, description, client_name, payment_type, wave_link
+    select id, amount, total_amount, description, client_name, payment_type, wave_link, payment_method
     from public.payment_links
     where id = p_id
       and lower(coalesce(p_code, '')) = substr(md5(p_id::text || (select secret from public.lien_secret where id = 1)), 1, 8)
