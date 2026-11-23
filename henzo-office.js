@@ -22,7 +22,7 @@
     const st = document.createElement('style'); st.id = 'hoStyle';
     st.textContent = `
       .ho-doc{align-self:stretch;width:100%;max-width:860px;margin:0 auto;background:#fff;color:#1b1b1f;border-radius:10px;padding:28px 30px;overflow:auto;text-align:left;font:16px/1.55 Georgia,'Times New Roman',serif;box-sizing:border-box}
-      .ho-doc h1,.ho-doc h2,.ho-doc h3,.ho-doc h4{font-family:system-ui,sans-serif;line-height:1.25;margin:1.1em 0 .4em}
+      .ho-doc h1,.ho-doc h2,.ho-doc h3,.ho-doc h4{font-family:"Libre Franklin",Arial,sans-serif;line-height:1.25;margin:1.1em 0 .4em}
       .ho-doc p{margin:.6em 0}.ho-doc img{max-width:100%;height:auto}.ho-doc a{color:#1a5fd0}
       .ho-doc table{border-collapse:collapse;margin:.8em 0;max-width:100%}.ho-doc td,.ho-doc th{border:1px solid #bbb;padding:5px 9px;vertical-align:top}
       .ho-xls{align-self:stretch;width:100%;display:flex;flex-direction:column;min-height:0;text-align:left}

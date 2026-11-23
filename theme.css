@@ -8,7 +8,6 @@
 /* ---------- THEMES (choisis par l'utilisateur) ---------- */
 /* Dégradé lumineux (barres de progression...) : par défaut les couleurs du thème */
 :root{ --grad-a:var(--accent-2); --grad-b:var(--accent); }
-[data-theme="neon"]{ --grad-a:#c8ff5c; --grad-b:#5ef2d6; }
 :root{
   --surface-100:#0d0f0c; --surface-200:#161913; --ink:#f4f2ec; --ink-muted:#a8ab9d;
   --brand-green:#8a9a5b; --brand-green-dim:#4f5a35; --line:#2a2d23; --gold-accent:#c9b37e;
@@ -22,17 +21,6 @@
   --on-accent:#0d0f0c; --pri-bg:#8a9a5b; --pri-fg:#0d0f0c; --nav-bg:rgba(13,15,12,.95); --head-bg:rgba(13,15,12,.86);
   --pink:#a3b273; --wave:#8a9a5b; --shadow-glow:none; --grad-a:#a3b273; --grad-b:#8a9a5b;
 }
-[data-theme="aurora"]{
-  --bg:#030b0a; --bg-2:#061412; --card:#0a1c1a; --card2:#0f2523; --card3:#143230;
-  --text:#ffffff; --text-2:#d7efeb; --muted:#8fb3ad;
-  --accent:#48A89A; --accent-2:#6cc7b8; --accent-dk:#00524D;
-  --light:#CBEFEB; --deep:#00524D; --forest:#053931;
-  --green:#6fe0c7; --red:#ff7b7b; --yellow:#f5c542;
-  --border:rgba(203,239,235,.07); --border-2:rgba(203,239,235,.13);
-  --hero-1:#00524D; --hero-2:#053931; --hero-3:#021614; --hero-border:#1d4d48; --glow:#3ff0cf;
-  --pri-bg:#ffffff; --pri-fg:#00524D; --nav-bg:rgba(6,20,18,.94); --head-bg:rgba(3,11,10,.82);
-  --shadow-glow:0 8px 32px color-mix(in srgb,var(--accent) 25%,transparent);
-}
 [data-theme="graphite"]{
   --bg:#141414; --bg-2:#1a1a1a; --card:#202020; --card2:#262626; --card3:#2e2e2e;
   --text:#ffffff; --text-2:#dcdcdc; --muted:#8e8e8e;
@@ -42,39 +30,6 @@
   --border:rgba(255,255,255,.07); --border-2:rgba(255,255,255,.11);
   --hero-1:#2c2c2c; --hero-2:#1f1f1f; --hero-3:#171717; --hero-border:#333; --glow:#b6f23a;
   --pri-bg:#b6f23a; --pri-fg:#141414; --nav-bg:rgba(26,26,26,.96); --head-bg:rgba(20,20,20,.88);
-  --shadow-glow:none;
-}
-[data-theme="minuit"]{
-  --bg:#070a14; --bg-2:#0b1020; --card:#0f1424; --card2:#141a2e; --card3:#1b2340;
-  --text:#ffffff; --text-2:#d6ddf5; --muted:#8a93b3;
-  --accent:#6b8eff; --accent-2:#8ba5ff; --accent-dk:#3d5bd1;
-  --light:#c9d4ff; --deep:#1d2a5c; --forest:#121a3a;
-  --green:#5fe0b0; --red:#ff7b7b; --yellow:#f5c542;
-  --border:rgba(201,212,255,.07); --border-2:rgba(201,212,255,.13);
-  --hero-1:#24357a; --hero-2:#141f4a; --hero-3:#0a0f24; --hero-border:#26346b; --glow:#7f9cff;
-  --pri-bg:#ffffff; --pri-fg:#1d2a5c; --nav-bg:rgba(11,16,32,.95); --head-bg:rgba(7,10,20,.85);
-  --shadow-glow:none;
-}
-[data-theme="or"]{
-  --bg:#0b0a08; --bg-2:#110f0c; --card:#15130f; --card2:#1c1914; --card3:#25211a;
-  --text:#ffffff; --text-2:#eee3cc; --muted:#a39b8a;
-  --accent:#d4a64a; --accent-2:#e3bd6c; --accent-dk:#8a6a25;
-  --light:#f1dfb4; --deep:#3a2c12; --forest:#211a0c;
-  --green:#8fd6a0; --red:#ff7b7b; --yellow:#f5c542;
-  --border:rgba(241,223,180,.07); --border-2:rgba(241,223,180,.13);
-  --hero-1:#4a3714; --hero-2:#251c0b; --hero-3:#110d06; --hero-border:#4a3a1c; --glow:#f5c542;
-  --pri-bg:#d4a64a; --pri-fg:#15110a; --nav-bg:rgba(17,15,12,.95); --head-bg:rgba(11,10,8,.85);
-  --shadow-glow:none;
-}
-[data-theme="ivoire"]{
-  --bg:#f4f2ee; --bg-2:#ecE9e3; --card:#ffffff; --card2:#f6f4f0; --card3:#ebe7df;
-  --text:#1b1b1b; --text-2:#3a3a3a; --muted:#77736b;
-  --accent:#1f6f63; --accent-2:#2c8a7c; --accent-dk:#14514a;
-  --light:#1f6f63; --deep:#1f6f63; --forest:#14514a;
-  --green:#1f8a5b; --red:#c94848; --yellow:#b9861d;
-  --border:rgba(0,0,0,.07); --border-2:rgba(0,0,0,.12);
-  --hero-1:#1f6f63; --hero-2:#14514a; --hero-3:#0d3a35; --hero-border:#1f6f63; --glow:#7fe0cf;
-  --pri-bg:#1b1b1b; --pri-fg:#ffffff; --nav-bg:rgba(255,255,255,.96); --head-bg:rgba(244,242,238,.9);
   --shadow-glow:none;
 }
 
@@ -849,7 +804,7 @@ body:has(.ot-selbar):has(.ot-bas.show) #otTop{bottom:calc(264px + env(safe-area-
   --yellow:var(--text-2);
   --gold:var(--accent); --gold-soft:var(--light);
 }
-[data-theme="henzo-clair"],[data-theme="ivoire"]{ --premium:#a68a4f; --premium-soft:#c9b37e; }
+[data-theme="henzo-clair"]{ --premium:#a68a4f; --premium-soft:#c9b37e; }
 /* Mentions premium : seul endroit où l'or est utilisé */
 .tag.tag-premium,.badge-premium{color:var(--premium);background:color-mix(in srgb,var(--premium) 14%,transparent);border:1px solid color-mix(in srgb,var(--premium) 40%,transparent)}
 
@@ -860,4 +815,4 @@ body:has(.ot-selbar):has(.ot-bas.show) #otTop{bottom:calc(264px + env(safe-area-
    chart-1 = série principale, chart-2 = seconde, chart-3/4 = suivantes ;
    chart-4 est faible en contraste : toujours avec étiquette. */
 :root,[data-theme]{ --chart-1:#aec3b0; --chart-2:#6b9071; --chart-3:#e3eed4; --chart-4:#375534; }
-[data-theme="henzo-clair"],[data-theme="ivoire"]{ --chart-1:#375534; --chart-2:#6b9071; --chart-3:#0f2a1d; --chart-4:#aec3b0; }
+[data-theme="henzo-clair"]{ --chart-1:#375534; --chart-2:#6b9071; --chart-3:#0f2a1d; --chart-4:#aec3b0; }

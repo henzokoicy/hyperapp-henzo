@@ -837,6 +837,7 @@ function exBilanPdf(){
   const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
   const lines = exBilanText(b).split('\n');
   let y = 18;
+  if(window.hzPdf){ const hl = window.hzPdf.logo(doc, 15, 12, 38); if(hl) y = 12 + hl + 10; }
   doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text(lines.shift(), 15, y); y += 10;
   doc.setFontSize(11);
   lines.forEach(l => {
