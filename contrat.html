@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Contrat - Henzo Photographie</title>
+<title>Contrat - Henzo Studio</title>
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#faf9f6">
 <link rel="icon" href="icon-192.png">
 <link href="polices/polices.css?v=2" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="contrat-commun.js?v=2"></script>
+<script src="contrat-commun.js?v=3"></script>
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,system-ui,sans-serif;background:#f4f2ec;color:#0d0f0c;padding:16px 12px 40px}
@@ -50,7 +50,7 @@ async function init(){
     C = r && r.data;
   } catch(e){ C = null; }
   if(!C){ app.innerHTML = '<div class="vide">Ce contrat n\'est pas disponible. Demandez un nouveau lien à votre photographe.</div>'; return; }
-  document.title = C.titre + ' - ' + (C.marque || 'Henzo Photographie');
+  document.title = C.titre + ' - ' + (C.marque || 'Henzo Studio');
   rendre();
 }
 function rendre(){

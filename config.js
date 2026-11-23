@@ -10,11 +10,11 @@
 // ============================================================
 // Utilisé pour personnaliser l'app et les liens de partage
 const BRAND = {
-  name:     "HENZO PHOTOGRAPHIE",
+  name:     "HENZO STUDIO",
   owner:    "Henzo Koicy",
-  tagline:  "Photographe professionnel",
+  tagline:  "Studio photo & vidéo",
   city:     "Abidjan / Bouaké",
-  email:    "henzophotographie@gmail.com",
+  email:    "contact@henzostudio.com",
   whatsapp: "2250170998964",           // format international sans +
   waveId:   "M_ci_gF0f5OK6l1I2",        // ton ID Wave Marchand
   waveName: "HENZO PHOTOGRAPHIE"

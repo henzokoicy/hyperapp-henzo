@@ -145,7 +145,7 @@ function pxOpen(u){ if(!pxNeedPage()) window.open(u, '_blank'); }
 function pxCopyLink(cid){ if(pxNeedPage()) return; crmCopy(cid ? pxColLink(pxCol(cid)) : pxLink()); }
 function pxWa(cid){
   if(pxNeedPage()) return;
-  const c = cid ? pxCol(cid) : null, m = (PX.page && PX.page.marque) || 'Henzo Photographie';
+  const c = cid ? pxCol(cid) : null, m = (PX.page && PX.page.marque) || 'Henzo Studio';
   const txt = c ? `Bonjour ! Voici mes tarifs "${c.nom}". Vous pouvez choisir votre pack et réserver directement ici :\n${pxColLink(c)}\n\n${m}`
     : `Bonjour ! Voici tous mes tarifs, vous pouvez choisir votre formule directement ici :\n${pxLink()}\n\n${m}`;
   window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank');
@@ -1075,10 +1075,10 @@ function pxRenderPartage(el){
     ${pxRdvHtml()}
     <div class="ag-sec"><h3>Ma page</h3></div>
     <div class="ag-list" style="padding:4px 16px 14px">
-      <label>Marque</label><input id="pxMarque" value="${agEsc(p.marque || 'Henzo Photographie')}">
+      <label>Marque</label><input id="pxMarque" value="${agEsc(p.marque || 'Henzo Studio')}">
       <label>Slogan</label><input id="pxSlogan" value="${agEsc(p.slogan || '')}" placeholder="Ex : Sublimer chaque instant de vie">
       <label>Adresse du lien</label><div class="px-slug"><span>.../tarifs.html?s=</span><input id="pxSlug" value="${agEsc(p.slug || 'henzo')}"></div>
-      <label>Titre de la page</label><input id="pxTitle" value="${agEsc(p.title || 'Henzo Photographie - Tarifs')}">
+      <label>Titre de la page</label><input id="pxTitle" value="${agEsc(p.title || 'Henzo Studio - Tarifs')}">
       <label>Numéro WhatsApp pour réserver</label><input id="pxPhone" type="tel" value="${agEsc(p.phone || (typeof BRAND !== 'undefined' ? BRAND.whatsapp : ''))}">
       <label>Instagram</label><input id="pxInsta" value="${agEsc(p.instagram || '')}" placeholder="Ex : @henzophotographie">
       <label>Adresse du studio</label><input id="pxAdr" value="${agEsc(p.adresse || '')}" placeholder="Ex : Ahougnansou, en face du Restaurant Le Rosier, Bouaké">

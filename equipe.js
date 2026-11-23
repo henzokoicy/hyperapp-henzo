@@ -1026,7 +1026,7 @@ function eqPortMsg(c){
   const v = eqVoir(c), url = eqPortUrl(c);
   const l = [v.seances && 'tes séances avec l\'heure, le lieu et mes consignes', v.taches && 'tes tâches à cocher', v.notes && 'tes notes', v.paiements && 'tes paiements',
     v.promo && 'ton lien pour me ramener des clients (avec un bonus pour toi)', v.defis && 'les défis du mois'].filter(Boolean);
-  return `Bonjour ${eqFirst(c)} ! Voici ton espace personnel Henzo Photographie :\n${url}\n\n${l.length ? 'Tu y trouveras :\n' + l.map(x => '- ' + x).join('\n') + '\n\n' : ''}Pense à confirmer ta présence avant chaque séance. Ce lien est personnel : ne le partage pas. Garde-le dans tes favoris.`;
+  return `Bonjour ${eqFirst(c)} ! Voici ton espace personnel Henzo Studio :\n${url}\n\n${l.length ? 'Tu y trouveras :\n' + l.map(x => '- ' + x).join('\n') + '\n\n' : ''}Pense à confirmer ta présence avant chaque séance. Ce lien est personnel : ne le partage pas. Garde-le dans tes favoris.`;
 }
 function eqPortWa(id){ const c = eqPerson(id); if(c) crmWa(id, eqPortMsg(c)); }
 async function eqConsAllSave(id){
@@ -1203,7 +1203,7 @@ async function eqDefiValider(sid, ok){
 }
 function eqDefiPartager(id){
   const d = EQ.defis.find(x => x.id === Number(id)); if(!d) return;
-  const t = `Défi du mois Henzo Photographie : ${d.titre}\n${d.detail ? d.detail + '\n' : ''}Objectif : ${Number(d.objectif) || 1}${d.fin ? ', avant le ' + eqDate(d.fin, { day: 'numeric', month: 'long' }) : ''}${d.recompense ? '\nRécompense : ' + d.recompense : ''}\n\nSuis tes progrès et dis-moi quand tu as fini dans ton espace personnel.`;
+  const t = `Défi du mois Henzo Studio : ${d.titre}\n${d.detail ? d.detail + '\n' : ''}Objectif : ${Number(d.objectif) || 1}${d.fin ? ', avant le ' + eqDate(d.fin, { day: 'numeric', month: 'long' }) : ''}${d.recompense ? '\nRécompense : ' + d.recompense : ''}\n\nSuis tes progrès et dis-moi quand tu as fini dans ton espace personnel.`;
   window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
 }
 

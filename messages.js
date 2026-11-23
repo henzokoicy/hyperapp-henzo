@@ -219,7 +219,7 @@ function msFetes(){
 function msMarque(){
   const m = window.ST_MARQUE || MS.marque || {};
   const st = window.ST_MARQUE && String(window.ST_MARQUE.nom || '').trim(), pr = MS.marque && String(MS.marque.nom || '').trim();
-  const nom = st || pr || (typeof mkMarque === 'function' ? mkMarque() : '') || 'Henzo Photographie';
+  const nom = st || pr || (typeof mkMarque === 'function' ? mkMarque() : '') || 'Henzo Studio';
   return { nom, emojis: m.emojis || 'peu', tons: Array.isArray(m.tons) ? m.tons : [] };
 }
 

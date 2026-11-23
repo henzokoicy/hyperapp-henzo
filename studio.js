@@ -79,7 +79,7 @@ function stMarqueDefaut(){
     },
     max: Object.assign({}, ST_MAX_DEF), gras: true, accents: 'normaux',
     // Mise en forme fixe des textes (choisie par Henzo) : titre gras, mentions et copyright en lettres fines
-    mentions: 'leger', copyright: { on: true, texte: '© Henzo Photographie', style: 'leger' },
+    mentions: 'leger', copyright: { on: true, texte: '© Henzo Studio', style: 'leger' },
     exemples: ['', '', ''], biblio: [], mots: { evite: {}, prefere: {} }, contexte: { r: {}, extra: [] }, style: [], police: 'montserrat',
     couleurs: { fond: '', texte: '#ffffff', accent: '' }, logo: null
   };
@@ -107,7 +107,7 @@ function stMarqueFusion(m){
   return o;
 }
 function stM(){ return window.ST_MARQUE || stMarqueFusion(null); }
-function stNom(){ return typeof mkMarque === 'function' ? mkMarque() : ((stM().nom || '').trim() || 'Henzo Photographie'); }
+function stNom(){ return typeof mkMarque === 'function' ? mkMarque() : ((stM().nom || '').trim() || 'Henzo Studio'); }
 function stVar(n, def){ try { return getComputedStyle(document.documentElement).getPropertyValue(n).trim() || def; } catch(e){ return def; } }
 function stCouleurs(m){ const c = (m || stM()).couleurs || {}; return { fond: c.fond || stVar('--deep', '#00524D'), texte: c.texte || '#ffffff', accent: c.accent || stVar('--accent', '#48A89A') }; }
 
@@ -1686,7 +1686,7 @@ function stMarqueHtml(){
   return `<div class="st-top"><button class="ag-back" onclick="stQuitter()">${agIcon('chev', 16)} Marketing</button><h2>Ma marque</h2></div>
     <p class="mk-intro">Tout ce que l'app et l'IA utilisent pour écrire tes publications comme toi : ton nom, ton ton, ta façon de présenter une légende, tes hashtags, ta police.</p>
     <div class="st-card"><h3>${agIcon('star', 18)} Mon identité</h3>
-      <label>Nom de la marque</label><input value="${stE(m.nom)}" oninput="ST.m.nom=this.value" placeholder="Henzo Photographie">
+      <label>Nom de la marque</label><input value="${stE(m.nom)}" oninput="ST.m.nom=this.value" placeholder="Henzo Studio">
       <label>Slogan</label><input value="${stE(m.slogan)}" oninput="ST.m.slogan=this.value" placeholder="Sublimer chaque instant de vie">
       <label>Ton (plusieurs choix possibles)</label>${pills('tons', [['elegant', 'Élégant'], ['chaleureux', 'Chaleureux'], ['fun', 'Fun']], true)}
       <label>Emojis</label>${pills('emojis', [['aucun', 'Aucun'], ['peu', 'Un peu'], ['beaucoup', 'Beaucoup']])}
@@ -1711,7 +1711,7 @@ function stMarqueHtml(){
       <label>Personnes créditées (Maquillage : ..., Tenue : ...)</label>
       <div class="ag-pills">${Object.entries(ST_STYLES_TXT).map(([k, v]) => `<button type="button" class="${(m.mentions || 'leger') === k ? 'on' : ''}" onclick="ST.m.mentions='${k}';stRefresh()">${v.nom}</button>`).join('')}</div>
       <label class="ag-check" style="margin-top:10px"><input type="checkbox" ${m.copyright.on !== false ? 'checked' : ''} onchange="ST.m.copyright.on=this.checked;stRefresh()"> Ligne de copyright en bas des textes</label>
-      ${m.copyright.on !== false ? `<label>Texte du copyright</label><input value="${stE(m.copyright.texte || '')}" oninput="ST.m.copyright.texte=this.value;stMApercu()" placeholder="© Henzo Photographie">
+      ${m.copyright.on !== false ? `<label>Texte du copyright</label><input value="${stE(m.copyright.texte || '')}" oninput="ST.m.copyright.texte=this.value;stMApercu()" placeholder="© Henzo Studio">
       <label>Style du copyright</label>
       <div class="ag-pills">${Object.entries(ST_STYLES_TXT).map(([k, v]) => `<button type="button" class="${(m.copyright.style || 'leger') === k ? 'on' : ''}" onclick="ST.m.copyright.style='${k}';stRefresh()">${v.nom}</button>`).join('')}</div>` : ''}
       <div class="st-prev" id="stMApercu" style="white-space:pre-line">${stE(stMApercuTxt(m))}</div>
@@ -1736,7 +1736,7 @@ function stMarqueHtml(){
       <p>Sans empattement, propre et moderne. Elle sert pour l'image avec titre.</p>
       <div class="st-fonts">${Object.entries(ST_POLICES).map(([k, p]) => `<button class="st-font ${m.police === k ? 'on' : ''}" data-police="${k}" onclick="ST.m.police='${k}';stRefresh()">
         <span class="st-fa" style="font-family:'${p.titre}',sans-serif;font-weight:${p.tw}">Destinée - 25 ans</span>
-        <span class="st-fb" style="font-family:'${p.texte}',sans-serif;font-weight:${p.xw}">${stE(m.nom || 'Henzo Photographie')}</span>
+        <span class="st-fb" style="font-family:'${p.texte}',sans-serif;font-weight:${p.xw}">${stE(m.nom || 'Henzo Studio')}</span>
         <small>${stE(p.nom)} · ${stE(p.note)}</small><span class="st-chk">${m.police === k ? agIcon('check', 13) : ''}</span></button>`).join('')}</div>
     </div>
     <div class="st-card"><h3>${agIcon('palette', 18)} Couleurs et logo</h3>
@@ -1778,7 +1778,7 @@ async function stMarqueSave(){
   if(!ST.m) return;
   ST.busy = 'marque'; stRefresh();
   const m = JSON.parse(JSON.stringify(ST.m));
-  m.nom = String(m.nom || '').trim() || 'Henzo Photographie';
+  m.nom = String(m.nom || '').trim() || 'Henzo Studio';
   m.exemples = (m.exemples || []).map(x => String(x || ''));
   const ok = await stSauverMarque(m);
   ST.busy = '';

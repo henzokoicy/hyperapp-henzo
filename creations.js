@@ -396,10 +396,10 @@ function crVueEdit(){
     story: champ('titre', 'Titre', 'Ex : Places libres samedi') + champ('sous', 'Phrase', '') + champ('appel', 'Bouton', 'Ex : Écris-moi') + champ('contact', 'Contact', ''),
     mosaique: champ('titre', 'Titre (facultatif)', 'Ex : Destinée - 25 ans') + champ('sous', 'Phrase (facultative)', ''),
     cadre: champ('titre', 'Légende', 'Ex : Destinée, 25 ans') + champ('sous', 'Petite ligne', 'Ex : Studio, Bouaké'),
-    citation: champ('citation', 'Citation', 'Ex : Chaque sourire raconte une histoire', true) + champ('auteur', 'Signature', 'Ex : Henzo Photographie'),
+    citation: champ('citation', 'Citation', 'Ex : Chaque sourire raconte une histoire', true) + champ('auteur', 'Signature', 'Ex : Henzo Studio'),
     avantapres: `<div class="cr-2">${champ('avant', 'Mot 1', 'Avant')}${champ('apres', 'Mot 2', 'Après')}</div>` + champ('titre', 'Titre (facultatif)', 'Ex : La magie de la retouche'),
     carrousel: champ('titre', 'Titre (1re image)', 'Ex : Le mariage de Awa et Yao') + champ('sous', 'Phrase (1re image)', '') + champ('appel', 'Dernière image : appel', 'Réserve ta séance') + champ('contact', 'Contact', ''),
-    editorial: champ('mot', 'Grand texte (une ligne par retour)', 'Ex : EXPLOSE\nTOUT', true) + champ('credits', 'Crédits en bas (une ligne par personne)', 'Ex : PHOTO : Henzo Photographie\nMAQUILLAGE : Awa Makeup', true) + champ('partenaire', 'Partenaire à côté du logo (facultatif)', 'Ex : MAISON NAYA'),
+    editorial: champ('mot', 'Grand texte (une ligne par retour)', 'Ex : EXPLOSE\nTOUT', true) + champ('credits', 'Crédits en bas (une ligne par personne)', 'Ex : PHOTO : Henzo Studio\nMAQUILLAGE : Awa Makeup', true) + champ('partenaire', 'Partenaire à côté du logo (facultatif)', 'Ex : MAISON NAYA'),
     magazine: champ('mot', 'Nom du magazine (en haut)', 'Ex : HENZO') + champ('titre', 'Gros titre', 'Ex : Destinée, 25 ans') + champ('sous', 'Petites lignes (une par retour)', 'Ex : Séance studio\nLumière douce', true) + champ('eyebrow', 'Numéro / date', 'Ex : N°12 · Octobre 2026'),
     phototexte: champ('mot', 'Le mot (une ligne par retour)', 'Ex : LOVE') + champ('titre', 'Petit texte dessous', 'Ex : Awa & Yao · 12.10.2026') + champ('contact', 'Contact (facultatif)', ''),
     triptyque: champ('titre', 'Titre', 'Ex : Trois regards') + champ('sous', 'Petite phrase', ''),
@@ -622,7 +622,7 @@ function crVoile(g, x, y, w, h, pos, force){
 }
 let CR_LOGO = null;
 async function crLogo(){ if(CR_LOGO !== null) return CR_LOGO; try { CR_LOGO = typeof stLogoImg === 'function' ? await stLogoImg() : null; } catch(e){ CR_LOGO = null; } return CR_LOGO; }
-function crNom(){ return typeof stNom === 'function' ? stNom() : 'Henzo Photographie'; }
+function crNom(){ return typeof stNom === 'function' ? stNom() : 'Henzo Studio'; }
 function crSignature(g, W, H, c, P, s, clair, logo, pos){
   // Logo (ou le nom de la marque) + copyright discret
   const coul = clair ? c.encre : '#ffffff';

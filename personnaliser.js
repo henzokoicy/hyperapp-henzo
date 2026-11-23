@@ -306,7 +306,7 @@ function nsStyler(txt, style){
     return c; }).join('');
 }
 window.nsStyler = nsStyler;
-function nsSig(){ const s = obj(NS.prefs.signature); return { texte: s.texte || (typeof BRAND !== 'undefined' ? BRAND.name.replace(/\b(\w)(\w*)/g, (m, a, b) => a + b.toLowerCase()) : 'Henzo Photographie'), style: s.style || 'normal', ajouter: !!s.ajouter }; }
+function nsSig(){ const s = obj(NS.prefs.signature); return { texte: s.texte || (typeof BRAND !== 'undefined' ? BRAND.name.replace(/\b(\w)(\w*)/g, (m, a, b) => a + b.toLowerCase()) : 'Henzo Studio'), style: s.style || 'normal', ajouter: !!s.ajouter }; }
 // Remplace la signature (dans les 3 dernières lignes) par sa version stylée ; l'ajoute si demandé
 function nsSigner(msg){
   const S = nsSig(); if(S.style === 'normal' && !S.ajouter) return msg;
@@ -367,13 +367,13 @@ window.nsAccDirect = async function(id, c){
   agToast(c ? `Couleur de ${a.name} changée` : `${a.name} : couleur de base`);
 };
 window.nsSigMaj = function(){
-  const t = (document.getElementById('nsSigT') || {}).value || 'Henzo Photographie';
+  const t = (document.getElementById('nsSigT') || {}).value || 'Henzo Studio';
   document.querySelectorAll('#nsSigs button').forEach(b => { const s = b.querySelector('span'); if(s) s.textContent = nsStyler(t, b.dataset.k); });
   const k = (document.querySelector('#nsSigs button.on') || {}).dataset?.k || 'normal';
   const p = document.getElementById('nsSigP'); if(p) p.innerHTML = `<small>Aperçu dans WhatsApp</small><div>Bonjour Awa, vos photos sont prêtes !<br>Merci pour votre confiance.<br><br>${E(nsStyler(t, k))}</div>`;
 };
 window.nsSigSave = async function(){
-  const signature = { texte: nd((document.getElementById('nsSigT').value || '').trim()) || 'Henzo Photographie', style: (document.querySelector('#nsSigs button.on') || {}).dataset?.k || 'normal', ajouter: document.getElementById('nsSigA').checked };
+  const signature = { texte: nd((document.getElementById('nsSigT').value || '').trim()) || 'Henzo Studio', style: (document.querySelector('#nsSigs button.on') || {}).dataset?.k || 'normal', ajouter: document.getElementById('nsSigA').checked };
   if(await nsSavePrefs({ signature })) agToast('Signature enregistrée'); else agAlert('La signature n\'a pas pu être enregistrée. Vérifie ta connexion.');
 };
 window.nsSigInitial = async function(){
