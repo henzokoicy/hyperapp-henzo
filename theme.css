@@ -68,7 +68,7 @@
 
 /* ---------- CHARTE HENZO STUDIO (themes par defaut) ---------- */
 :root{
-  --font-display:Fraunces,Georgia,serif; --font-logo:Outfit,Inter,sans-serif;
+  --font-display:"Libre Franklin",Arial,sans-serif; --font-logo:Outfit,Inter,sans-serif;
   --radius-sm:4px; --radius-md:10px; --radius-full:999px;
   --space-2:8px; --space-4:16px; --space-6:24px; --space-8:32px; --space-12:48px;
 }
