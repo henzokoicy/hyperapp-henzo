@@ -20,6 +20,7 @@
   <link rel="apple-touch-icon" href="/icon-180.png">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/qrcode-generator.js?v=1"></script>
 
   <style>
     /* ============================================================
@@ -338,8 +339,11 @@
     .moyen { margin-top:12px; padding:14px; border-radius:14px; background:var(--card, rgba(255,255,255,.05)); border:1px solid var(--border, rgba(255,255,255,.08)); }
     .moyen .m-nom { font-weight:800; font-size:14px; }
     .moyen .m-num { font-size:22px; font-weight:800; letter-spacing:.5px; margin:6px 0 2px; font-variant-numeric:tabular-nums; }
-    .moyen .m-montant { font-size:13px; color:var(--muted); margin-bottom:10px; }
-    .moyen .m-montant strong { color:var(--txt, var(--text)); }
+    .moyen .m-montant { margin:10px 0 12px; padding:14px; border-radius:14px; border:2px solid var(--accent); background:color-mix(in srgb, var(--accent) 10%, transparent); text-align:center; }
+    .moyen .m-montant .m-label { font-size:13px; color:var(--muted); font-weight:600; }
+    .moyen .m-montant .m-valeur { font-size:30px; font-weight:800; line-height:1.15; margin:4px 0; color:var(--txt, var(--text)); font-variant-numeric:tabular-nums; }
+    .moyen .m-montant .m-frais { font-size:14px; font-weight:700; color:var(--accent); margin-top:2px; }
+    .moyen .m-montant .m-regle { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.5; }
     .moyen button.m-btn, .moyen a.m-btn { display:flex; align-items:center; justify-content:center; width:100%; margin-top:8px; padding:12px; border-radius:12px; border:1px solid var(--border-2, rgba(255,255,255,.2)); background:transparent; color:var(--txt, var(--text)); font-size:14px; font-weight:600; cursor:pointer; text-decoration:none; font-family:inherit; }
     .moyen a.m-btn.plein { background:var(--accent); border-color:var(--accent); color:var(--on-accent, #0d0f0c); font-weight:800; }
     .moyen .m-etapes { margin:10px 0 4px 18px; padding:0; font-size:13px; color:var(--muted); line-height:1.65; }
@@ -352,6 +356,14 @@
     .moyen button[disabled] { opacity:.55; cursor:default; }
     .autres .m-note { font-size:12px; color:var(--muted); margin-top:12px; line-height:1.6; }
 
+    .qr-wave { margin-top:12px; border:1px solid var(--border-2, rgba(255,255,255,.15)); border-radius:14px; overflow:hidden; }
+    .qr-wave summary { cursor:pointer; padding:13px 14px; font-weight:700; font-size:14px; list-style:none; }
+    .qr-wave summary::-webkit-details-marker { display:none; }
+    .qr-wave .qr-corps { padding:4px 14px 16px; text-align:center; }
+    .qr-wave #qrImage { display:inline-block; background:#fff; padding:12px; border-radius:12px; }
+    .qr-wave #qrImage img { display:block; width:200px; height:200px; }
+    .qr-wave .qr-montant { font-size:22px; font-weight:800; margin-top:10px; font-variant-numeric:tabular-nums; }
+    .qr-wave .qr-note { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.5; }
     .aide-btn-wave { width:100%; margin-top:10px; padding:13px; border-radius:12px; border:1px solid var(--border-2, rgba(255,255,255,.2)); background:transparent; color:var(--txt, var(--text)); font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
     /* Aide « Wave ne s'ouvre pas ? » */
     .lien-aide { display:block; margin:14px auto 0; background:none; border:none; color:var(--accent); font-size:13px; font-weight:600; text-decoration:underline; cursor:pointer; font-family:inherit; }
@@ -484,7 +496,7 @@
     <div class="amount-label" style="text-align: center;">Montant à régler</div>
     <div class="amount" id="amountDisplay" style="text-align: center;">0 FCFA</div>
     <div class="amount-total" id="totalDisplay" style="text-align: center;"></div>
-    <div class="amount-total" id="fraisDisplay" style="text-align: center; display:none; font-size:12px; opacity:.85"></div>
+    <div class="amount-total" id="fraisDisplay" style="text-align: center; display:none; font-size:14px; font-weight:700; color:var(--accent)"></div>
 
     <div class="ref-line">
       <span>Référence</span>
@@ -533,6 +545,15 @@
       <span style="font-size:22px">💳</span>
       Payer avec Wave
     </a>
+
+    <details class="qr-wave" id="qrWave" style="display:none">
+      <summary>💻 Sur ordinateur ou un autre écran : QR code Wave</summary>
+      <div class="qr-corps">
+        <div id="qrImage"></div>
+        <div class="qr-montant" id="qrMontant"></div>
+        <div class="qr-note">Scanne ce QR avec l'application <b>Wave</b> d'un autre téléphone. Il contient le <b>même montant que le bouton</b>, frais compris.</div>
+      </div>
+    </details>
 
     <button type="button" class="aide-btn-wave" id="btnWaveAppli" style="display:none">📱 Wave ne s'ouvre pas ? Ouvrir l'application Wave</button>
 
@@ -583,8 +604,8 @@
   // ============================================================
   const NUMERO_WHATSAPP = '2250170998964';
   const AUTRES_MOYENS = [
-    { id: 'orange', nom: 'Orange Money', numero: '07 88 39 55 85', nomAffiche: '' },
-    { id: 'moov',   nom: 'Moov Money',   numero: '01 70 99 89 64', nomAffiche: '' }
+    { id: 'orange', nom: 'Orange Money', numero: '+225 07 88 39 55 85', nomAffiche: '' },
+    { id: 'moov',   nom: 'Moov Money',   numero: '+225 01 70 99 89 64', nomAffiche: '' }
   ];
 
   // Données de l'aide « Wave ne s'ouvre pas ? » (définies avant l'affichage de la page)
@@ -737,7 +758,7 @@
     }
     const fraisEl = document.getElementById('fraisDisplay');
     if(fraisEl) {
-      fraisEl.textContent = info.frais > 0 ? 'dont ' + new Intl.NumberFormat('fr-FR').format(info.frais) + ' FCFA de frais de paiement' : '';
+      fraisEl.textContent = info.frais > 0 ? 'Frais de paiement inclus : ' + new Intl.NumberFormat('fr-FR').format(info.frais) + ' FCFA (à ta charge)' : '';
       fraisEl.style.display = info.frais > 0 ? 'block' : 'none';
     }
 
@@ -751,6 +772,19 @@
       const cleanLink = trouve ? trouve[0].replace(/[.,;:)\]]+$/, '') : info.waveLink.trim().replace(/[.,;:\s]+$/, '');
       btnWave.href = cleanLink;
       aideEtat.lien = cleanLink; aideEtat.montant = info.amount; aideEtat.ref = info.ref;
+      // QR code Wave : exactement le même lien que le bouton (montant et frais compris)
+      try {
+        const qrBloc = document.getElementById('qrWave');
+        if(qrBloc && window.qrcode && /^https:\/\/pay\.wave\.com\//i.test(cleanLink)) {
+          const qr = window.qrcode(0, 'M'); qr.addData(cleanLink); qr.make();
+          const im = document.getElementById('qrImage'); im.innerHTML = '';
+          const img = document.createElement('img'); img.alt = 'QR code de paiement Wave'; img.src = qr.createDataURL(6, 0); im.appendChild(img);
+          document.getElementById('qrMontant').textContent = new Intl.NumberFormat('fr-FR').format(info.amount) + ' FCFA' + (info.frais > 0 ? ' (frais compris)' : '');
+          qrBloc.style.display = 'block';
+          // ordinateur : le QR est ouvert d'office ; téléphone : replié (on touche le bouton Wave)
+          if(!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')) qrBloc.open = true;
+        }
+      } catch(e) { console.warn('QR indisponible :', e); }
       // Android hors Chrome (Edge, navigateur Xiaomi, UC Browser...) : ces navigateurs n'ouvrent pas Wave depuis un lien.
       // Ce bouton demande directement à Android d'ouvrir le lien avec l'appli qui le gère (Wave), sans nom d'appli codé.
       const btnAppli = document.getElementById('btnWaveAppli');
@@ -834,9 +868,13 @@
       const nom = document.createElement('div'); nom.className = 'm-nom'; nom.textContent = m.nom + (m === choisi ? ' · moyen choisi ✓' : '');
       const num = document.createElement('div'); num.className = 'm-num'; num.textContent = m.numero;
       const mont = document.createElement('div'); mont.className = 'm-montant';
-      mont.innerHTML = 'Envoie exactement <strong></strong>' + (m.nomAffiche ? ' à <strong></strong>' : '');
-      mont.querySelectorAll('strong')[0].textContent = montantTxt;
-      if(m.nomAffiche) mont.querySelectorAll('strong')[1].textContent = m.nomAffiche;
+      const fraisTxt = info.frais > 0 ? new Intl.NumberFormat('fr-FR').format(info.frais) + ' FCFA' : '';
+      mont.innerHTML = '<div class="m-label">Envoie exactement</div><div class="m-valeur"></div>' +
+        (fraisTxt ? '<div class="m-frais">Frais de paiement inclus : <span class="m-fv"></span> (à ta charge)</div>' : '') +
+        '<div class="m-regle">Ni plus, ni moins : envoie ce montant complet, frais compris' + (m.nomAffiche ? ', à <b class="m-na"></b>' : '') + '. Un montant plus petit rend ton paiement incomplet.</div>';
+      mont.querySelector('.m-valeur').textContent = montantTxt;
+      if(fraisTxt) mont.querySelector('.m-fv').textContent = fraisTxt;
+      if(m.nomAffiche) mont.querySelector('.m-na').textContent = m.nomAffiche;
 
       const etapes = document.createElement('ol'); etapes.className = 'm-etapes';
       etapes.innerHTML = '<li><strong>Copie</strong> le numéro et le montant ci-dessous.</li>' +
@@ -844,7 +882,7 @@
         '<li><strong>Reviens ici</strong> et touche « Envoyer la capture du paiement ».</li>';
 
       const copier1 = document.createElement('button'); copier1.type = 'button'; copier1.className = 'm-btn'; copier1.textContent = '📋 Copier le numéro';
-      copier1.addEventListener('click', function(){ copierDirect(m.numero.replace(/\s+/g, ''), copier1, '✓ Numéro copié'); });
+      copier1.addEventListener('click', function(){ copierDirect(m.numero.replace(/^\+225\s*/, '').replace(/\s+/g, ''), copier1, '✓ Numéro copié'); });
       const copier2 = document.createElement('button'); copier2.type = 'button'; copier2.className = 'm-btn'; copier2.textContent = '📋 Copier le montant';
       copier2.addEventListener('click', function(){ copierDirect(String(Math.round(info.amount)), copier2, '✓ Montant copié'); });
 
