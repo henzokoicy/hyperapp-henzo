@@ -15,9 +15,9 @@
   <title>Paiement · Henzo Studio</title>
 
   <!-- Favicon -->
-  <link rel="icon" href="favicon.ico" sizes="any">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="apple-touch-icon" href="/icon-180.png">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -410,8 +410,8 @@
       }
     }
   </style>
-  <link href="polices/polices.css?v=2" rel="stylesheet">
-  <link href="charte-pages.css?v=5" rel="stylesheet">
+  <link href="/polices/polices.css?v=2" rel="stylesheet">
+  <link href="/charte-pages.css?v=5" rel="stylesheet">
 </head>
 <body>
 
@@ -430,8 +430,8 @@
 <div class="container" id="mainContent" style="display:none">
 
   <div class="brand">
-    <img class="hz-on-dark" src="logos/logo-horizontal-clair-fondsombre.png" alt="Henzo Studio">
-    <img class="hz-on-light" src="logos/logo-horizontal-sombre-fondclair.png" alt="Henzo Studio">
+    <img class="hz-on-dark" src="/logos/logo-horizontal-clair-fondsombre.png" alt="Henzo Studio">
+    <img class="hz-on-light" src="/logos/logo-horizontal-sombre-fondclair.png" alt="Henzo Studio">
     <h1>Henzo Studio</h1>
     <p>Studio photo &amp; vidéo · Côte d'Ivoire</p>
     <div class="verified">✓ Marchand vérifié</div>
@@ -640,7 +640,12 @@
     if(btnWave && info.waveLink) {
       const cleanLink = info.waveLink.trim().replace(/[.,;:\s]+$/, '');
       btnWave.href = cleanLink;
-      console.log('Lien Wave mis dans le bouton:', cleanLink);
+      // Android : on demande directement à l'appli Wave de s'ouvrir. Si elle n'est pas installée,
+      // on retombe sur la page web de paiement Wave (et non sur le Play Store).
+      if(/Android/i.test(navigator.userAgent || '') && /^https:\/\/pay\.wave\.com\//i.test(cleanLink)){
+        const sansProto = cleanLink.replace(/^https:\/\//i, '');
+        btnWave.href = 'intent://' + sansProto + '#Intent;scheme=https;package=com.wave.personal;S.browser_fallback_url=' + encodeURIComponent(cleanLink) + ';end';
+      }
     } else if(btnWave) {
       btnWave.href = '#';
       btnWave.onclick = (e) => {
@@ -704,7 +709,20 @@
     return /FBAN|FBAV|Instagram|WhatsApp|Line|Snapchat|Twitter/i.test(ua);
   }
 
-  if(detecterNavigateurIntegre()) {
+  // Navigateur intégré d'Android (WhatsApp...) : sur Android on bascule tout seul vers le navigateur,
+  // une seule fois par visite (sinon on garde le bandeau d'aide).
+  function estWebViewAndroid() {
+    const ua = navigator.userAgent || '';
+    return /Android/i.test(ua) && (/; wv\)/i.test(ua) || /Version\/\d+\.\d+ Chrome/i.test(ua) || detecterNavigateurIntegre());
+  }
+  let sortieAuto = false;
+  try { sortieAuto = !sessionStorage.getItem('hzSortie'); } catch(e){}
+  if(estWebViewAndroid() && sortieAuto) {
+    try { sessionStorage.setItem('hzSortie', '1'); } catch(e){}
+    setTimeout(ouvrirDansNavigateur, 400);
+  }
+
+  if(detecterNavigateurIntegre() || estWebViewAndroid()) {
     const banner = document.getElementById('inAppBanner');
     if(banner) banner.style.display = 'block';
   }
@@ -715,7 +733,7 @@
 
     if(/Android/i.test(ua)) {
       const urlSansProtocole = url.replace(/^https?:\/\//, '');
-      window.location.href = 'intent://' + urlSansProtocole + '#Intent;scheme=https;package=com.android.chrome;end';
+      window.location.href = 'intent://' + urlSansProtocole + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent(url) + ';end';
       return;
     }
 

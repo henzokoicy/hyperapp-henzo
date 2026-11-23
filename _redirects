@@ -1,0 +1,2 @@
+# Lien court de paiement : /p/PL-0034 -> page de paiement (Netlify et Cloudflare Pages)
+/p/*  /pay.html?ref=:splat  200

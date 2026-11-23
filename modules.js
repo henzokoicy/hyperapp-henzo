@@ -6909,10 +6909,14 @@ function afficherLienGenere(link) {
     w: link.wave_link || '',
     ref: ref
   });
-  const lien = `${CLIENT_URL}/pay.html?${params.toString()}`;
+  // Lien court et propre : client.henzostudio.com/p/PL-0034 (la page lit le détail dans la base).
+  // Le lien long reste disponible en secours (copier le lien de secours) si besoin.
+  const lienLong = `${CLIENT_URL}/pay.html?${params.toString()}`;
+  const lien = `${CLIENT_URL}/p/${ref}`;
 
   window.__lienCourant = {
     lien: lien,
+    lienLong: lienLong,
     clientName: link.client_name || 'Client',
     desc: link.description || 'Paiement',
     montant: link.amount || 0,
@@ -6967,6 +6971,7 @@ function afficherLienGenere(link) {
       <div style="display:grid;gap:8px">
         <button class="btn-primary" style="margin:0;background:var(--green);width:100%" onclick="envoyerLienWhatsAppActuel()">💬 Envoyer via WhatsApp</button>
         <button class="btn-ghost" style="margin:0;width:100%" onclick="copierLienPersoActuel()">📋 Copier le lien</button>
+        <button class="btn-ghost" style="margin:0;width:100%;font-size:12px;opacity:.8" onclick="copierLienSecoursActuel()">🛟 Copier le lien de secours (long)</button>
         <button class="btn-ghost" style="margin:0;width:100%" onclick="apercuLienActuel()">👁️ Aperçu</button>
       </div>
     </div>
@@ -7056,6 +7061,13 @@ function copierLienPersoActuel() {
     document.body.removeChild(ta);
     showToast('Lien copié');
   }
+}
+
+function copierLienSecoursActuel() {
+  const data = window.__lienCourant;
+  if(!data || !data.lienLong) return;
+  if(navigator.clipboard) navigator.clipboard.writeText(data.lienLong).then(() => showToast('Lien de secours copié'));
+  else { const ta = document.createElement('textarea'); ta.value = data.lienLong; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); showToast('Lien de secours copié'); }
 }
 
 function apercuLienActuel() {
