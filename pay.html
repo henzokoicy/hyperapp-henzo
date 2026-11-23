@@ -662,23 +662,7 @@
         btnWave.href = '#';
         btnWave.onclick = (e) => { e.preventDefault(); alert('Lien Wave indisponible. Contactez Henzo Studio.'); };
       }
-      // Android : on demande d'abord à l'appli Wave de s'ouvrir. Si rien ne se passe en 1,5 s
-      // (appli absente ou intention refusée), on ouvre le lien Wave normal : le bouton marche toujours.
-      if(/Android/i.test(navigator.userAgent || '') && /^https:\/\/pay\.wave\.com\//i.test(cleanLink) && !btnWave.dataset.wave){
-        btnWave.dataset.wave = '1';
-        const sansProto = cleanLink.replace(/^https:\/\//i, '');
-        const intentWave = 'intent://' + sansProto + '#Intent;scheme=https;package=com.wave.personal;S.browser_fallback_url=' + encodeURIComponent(cleanLink) + ';end';
-        btnWave.addEventListener('click', function(e){
-          e.preventDefault();
-          let parti = false;
-          const marquer = function(){ parti = true; };
-          document.addEventListener('visibilitychange', function(){ if(document.hidden) marquer(); });
-          window.addEventListener('pagehide', marquer);
-          window.addEventListener('blur', marquer);
-          window.location.href = intentWave;
-          setTimeout(function(){ if(!parti && !document.hidden) window.location.href = cleanLink; }, 1500);
-        });
-      }
+      // Lien Wave simple : le navigateur (Chrome) ouvre lui-même l'appli Wave quand elle est installée.
     } else if(btnWave) {
       btnWave.href = '#';
       btnWave.onclick = (e) => {
