@@ -97,7 +97,7 @@ function crCfgDefaut(){
     logo: true, copyright: true, voile: 0.55, pos: 'bas', align: 'centre', taille: 1,
     gap: 14, bord: 0, bordCouleur: '#ffffff', cadre: 'polaroid', sens: 'auto',
     // Mot géant (texte créatif par-dessus la photo) et affiche éditoriale
-    mot: '', motPolice: 'pinceau', motCouleur: '', motOpacite: 0.85, motFlou: 1, motTaille: 1, motPos: 'centre', motMaj: true,
+    mot: '', motPolice: 'marque', motCouleur: '', motOpacite: 0.85, motFlou: 1, motTaille: 1, motPos: 'centre', motMaj: true,
     credits: '', partenaire: '', flouBords: 0.7,
     // Effets : filtre, grain, vignette, lumière, effet perso (image ajoutée)
     effets: { filtre: 'aucun', grain: 0, vignette: 0, lumiere: 0, perso: null, persoBlend: 'screen', persoOpac: 0.6 }
@@ -469,7 +469,7 @@ function crEffetsHtml(M){
     ${M.k === 'editorial' ? curseur('flouBords', 'Bords flous (centre net)', 0, 1, 0.05, c.flouBords || 0, 'crSetNum') : ''}
     <div class="cr-sep">Grand texte créatif</div>
     ${M.k !== 'editorial' ? `<textarea rows="2" placeholder="Ex : PHOTOGRAPHIE (facultatif)" oninput="crSetTxt('mot',this.value)">${crE(c.mot || '')}</textarea>` : '<div class="ag-hint" style="margin:0">Le texte se tape dans « Textes ».</div>'}
-    <label>Style d'écriture</label><div class="ag-pills">${Object.entries(CR_POLICES_CREA).map(([k, v]) => `<button type="button" class="${(c.motPolice || 'pinceau') === k ? 'on' : ''}" ${v.f ? `style="font-family:'${v.f}',sans-serif"` : ''} onclick="crSet('motPolice','${k}')">${v.nom}</button>`).join('')}</div>
+    <label>Style d'écriture</label><div class="ag-pills">${Object.entries(CR_POLICES_CREA).map(([k, v]) => `<button type="button" class="${(c.motPolice || 'marque') === k ? 'on' : ''}" ${v.f ? `style="font-family:'${v.f}',sans-serif"` : ''} onclick="crSet('motPolice','${k}')">${v.nom}</button>`).join('')}</div>
     <div class="cr-cols" style="grid-template-columns:repeat(2,1fr)"><label>Couleur du texte<input type="color" value="${crE(c.motCouleur || c.accent)}" oninput="crSetCol('motCouleur',this.value)"></label>
       <label>Place<select onchange="crSet('motPos',this.value)">${[['centre', 'Au centre'], ['haut', 'En haut'], ['bas', 'En bas']].map(([k, l]) => `<option value="${k}" ${c.motPos === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
     ${curseur('motOpacite', 'Transparence du texte', 0.2, 1, 0.05, c.motOpacite == null ? 0.85 : c.motOpacite, 'crSetNum')}
@@ -837,11 +837,11 @@ async function crDessiner(cv, slide, k){
     const gr2 = g.createLinearGradient(0, H, 0, H * 0.55); gr2.addColorStop(0, 'rgba(0,0,0,.65)'); gr2.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr2; g.fillRect(0, H * 0.55, W, H * 0.45);
     // Le nom du magazine, très grand, en police condensée
     crPolicesCreaLien();
-    try { await Promise.race([document.fonts.load('400 100px "Bebas Neue"'), new Promise(r => setTimeout(r, 2000))]); } catch(e){}
+    try { await Promise.race([document.fonts.load('700 100px "Libre Franklin"'), new Promise(r => setTimeout(r, 2000))]); } catch(e){}
     const mast = String(c.mot || crNom()).toUpperCase();
-    g.font = '400 100px "Bebas Neue", "Anton", sans-serif';
+    g.font = '700 100px "Libre Franklin", Arial, sans-serif';
     const mw = g.measureText(mast).width || 1, mpx = Math.min(100 * (W - 80 * s) / mw, H * 0.2);
-    g.save(); g.fillStyle = c.motCouleur || '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'top'; g.font = `400 ${mpx}px "Bebas Neue", "Anton", sans-serif`;
+    g.save(); g.fillStyle = c.motCouleur || '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'top'; g.font = `700 ${mpx}px "Libre Franklin", Arial, sans-serif`;
     g.fillText(mast, W / 2, 40 * s); g.restore();
     if(c.eyebrow){ g.font = crFont(P.x, 600, 22 * s); g.fillStyle = 'rgba(255,255,255,.9)'; g.textAlign = 'right'; g.letterSpacing = (3 * s) + 'px'; g.fillText(c.eyebrow.toUpperCase(), W - 50 * s, 40 * s + mpx * 0.98); g.letterSpacing = '0px'; g.textAlign = 'left'; }
     // Lignes à gauche + gros titre en bas
@@ -856,15 +856,15 @@ async function crDessiner(cv, slide, k){
     g.fillStyle = c.clair; g.fillRect(0, 0, W, H);
     const mot = String(c.mot || 'PHOTO').toUpperCase().split('\n').map(x => x.trim()).filter(Boolean);
     crPolicesCreaLien();
-    const pc = CR_POLICES_CREA[c.motPolice] || CR_POLICES_CREA.grasse, fam = pc.f || P.t, poids = pc.f ? 400 : 900;
+    const pc = CR_POLICES_CREA[c.motPolice] || CR_POLICES_CREA.marque, fam = pc.f || P.t, poids = pc.f ? 400 : 900;
     try { await Promise.race([document.fonts.load(`${poids} 100px "${fam}"`), new Promise(r => setTimeout(r, 2000))]); } catch(e){}
     const off = document.createElement('canvas'); off.width = W; off.height = H;
     const o = off.getContext('2d');
-    o.font = `${poids} 100px "${fam}", "Anton", sans-serif`;
+    o.font = `${poids} 100px "${fam}", "Libre Franklin", Arial, sans-serif`;
     const plus = Math.max(...mot.map(l => o.measureText(l).width)) || 1;
     const px = Math.min(100 * (W * 0.9) / plus, H * 0.75 / (mot.length * 0.95)) * (c.motTaille || 1);
     const lh = px * 0.92, tot = mot.length * lh, y0 = (H - tot) / 2 - 40 * s;
-    o.font = `${poids} ${Math.round(px)}px "${fam}", "Anton", sans-serif`; o.textAlign = 'center'; o.textBaseline = 'top'; o.fillStyle = '#000';
+    o.font = `${poids} ${Math.round(px)}px "${fam}", "Libre Franklin", Arial, sans-serif`; o.textAlign = 'center'; o.textBaseline = 'top'; o.fillStyle = '#000';
     mot.forEach((l, i) => o.fillText(l, W / 2, y0 + i * lh));
     o.globalCompositeOperation = 'source-in';
     const img = imgs[0];
@@ -1022,19 +1022,13 @@ function crFlouBords(g, W, H, s, force){
 }
 // Polices créatives pour le mot géant (pinceau, feutre, condensée...)
 const CR_POLICES_CREA = {
-  marque: { nom: 'Ma police', f: null }, pinceau: { nom: 'Pinceau', f: 'Permanent Marker' }, feutre: { nom: 'Feutre', f: 'Caveat Brush' },
-  condensee: { nom: 'Condensée', f: 'Bebas Neue' }, grasse: { nom: 'Grasse', f: 'Anton' }, machine: { nom: 'Machine à écrire', f: 'Special Elite' }
+  marque: { nom: 'Police de la charte', f: null }
 };
-function crPolicesCreaLien(){
-  if(document.getElementById('crCreaFonts')) return;
-  const l = document.createElement('link'); l.id = 'crCreaFonts'; l.rel = 'stylesheet';
-  l.href = 'https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Caveat+Brush&family=Bebas+Neue&family=Anton&family=Special+Elite&display=swap';
-  document.head.appendChild(l);
-}
+function crPolicesCreaLien(){ /* plus de police externe : on n'utilise que la charte (Libre Franklin / Inter) */ }
 async function crMotGeant(g, W, H, s, c){
   const txt = String(c.mot || '').trim(); if(!txt) return;
   crPolicesCreaLien();
-  const pc = CR_POLICES_CREA[c.motPolice] || CR_POLICES_CREA.pinceau;
+  const pc = CR_POLICES_CREA[c.motPolice] || CR_POLICES_CREA.marque;
   const P = crPolices(), fam = pc.f || P.t, poids = pc.f ? 400 : 800;
   try { await Promise.race([document.fonts.load(`${poids} 100px "${fam}"`), new Promise(r => setTimeout(r, 2500))]); } catch(e){}
   const lignes = (c.motMaj === false ? txt : txt.toUpperCase()).split('\n').map(x => x.trim()).filter(Boolean);
@@ -1042,7 +1036,7 @@ async function crMotGeant(g, W, H, s, c){
   g.font = `${poids} 100px "${fam}", sans-serif`;
   const plus = Math.max(...lignes.map(l => g.measureText(l).width)) || 1;
   let px = Math.min(100 * (W * 0.86) / plus, H * 0.9 / (lignes.length * 1.02)) * (c.motTaille || 1);
-  const lh = px * (pc.f === 'Bebas Neue' || pc.f === 'Anton' ? 0.92 : 1.0);
+  const lh = px * 1.0;
   const total = lignes.length * lh;
   const y0 = c.motPos === 'haut' ? H * 0.12 : c.motPos === 'bas' ? H * 0.88 - total : (H - total) / 2;
   g.save();
