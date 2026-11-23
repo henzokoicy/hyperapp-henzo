@@ -9,7 +9,20 @@
 /* Dégradé lumineux (barres de progression...) : par défaut les couleurs du thème */
 :root{ --grad-a:var(--accent-2); --grad-b:var(--accent); }
 [data-theme="neon"]{ --grad-a:#c8ff5c; --grad-b:#5ef2d6; }
-:root, [data-theme="aurora"]{
+:root{
+  --surface-100:#0d0f0c; --surface-200:#161913; --ink:#f4f2ec; --ink-muted:#a8ab9d;
+  --brand-green:#8a9a5b; --brand-green-dim:#4f5a35; --line:#2a2d23; --gold-accent:#c9b37e;
+  --bg:#0d0f0c; --bg-2:#12150f; --card:#161913; --card2:#1d2118; --card3:#262a1f;
+  --text:#f4f2ec; --text-2:#d9d7cd; --muted:#a8ab9d;
+  --accent:#8a9a5b; --accent-2:#a3b273; --accent-dk:#4f5a35;
+  --light:#c5cd9f; --deep:#4f5a35; --forest:#2b3320;
+  --green:#7fbf8a; --red:#e07a6b; --yellow:#c9b37e; --gold:#c9b37e; --gold-soft:#dccb9d;
+  --border:#2a2d23; --border-2:#383c2d;
+  --hero-1:#3a4526; --hero-2:#232a17; --hero-3:#12150d; --hero-border:#4f5a35; --glow:#a3b273;
+  --on-accent:#0d0f0c; --pri-bg:#8a9a5b; --pri-fg:#0d0f0c; --nav-bg:rgba(13,15,12,.95); --head-bg:rgba(13,15,12,.86);
+  --pink:#a3b273; --wave:#8a9a5b; --shadow-glow:none; --grad-a:#a3b273; --grad-b:#8a9a5b;
+}
+[data-theme="aurora"]{
   --bg:#030b0a; --bg-2:#061412; --card:#0a1c1a; --card2:#0f2523; --card3:#143230;
   --text:#ffffff; --text-2:#d7efeb; --muted:#8fb3ad;
   --accent:#48A89A; --accent-2:#6cc7b8; --accent-dk:#00524D;
@@ -68,7 +81,7 @@
 
 /* ---------- CHARTE HENZO STUDIO (themes par defaut) ---------- */
 :root{
-  --font-display:Fraunces,Georgia,serif; --font-logo:Outfit,Inter,sans-serif;
+  --font-display:"Libre Franklin",Arial,sans-serif; --font-logo:Outfit,Inter,sans-serif;
   --radius-sm:4px; --radius-md:10px; --radius-full:999px;
   --space-2:8px; --space-4:16px; --space-6:24px; --space-8:32px; --space-12:48px;
 }
@@ -86,16 +99,16 @@
   --pink:#a3b273; --wave:#8a9a5b; --shadow-glow:none; --grad-a:#a3b273; --grad-b:#8a9a5b;
 }
 [data-theme="henzo-clair"]{
-  --surface-100:#faf9f6; --surface-200:#f1efe9; --ink:#13150f; --ink-muted:#5c5f54;
+  --surface-100:#f4f2ec; --surface-200:#eae7df; --ink:#13150f; --ink-muted:#5c5f54;
   --brand-green:#5f6e3a; --brand-green-dim:#b7c08f; --line:#e2e0d6; --gold-accent:#a68a4f;
-  --bg:#faf9f6; --bg-2:#f5f3ee; --card:#f1efe9; --card2:#eae7df; --card3:#e2e0d6;
+  --bg:#f4f2ec; --bg-2:#eeece4; --card:#eae7df; --card2:#e2e0d6; --card3:#e2e0d6;
   --text:#13150f; --text-2:#3a3d32; --muted:#5c5f54;
   --accent:#5f6e3a; --accent-2:#748549; --accent-dk:#4a572c;
   --light:#5f6e3a; --deep:#5f6e3a; --forest:#4a572c;
   --green:#3f7d4f; --red:#b5483c; --yellow:#a68a4f; --gold:#a68a4f; --gold-soft:#c9b37e;
   --border:#e2e0d6; --border-2:#d3d0c3;
   --hero-1:#6f7f45; --hero-2:#5f6e3a; --hero-3:#4a572c; --hero-border:#5f6e3a; --glow:#b7c08f;
-  --on-accent:#faf9f6; --pri-bg:#5f6e3a; --pri-fg:#faf9f6; --nav-bg:rgba(250,249,246,.96); --head-bg:rgba(250,249,246,.92);
+  --on-accent:#f4f2ec; --pri-bg:#5f6e3a; --pri-fg:#f4f2ec; --nav-bg:rgba(244,242,236,.96); --head-bg:rgba(244,242,236,.92);
   --pink:#748549; --wave:#5f6e3a; --shadow-glow:none; --grad-a:#748549; --grad-b:#5f6e3a;
 }
 [data-theme^="henzo"] h1,[data-theme^="henzo"] .login-title,[data-theme^="henzo"] .modal h3{font-family:var(--font-display);font-weight:600;letter-spacing:-.2px}

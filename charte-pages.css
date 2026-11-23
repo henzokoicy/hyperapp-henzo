@@ -14,7 +14,7 @@
   --border:rgba(255,255,255,.08);--border-2:rgba(255,255,255,.15);--line:rgba(255,255,255,.08);
   --on-accent:#0d0f0c;--pri-bg:#f4f2ec;--pri-fg:#0d0f0c;
   --pink:#a3b273;
-  --font-display:Montserrat,Arial,sans-serif;
+  --font-display:"Libre Franklin",Arial,sans-serif;
 }
 [data-clair="1"]{
   --bg:#f4f2ec;--bg-2:#eeece4;--card:#faf9f5;--card2:#eae7df;--card3:#e2e0d6;
@@ -27,12 +27,12 @@
   --pink:#748549;
 }
 body{
-  font-family:Montserrat,Arial,sans-serif;font-size:15px;-webkit-font-smoothing:antialiased;
+  font-family:Inter,system-ui,sans-serif;font-size:15px;-webkit-font-smoothing:antialiased;
   background:radial-gradient(90% 60% at 50% 0%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 62%),var(--bg);
   color:var(--text);
 }
-/* Titres : Fraunces */
-h1,h2,.brand h1,.rdv h2,.sum .t b,.client-name,.amount,.promo .v{font-family:var(--font-display);font-weight:400;letter-spacing:-.035em}
+/* Titres : Libre Franklin (charte) */
+h1,h2,.brand h1,.rdv h2,.sum .t b,.client-name,.amount,.promo .v{font-family:var(--font-display);font-weight:500;letter-spacing:-.02em}
 h1{background:none;-webkit-text-fill-color:var(--text);color:var(--text)}
 /* Logo officiel : version claire sur fond sombre, sombre sur fond clair */
 .brand{text-align:center;opacity:1;letter-spacing:0;text-transform:none}
@@ -50,8 +50,8 @@ h1{background:none;-webkit-text-fill-color:var(--text);color:var(--text)}
 .wrap .brand{text-align:left}
 .wrap .brand img{margin-left:0;width:150px}
 
-/* ===== Même habillage que henzostudio.com : Montserrat, boutons pilule, cartes arrondies ===== */
-button,input,select,textarea{font-family:Montserrat,Arial,sans-serif}
+/* ===== Charte Henzo Studio : Libre Franklin (titres), Inter (texte), boutons pilule, cartes arrondies ===== */
+button,input,select,textarea{font-family:Inter,system-ui,sans-serif}
 .btn,.btn2,button.btn,a.btn{border-radius:999px !important;font-weight:500;letter-spacing:0;box-shadow:none}
 .btn:not(.ghost):not(.sec):not(.dis):not(:disabled){background:var(--pri-bg);color:var(--pri-fg);border:1px solid var(--pri-bg)}
 .btn.ghost,.btn.sec,.btn2{background:transparent;color:var(--text);border:1px solid var(--border-2)}

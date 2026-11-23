@@ -495,7 +495,7 @@ async function mbCollage(){
       g.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, x, y, cw, ch); g.restore();
     } catch(e){}
   }
-  g.fillStyle = '#f4f2ec'; g.font = '600 40px Fraunces, Georgia, serif'; g.textBaseline = 'middle';
+  g.fillStyle = '#f4f2ec'; g.font = '600 40px "Libre Franklin", Arial, sans-serif'; g.textBaseline = 'middle';
   g.fillText((b.title || 'Moodboard').slice(0, 38), pad + 8, H - foot / 2 - 14);
   g.fillStyle = '#a8ab9d'; g.font = '500 26px Inter, sans-serif';
   g.fillText('Henzo Studio · Bouaké · idées pour votre séance', pad + 8, H - foot / 2 + 26);

@@ -76,8 +76,8 @@ window.ctDocHtml = function(c){
 };
 window.CT_CSS = '.ct-doc{max-width:760px;margin:0 auto;font-family:Inter,system-ui,sans-serif;color:#13150f;background:#fff;padding:28px 26px;border-radius:10px;line-height:1.55}' +
   '.ct-doc header{position:static!important;display:block!important;background:none!important;box-shadow:none!important;backdrop-filter:none!important;color:#13150f!important;border-bottom:2px solid #5f6e3a;padding:0 0 14px!important;margin-bottom:16px;height:auto!important}.ct-marque img{height:46px;width:auto;display:block}' +
-  '.ct-doc h1{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:28px;margin:12px 0 8px;color:#13150f}.ct-res{display:flex;flex-wrap:wrap;gap:6px}.ct-res span{font-size:12.5px;background:#f1efe9;border-radius:99px;padding:3px 10px;color:#5f6e3a;text-transform:capitalize}' +
-  '.ct-doc section{margin:14px 0;break-inside:avoid}.ct-doc h2{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:16px;margin:0 0 4px;color:#5f6e3a}.ct-doc p{margin:0;font-size:13.5px;color:#3a3d32}' +
+  '.ct-doc h1{font-family:\'Libre Franklin\',Arial,sans-serif;font-weight:600;font-size:28px;margin:12px 0 8px;color:#13150f}.ct-res{display:flex;flex-wrap:wrap;gap:6px}.ct-res span{font-size:12.5px;background:#f1efe9;border-radius:99px;padding:3px 10px;color:#5f6e3a;text-transform:capitalize}' +
+  '.ct-doc section{margin:14px 0;break-inside:avoid}.ct-doc h2{font-family:\'Libre Franklin\',Arial,sans-serif;font-weight:600;font-size:16px;margin:0 0 4px;color:#5f6e3a}.ct-doc p{margin:0;font-size:13.5px;color:#3a3d32}' +
   '.ct-sigs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:26px}.ct-sig{border:1px solid #e2e0d6;border-radius:12px;padding:10px;min-height:120px;display:flex;flex-direction:column;gap:4px}' +
   '.ct-sig small{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#5c5f54}.ct-sig img{max-width:100%;height:70px;object-fit:contain;object-position:left}.ct-sig-vide{height:70px;border-bottom:1px dashed #d3d0c3}' +
   '.ct-sig b{font-size:13px}.ct-sig em{font-style:normal;font-size:11px;color:#5c5f54}@media print{.ct-doc{padding:0;border-radius:0}}';

@@ -24,7 +24,7 @@ const garderFiltre = () => { try { localStorage.setItem('ns_filtre', JSON.string
 
 const NS_STAR = '<svg width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.8l2.8 6 6.5.7-4.9 4.4 1.4 6.4L12 17l-5.8 3.3 1.4-6.4-4.9-4.4 6.5-.7z"/></svg>';
 const NS_COULEURS = [['#2ecc71', 'Vert'], ['#ff5a5f', 'Rouge'], ['#3b82f6', 'Bleu'], ['#f5a524', 'Orange'], ['#a855f7', 'Violet'], ['#ec4899', 'Rose'], ['#14b8a6', 'Turquoise'], ['#eab308', 'Jaune'], ['#94a3b8', 'Gris'], ['#8b5a2b', 'Marron']];
-const NS_POLICES = [['', 'Normale'], ['Poppins', 'Poppins'], ['Montserrat', 'Montserrat'], ['Playfair Display', 'Playfair (élégante)'], ['Lora', 'Lora'], ['Caveat', 'Caveat (écrite à la main)'], ['Dancing Script', 'Dancing (manuscrite)'], ['Oswald', 'Oswald (haute)'], ['Courier Prime', 'Machine à écrire']];
+const NS_POLICES = [['', 'Normale (Inter)'], ['Libre Franklin', 'Libre Franklin (titres)'], ['Inter', 'Inter (texte)']];
 function nsPolice(p){
   if(!p) return;
   const id = 'nsF_' + p.replace(/\W/g, '');

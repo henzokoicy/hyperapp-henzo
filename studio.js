@@ -51,9 +51,7 @@ const ST_CANAUX = [
   ['tiktok', 'TikTok', 'TikTok', '#8a8a8a']
 ];
 const ST_POLICES = {
-  montserrat: { nom: 'Montserrat + Inter', titre: 'Montserrat', tw: 800, texte: 'Inter', xw: 600, note: 'Titres forts et nets, texte très lisible' },
-  poppins: { nom: 'Poppins', titre: 'Poppins', tw: 700, texte: 'Poppins', xw: 500, note: 'Ronde et douce, moderne' },
-  outfit: { nom: 'Outfit + Manrope', titre: 'Outfit', tw: 700, texte: 'Manrope', xw: 600, note: 'Fine et élégante, très actuelle' }
+  charte: { nom: 'Libre Franklin + Inter (charte)', titre: 'Libre Franklin', tw: 600, texte: 'Inter', xw: 500, note: 'Les polices officielles de Henzo Studio' }
 };
 const ST_GROUPES = {
   anniversaire: "groupes de mamans, d'événements et de ton quartier",
@@ -105,7 +103,7 @@ function stMarqueFusion(m){
   if(!o.contexte || typeof o.contexte !== 'object') o.contexte = { r: {}, extra: [] };
   if(!o.contexte.r || typeof o.contexte.r !== 'object') o.contexte.r = {};
   if(!Array.isArray(o.contexte.extra)) o.contexte.extra = [];
-  if(!ST_POLICES[o.police]) o.police = 'montserrat';
+  if(!ST_POLICES[o.police]) o.police = 'charte';
   return o;
 }
 function stM(){ return window.ST_MARQUE || stMarqueFusion(null); }
@@ -250,7 +248,7 @@ function stTitreReseau(t, canal){
 function stFonts(){
   if(document.getElementById('stFonts')) return;
   const l = document.createElement('link'); l.id = 'stFonts'; l.rel = 'stylesheet';
-  l.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@400;500;600&family=Montserrat:wght@600;700;800&family=Outfit:wght@500;600;700&family=Poppins:wght@400;500;600;700&display=swap';
+  l.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Libre+Franklin:wght@500;600;700&display=swap';
   document.head.appendChild(l);
 }
 async function stFontsReady(p){
@@ -1337,7 +1335,7 @@ function stVersCreations(){
 }
 async function stCoverMount(){
   const C = ST.cover;
-  const P = ST_POLICES[stM().police] || ST_POLICES.montserrat;
+  const P = ST_POLICES[stM().police] || ST_POLICES.charte;
   try { await stCoverImg(); } catch(e){ agToast("La photo n'a pas pu être chargée", 'error'); return; }
   await Promise.all([stFontsReady(P), stLogoImg()]);
   if(!C.open){ const d = document.getElementById('stCvDemo'); if(d) stCoverPaint(d, true); return; }
@@ -1360,7 +1358,7 @@ function stWrap(g, text, maxW){
 function stCoverPaint(cv, small){
   cv = cv || document.getElementById('stCv'); if(!cv) return;
   const C = ST.cover, im = C.img; if(!im) return;
-  const m = stM(), P = ST_POLICES[m.police] || ST_POLICES.montserrat, col = stCouleurs(m);
+  const m = stM(), P = ST_POLICES[m.police] || ST_POLICES.charte, col = stCouleurs(m);
   const W = 1080, H = C.fmt === '1:1' ? 1080 : 1350;
   const k = small ? cv.width / W : 1;
   if(!small){ cv.width = W; cv.height = H; } else cv.height = Math.round(cv.width * H / W);
@@ -1752,7 +1750,7 @@ function stMarqueHtml(){
     <div class="st-foot"><button class="st-b1" ${ST.busy === 'marque' ? 'disabled' : ''} onclick="stMarqueSave()">${ST.busy === 'marque' ? 'Enregistrement...' : 'Enregistrer ma marque'}</button></div>`;
 }
 function stLisible(hex){ const h = String(hex || '').replace('#', ''); if(h.length < 6) return '#fff'; const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#111' : '#fff'; }
-function stMSwatchHtml(col, m){ const p = ST_POLICES[m.police] || ST_POLICES.montserrat; return `<div style="background:${stE(col.fond)};color:${stE(col.texte)};font-family:'${p.titre}',sans-serif">Titre</div><div style="background:${stE(col.accent)};color:${stLisible(col.accent)}">Accent</div>`; }
+function stMSwatchHtml(col, m){ const p = ST_POLICES[m.police] || ST_POLICES.charte; return `<div style="background:${stE(col.fond)};color:${stE(col.texte)};font-family:'${p.titre}',sans-serif">Titre</div><div style="background:${stE(col.accent)};color:${stLisible(col.accent)}">Accent</div>`; }
 function stMSwatch(){ const el = document.getElementById('stSwatch'); if(el) el.innerHTML = stMSwatchHtml(stCouleurs(ST.m), ST.m); }
 function stMPill(key, k, multi){
   const m = ST.m;

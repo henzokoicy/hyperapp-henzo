@@ -9,7 +9,7 @@
 function hex(h){ h = String(h || '').trim().replace('#', ''); if(h.length === 3) h = h.split('').map(function(c){ return c + c; }).join(''); return [0, 2, 4].map(function(i){ return parseInt(h.slice(i, i + 2), 16) || 0; }); }
 function lum(h){ var c = hex(h); return (c[0] * 299 + c[1] * 587 + c[2] * 114) / 255000; }
 function mix(a, b, t){ var A = hex(a), B = hex(b); return '#' + A.map(function(v, i){ return Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0'); }).join(''); }
-var POLICES = { poppins: 'Poppins', outfit: 'Outfit', manrope: 'Manrope', montserrat: 'Montserrat', dmsans: 'DM Sans' };
+var POLICES = { inter: 'Inter', librefranklin: 'Libre Franklin' };
 var CARTES = '.f,.o,.sum,.rdv,.par,.cols button,.src button,.col,.hint,.cond,.promo,.pills button,.ok .ic';
 
 window.appliquerApparencePage = function(a){
