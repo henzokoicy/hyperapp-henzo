@@ -12,7 +12,7 @@
   --light:#c5cd9f;--deep:#4f5a35;--forest:#2b3320;
   --green:#7fbf8a;--red:#e07a6b;--gold:#c9b37e;--gold-soft:#dccb9d;
   --border:rgba(255,255,255,.08);--border-2:rgba(255,255,255,.15);--line:rgba(255,255,255,.08);
-  --on-accent:#0d0f0c;--pri-bg:#f4f2ec;--pri-fg:#0d0f0c;
+  --on-accent:#0d0f0c;--pri-bg:#8a9a5b;--pri-fg:#0d0f0c;
   --pink:#a3b273;
   --font-display:"Libre Franklin",Arial,sans-serif;
 }
@@ -23,7 +23,7 @@
   --light:#5f6e3a;--deep:#5f6e3a;--forest:#4a572c;
   --green:#3f7d4f;--red:#b5483c;--gold:#a68a4f;--gold-soft:#c9b37e;
   --border:rgba(0,0,0,.08);--border-2:rgba(0,0,0,.16);--line:rgba(0,0,0,.08);
-  --on-accent:#f4f2ec;--pri-bg:#0d0f0c;--pri-fg:#f4f2ec;
+  --on-accent:#f4f2ec;--pri-bg:#5f6e3a;--pri-fg:#f4f2ec;
   --pink:#748549;
 }
 body{
