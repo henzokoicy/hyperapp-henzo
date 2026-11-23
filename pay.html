@@ -654,8 +654,14 @@
     // Bouton Wave
     const btnWave = document.getElementById('btnWave');
     if(btnWave && info.waveLink) {
-      const cleanLink = info.waveLink.trim().replace(/[.,;:\s]+$/, '');
+      // On ne garde que le vrai lien Wave, même si tout le message de Wave a été collé dans le champ
+      const trouve = String(info.waveLink).match(/https?:\/\/pay\.wave\.com\/[^\s"'<>]+/i);
+      const cleanLink = trouve ? trouve[0].replace(/[.,;:)\]]+$/, '') : info.waveLink.trim().replace(/[.,;:\s]+$/, '');
       btnWave.href = cleanLink;
+      if(!/^https?:\/\//i.test(cleanLink)){
+        btnWave.href = '#';
+        btnWave.onclick = (e) => { e.preventDefault(); alert('Lien Wave indisponible. Contactez Henzo Studio.'); };
+      }
       // Android : on demande d'abord à l'appli Wave de s'ouvrir. Si rien ne se passe en 1,5 s
       // (appli absente ou intention refusée), on ouvre le lien Wave normal : le bouton marche toujours.
       if(/Android/i.test(navigator.userAgent || '') && /^https:\/\/pay\.wave\.com\//i.test(cleanLink) && !btnWave.dataset.wave){

@@ -6834,7 +6834,10 @@ async function genererLienPersonnalise() {
   const totalAmount = parseFloat(document.getElementById('lienTotalAmount').value);
   const desc = document.getElementById('lienDesc').value.trim() || 'Paiement';
   const paymentType = document.getElementById('lienPaymentType').value;
-  const waveLink = document.getElementById('lienWaveUrl').value.trim();
+  // Si on a collé tout le message de Wave (« Veuillez payer ... https://pay.wave.com/... »), on ne garde que le lien
+  const waveBrut = document.getElementById('lienWaveUrl').value.trim();
+  const waveTrouve = waveBrut.match(/https?:\/\/pay\.wave\.com\/[^\s"'<>]+/i);
+  const waveLink = waveTrouve ? waveTrouve[0].replace(/[.,;:)\]]+$/, '') : waveBrut;
 
   const shootType = document.getElementById('lienShootType').value.trim();
   const shootDate = document.getElementById('lienShootDate').value || null;
