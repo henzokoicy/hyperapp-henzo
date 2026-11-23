@@ -8,6 +8,9 @@
 -- Tant que ce script n'est pas lancé, l'app envoie le lien long, qui marche comme avant.
 -- ============================================================
 
+-- 0) Frais de paiement ajoutés au montant du client (amount reste ce que tu reçois)
+alter table public.payment_links add column if not exists frais numeric not null default 0;
+
 -- 1) Le secret (créé une fois, au hasard, jamais lisible depuis l'extérieur)
 create table if not exists public.lien_secret (
   id int primary key default 1 check (id = 1),
@@ -45,7 +48,7 @@ security definer
 set search_path = public
 as $$
   select row_to_json(t) from (
-    select id, amount, total_amount, description, client_name, payment_type, wave_link, payment_method
+    select id, amount, total_amount, description, client_name, payment_type, wave_link, payment_method, frais
     from public.payment_links
     where id = p_id
       and lower(coalesce(p_code, '')) = substr(md5(p_id::text || (select secret from public.lien_secret where id = 1)), 1, 8)
