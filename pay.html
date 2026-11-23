@@ -352,6 +352,7 @@
     .moyen button[disabled] { opacity:.55; cursor:default; }
     .autres .m-note { font-size:12px; color:var(--muted); margin-top:12px; line-height:1.6; }
 
+    .aide-btn-wave { width:100%; margin-top:10px; padding:13px; border-radius:12px; border:1px solid var(--border-2, rgba(255,255,255,.2)); background:transparent; color:var(--txt, var(--text)); font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
     /* Aide « Wave ne s'ouvre pas ? » */
     .lien-aide { display:block; margin:14px auto 0; background:none; border:none; color:var(--accent); font-size:13px; font-weight:600; text-decoration:underline; cursor:pointer; font-family:inherit; }
     .aide-wave { margin-top:14px; padding:16px; border-radius:16px; background:var(--card2, rgba(255,255,255,.05)); border:1px solid var(--border-2, rgba(255,255,255,.15)); font-size:13px; line-height:1.6; }
@@ -531,6 +532,8 @@
       <span style="font-size:22px">💳</span>
       Payer avec Wave
     </a>
+
+    <button type="button" class="aide-btn-wave" id="btnWaveAppli" style="display:none">📱 Wave ne s'ouvre pas ? Ouvrir l'application Wave</button>
 
     <div class="trust">🔒 Paiement sécurisé et crypté</div>
 
@@ -733,6 +736,15 @@
       const cleanLink = trouve ? trouve[0].replace(/[.,;:)\]]+$/, '') : info.waveLink.trim().replace(/[.,;:\s]+$/, '');
       btnWave.href = cleanLink;
       aideEtat.lien = cleanLink; aideEtat.montant = info.amount; aideEtat.ref = info.ref;
+      // Android hors Chrome (Edge, navigateur Xiaomi, UC Browser...) : ces navigateurs n'ouvrent pas Wave depuis un lien.
+      // Ce bouton demande directement à Android d'ouvrir le lien avec l'appli qui le gère (Wave), sans nom d'appli codé.
+      const btnAppli = document.getElementById('btnWaveAppli');
+      if(btnAppli && /Android/i.test(navigator.userAgent || '') && !estChromeNatif() && /^https:\/\/pay\.wave\.com\//i.test(cleanLink)) {
+        btnAppli.style.display = 'block';
+        btnAppli.onclick = function() {
+          window.location.href = 'intent://' + cleanLink.replace(/^https:\/\//i, '') + '#Intent;scheme=https;S.browser_fallback_url=' + encodeURIComponent(cleanLink) + ';end';
+        };
+      }
       const wa = document.getElementById('btnAideWa');
       if(wa) wa.href = 'https://wa.me/2250170998964?text=' + encodeURIComponent('Bonjour, je n\'arrive pas à payer ' + new Intl.NumberFormat('fr-FR').format(info.amount) + ' FCFA avec Wave (réf. ' + info.ref + '). Pouvez-vous m\'aider ?');
       if(!/^https?:\/\//i.test(cleanLink)){
@@ -752,6 +764,11 @@
   // ============================================================
   // AIDE « WAVE NE S'OUVRE PAS ? » (aucun client ne reste bloqué)
   // ============================================================
+  // Chrome « natif » : le seul navigateur qui ouvre l'appli Wave tout seul depuis un lien
+  function estChromeNatif() {
+    const ua = navigator.userAgent || '';
+    return /Chrome\//i.test(ua) && !/; wv\)|Version\/\d+\.\d+ Chrome|OPR\/|SamsungBrowser|MiuiBrowser|UCBrowser|EdgA|FBAN|FBAV|Instagram|WhatsApp/i.test(ua);
+  }
   function copier(texte, message) {
     const ok = () => { const o = document.getElementById('aideOk'); if(o) { o.textContent = message; setTimeout(() => { o.textContent = ''; }, 2500); } };
     try {
