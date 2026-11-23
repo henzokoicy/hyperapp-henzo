@@ -522,7 +522,14 @@ function crDessinerApercuVite(){ if(document.getElementById('anCanvas') && typeo
 async function crDessinerApercu(){
   if(document.getElementById('anCanvas') && typeof anApercuUneFois === 'function'){ anApercuUneFois(); return; }
   const cv = document.getElementById('crCanvas'); if(!cv) return;
-  try { await crDessiner(cv, CR.slide); } catch(e){ console.warn('dessin', e); }
+  try {
+    await crDessiner(cv, CR.slide);
+    // Si le canvas a été remplacé pendant le dessin (race condition), on relance sur le nouveau
+    if(!cv.isConnected){
+      const cv2 = document.getElementById('crCanvas');
+      if(cv2) await crDessiner(cv2, CR.slide);
+    }
+  } catch(e){ console.warn('dessin', e); }
 }
 // Glisser sur l'aperçu = déplacer la photo touchée
 function crBrancherApercu(){
@@ -560,7 +567,7 @@ function crRond(g, x, y, w, h, r){
 // Photo qui remplit un cadre (comme "cover"), avec déplacement (x, y de -1 à 1) et zoom
 function crPhoto(g, img, i, x, y, w, h, rayon){
   CR.rects = CR.rects || [];
-  if(!img){ g.fillStyle = 'rgba(128,128,128,.25)'; g.fillRect(x, y, w, h); return; }
+  if(!img){ g.fillStyle = 'rgba(128,128,128,.5)'; g.fillRect(x, y, w, h); return; }
   const c = CR.crop[i] || (CR.crop[i] = { x: 0, y: 0, z: 1 });
   const s = Math.max(w / img.width, h / img.height) * (c.z || 1);
   const dw = img.width * s, dh = img.height * s;
@@ -642,14 +649,18 @@ async function crDessiner(cv, slide, k){
   const exact = k && typeof k === 'object' ? k : null;
   k = exact ? exact.k : (k || 1);
   const M = crModele(), c = CR.cfg, F = exact ? { w: exact.w, h: exact.h } : crDims(CR.fmt, k);
+  if(!M) return; // modèle introuvable (peut arriver si animations.js non chargé)
   if(cv.width !== F.w || cv.height !== F.h){ cv.width = F.w; cv.height = F.h; }
   // s = échelle : 1 pour l'aperçu (1080 px sur le petit côté), plus grand pour l'image finale
   const W = F.w, H = F.h, s = Math.min(W, H) / 1080, P = crPolices();
   if(typeof stFontsReady === 'function'){ try { await stFontsReady(crPolice()); } catch(e){} }
+  if(!cv.isConnected) return; // canvas remplacé pendant le chargement des polices
   const hd = k > 1.05;
   const imgs = await Promise.all(CR.photos.map(p => (hd ? crImageHD(p) : crImage(p)).catch(() => null)));
+  if(!cv.isConnected) return; // canvas remplacé pendant le chargement des images
   CR.flous = [];
   const logo = c.logo ? await crLogo() : null;
+  if(!cv.isConnected) return; // canvas remplacé pendant le chargement du logo
   const g = cv.getContext('2d');
   CR.rects = [];
   g.clearRect(0, 0, W, H);
