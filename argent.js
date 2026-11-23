@@ -1068,7 +1068,7 @@ const AG_TAB_ICONS = { dash: 'home', argent: 'wallet', coffres: 'lock', objectif
 // calculés ici à partir de 5 couleurs (fond, cartes, accent, clair, foncé).
 const AG_THEMES = {
   henzo:      { label: 'Henzo Studio',        desc: 'Charte officielle, sombre', sw: ['#0d0f0c', '#161913', '#8a9a5b', '#f4f2ec'] },
-  'henzo-clair': { label: 'Henzo Studio clair', desc: 'Charte officielle, clair', sw: ['#faf9f6', '#f1efe9', '#5f6e3a', '#13150f'], clair: true },
+  'henzo-clair': { label: 'Henzo Studio clair', desc: 'Charte officielle, clair', sw: ['#f4f2ec', '#eae7df', '#5f6e3a', '#13150f'], clair: true },
   aurora:     { label: 'Aurora',      desc: 'Vert profond et blanc', sw: ['#030b0a', '#00524D', '#48A89A', '#CBEFEB'] },
   graphite:   { label: 'Graphite',    desc: 'Gris anthracite et vert citron', sw: ['#141414', '#262626', '#b6f23a', '#e9e9e9'] },
   minuit:     { label: 'Minuit',      desc: 'Bleu nuit et bleu clair', sw: ['#070a14', '#1d2a5c', '#6b8eff', '#c9d4ff'] },
@@ -1196,12 +1196,7 @@ const AG_ANIMS = {
   aucune: { label: 'Aucune', desc: 'Change tout de suite' }
 };
 const AG_POLICES = {
-  inter: { label: 'Inter', f: 'Inter' },
-  poppins: { label: 'Poppins', f: 'Poppins' },
-  outfit: { label: 'Outfit', f: 'Outfit' },
-  manrope: { label: 'Manrope', f: 'Manrope' },
-  montserrat: { label: 'Montserrat', f: 'Montserrat' },
-  dmsans: { label: 'DM Sans', f: 'DM Sans' }
+  inter: { label: 'Inter + Libre Franklin (charte)', f: 'Inter' }
 };
 function agApparence(){
   let a = null; try { a = JSON.parse(localStorage.getItem('ag_apparence') || 'null'); } catch(e){}
@@ -1218,7 +1213,7 @@ function agAppliquerApparence(a){
   h.setAttribute('data-style', a.style); h.setAttribute('data-anim', a.anim); h.setAttribute('data-police', a.police);
   if(a.police !== 'inter' && !document.getElementById('agPoliceLien')){
     const l = document.createElement('link'); l.id = 'agPoliceLien'; l.rel = 'stylesheet';
-    l.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap';
+    l.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Libre+Franklin:wght@500;600;700&display=swap';
     document.head.appendChild(l);
   }
   try { localStorage.setItem('ag_apparence', JSON.stringify(a)); } catch(e){}

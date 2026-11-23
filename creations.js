@@ -83,7 +83,7 @@ function crModele(k){
   return m ? { k: m[0], nom: m[1], desc: m[2], min: m[3], max: m[4], fmts: m[5] } : null;
 }
 function crM(){ return typeof stM === 'function' ? stM() : {}; }
-function crPolice(){ const P = typeof ST_POLICES !== 'undefined' ? ST_POLICES : null; const k = (CR.cfg && CR.cfg.police) || crM().police || 'montserrat'; return P ? (P[k] || P.montserrat) : { titre: 'Montserrat', tw: 800, texte: 'Inter', xw: 600 }; }
+function crPolice(){ const P = typeof ST_POLICES !== 'undefined' ? ST_POLICES : null; const k = (CR.cfg && CR.cfg.police) || crM().police || 'charte'; return P ? (P[k] || P.charte) : { titre: 'Libre Franklin', tw: 600, texte: 'Inter', xw: 500 }; }
 function crCouleurs(){ return typeof stCouleurs === 'function' ? stCouleurs() : { fond: '#00524D', texte: '#ffffff', accent: '#48A89A' }; }
 function crE(s){ return agEsc(s); }
 function crJ(o){ return agEsc(JSON.stringify(o)); }
