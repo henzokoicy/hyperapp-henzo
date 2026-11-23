@@ -36,8 +36,8 @@ function edOutilDe(titre){
   const t = String(titre || '').trim();
   if(/^Exporter|^Qualité/.test(t)) return 'export';
   if(/^Musique/.test(t)) return 'musique';
-  if(/^Durée et format|^Format/.test(t)) return 'mise';
-  if(/^Textes/.test(t)) return 'textes';
+  if(/^Durée et format|^Format|^Disposition|^Photos et bordure/.test(t)) return 'mise';
+  if(/^Textes|^Logo et signature/.test(t)) return 'textes';
   if(/^Police/.test(t)) return 'police';
   if(/^Effets/.test(t)) return 'effets';
   if(/^Générique/.test(t)) return 'fin';

@@ -92,7 +92,7 @@ function crCfgDefaut(){
   const m = crM(), c = crCouleurs();
   return {
     police: m.police || 'montserrat', fond: c.fond, texte: c.texte, accent: c.accent, clair: '#f6f3ee', encre: '#1b1b1b',
-    eyebrow: '', titre: '', sous: '', offre: '', prix: '', appel: 'Réserve ta séance', contact: m.contact || '',
+    eyebrow: '', titre: '', sous: '', offre: '', prix: '', appel: '', contact: m.contact || '',
     citation: '', auteur: '', legendes: ['', '', ''], avant: 'Avant', apres: 'Après',
     logo: true, copyright: true, voile: 0.55, pos: 'bas', align: 'centre', taille: 1,
     gap: 14, bord: 0, bordCouleur: '#ffffff', cadre: 'polaroid', sens: 'auto',
@@ -388,6 +388,16 @@ function crPapier(nom){
 // ============================================================
 // 3. L'EDITEUR
 // ============================================================
+// Curseur rangé : nom à gauche, valeur à droite, tout sur une ligne
+function crRgMaj(el, fmt){
+  const o = el.parentNode.querySelector('output'); if(!o) return;
+  const v = Number(el.value);
+  o.textContent = fmt === 'pct' ? Math.round(v * 100) + ' %' : fmt === 'x' ? '×' + String(Math.round(v * 100) / 100) : fmt === 'px' ? v + ' px' : String(v);
+}
+function crRg(label, min, max, pas, val, appel, fmt){
+  const v = Number(val), aff = fmt === 'pct' ? Math.round(v * 100) + ' %' : fmt === 'x' ? '×' + (Math.round(v * 100) / 100) : fmt === 'px' ? v + ' px' : v;
+  return `<div class="cr-rg"><div class="cr-rg-t"><span>${label}</span><output>${aff}</output></div><input type="range" min="${min}" max="${max}" step="${pas}" value="${v}" oninput="crRgMaj(this,'${fmt || ''}');${appel}"></div>`;
+}
 function crVueEdit(){
   const M = crModele(), c = CR.cfg;
   const F = crDims(CR.fmt, 1);
@@ -438,25 +448,32 @@ function crVueEdit(){
           <input id="crOcc" placeholder="Pour quoi ? Ex : promo fête des mères, séance de Destinée..." value="${crE(CR.occasion || '')}" oninput="CR.occasion=this.value">
           ${textes}
         </details>
-        <details class="cr-bloc" open><summary>Format et mise en page</summary>
-          <label>Format</label><div class="cr-fmts">${M.fmts.map(f => { const r = CR_FMT[f].r, w = r >= 1 ? 26 : Math.round(26 * r), h = r >= 1 ? Math.round(26 / r) : 26; return `<button type="button" class="${CR.fmt === f ? 'on' : ''}" onclick="crSet('fmt','${f}')"><i style="width:${w}px;height:${h}px"></i><b>${crE(CR_FMT[f].nom)}</b><small>${crE(CR_FMT[f].usage)}</small></button>`; }).join('')}</div>
+        <details class="cr-bloc" open><summary>Logo et signature</summary>
+          <div class="ag-hint" style="margin:0 0 6px">Ce qui est dessiné automatiquement sur l'image. Décoche pour tout enlever.</div>
+          <label class="ag-check"><input type="checkbox" ${c.logo ? 'checked' : ''} onchange="crSet('logo',this.checked)"> Mon logo / nom de marque</label>
+          <label class="ag-check"><input type="checkbox" ${c.copyright ? 'checked' : ''} onchange="crSet('copyright',this.checked)"> Mon nom en petit (© ${crE(crNom())})</label>
+        </details>
+        <details class="cr-bloc" open><summary>Format</summary>
+          <div class="cr-fmts">${M.fmts.map(f => { const r = CR_FMT[f].r, w = r >= 1 ? 26 : Math.round(26 * r), h = r >= 1 ? Math.round(26 / r) : 26; return `<button type="button" class="${CR.fmt === f ? 'on' : ''}" onclick="crSet('fmt','${f}')"><i style="width:${w}px;height:${h}px"></i><b>${crE(CR_FMT[f].nom)}</b><small>${crE(CR_FMT[f].usage)}</small></button>`; }).join('')}</div>
+        </details>
+        <details class="cr-bloc" open><summary>Disposition</summary>
           ${['affiche', 'story', 'carrousel', 'citation'].includes(M.k) ? `<label>Place du texte</label>${pills('pos', CR_POS)}` : ''}
           ${['affiche', 'epure', 'story', 'carrousel', 'mosaique', 'cadre'].includes(M.k) ? `<label>Alignement</label>${pills('align', [['gauche', 'À gauche'], ['centre', 'Centré']])}` : ''}
           ${M.k === 'cadre' ? `<label>Style de cadre</label>${pills('cadre', CR_CADRES)}` : ''}
           ${M.k === 'avantapres' ? `<label>Sens</label>${pills('sens', [['auto', 'Automatique'], ['cote', 'Côte à côte'], ['dessus', 'L\'une sur l\'autre']])}` : ''}
-          ${['mosaique', 'storyboard', 'avantapres'].includes(M.k) ? `<label>Espace entre les photos</label><input type="range" min="0" max="60" step="2" value="${c.gap}" oninput="crSetNum('gap',this.value)">` : ''}
-          ${['mosaique', 'storyboard', 'affiche', 'story', 'citation', 'carrousel'].includes(M.k) ? `<label>Bordure autour</label><input type="range" min="0" max="80" step="2" value="${c.bord}" oninput="crSetNum('bord',this.value)">` : ''}
-          ${['affiche', 'story', 'citation', 'carrousel'].includes(M.k) ? `<label>Voile sombre sur la photo</label><input type="range" min="0" max="0.9" step="0.05" value="${c.voile}" oninput="crSetNum('voile',this.value)">` : ''}
-          <label>Taille du titre</label><input type="range" min="0.7" max="1.4" step="0.05" value="${c.taille}" oninput="crSetNum('taille',this.value)">
+          ${crRg('Taille du titre', 0.7, 1.4, 0.05, c.taille, "crSetNum('taille',this.value)", 'x')}
         </details>
+        ${['mosaique', 'storyboard', 'avantapres', 'affiche', 'story', 'citation', 'carrousel'].includes(M.k) ? `<details class="cr-bloc" open><summary>Photos et bordure</summary>
+          ${['mosaique', 'storyboard', 'avantapres'].includes(M.k) ? crRg('Espace entre les photos', 0, 60, 2, c.gap, "crSetNum('gap',this.value)", 'px') : ''}
+          ${['mosaique', 'storyboard', 'affiche', 'story', 'citation', 'carrousel'].includes(M.k) ? crRg('Bordure autour', 0, 80, 2, c.bord, "crSetNum('bord',this.value)", 'px') : ''}
+          ${['affiche', 'story', 'citation', 'carrousel'].includes(M.k) ? crRg('Voile sombre sur la photo', 0, 0.9, 0.05, c.voile, "crSetNum('voile',this.value)", 'pct') : ''}
+        </details>` : ''}
         <details class="cr-bloc" ${M.k === 'editorial' ? 'open' : ''}><summary>Effets créatifs</summary>${crEffetsHtml(M)}</details>
         <details class="cr-bloc"><summary>Police et couleurs</summary>
           <label>Police (sans empattement)</label>
           <div class="ag-pills">${Object.entries(P).map(([k, p]) => `<button type="button" class="${c.police === k ? 'on' : ''}" style="font-family:'${p.titre}',sans-serif" onclick="crSet('police','${k}')">${crE(p.titre)}</button>`).join('')}</div>
           <div class="cr-cols">${[['fond', 'Fond'], ['texte', 'Texte'], ['accent', 'Accent'], ['clair', 'Fond clair'], ['bordCouleur', 'Bordure']].map(([k, l]) => `<label>${l}<input type="color" value="${crE(c[k])}" oninput="crSetCol('${k}',this.value)"></label>`).join('')}</div>
           <button class="st-link" onclick="crCouleursMarque()">Remettre les couleurs de ma marque</button>
-          <label class="ag-check"><input type="checkbox" ${c.logo ? 'checked' : ''} onchange="crSet('logo',this.checked)"> Mon logo</label>
-          <label class="ag-check"><input type="checkbox" ${c.copyright ? 'checked' : ''} onchange="crSet('copyright',this.checked)"> Copyright discret en bas</label>
         </details>
         <button class="btn-ghost" style="width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px" onclick="CR.vue='photos';crRender()">${agIcon('image', 15)} Changer les photos</button>
       </div>
@@ -465,30 +482,32 @@ function crVueEdit(){
 // Bloc "Effets créatifs" : filtre, grain, vignette, lumière, bords flous, mot géant, mes effets
 function crEffetsHtml(M){
   const c = CR.cfg, e = c.effets || (c.effets = crCfgDefaut().effets);
-  const curseur = (cle, label, min, max, pas, val, fn) => `<label>${label}</label><input type="range" min="${min}" max="${max}" step="${pas}" value="${val}" oninput="${fn || 'crSetFx'}('${cle}',this.value)">`;
+  const rg = (cle, label, min, max, pas, val, fn) => crRg(label, min, max, pas, val, `${fn || 'crSetFx'}('${cle}',this.value)`, 'pct');
   const unePhoto = M.min === 1 && M.max === 1;
-  return `<label>Filtre</label><div class="ag-pills">${Object.entries(CR_FILTRES).map(([k, v]) => `<button type="button" class="${(e.filtre || 'aucun') === k ? 'on' : ''}" onclick="crSetFx('filtre','${k}',1)">${v[0]}</button>`).join('')}</div>
-    ${curseur('grain', 'Grain de film', 0, 1, 0.05, e.grain || 0)}
-    ${curseur('vignette', 'Bords sombres', 0, 1, 0.05, e.vignette || 0)}
-    ${curseur('lumiere', 'Lumière colorée', 0, 1, 0.05, e.lumiere || 0)}
-    ${curseur('poussiere', 'Poussières de film', 0, 1, 0.05, e.poussiere || 0)}
-    ${curseur('brulure', 'Bords brûlés (pellicule)', 0, 1, 0.05, e.brulure || 0)}
-    ${M.k === 'editorial' ? curseur('flouBords', 'Bords flous (centre net)', 0, 1, 0.05, c.flouBords || 0, 'crSetNum') : ''}
+  return `<div class="cr-sep prem">Ambiance</div>
+    <label>Filtre</label><div class="ag-pills">${Object.entries(CR_FILTRES).map(([k, v]) => `<button type="button" class="${(e.filtre || 'aucun') === k ? 'on' : ''}" onclick="crSetFx('filtre','${k}',1)">${v[0]}</button>`).join('')}</div>
+    ${rg('lumiere', 'Lumière colorée', 0, 1, 0.05, e.lumiere || 0)}
+    ${rg('vignette', 'Bords sombres', 0, 1, 0.05, e.vignette || 0)}
+    ${M.k === 'editorial' ? rg('flouBords', 'Bords flous (centre net)', 0, 1, 0.05, c.flouBords || 0, 'crSetNum') : ''}
+    <div class="cr-sep">Pellicule</div>
+    ${rg('grain', 'Grain de film', 0, 1, 0.05, e.grain || 0)}
+    ${rg('poussiere', 'Poussières de film', 0, 1, 0.05, e.poussiere || 0)}
+    ${rg('brulure', 'Bords brûlés', 0, 1, 0.05, e.brulure || 0)}
     <div class="cr-sep">Grand texte créatif</div>
     ${M.k !== 'editorial' ? `<textarea rows="2" placeholder="Ex : PHOTOGRAPHIE (facultatif)" oninput="crSetTxt('mot',this.value)">${crE(c.mot || '')}</textarea>` : '<div class="ag-hint" style="margin:0">Le texte se tape dans « Textes ».</div>'}
     <label>Style d'écriture</label><div class="ag-pills">${Object.entries(CR_POLICES_CREA).map(([k, v]) => `<button type="button" class="${(c.motPolice || 'marque') === k ? 'on' : ''}" ${v.f ? `style="font-family:'${v.f}',sans-serif"` : ''} onclick="crSet('motPolice','${k}')">${v.nom}</button>`).join('')}</div>
     <div class="cr-cols" style="grid-template-columns:repeat(2,1fr)"><label>Couleur du texte<input type="color" value="${crE(c.motCouleur || c.accent)}" oninput="crSetCol('motCouleur',this.value)"></label>
       <label>Place<select onchange="crSet('motPos',this.value)">${[['centre', 'Au centre'], ['haut', 'En haut'], ['bas', 'En bas']].map(([k, l]) => `<option value="${k}" ${c.motPos === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
-    ${curseur('motOpacite', 'Transparence du texte', 0.2, 1, 0.05, c.motOpacite == null ? 0.85 : c.motOpacite, 'crSetNum')}
-    ${curseur('motFlou', 'Texte un peu flou', 0, 4, 0.25, c.motFlou || 0, 'crSetNum')}
-    ${curseur('motTaille', 'Taille du texte', 0.4, 1.2, 0.05, c.motTaille || 1, 'crSetNum')}
+    ${crRg('Taille du texte', 0.4, 1.2, 0.05, c.motTaille || 1, "crSetNum('motTaille',this.value)", 'x')}
+    ${rg('motOpacite', 'Transparence du texte', 0.2, 1, 0.05, c.motOpacite == null ? 0.85 : c.motOpacite, 'crSetNum')}
+    ${crRg('Flou du texte', 0, 4, 0.25, c.motFlou || 0, "crSetNum('motFlou',this.value)", 'x')}
     <div class="cr-sep">Mes effets (images ajoutées)</div>
     <div class="ag-hint" style="margin:0 0 8px">Ajoute des textures, poussières, lumières, cadres (PNG ou JPG) : par exemple des « overlays » trouvés sur internet. Ils restent dans ta liste.</div>
     <div class="cr-effets">${(CR.effets || []).map(x => `<button type="button" class="${e.perso && e.perso.path === x.media_path ? 'on' : ''}" onclick="crChoisirEffet(${x.id})"><img data-mkp="${crE(x.media_path)}" src="" alt=""><small>${crE(x.nom || 'Effet')}</small></button>`).join('')}
       <button type="button" class="cr-eff-plus" onclick="document.getElementById('crFxFile').click()">+<small>Ajouter</small></button></div>
     <input type="file" id="crFxFile" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="crAjouterEffet(this.files)">
     ${e.perso ? `<label>Mélange</label><div class="ag-pills">${[['screen', 'Éclaircir (lumières)'], ['overlay', 'Superposer (textures)'], ['multiply', 'Assombrir (poussière)'], ['source-over', 'Normal (cadres PNG)']].map(([k, l]) => `<button type="button" class="${e.persoBlend === k ? 'on' : ''}" onclick="crSetFx('persoBlend','${k}',1)">${l}</button>`).join('')}</div>
-      ${curseur('persoOpac', 'Force de l\'effet', 0.1, 1, 0.05, e.persoOpac == null ? 0.6 : e.persoOpac)}
+      ${rg('persoOpac', 'Force de l\'effet', 0.1, 1, 0.05, e.persoOpac == null ? 0.6 : e.persoOpac)}
       <button class="st-link" onclick="CR.cfg.effets.perso=null;crRender()">Retirer l'effet</button>` : ''}`;
 }
 function crSetFx(k, v, rendu){ const e = CR.cfg.effets || (CR.cfg.effets = {}); e[k] = isNaN(Number(v)) || k === 'filtre' || k === 'persoBlend' ? v : Number(v); if(rendu) crRender(); else crDessinerApercuVite(); }
@@ -657,17 +676,18 @@ async function crDessiner(cv, slide, k){
   k = exact ? exact.k : (k || 1);
   const M = crModele(), c = CR.cfg, F = exact ? { w: exact.w, h: exact.h } : crDims(CR.fmt, k);
   if(!M) return; // modèle introuvable (peut arriver si animations.js non chargé)
+  const enPage = cv.isConnected; // canvas de l'aperçu (dans la page) ; l'export dessine sur un canvas hors page
   if(cv.width !== F.w || cv.height !== F.h){ cv.width = F.w; cv.height = F.h; }
   // s = échelle : 1 pour l'aperçu (1080 px sur le petit côté), plus grand pour l'image finale
   const W = F.w, H = F.h, s = Math.min(W, H) / 1080, P = crPolices();
   if(typeof stFontsReady === 'function'){ try { await stFontsReady(crPolice()); } catch(e){} }
-  if(!cv.isConnected) return; // canvas remplacé pendant le chargement des polices
+  if(enPage && !cv.isConnected) return; // canvas remplacé pendant le chargement des polices
   const hd = k > 1.05;
   const imgs = await Promise.all(CR.photos.map(p => (hd ? crImageHD(p) : crImage(p)).catch(() => null)));
-  if(!cv.isConnected) return; // canvas remplacé pendant le chargement des images
+  if(enPage && !cv.isConnected) return; // canvas remplacé pendant le chargement des images
   CR.flous = [];
   const logo = c.logo ? await crLogo() : null;
-  if(!cv.isConnected) return; // canvas remplacé pendant le chargement du logo
+  if(enPage && !cv.isConnected) return; // canvas remplacé pendant le chargement du logo
   const g = cv.getContext('2d');
   CR.rects = [];
   g.clearRect(0, 0, W, H);
@@ -706,9 +726,9 @@ async function crDessiner(cv, slide, k){
       y = pos === 'haut' ? B + 150 * s : pos === 'centre' ? (H - total) / 2 : H - B - 90 * s - total;
       blocs.forEach(([k, o]) => { y += texte(c[k], Object.assign({}, o, { y })) + 22 * s; });
       if(fin){
-        const tt = c.appel || 'Réserve ta séance';
+        const tt = c.appel || '';
         y = (H - 260 * s) / 2;
-        y += texte(tt, { fam: P.t, poids: P.tw, px: 84 * s * T, align: 'centre', maxL: 3, lh: 1.05, ombre: true, y }) + 40 * s;
+        if(tt) y += texte(tt, { fam: P.t, poids: P.tw, px: 84 * s * T, align: 'centre', maxL: 3, lh: 1.05, ombre: true, y }) + 40 * s;
         if(c.contact) texte(c.contact, { px: 36 * s, poids: 500, y, align: 'centre', maxL: 2 });
       } else {
         if(M.k === 'affiche' && (c.offre || c.prix)){
@@ -895,7 +915,7 @@ async function crDessiner(cv, slide, k){
     if(c.titre) crTexte(g, c.titre, { fam: P.x, poids: 500, px: 34 * s, x: 60 * s, maxW: W - 120 * s, y: yb, couleur: c.encre, align: 'centre', maxL: 1, espace: 3 * s });
     if(c.contact) crTexte(g, c.contact, { fam: P.x, poids: 400, px: 24 * s, x: 60 * s, maxW: W - 120 * s, y: yb + 60 * s, couleur: 'rgba(27,27,27,.6)', align: 'centre', maxL: 1 });
     g.font = crFont(P.t, 700, 20 * s); g.fillStyle = 'rgba(27,27,27,.5)'; g.letterSpacing = (4 * s) + 'px'; g.textAlign = 'center';
-    g.fillText(crNom().toUpperCase(), W / 2, H - 40 * s); g.textAlign = 'left'; g.letterSpacing = '0px';
+    if(c.copyright) g.fillText(crNom().toUpperCase(), W / 2, H - 40 * s); g.textAlign = 'left'; g.letterSpacing = '0px';
   }
   else if(M.k === 'triptyque'){
     g.fillStyle = c.bordCouleur; g.fillRect(0, 0, W, H);
@@ -932,7 +952,7 @@ async function crDessiner(cv, slide, k){
     const yb = H - basH;
     if(c.sous) crTexte(g, c.sous, { fam: P.x, poids: 400, px: 26 * s, x: m, maxW: W - 2 * m, y: yb, couleur: 'rgba(27,27,27,.7)', maxL: 2, lh: 1.3 });
     g.font = crFont(P.t, 700, 20 * s); g.fillStyle = 'rgba(27,27,27,.55)'; g.letterSpacing = (4 * s) + 'px'; g.textAlign = 'right';
-    g.fillText(crNom().toUpperCase(), W - m, H - m * 0.6); g.textAlign = 'left'; g.letterSpacing = '0px';
+    if(c.copyright) g.fillText(crNom().toUpperCase(), W - m, H - m * 0.6); g.textAlign = 'left'; g.letterSpacing = '0px';
   }
   // Mot géant sur les autres modèles (s'il est rempli), puis les effets sur toute l'image
   if(M.k !== 'editorial' && c.mot) await crMotGeant(g, W, H, s, c);
@@ -1439,6 +1459,8 @@ function crCss(){
 .cr-cols label{font-size:11px;color:var(--muted);text-align:center}
 .cr-cols input{height:38px;padding:2px;margin-top:4px}
 .cr-drop{margin:4px 0}
+.cr-rg{margin:10px 0 2px}.cr-rg-t{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--text);margin-bottom:2px}.cr-rg-t output{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}.cr-rg input[type=range]{width:100%;margin:0}
+.cr-sep.prem{margin-top:4px;padding-top:0;border-top:0}
 .cr-sep{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:16px 0 6px;padding-top:12px;border-top:1px solid var(--border)}
 .cr-effets{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
 .cr-effets button{flex:none;width:68px;margin:0;padding:0;border-radius:10px;overflow:hidden;border:2px solid transparent;background:var(--card2);cursor:pointer;display:flex;flex-direction:column;align-items:center;color:var(--text)}
