@@ -7736,8 +7736,9 @@ function ouvrirModifierLien(id) {
   const paye = l.status === 'paid';
   const ancien = document.getElementById('modifLienModal'); if(ancien) ancien.remove();
   const e = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-  const taux = (() => { try { return parseFloat(localStorage.getItem('wave_frais_taux') || '1') || 1; } catch(x){ return 1; } })();
+  let taux = 1; try { taux = parseFloat(localStorage.getItem('wave_frais_taux') || '1') || 1; } catch(x){}
   const methodes = ['Wave', 'Orange Money', 'Moov Money', 'MTN Money', 'Espèces', 'Virement bancaire', 'Chèque'];
+  const typeInit = ['acompte30', 'acompte50', 'complet', 'libre'].indexOf(l.payment_type) >= 0 ? l.payment_type : 'libre';
   const modal = document.createElement('div');
   modal.className = 'modal-bg show'; modal.id = 'modifLienModal';
   modal.innerHTML = `<div class="modal">
@@ -7750,18 +7751,72 @@ function ouvrirModifierLien(id) {
     <label>Description</label>
     <input type="text" id="mlDesc" value="${e(l.description)}">
     <label>Montant total de la prestation (FCFA)</label>
-    <input type="number" id="mlTotal" value="${e(l.total_amount || '')}" inputmode="decimal" ${paye ? 'disabled' : ''}>
+    <input type="number" id="mlTotal" value="${e(l.total_amount || '')}" inputmode="decimal" oninput="majModifLien('total')" ${paye ? 'disabled' : ''}>
+    <label>Type de paiement</label>
+    <select id="mlType" onchange="majModifLien('type')" ${paye ? 'disabled' : ''}>
+      <option value="acompte30"${typeInit === 'acompte30' ? ' selected' : ''}>💰 Acompte 30%</option>
+      <option value="acompte50"${typeInit === 'acompte50' ? ' selected' : ''}>💰 Acompte 50%</option>
+      <option value="complet"${typeInit === 'complet' ? ' selected' : ''}>✅ Paiement complet (100%)</option>
+      <option value="libre"${typeInit === 'libre' ? ' selected' : ''}>💵 Montant libre</option>
+    </select>
     <label>Montant à recevoir (FCFA), sans les frais</label>
-    <input type="number" id="mlMontant" value="${e(l.amount)}" inputmode="decimal" ${paye ? 'disabled' : ''}>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="number" id="mlMontant" value="${e(l.amount)}" inputmode="decimal" oninput="majModifLien('flex')" style="flex:2" ${paye ? 'disabled' : ''}>
+      <div id="mlPct" style="flex:1;text-align:center;background:var(--card2);border-radius:10px;padding:12px;font-weight:800;color:var(--accent)">0%</div>
+    </div>
     <label>Mode de paiement</label>
-    <select id="mlMethode" ${paye ? 'disabled' : ''}>${methodes.map(m => `<option value="${m}"${(l.payment_method || 'Wave') === m ? ' selected' : ''}>${m}</option>`).join('')}</select>
-    ${paye ? '' : `<label style="display:flex;gap:10px;align-items:center;margin-top:12px;cursor:pointer">
-      <input type="checkbox" id="mlFrais" ${Number(l.frais) > 0 || !l.id ? 'checked' : ''} style="width:20px;height:20px;margin:0;flex:none">
-      <span style="font-size:13px;font-weight:700">Ajouter les frais de paiement (${taux} %) au montant du client</span></label>`}
-    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">Les liens courts se mettent à jour tout seuls chez le client. Un ancien lien long garde l'ancienne information : renvoie-lui le lien si tu changes le nom ou le montant.</div>
+    <select id="mlMethode" onchange="majModifLien('frais')" ${paye ? 'disabled' : ''}>${methodes.map(m => `<option value="${m}"${(l.payment_method || 'Wave') === m ? ' selected' : ''}>${m}</option>`).join('')}</select>
+    ${paye ? '' : `<div style="margin-top:12px;background:var(--card2);border-radius:12px;padding:12px">
+      <label style="display:flex;gap:10px;align-items:center;margin:0;cursor:pointer">
+        <input type="checkbox" id="mlFrais" ${(Number(l.frais) > 0 || moyenEnLigne(l.payment_method)) ? 'checked' : ''} onchange="majModifLien('frais')" style="width:20px;height:20px;margin:0;flex:none">
+        <span style="font-size:13px;font-weight:700">Ajouter les frais de paiement au montant du client</span></label>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <span style="font-size:12px;color:var(--muted);flex:1">Taux des frais (%)</span>
+        <input type="number" id="mlTaux" value="${taux}" step="0.1" min="0" max="20" inputmode="decimal" style="width:90px;text-align:center;margin:0" oninput="try{localStorage.setItem('wave_frais_taux',this.value)}catch(x){};majModifLien('frais')">
+      </div>
+    </div>
+    <div id="mlRecap" style="background:linear-gradient(135deg,rgba(46,204,113,.15),rgba(108,140,255,.08));border-radius:12px;padding:14px;margin-top:12px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Le client devra payer</div>
+      <div id="mlRecapValeur" style="font-weight:700;color:var(--green);font-size:22px">...</div>
+      <div id="mlRecapDetail" style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6"></div>
+    </div>`}
+    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">Après l'enregistrement, le nouveau lien s'affiche pour que tu puisses le renvoyer au client. Un ancien lien déjà envoyé peut garder l'ancien montant : utilise le nouveau.</div>
     <button class="btn-primary" style="margin-top:14px;width:100%" onclick="enregistrerModifLien(${l.id})">💾 Enregistrer</button>
   </div>`;
   document.body.appendChild(modal);
+  majModifLien('init');
+}
+
+// Met à jour le montant à recevoir, les frais et le récapitulatif dans la fenêtre « Modifier » (même logique que la création)
+function majModifLien(source) {
+  const g = x => document.getElementById(x);
+  if(!g('mlTotal') || !g('mlMontant')) return;
+  const total = parseFloat(g('mlTotal').value) || 0;
+  const type = g('mlType') ? g('mlType').value : 'libre';
+  if(source === 'total' || source === 'type'){
+    if(type === 'acompte30' && total > 0) g('mlMontant').value = Math.round(total * 0.30);
+    else if(type === 'acompte50' && total > 0) g('mlMontant').value = Math.round(total * 0.50);
+    else if(type === 'complet' && total > 0) g('mlMontant').value = Math.round(total);
+  }
+  let montant = parseFloat(g('mlMontant').value) || 0;
+  if(source === 'flex' && total > 0 && type !== 'libre'){
+    const attendu = type === 'acompte30' ? Math.round(total * 0.30) : type === 'acompte50' ? Math.round(total * 0.50) : Math.round(total);
+    if(montant !== attendu) g('mlType').value = 'libre';
+  }
+  const pct = g('mlPct');
+  if(pct){
+    pct.textContent = total > 0 && montant > 0 ? ((montant / total) * 100).toFixed(1).replace('.0', '') + '%' : '0%';
+    pct.style.color = total > 0 && montant > total ? 'var(--red)' : 'var(--accent)';
+  }
+  if(!g('mlRecap')) return;
+  const methode = g('mlMethode') ? g('mlMethode').value : 'Wave';
+  const inclure = !!(g('mlFrais') || {}).checked && moyenEnLigne(methode);
+  const calc = calculFraisLien(montant, inclure, (() => { const t = parseFloat((g('mlTaux') || {}).value); return (t >= 0 && t < 50) ? t : 1; })());
+  const nf = new Intl.NumberFormat('fr-FR');
+  g('mlRecapValeur').textContent = montant > 0 ? nf.format(calc.total) + ' FCFA' : '—';
+  g('mlRecapDetail').innerHTML = montant <= 0 ? '' : (calc.frais > 0
+    ? 'Tu reçois <b style="color:var(--text)">' + nf.format(calc.net) + ' FCFA</b> · frais de paiement inclus : ' + nf.format(calc.frais) + ' FCFA'
+    : 'Tu reçois <b style="color:var(--text)">' + nf.format(calc.net) + ' FCFA</b> (sans frais ajoutés)');
 }
 
 async function enregistrerModifLien(id) {
@@ -7781,7 +7836,8 @@ async function enregistrerModifLien(id) {
     if(montant <= 0){ alert('Entre le montant à recevoir'); return; }
     if(total > 0 && montant > total){ alert('Le montant à recevoir ne peut pas dépasser le total de la prestation'); return; }
     const inclure = !!(document.getElementById('mlFrais') || {}).checked && moyenEnLigne(methode);
-    let taux = 1; try { taux = parseFloat(localStorage.getItem('wave_frais_taux') || '1') || 1; } catch(x){}
+    let taux = parseFloat((document.getElementById('mlTaux') || {}).value);
+    if(!(taux >= 0 && taux < 50)) taux = 1;
     const calc = calculFraisLien(montant, inclure, taux);
     let wave = '';
     if(moyenEnLigne(methode) || methode === 'MTN Money'){
@@ -7792,12 +7848,7 @@ async function enregistrerModifLien(id) {
         try { const u = new URL(l.wave_link); u.searchParams.set('amount', String(calc.total)); wave = u.toString(); } catch(x){ wave = l.wave_link; }
       }
     }
-    let type = 'libre';
-    if(total > 0){
-      if(Math.abs(montant - total) <= 1) type = 'complet';
-      else if(Math.abs(montant - total * 0.5) <= 1) type = 'acompte50';
-      else if(Math.abs(montant - total * 0.3) <= 1) type = 'acompte30';
-    }
+    const type = document.getElementById('mlType').value || 'libre';
     Object.assign(patch, { total_amount: Math.round(total || montant), amount: Math.round(montant), frais: calc.frais, payment_method: methode, wave_link: wave, payment_type: type });
   }
   const result = await dbUpdate('payment_links', id, patch);
@@ -7806,7 +7857,9 @@ async function enregistrerModifLien(id) {
   if(idx >= 0) paymentLinks[idx] = result;
   const m = document.getElementById('modifLienModal'); if(m) m.remove();
   renderPaymentLinks();
-  showToast('Lien modifié');
+  showToast('Lien modifié : le client paiera ' + fmt(Number(result.amount) + Number(result.frais || 0)));
+  // On affiche tout de suite le lien à jour, pour le renvoyer au client
+  afficherLienGenere(result);
 }
 
 async function supprimerLien(id) {
