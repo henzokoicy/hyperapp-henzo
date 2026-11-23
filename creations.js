@@ -300,7 +300,14 @@ async function crImage(p){
     let url = p.url;
     if(p.path){ url = (await mkSign([p.path]))[0]; }
     else if(p.src === 'galerie') url = galPhotoUrl(p.dossier, p.f, 'medium');
-    blob = await mkUrlBlob(url);
+    try { blob = await mkUrlBlob(url); }
+    catch(e){
+      // Pas de CORS sur ce serveur : on charge l'image telle quelle (aperçu OK, export éventuellement bloqué)
+      console.warn('image sans CORS, chargement direct', url, e);
+      const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error('Image illisible')); i.src = url; });
+      CR_IMG[p.k] = img;
+      return img;
+    }
   }
   const u = URL.createObjectURL(blob);
   const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error('Image illisible')); i.src = u; });
