@@ -484,6 +484,7 @@
     <div class="amount-label" style="text-align: center;">Montant à régler</div>
     <div class="amount" id="amountDisplay" style="text-align: center;">0 FCFA</div>
     <div class="amount-total" id="totalDisplay" style="text-align: center;"></div>
+    <div class="amount-total" id="fraisDisplay" style="text-align: center; display:none; font-size:12px; opacity:.85"></div>
 
     <div class="ref-line">
       <span>Référence</span>
@@ -638,6 +639,7 @@
     const type       = p.get('ty') || 'complet';
     const waveLink   = p.get('w') || '';
     const methode    = p.get('pm') || '';
+    const frais      = parseFloat(p.get('f')) || 0;   // frais de paiement ajoutés au montant du client
     const refCode    = p.get('ref') || ref;
 
     // Si pas de montant, c'est un vieux lien : on tente Supabase (fallback)
@@ -666,7 +668,9 @@
             };
             afficherPaiement({
               ref: 'PL-' + String(data.id).padStart(4, '0'),
-              amount: data.amount,
+              amount: Number(data.amount) + (Number(data.frais) || 0),
+              net: Number(data.amount),
+              frais: Number(data.frais) || 0,
               desc: data.description || 'Paiement',
               clientName: data.client_name || 'Client',
               type: data.payment_type || 'complet',
@@ -694,7 +698,9 @@
 
     afficherPaiement({
       ref: refCode,
-      amount: amount,
+      amount: amount + frais,
+      net: amount,
+      frais: frais,
       desc: desc,
       clientName: clientName,
       type: type,
@@ -723,10 +729,16 @@
     badge.className = 'type-badge ' + info.type;
 
     const totalEl = document.getElementById('totalDisplay');
-    if(info.total && info.total > info.amount) {
+    const netEl = (typeof info.net === 'number' && info.net > 0) ? info.net : info.amount;
+    if(info.total && info.total > netEl) {
       totalEl.innerHTML = `sur un total de <strong>${new Intl.NumberFormat('fr-FR').format(info.total)} FCFA</strong>`;
     } else {
       totalEl.textContent = '';
+    }
+    const fraisEl = document.getElementById('fraisDisplay');
+    if(fraisEl) {
+      fraisEl.textContent = info.frais > 0 ? 'dont ' + new Intl.NumberFormat('fr-FR').format(info.frais) + ' FCFA de frais de paiement' : '';
+      fraisEl.style.display = info.frais > 0 ? 'block' : 'none';
     }
 
     afficherAutresMoyens(info);
