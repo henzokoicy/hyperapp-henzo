@@ -328,6 +328,15 @@
       transform: translateY(-1px) scale(.98);
     }
 
+    /* Aide « Wave ne s'ouvre pas ? » */
+    .lien-aide { display:block; margin:14px auto 0; background:none; border:none; color:var(--accent); font-size:13px; font-weight:600; text-decoration:underline; cursor:pointer; font-family:inherit; }
+    .aide-wave { margin-top:14px; padding:16px; border-radius:16px; background:var(--card2, rgba(255,255,255,.05)); border:1px solid var(--border-2, rgba(255,255,255,.15)); font-size:13px; line-height:1.6; }
+    .aide-wave .aide-titre { font-weight:700; font-size:14px; margin-bottom:10px; }
+    .aide-wave button.aide-btn, .aide-wave a.aide-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin-top:8px; padding:13px; border-radius:12px; border:1px solid var(--border-2, rgba(255,255,255,.2)); background:transparent; color:var(--txt, var(--text)); font-size:14px; font-weight:600; cursor:pointer; text-decoration:none; font-family:inherit; }
+    .aide-wave ol { margin:12px 0 4px 18px; padding:0; color:var(--muted); }
+    .aide-wave .aide-ok { color:var(--green, #7fbf8a); font-size:12px; text-align:center; margin-top:6px; min-height:16px; }
+    .btn-chrome-grand { display:none; width:100%; margin:0 0 12px; padding:16px; border-radius:14px; border:none; background:var(--accent); color:var(--on-accent, #0d0f0c); font-size:15px; font-weight:800; cursor:pointer; font-family:inherit; }
+
     .trust {
       text-align: center;
       font-size: 12px;
@@ -493,12 +502,28 @@
       </div>
     </div>
 
+    <button type="button" class="btn-chrome-grand" id="btnChromeGrand">🌐 Ouvrir dans Chrome pour payer</button>
     <a id="btnWave" href="#" class="btn-wave" aria-label="Payer avec Wave">
       <span style="font-size:22px">💳</span>
       Payer avec Wave
     </a>
 
     <div class="trust">🔒 Paiement sécurisé et crypté</div>
+
+    <button type="button" class="lien-aide" id="btnAideWave">Wave ne s'ouvre pas ? Besoin d'aide</button>
+    <div class="aide-wave" id="aideWave" style="display:none">
+      <div class="aide-titre">📲 Pas de panique, voici comment faire</div>
+      <button type="button" class="aide-btn" id="btnChromeAide" style="display:none">🌐 Ouvrir cette page dans Chrome</button>
+      <button type="button" class="aide-btn" id="btnCopierLien">🔗 Copier le lien Wave</button>
+      <button type="button" class="aide-btn" id="btnCopierMontant">📋 Copier le montant</button>
+      <div class="aide-ok" id="aideOk"></div>
+      <ol>
+        <li>Ouvre <strong>Chrome</strong> et colle le lien Wave dans la barre d'adresse.</li>
+        <li>Wave s'ouvre avec le montant, valide avec ton code PIN.</li>
+        <li>Une difficulté ? Écris-nous, on t'aide tout de suite.</li>
+      </ol>
+      <a class="aide-btn" id="btnAideWa" href="https://wa.me/2250170998964" target="_blank" rel="noopener">💬 Écrire à Henzo Studio sur WhatsApp</a>
+    </div>
   </div>
 
   <div class="footer">
@@ -515,6 +540,8 @@
   const SUPABASE_URL = 'https://lzxvktkryxizclkdetaa.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6eHZrdGtyeXhpemNsa2RldGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMzM5MTEsImV4cCI6MjEwNDkwOTkxMX0.w3jWwb5Lrc0-1sQsltunWh_Lanx3jdYSwwZYen-ux8A';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  // Données de l'aide « Wave ne s'ouvre pas ? » (définies avant l'affichage de la page)
+  const aideEtat = { lien: '', montant: 0, ref: '' };
 
   // ============================================================
   // LECTURE DES PARAMÈTRES URL
@@ -658,6 +685,9 @@
       const trouve = String(info.waveLink).match(/https?:\/\/pay\.wave\.com\/[^\s"'<>]+/i);
       const cleanLink = trouve ? trouve[0].replace(/[.,;:)\]]+$/, '') : info.waveLink.trim().replace(/[.,;:\s]+$/, '');
       btnWave.href = cleanLink;
+      aideEtat.lien = cleanLink; aideEtat.montant = info.amount; aideEtat.ref = info.ref;
+      const wa = document.getElementById('btnAideWa');
+      if(wa) wa.href = 'https://wa.me/2250170998964?text=' + encodeURIComponent('Bonjour, je n\'arrive pas à payer ' + new Intl.NumberFormat('fr-FR').format(info.amount) + ' FCFA avec Wave (réf. ' + info.ref + '). Pouvez-vous m\'aider ?');
       if(!/^https?:\/\//i.test(cleanLink)){
         btnWave.href = '#';
         btnWave.onclick = (e) => { e.preventDefault(); alert('Lien Wave indisponible. Contactez Henzo Studio.'); };
@@ -671,6 +701,49 @@
       };
     }
   }
+
+  // ============================================================
+  // AIDE « WAVE NE S'OUVRE PAS ? » (aucun client ne reste bloqué)
+  // ============================================================
+  function copier(texte, message) {
+    const ok = () => { const o = document.getElementById('aideOk'); if(o) { o.textContent = message; setTimeout(() => { o.textContent = ''; }, 2500); } };
+    try {
+      if(navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(texte).then(ok, () => copierSecours(texte, ok)); return; }
+    } catch(e) {}
+    copierSecours(texte, ok);
+  }
+  function copierSecours(texte, ok) {
+    const ta = document.createElement('textarea'); ta.value = texte; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta); ok();
+  }
+  function ouvrirAideWave() {
+    const bloc = document.getElementById('aideWave');
+    if(bloc) bloc.style.display = 'block';
+    const lien = document.getElementById('btnAideWave'); if(lien) lien.style.display = 'none';
+  }
+  (function brancherAide() {
+    const ua = navigator.userAgent || '';
+    const android = /Android/i.test(ua);
+    const chromeNatif = /Chrome\//i.test(ua) && !/; wv\)|Version\/\d+\.\d+ Chrome|OPR\/|SamsungBrowser|MiuiBrowser|UCBrowser|EdgA|FBAN|FBAV|Instagram|WhatsApp/i.test(ua);
+    const bouton = (id, fn) => { const e = document.getElementById(id); if(e) e.addEventListener('click', fn); };
+    bouton('btnAideWave', ouvrirAideWave);
+    bouton('btnCopierLien', () => copier(aideEtat.lien, 'Lien Wave copié ✓'));
+    bouton('btnCopierMontant', () => copier(String(Math.round(aideEtat.montant)), 'Montant copié ✓'));
+    bouton('btnChromeAide', () => ouvrirDansNavigateur());
+    bouton('btnChromeGrand', () => ouvrirDansNavigateur());
+    // Pas dans Chrome (WhatsApp, navigateur du téléphone...) : on propose Chrome en premier
+    if(android && !chromeNatif) {
+      const g = document.getElementById('btnChromeGrand'); if(g) g.style.display = 'block';
+      const c = document.getElementById('btnChromeAide'); if(c) c.style.display = 'flex';
+    }
+    // Si le client touche « Payer » et que la page reste affichée, l'aide s'ouvre toute seule
+    const payer = document.getElementById('btnWave');
+    if(payer) payer.addEventListener('click', () => {
+      setTimeout(() => { if(!document.hidden) ouvrirAideWave(); }, 2500);
+    });
+  })();
 
   // ============================================================
   // PAGE DÉJÀ PAYÉ
@@ -739,7 +812,7 @@
     setTimeout(ouvrirDansNavigateur, 400);
   }
 
-  if(detecterNavigateurIntegre() || estWebViewAndroid()) {
+  if((detecterNavigateurIntegre() || estWebViewAndroid()) && !/Android/i.test(navigator.userAgent || '')) {
     const banner = document.getElementById('inAppBanner');
     if(banner) banner.style.display = 'block';
   }
