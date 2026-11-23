@@ -20,7 +20,7 @@ insert into public.lien_secret (id) values (1) on conflict (id) do nothing;
 -- 2) Ancienne version (sans code) : supprimée, elle permettait de deviner les paiements
 drop function if exists public.lien_paiement(bigint);
 
--- 3) Le code d'un paiement : réservé à l'app (utilisateur connecté)
+-- 3) Le code d'un paiement : seulement pour le propriétaire du lien (utilisateur connecté)
 create or replace function public.lien_code(p_id bigint)
 returns text
 language sql
@@ -28,7 +28,10 @@ stable
 security definer
 set search_path = public
 as $$
-  select substr(md5(p_id::text || (select secret from public.lien_secret where id = 1)), 1, 8)
+  select case
+    when exists (select 1 from public.payment_links l where l.id = p_id and l.user_id = auth.uid())
+    then substr(md5(p_id::text || (select secret from public.lien_secret where id = 1)), 1, 8)
+  end
 $$;
 revoke all on function public.lien_code(bigint) from public, anon;
 grant execute on function public.lien_code(bigint) to authenticated;

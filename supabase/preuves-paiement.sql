@@ -31,6 +31,20 @@ $$;
 revoke all on function public.lien_code_ok(bigint, text) from public;
 grant execute on function public.lien_code_ok(bigint, text) to anon, authenticated;
 
+-- Même contrôle avec le numéro en texte (pour les règles de stockage : aucune conversion en nombre, donc aucune erreur possible)
+create or replace function public.lien_code_ok_txt(p_id text, p_code text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(p_id, '') ~ '^[0-9]{1,18}$'
+     and lower(coalesce(p_code, '')) = substr(md5(coalesce(p_id, '') || (select secret from public.lien_secret where id = 1)), 1, 8)
+$$;
+revoke all on function public.lien_code_ok_txt(text, text) from public;
+grant execute on function public.lien_code_ok_txt(text, text) to anon, authenticated;
+
 -- 1) Le dossier de stockage privé
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('preuves-paiement', 'preuves-paiement', false, 1048576, array['image/jpeg'])
@@ -43,7 +57,7 @@ create policy "preuves_depot_client" on storage.objects
   for insert to anon
   with check (
     bucket_id = 'preuves-paiement'
-    and public.lien_code_ok(((storage.foldername(name))[1])::bigint, (storage.foldername(name))[2])
+    and public.lien_code_ok_txt((storage.foldername(name))[1], (storage.foldername(name))[2])
   );
 
 -- 3) Toi seul vois et supprimes les captures de TES liens
@@ -53,7 +67,7 @@ create policy "preuves_lecture_proprietaire" on storage.objects
   using (
     bucket_id = 'preuves-paiement'
     and exists (select 1 from public.payment_links l
-                where l.id = ((storage.foldername(name))[1])::bigint and l.user_id = auth.uid())
+                where l.id::text = (storage.foldername(name))[1] and l.user_id = auth.uid())
   );
 
 drop policy if exists "preuves_suppression_proprietaire" on storage.objects;
@@ -62,7 +76,7 @@ create policy "preuves_suppression_proprietaire" on storage.objects
   using (
     bucket_id = 'preuves-paiement'
     and exists (select 1 from public.payment_links l
-                where l.id = ((storage.foldername(name))[1])::bigint and l.user_id = auth.uid())
+                where l.id::text = (storage.foldername(name))[1] and l.user_id = auth.uid())
   );
 
 -- 4) La liste des captures reçues, visible dans la super app
