@@ -502,7 +502,7 @@ function hcShowThumb(id, data){
 }
 // Le lecteur de PDF (pdf.js) et la fabrique de miniatures : chargés une fois.
 (function(){ if(window.HCThumbs) return; const sc = document.createElement('script'); sc.src = 'henzo-miniatures.js?v=2'; document.head.appendChild(sc); })();
-(function(){ if(window.HCOffice) return; const sc = document.createElement('script'); sc.src = 'henzo-office.js?v=1'; document.head.appendChild(sc); })();
+(function(){ if(window.HCOffice) return; const sc = document.createElement('script'); sc.src = 'henzo-office.js?v=2'; document.head.appendChild(sc); })();
 
 window.hcSearch = v => { HC_ST.q = v; hcRenderList(); };
 
