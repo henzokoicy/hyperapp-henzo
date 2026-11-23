@@ -6684,7 +6684,7 @@ function ouvrirCreerLien(prefill) {
       <input type="text" id="lienShootNotes" placeholder="Ex: Retouches incluses, album 30 pages" value="${(prefill.shootNotes || '').replace(/"/g, '&quot;')}">
 
       <label>Mode de paiement</label>
-      <select id="lienPaymentMethod">
+      <select id="lienPaymentMethod" onchange="changerMoyenLien()">
         <option value="Wave">💙 Wave</option>
         <option value="Espèces">💵 Espèces</option>
         <option value="Orange Money">🟠 Orange Money</option>
@@ -6722,8 +6722,8 @@ function ouvrirCreerLien(prefill) {
           <span style="font-weight:700;font-size:13px;line-height:1.4">Ajouter les frais de paiement au montant du client</span>
         </label>
         <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-          <span style="font-size:12px;color:var(--muted);flex:1">Taux des frais (%)</span>
-          <input type="number" id="lienFraisTaux" value="${agEsc(String(parseFloat(localStorage.getItem('wave_frais_taux') || '1') || 1))}" step="0.1" min="0" max="20" inputmode="decimal" style="width:90px;text-align:center;margin:0" oninput="try{localStorage.setItem('wave_frais_taux',this.value)}catch(e){};mettreAJourMontant('frais')">
+          <span style="font-size:12px;color:var(--muted);flex:1">Taux des frais du moyen choisi (%)</span>
+          <input type="number" id="lienFraisTaux" value="${agEsc(String(tauxDefautMoyen('Wave')))}" step="0.1" min="0" max="20" inputmode="decimal" style="width:90px;text-align:center;margin:0" oninput="memoriserTauxMoyen((document.getElementById('lienPaymentMethod')||{}).value||'Wave', this.value);mettreAJourMontant('frais')">
         </div>
       </div>
       <div id="montantCalcule" style="background:linear-gradient(135deg,rgba(46,204,113,.15),rgba(108,140,255,.08));border-radius:12px;padding:14px;margin-top:14px;display:none">
@@ -6748,6 +6748,32 @@ function ouvrirCreerLien(prefill) {
 function fermerCreerLien(){
   const m = document.getElementById('creerLienModal');
   if(m) m.remove();
+}
+
+// Taux de frais par moyen de paiement (en %) : réglables dans le formulaire, mémorisés par moyen
+const TAUX_FRAIS_DEFAUT = { 'Wave': 1, 'Orange Money': 1.5, 'Moov Money': 1.5, 'MTN Money': 1 };
+function tauxDefautMoyen(m) {
+  let t = NaN;
+  try {
+    const v = localStorage.getItem('frais_taux_' + m);
+    if(v !== null && v !== '') t = parseFloat(v);
+    else if(m === 'Wave' && localStorage.getItem('wave_frais_taux')) t = parseFloat(localStorage.getItem('wave_frais_taux'));
+  } catch(e) {}
+  if(isNaN(t)) t = TAUX_FRAIS_DEFAUT[m] != null ? TAUX_FRAIS_DEFAUT[m] : 1;
+  return (t >= 0 && t < 50) ? t : 1;
+}
+function memoriserTauxMoyen(m, t) {
+  t = parseFloat(t);
+  if(!(t >= 0 && t < 50)) return;
+  try { localStorage.setItem('frais_taux_' + m, String(t)); if(m === 'Wave') localStorage.setItem('wave_frais_taux', String(t)); } catch(e) {}
+}
+function fmtTaux(t) { return String(Math.round(Number(t) * 10) / 10).replace('.', ','); }
+// Le moyen de paiement change : le taux proposé change aussi
+function changerMoyenLien() {
+  const m = (document.getElementById('lienPaymentMethod') || {}).value || 'Wave';
+  const el = document.getElementById('lienFraisTaux');
+  if(el) el.value = tauxDefautMoyen(m);
+  mettreAJourMontant('frais');
 }
 
 // Frais de paiement : le client paie un peu plus pour que tu reçoives exactement le montant voulu
@@ -6837,7 +6863,7 @@ function mettreAJourMontant(source) {
   value.textContent = nf.format(calc.total) + ' FCFA';
   const detail = document.getElementById('montantCalculeDetail');
   if(detail) detail.innerHTML = calc.frais > 0
-    ? 'Tu reçois <b style="color:var(--text)">' + nf.format(calc.net) + ' FCFA</b> · frais de paiement inclus : ' + nf.format(calc.frais) + ' FCFA'
+    ? 'Tu reçois <b style="color:var(--text)">' + nf.format(calc.net) + ' FCFA</b> · frais de paiement (' + fmtTaux(tauxFraisLien()) + ' %) inclus : ' + nf.format(calc.frais) + ' FCFA'
     : 'Tu reçois <b style="color:var(--text)">' + nf.format(calc.net) + ' FCFA</b> (sans frais ajoutés)';
   box.style.display = 'block';
     // 🆕 Afficher le bouton "Calculer les frais Wave" quand il y a un montant
@@ -6971,8 +6997,11 @@ async function genererLienPersonnalise() {
   // Lien Wave : créé automatiquement avec le montant exact, ou vérifié si tu en as collé un
   // (pas de lien en ligne pour espèces, chèque, virement : seulement l'enregistrement du paiement)
   const inclureFrais = !!(document.getElementById('lienFraisInclus') || {}).checked && moyenEnLigne(paymentMethod);
-  const calcFrais = calculFraisLien(montant, inclureFrais, tauxFraisLien());
-  const montantFinal = calcFrais.total;   // ce que le client paie (frais compris)
+  const tauxLien = tauxFraisLien();
+  const calcFrais = calculFraisLien(montant, inclureFrais, tauxLien);
+  // Le lien Wave est toujours calculé avec le taux de WAVE (même si le lien est pour Orange ou Moov)
+  const calcWave = paymentMethod === 'Wave' ? calcFrais : calculFraisLien(montant, inclureFrais, tauxDefautMoyen('Wave'));
+  const montantFinal = calcWave.total;   // montant du lien Wave (frais Wave compris)
   let waveFinal = waveLink;
   if(!moyenEnLigne(paymentMethod) && paymentMethod !== 'MTN Money'){
     waveFinal = '';
@@ -6999,6 +7028,7 @@ async function genererLienPersonnalise() {
     description: desc,
     amount: Math.round(montant),
     frais: calcFrais.frais,
+    taux_frais: calcFrais.frais > 0 ? tauxLien : 0,
     total_amount: Math.round(totalAmount),
     payment_type: paymentType,
     wave_link: waveFinal,
@@ -7054,6 +7084,7 @@ async function afficherLienGenere(link) {
     ty: link.payment_type || 'complet',
     pm: link.payment_method || 'Wave',
     f: link.frais || 0,
+    r: link.taux_frais || 0,
     w: link.wave_link || '',
     ref: ref
   });
@@ -7069,6 +7100,7 @@ async function afficherLienGenere(link) {
     lienLong: lienLong,
     enLigne: enLigne,
     frais: Number(link.frais) || 0,
+    tauxFrais: Number(link.taux_frais) || 0,
     clientName: link.client_name || 'Client',
     desc: link.description || 'Paiement',
     montant: link.amount || 0,
@@ -7109,7 +7141,7 @@ async function afficherLienGenere(link) {
         <div style="font-weight:600;margin-bottom:10px">${typeLabels[link.payment_type] || 'Paiement'}</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Montant à payer</div>
         <div style="font-weight:700;color:var(--green);font-size:22px;margin-bottom:6px">${fmt(Number(link.amount) + Number(link.frais || 0))}</div>
-        ${Number(link.frais) > 0 ? `<div style="font-size:12px;color:var(--muted);margin-bottom:4px">dont ${fmt(link.frais)} de frais de paiement · tu reçois ${fmt(link.amount)}</div>` : ''}
+        ${Number(link.frais) > 0 ? `<div style="font-size:12px;color:var(--muted);margin-bottom:4px">dont ${fmt(link.frais)} de frais de paiement${Number(link.taux_frais) > 0 ? ' (' + fmtTaux(link.taux_frais) + ' %)' : ''} · tu reçois ${fmt(link.amount)}</div>` : ''}
         ${link.total_amount && link.total_amount > link.amount ? `<div style="font-size:12px;color:var(--muted)">sur un total de ${fmt(link.total_amount)}</div>` : ''}
         <div style="font-size:12px;color:var(--muted);margin:10px 0 4px">Référence</div>
         <div style="font-family:monospace;font-weight:600">${ref}</div>
@@ -7180,7 +7212,7 @@ function envoyerLienWhatsAppActuel() {
   message += `\n`;
 
   message += `${typeInfo.icon} *${typeInfo.label}*\n`;
-  message += `💵 *Montant à payer :* ${fmt(Number(data.montant) + Number(data.frais || 0))}${data.frais > 0 ? ' (frais de paiement inclus)' : ''}\n`;
+  message += `💵 *Montant à payer :* ${fmt(Number(data.montant) + Number(data.frais || 0))}${data.frais > 0 ? ' (frais de paiement inclus' + (data.tauxFrais > 0 ? ' : ' + fmtTaux(data.tauxFrais) + ' %' : '') + ')' : ''}\n`;
 
   if(data.totalAmount && data.totalAmount > data.montant){
     const reste = data.totalAmount - data.montant;
@@ -7556,7 +7588,7 @@ function genererRecuPDFClient(link) {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(92, 95, 84);
-    doc.text('dont frais de paiement : ' + formatNum(fraisRecu) + ' FCFA', margin + 8, y + 37.5);
+    doc.text('dont frais de paiement' + (Number(link.taux_frais) > 0 ? ' (' + String(Math.round(Number(link.taux_frais) * 10) / 10).replace('.', ',') + ' %)' : '') + ' : ' + formatNum(fraisRecu) + ' FCFA', margin + 8, y + 37.5);
   }
 
   if(link.total_amount && link.total_amount > link.amount) {
@@ -7736,7 +7768,7 @@ function ouvrirModifierLien(id) {
   const paye = l.status === 'paid';
   const ancien = document.getElementById('modifLienModal'); if(ancien) ancien.remove();
   const e = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-  let taux = 1; try { taux = parseFloat(localStorage.getItem('wave_frais_taux') || '1') || 1; } catch(x){}
+  const taux = Number(l.taux_frais) > 0 ? Number(l.taux_frais) : tauxDefautMoyen(l.payment_method || 'Wave');
   const methodes = ['Wave', 'Orange Money', 'Moov Money', 'MTN Money', 'Espèces', 'Virement bancaire', 'Chèque'];
   const typeInit = ['acompte30', 'acompte50', 'complet', 'libre'].indexOf(l.payment_type) >= 0 ? l.payment_type : 'libre';
   const modal = document.createElement('div');
@@ -7765,14 +7797,14 @@ function ouvrirModifierLien(id) {
       <div id="mlPct" style="flex:1;text-align:center;background:var(--card2);border-radius:10px;padding:12px;font-weight:800;color:var(--accent)">0%</div>
     </div>
     <label>Mode de paiement</label>
-    <select id="mlMethode" onchange="majModifLien('frais')" ${paye ? 'disabled' : ''}>${methodes.map(m => `<option value="${m}"${(l.payment_method || 'Wave') === m ? ' selected' : ''}>${m}</option>`).join('')}</select>
+    <select id="mlMethode" onchange="(function(){var t=document.getElementById('mlTaux'); if(t) t.value=tauxDefautMoyen(document.getElementById('mlMethode').value);})();majModifLien('frais')" ${paye ? 'disabled' : ''}>${methodes.map(m => `<option value="${m}"${(l.payment_method || 'Wave') === m ? ' selected' : ''}>${m}</option>`).join('')}</select>
     ${paye ? '' : `<div style="margin-top:12px;background:var(--card2);border-radius:12px;padding:12px">
       <label style="display:flex;gap:10px;align-items:center;margin:0;cursor:pointer">
         <input type="checkbox" id="mlFrais" ${(Number(l.frais) > 0 || moyenEnLigne(l.payment_method)) ? 'checked' : ''} onchange="majModifLien('frais')" style="width:20px;height:20px;margin:0;flex:none">
         <span style="font-size:13px;font-weight:700">Ajouter les frais de paiement au montant du client</span></label>
       <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
-        <span style="font-size:12px;color:var(--muted);flex:1">Taux des frais (%)</span>
-        <input type="number" id="mlTaux" value="${taux}" step="0.1" min="0" max="20" inputmode="decimal" style="width:90px;text-align:center;margin:0" oninput="try{localStorage.setItem('wave_frais_taux',this.value)}catch(x){};majModifLien('frais')">
+        <span style="font-size:12px;color:var(--muted);flex:1">Taux des frais du moyen choisi (%)</span>
+        <input type="number" id="mlTaux" value="${taux}" step="0.1" min="0" max="20" inputmode="decimal" style="width:90px;text-align:center;margin:0" oninput="memoriserTauxMoyen((document.getElementById('mlMethode')||{}).value||'Wave', this.value);majModifLien('frais')">
       </div>
     </div>
     <div id="mlRecap" style="background:linear-gradient(135deg,rgba(46,204,113,.15),rgba(108,140,255,.08));border-radius:12px;padding:14px;margin-top:12px">
@@ -7815,7 +7847,7 @@ function majModifLien(source) {
   const nf = new Intl.NumberFormat('fr-FR');
   g('mlRecapValeur').textContent = montant > 0 ? nf.format(calc.total) + ' FCFA' : '—';
   g('mlRecapDetail').innerHTML = montant <= 0 ? '' : (calc.frais > 0
-    ? 'Tu reçois <b style="color:var(--text)">' + nf.format(calc.net) + ' FCFA</b> · frais de paiement inclus : ' + nf.format(calc.frais) + ' FCFA'
+    ? 'Tu reçois <b style="color:var(--text)">' + nf.format(calc.net) + ' FCFA</b> · frais de paiement (' + fmtTaux((() => { const t = parseFloat((g('mlTaux') || {}).value); return (t >= 0 && t < 50) ? t : 1; })()) + ' %) inclus : ' + nf.format(calc.frais) + ' FCFA'
     : 'Tu reçois <b style="color:var(--text)">' + nf.format(calc.net) + ' FCFA</b> (sans frais ajoutés)');
 }
 
@@ -7839,17 +7871,19 @@ async function enregistrerModifLien(id) {
     let taux = parseFloat((document.getElementById('mlTaux') || {}).value);
     if(!(taux >= 0 && taux < 50)) taux = 1;
     const calc = calculFraisLien(montant, inclure, taux);
+    // Le lien Wave utilise toujours le taux de WAVE
+    const calcW = methode === 'Wave' ? calc : calculFraisLien(montant, inclure, tauxDefautMoyen('Wave'));
     let wave = '';
     if(moyenEnLigne(methode) || methode === 'MTN Money'){
       const idWave = (typeof BRAND !== 'undefined' && BRAND.waveId) ? BRAND.waveId : '';
-      wave = idWave ? 'https://pay.wave.com/m/' + idWave + '/c/ci/?amount=' + calc.total : (l.wave_link || '');
+      wave = idWave ? 'https://pay.wave.com/m/' + idWave + '/c/ci/?amount=' + calcW.total : (l.wave_link || '');
       // lien Wave collé à la main à l'origine : on corrige seulement son montant
       if(l.wave_link && idWave && l.wave_link.indexOf(idWave) < 0){
-        try { const u = new URL(l.wave_link); u.searchParams.set('amount', String(calc.total)); wave = u.toString(); } catch(x){ wave = l.wave_link; }
+        try { const u = new URL(l.wave_link); u.searchParams.set('amount', String(calcW.total)); wave = u.toString(); } catch(x){ wave = l.wave_link; }
       }
     }
     const type = document.getElementById('mlType').value || 'libre';
-    Object.assign(patch, { total_amount: Math.round(total || montant), amount: Math.round(montant), frais: calc.frais, payment_method: methode, wave_link: wave, payment_type: type });
+    Object.assign(patch, { total_amount: Math.round(total || montant), amount: Math.round(montant), frais: calc.frais, taux_frais: calc.frais > 0 ? taux : 0, payment_method: methode, wave_link: wave, payment_type: type });
   }
   const result = await dbUpdate('payment_links', id, patch);
   if(!result) return;
@@ -7951,7 +7985,7 @@ function renderLienItem(l, isPaid) {
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="font-weight:700;color:${isPaid ? 'var(--green)' : 'var(--yellow)'};font-size:15px">${fmt(l.amount)}</div>
-        ${Number(l.frais) > 0 ? `<div style="font-size:10px;color:var(--muted)">+ ${fmt(l.frais)} de frais</div>` : ''}
+        ${Number(l.frais) > 0 ? `<div style="font-size:10px;color:var(--muted)">+ ${fmt(l.frais)} de frais${Number(l.taux_frais) > 0 ? ' (' + fmtTaux(l.taux_frais) + ' %)' : ''}</div>` : ''}
         ${l.total_amount && l.total_amount > l.amount ? `<div style="font-size:10px;color:var(--muted)">/ ${fmt(l.total_amount)}</div>` : ''}
         <div style="font-size:10px;color:var(--muted);font-family:monospace;margin-top:2px">${ref}</div>
       </div>
