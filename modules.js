@@ -6630,10 +6630,10 @@ function ouvrirCreerLien(prefill) {
       </select>
 
       <label>Montant total de la prestation (FCFA)</label>
-      <input type="number" id="lienTotalAmount" placeholder="Ex: 100000" inputmode="decimal" oninput="mettreAJourMontant()" value="${prefill.totalAmount || ''}">
+      <input type="number" id="lienTotalAmount" placeholder="Ex: 100000" inputmode="decimal" oninput="mettreAJourMontant('total')" value="${prefill.totalAmount || ''}">
 
             <label>Type de paiement</label>
-      <select id="lienPaymentType" onchange="mettreAJourMontant()">
+      <select id="lienPaymentType" onchange="mettreAJourMontant('type')">
         <option value="acompte30"${prefill.paymentType === 'acompte30' ? ' selected' : ''}>💰 Acompte 30%</option>
         <option value="acompte50"${prefill.paymentType === 'acompte50' ? ' selected' : ''}>💰 Acompte 50%</option>
         <option value="complet"${prefill.paymentType === 'complet' ? ' selected' : ''}>✅ Paiement complet (100%)</option>
@@ -6643,7 +6643,7 @@ function ouvrirCreerLien(prefill) {
       <div id="montantFlexBox" style="margin-top:10px">
         <label for="lienMontantFlex">💰 Montant à payer par le client (FCFA)</label>
         <div style="display:flex;gap:8px;align-items:center">
-          <input type="number" id="lienMontantFlex" placeholder="Ex: 5000" inputmode="decimal" oninput="mettreAJourMontant()" style="flex:2;font-size:18px;font-weight:700;text-align:center;color:var(--green)">
+          <input type="number" id="lienMontantFlex" placeholder="Ex: 5000" inputmode="decimal" oninput="mettreAJourMontant('flex')" style="flex:2;font-size:18px;font-weight:700;text-align:center;color:var(--green)">
           <div id="lienPourcentFlex" style="flex:1;text-align:center;background:var(--card2);border-radius:10px;padding:12px;font-weight:800;font-size:18px;color:var(--accent)">0%</div>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center">
@@ -6681,7 +6681,7 @@ function fermerCreerLien(){
   if(m) m.remove();
 }
 
-function mettreAJourMontant() {
+function mettreAJourMontant(source) {
   const totalEl = document.getElementById('lienTotalAmount');
   const typeEl = document.getElementById('lienPaymentType');
   const flexEl = document.getElementById('lienMontantFlex');
@@ -6694,34 +6694,36 @@ function mettreAJourMontant() {
   const total = parseFloat(totalEl.value) || 0;
   const type = typeEl.value;
 
-  // Étape 1 : si on a changé de type (clic utilisateur), on pré-remplit le champ
+  // Étape 1 : le montant à payer suit le montant total et le type (acompte 30 %, 50 %, complet),
+  // tant que l'utilisateur ne tape pas lui-même un montant dans le champ « montant à payer ».
   const lastType = typeEl.dataset.lastType || '';
   const typeChanged = lastType !== type;
+  const doitRecalculer = source === 'type' || source === 'total' || (!source && typeChanged);
 
-  if(typeChanged && flexEl){
+  if(doitRecalculer && flexEl){
     if(type === 'acompte30'){
       flexEl.value = total > 0 ? Math.round(total * 0.30) : '';
     } else if(type === 'acompte50'){
       flexEl.value = total > 0 ? Math.round(total * 0.50) : '';
     } else if(type === 'complet'){
       flexEl.value = total > 0 ? Math.round(total) : '';
-    } else if(type === 'libre'){
+    } else if(type === 'libre' && source === 'type'){
       flexEl.value = '';
     }
-    typeEl.dataset.lastType = type;
   }
+  typeEl.dataset.lastType = type;
 
   // Étape 2 : lire le montant final
   let montantFinal = flexEl ? (parseFloat(flexEl.value) || 0) : 0;
 
-  // Étape 3 : DÉTECTION AUTO — si l'utilisateur tape un montant qui ne correspond pas au type choisi
-  if(!typeChanged && total > 0 && montantFinal > 0 && type !== 'libre'){
+  // Étape 3 : DÉTECTION AUTO — seulement quand l'utilisateur tape lui-même le montant à payer
+  // et qu'il ne correspond plus au type choisi : on passe en « Montant libre ».
+  if(source === 'flex' && total > 0 && montantFinal > 0 && type !== 'libre'){
     let montantAttendu = 0;
     if(type === 'acompte30') montantAttendu = Math.round(total * 0.30);
     else if(type === 'acompte50') montantAttendu = Math.round(total * 0.50);
     else if(type === 'complet') montantAttendu = Math.round(total);
 
-    // Si le montant saisi est différent du montant attendu → bascule auto en "Montant libre"
     if(montantAttendu > 0 && montantFinal !== montantAttendu){
       typeEl.value = 'libre';
       typeEl.dataset.lastType = 'libre';
