@@ -563,9 +563,19 @@
       try {
         const id = parseInt(ref.replace('PL-', ''));
         if(id) {
-          const { data, error } = await sb.from('payment_links')
-            .select('*').eq('id', id).maybeSingle();
-          if(!error && data) {
+          let data = null;
+          try {
+            const r1 = await sb.from('payment_links').select('*').eq('id', id).maybeSingle();
+            if(!r1.error && r1.data) data = r1.data;
+          } catch(e) {}
+          // Accès limité à ce seul paiement (fonction lien_paiement, voir supabase/lien-paiement.sql)
+          if(!data) {
+            try {
+              const r2 = await sb.rpc('lien_paiement', { p_id: id });
+              if(!r2.error && r2.data) data = Array.isArray(r2.data) ? r2.data[0] : r2.data;
+            } catch(e) {}
+          }
+          if(data) {
             const typeLabels = {
               'complet': 'Paiement complet',
               'acompte30': 'Acompte 30%',
