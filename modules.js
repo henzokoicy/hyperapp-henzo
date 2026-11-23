@@ -6539,7 +6539,72 @@ async function loadPaymentLinks() {
     const { data, error } = await sb.from('payment_links').select('*').order('created_at', {ascending: false});
     if(error) { console.warn('loadPaymentLinks:', error); return; }
     paymentLinks = data || [];
+    await chargerPreuvesPaiement();
   } catch(e) { console.warn('loadPaymentLinks error:', e); }
+}
+
+// ============================================================
+// CAPTURES DE PAIEMENT envoyées par les clients (Orange Money, Moov Money...)
+// (voir supabase/preuves-paiement.sql ; sans ce script, rien n'est affiché)
+// ============================================================
+let preuvesParLien = {};
+async function chargerPreuvesPaiement() {
+  preuvesParLien = {};
+  try {
+    const { data, error } = await sb.from('payment_proofs').select('*').order('created_at', { ascending: true });
+    if(error || !data) return;
+    data.forEach(p => { (preuvesParLien[p.link_id] = preuvesParLien[p.link_id] || []).push(p); });
+  } catch(e) { /* table absente : fonction non installée, on ignore */ }
+}
+
+async function voirPreuvesLien(id) {
+  const link = paymentLinks.find(l => l.id === id);
+  const preuves = preuvesParLien[id] || [];
+  if(!link || !preuves.length) { alert('Aucune capture pour ce lien'); return; }
+  const ancien = document.getElementById('preuvesModal'); if(ancien) ancien.remove();
+  const modal = document.createElement('div');
+  modal.className = 'modal-bg show'; modal.id = 'preuvesModal';
+  modal.innerHTML = `<div class="modal">
+    <div class="modal-wrap"><h3>📎 Capture de paiement</h3><button class="close" onclick="document.getElementById('preuvesModal').remove()">×</button></div>
+    <div style="font-size:13px;margin-bottom:10px"><b>${link.client_name}</b> · ${fmt(link.amount)} · <span style="font-family:monospace">PL-${String(link.id).padStart(4, '0')}</span></div>
+    <div id="preuvesImages" style="display:grid;gap:10px"><div style="color:var(--muted);font-size:13px">Chargement…</div></div>
+    <div style="display:grid;gap:8px;margin-top:14px">
+      ${link.status === 'pending' ? `<button class="btn-primary" style="margin:0;background:var(--green);color:#000" onclick="document.getElementById('preuvesModal').remove();marquerLienPaye(${link.id})">✅ J'ai vérifié : confirmer le paiement</button>` : ''}
+      <button class="btn-ghost" style="margin:0;border-color:var(--red);color:var(--red)" onclick="supprimerPreuvesLien(${link.id})">🗑 Supprimer les captures</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  const zone = document.getElementById('preuvesImages');
+  zone.innerHTML = '';
+  for(const pr of preuves){
+    const { data, error } = await sb.storage.from('preuves-paiement').createSignedUrl(pr.chemin, 3600);
+    const bloc = document.createElement('div');
+    const quand = new Date(pr.created_at).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    bloc.innerHTML = `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">${pr.methode || 'Paiement'} · reçue le ${quand}</div>`;
+    if(error || !data){
+      bloc.innerHTML += '<div style="color:var(--red);font-size:12px">Capture introuvable</div>';
+    } else {
+      const a = document.createElement('a'); a.href = data.signedUrl; a.target = '_blank'; a.rel = 'noopener';
+      const img = document.createElement('img'); img.src = data.signedUrl; img.alt = 'Capture de paiement';
+      img.style.cssText = 'width:100%;border-radius:12px;border:1px solid var(--border-2)';
+      a.appendChild(img); bloc.appendChild(a);
+    }
+    zone.appendChild(bloc);
+  }
+}
+
+async function supprimerPreuvesLien(id) {
+  const preuves = preuvesParLien[id] || [];
+  if(!preuves.length) return;
+  if(!await agConfirm('Supprimer définitivement ' + (preuves.length > 1 ? 'les ' + preuves.length + ' captures' : 'la capture') + ' de ce paiement ?')) return;
+  try {
+    await sb.storage.from('preuves-paiement').remove(preuves.map(p => p.chemin));
+    await sb.from('payment_proofs').delete().eq('link_id', id);
+  } catch(e) { console.warn('supprimerPreuvesLien:', e); }
+  delete preuvesParLien[id];
+  const m = document.getElementById('preuvesModal'); if(m) m.remove();
+  renderPaymentLinks();
+  showToast('Captures supprimées');
 }
 
 function ouvrirCreerLien(prefill) {
@@ -7648,6 +7713,7 @@ function renderLienItem(l, isPaid) {
       </div>
     </div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:8px">📅 ${dateStr}${l.client_phone ? ' · 📞 ' + l.client_phone : ''}</div>
+    ${(preuvesParLien[l.id] || []).length ? `<button class="btn-ghost" style="width:100%;margin:0 0 8px;padding:8px;font-size:12px;font-weight:700;background:rgba(108,140,255,.12);color:var(--accent);border-color:var(--accent)" onclick="voirPreuvesLien(${l.id})">📎 ${(preuvesParLien[l.id] || []).length > 1 ? (preuvesParLien[l.id] || []).length + ' captures reçues' : 'Capture reçue'} : voir et confirmer</button>` : ''}
     <div style="display:flex;gap:6px;flex-wrap:wrap">
       ${!isPaid
         ? `<button class="btn-ghost" style="flex:1;margin:0;padding:6px;font-size:11px;background:rgba(46,204,113,.1);color:var(--green);border-color:var(--green)" onclick="marquerLienPaye(${l.id})">✅ Paiement reçu</button>`

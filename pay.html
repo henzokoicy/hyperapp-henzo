@@ -342,6 +342,14 @@
     .moyen .m-montant strong { color:var(--txt, var(--text)); }
     .moyen button.m-btn, .moyen a.m-btn { display:flex; align-items:center; justify-content:center; width:100%; margin-top:8px; padding:12px; border-radius:12px; border:1px solid var(--border-2, rgba(255,255,255,.2)); background:transparent; color:var(--txt, var(--text)); font-size:14px; font-weight:600; cursor:pointer; text-decoration:none; font-family:inherit; }
     .moyen a.m-btn.plein { background:var(--accent); border-color:var(--accent); color:var(--on-accent, #0d0f0c); font-weight:800; }
+    .moyen .m-etapes { margin:10px 0 4px 18px; padding:0; font-size:13px; color:var(--muted); line-height:1.65; }
+    .moyen .m-etapes strong { color:var(--txt, var(--text)); }
+    .moyen .m-apercu { display:none; margin-top:10px; text-align:center; }
+    .moyen .m-apercu img { max-width:100%; max-height:240px; border-radius:12px; border:1px solid var(--border-2, rgba(255,255,255,.2)); }
+    .moyen .m-etat { font-size:13px; margin-top:8px; text-align:center; min-height:16px; color:var(--muted); }
+    .moyen .m-etat.ok { color:var(--green, #7fbf8a); font-weight:700; }
+    .moyen .m-etat.err { color:var(--red, #e07a6b); }
+    .moyen button[disabled] { opacity:.55; cursor:default; }
     .autres .m-note { font-size:12px; color:var(--muted); margin-top:12px; line-height:1.6; }
 
     /* Aide « Wave ne s'ouvre pas ? » */
@@ -530,7 +538,7 @@
       <summary>💳 Payer autrement (Orange Money, Moov Money)</summary>
       <div class="corps">
         <div id="listeMoyens"></div>
-        <div class="m-note">Après l'envoi, garde le message de confirmation et touche « J'ai payé » : tu nous écris sur WhatsApp et nous confirmons ton paiement.</div>
+        <div class="m-note">Ton paiement est confirmé quand nous recevons la <strong>capture</strong> de ton paiement. Sans capture, rien n'est envoyé.</div>
       </div>
     </details>
 
@@ -577,6 +585,8 @@
 
   // Données de l'aide « Wave ne s'ouvre pas ? » (définies avant l'affichage de la page)
   const aideEtat = { lien: '', montant: 0, ref: '' };
+  // Page courante (numéro de lien, code secret, montant...) pour l'envoi de la capture
+  const paiementCourant = { id: 0, code: '', ref: '', amount: 0, clientName: '' };
 
   // ============================================================
   // LECTURE DES PARAMÈTRES URL
@@ -755,9 +765,33 @@
     try { document.execCommand('copy'); } catch(e) {}
     document.body.removeChild(ta); ok();
   }
+  function compresserImage(fichier, maxCote, qualite) {
+    return new Promise(function(resolve, reject) {
+      const img = new Image(); const url = URL.createObjectURL(fichier);
+      img.onload = function() {
+        let w = img.naturalWidth, h = img.naturalHeight;
+        const k = Math.min(1, maxCote / Math.max(w, h)); w = Math.round(w * k); h = Math.round(h * k);
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        c.toBlob(function(b) { b ? resolve(b) : reject(new Error('compression')); }, 'image/jpeg', qualite);
+      };
+      img.onerror = function() { URL.revokeObjectURL(url); reject(new Error('image')); };
+      img.src = url;
+    });
+  }
+  async function imageLegere(fichier) {
+    let blob = await compresserImage(fichier, 1280, 0.72);
+    if(blob.size > 900 * 1024) blob = await compresserImage(fichier, 1024, 0.55);
+    return blob;
+  }
+
   function afficherAutresMoyens(info) {
     const zone = document.getElementById('listeMoyens'); if(!zone) return;
     const montantTxt = new Intl.NumberFormat('fr-FR').format(info.amount) + ' FCFA';
+    const idLien = parseInt(String(info.ref).replace(/\D/g, ''), 10) || 0;
+    paiementCourant.id = idLien; paiementCourant.code = codeParam || ''; paiementCourant.ref = info.ref;
+    paiementCourant.amount = info.amount; paiementCourant.clientName = info.clientName;
     zone.innerHTML = '';
     AUTRES_MOYENS.forEach(function(m) {
       const bloc = document.createElement('div'); bloc.className = 'moyen';
@@ -767,15 +801,86 @@
       mont.innerHTML = 'Envoie exactement <strong></strong>' + (m.nomAffiche ? ' à <strong></strong>' : '');
       mont.querySelectorAll('strong')[0].textContent = montantTxt;
       if(m.nomAffiche) mont.querySelectorAll('strong')[1].textContent = m.nomAffiche;
+
+      const etapes = document.createElement('ol'); etapes.className = 'm-etapes';
+      etapes.innerHTML = '<li><strong>Copie</strong> le numéro et le montant ci-dessous.</li>' +
+        '<li><strong>Paie</strong> normalement avec ton application ' + m.nom + '.</li>' +
+        '<li><strong>Reviens ici</strong> et touche « Envoyer la capture du paiement ».</li>';
+
       const copier1 = document.createElement('button'); copier1.type = 'button'; copier1.className = 'm-btn'; copier1.textContent = '📋 Copier le numéro';
       copier1.addEventListener('click', function(){ copierDirect(m.numero.replace(/\s+/g, ''), copier1, '✓ Numéro copié'); });
       const copier2 = document.createElement('button'); copier2.type = 'button'; copier2.className = 'm-btn'; copier2.textContent = '📋 Copier le montant';
       copier2.addEventListener('click', function(){ copierDirect(String(Math.round(info.amount)), copier2, '✓ Montant copié'); });
-      const paye = document.createElement('a'); paye.className = 'm-btn plein'; paye.target = '_blank'; paye.rel = 'noopener';
-      paye.textContent = '✅ J\'ai payé avec ' + m.nom;
-      paye.href = 'https://wa.me/' + NUMERO_WHATSAPP + '?text=' + encodeURIComponent('Bonjour, j\'ai payé ' + montantTxt + ' par ' + m.nom + ' (réf. ' + info.ref + ', ' + info.clientName + '). Voici ma preuve de paiement.');
-      bloc.appendChild(nom); bloc.appendChild(num); bloc.appendChild(mont);
-      bloc.appendChild(copier1); bloc.appendChild(copier2); bloc.appendChild(paye);
+
+      // Capture du paiement : on choisit l'image (téléphone ou ordinateur), on la voit, puis on l'envoie
+      const fichier = document.createElement('input'); fichier.type = 'file'; fichier.accept = 'image/*'; fichier.style.display = 'none';
+      const choisir = document.createElement('button'); choisir.type = 'button'; choisir.className = 'm-btn plein';
+      choisir.textContent = '📎 Envoyer la capture du paiement';
+      choisir.addEventListener('click', function(){ fichier.click(); });
+      const apercu = document.createElement('div'); apercu.className = 'm-apercu';
+      const imgApercu = document.createElement('img'); imgApercu.alt = 'Capture du paiement'; apercu.appendChild(imgApercu);
+      const envoyer = document.createElement('button'); envoyer.type = 'button'; envoyer.className = 'm-btn plein'; envoyer.style.display = 'none';
+      envoyer.textContent = '✅ Envoyer';
+      const etat = document.createElement('div'); etat.className = 'm-etat';
+      let fichierChoisi = null;
+
+      fichier.addEventListener('change', function() {
+        const f = fichier.files && fichier.files[0];
+        etat.className = 'm-etat'; etat.textContent = '';
+        if(!f) return;
+        if(!/^image\//i.test(f.type)) { etat.className = 'm-etat err'; etat.textContent = 'Choisis une image (capture d\'écran ou photo).'; return; }
+        if(f.size > 20 * 1024 * 1024) { etat.className = 'm-etat err'; etat.textContent = 'Image trop lourde (20 Mo maximum).'; return; }
+        fichierChoisi = f;
+        imgApercu.src = URL.createObjectURL(f); apercu.style.display = 'block';
+        envoyer.style.display = 'flex'; choisir.textContent = '🔁 Choisir une autre capture';
+      });
+
+      envoyer.addEventListener('click', async function() {
+        if(!fichierChoisi) return;
+        envoyer.disabled = true; choisir.disabled = true; etat.className = 'm-etat'; etat.textContent = 'Envoi en cours…';
+        let depose = false, blob = null;
+        try {
+          blob = await imageLegere(fichierChoisi);
+          // Envoi dans la super app (possible avec le lien court sécurisé : numéro + code secret)
+          if(paiementCourant.id && paiementCourant.code) {
+            const chemin = paiementCourant.id + '/' + paiementCourant.code.toLowerCase() + '/' + Date.now() + '.jpg';
+            const up = await sb.storage.from('preuves-paiement').upload(chemin, blob, { contentType: 'image/jpeg', upsert: false });
+            if(!up.error) {
+              const r = await sb.rpc('preuve_ajouter', { p_id: paiementCourant.id, p_code: paiementCourant.code, p_methode: m.nom, p_chemin: chemin, p_taille: blob.size });
+              depose = !r.error;
+            }
+          }
+        } catch(e) { console.warn('Envoi de la capture :', e); }
+
+        const texte = depose
+          ? 'Bonjour, paiement effectué par ' + m.nom + ' : ' + montantTxt + ' (réf. ' + info.ref + ', ' + info.clientName + '). ✅ J\'ai envoyé la capture de mon paiement sur le portail.'
+          : 'Bonjour, paiement effectué par ' + m.nom + ' : ' + montantTxt + ' (réf. ' + info.ref + ', ' + info.clientName + '). Voici la capture de mon paiement.';
+        const urlWa = 'https://wa.me/' + NUMERO_WHATSAPP + '?text=' + encodeURIComponent(texte);
+
+        if(depose) {
+          etat.className = 'm-etat ok'; etat.textContent = '✅ Capture envoyée. Nous confirmons ton paiement très vite.';
+          envoyer.style.display = 'none'; choisir.style.display = 'none';
+          setTimeout(function(){ window.location.href = urlWa; }, 900);
+        } else {
+          // Pas d'envoi dans la super app : on partage la capture directement (téléphone) ou on ouvre WhatsApp
+          etat.className = 'm-etat'; etat.textContent = '';
+          let partage = false;
+          try {
+            const fp = new File([blob || fichierChoisi], 'paiement-' + info.ref + '.jpg', { type: 'image/jpeg' });
+            if(navigator.canShare && navigator.canShare({ files: [fp] })) { await navigator.share({ files: [fp], text: texte }); partage = true; }
+          } catch(e) { partage = false; }
+          if(partage) { etat.className = 'm-etat ok'; etat.textContent = '✅ Capture partagée.'; }
+          else {
+            etat.className = 'm-etat'; etat.textContent = 'On ouvre WhatsApp : joins ta capture au message.';
+            setTimeout(function(){ window.location.href = urlWa; }, 900);
+          }
+          envoyer.disabled = false; choisir.disabled = false;
+        }
+      });
+
+      bloc.appendChild(nom); bloc.appendChild(num); bloc.appendChild(mont); bloc.appendChild(etapes);
+      bloc.appendChild(copier1); bloc.appendChild(copier2);
+      bloc.appendChild(choisir); bloc.appendChild(fichier); bloc.appendChild(apercu); bloc.appendChild(envoyer); bloc.appendChild(etat);
       zone.appendChild(bloc);
     });
   }
