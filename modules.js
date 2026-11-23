@@ -4243,8 +4243,9 @@ function exportHistoryPDF(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  doc.setFillColor(95, 110, 58);
+  doc.setFillColor(13, 15, 12);
   doc.rect(0, 0, 210, 30, 'F');
+  if(window.hzPdf) window.hzPdf.logoClair(doc, 210 - 14 - 34, 9.0, 34);
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
@@ -4463,8 +4464,9 @@ function exportIdeasAIPDF(){
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFillColor(95, 110, 58);
+  doc.setFillColor(13, 15, 12);
   doc.rect(0, 0, 210, 32, 'F');
+  if(window.hzPdf) window.hzPdf.logoClair(doc, 210 - 14 - 34, 10.0, 34);
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
@@ -5656,8 +5658,9 @@ function exportAnalysisPDF(){
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFillColor(95, 110, 58);
+  doc.setFillColor(13, 15, 12);
   doc.rect(0, 0, 210, 32, 'F');
+  if(window.hzPdf) window.hzPdf.logoClair(doc, 210 - 14 - 34, 10.0, 34);
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
@@ -6266,8 +6269,9 @@ function exportChatPDF(){
   const margin = 14;
   let y = 20;
 
-  doc.setFillColor(95, 110, 58);
+  doc.setFillColor(13, 15, 12);
   doc.rect(0, 0, 210, 28, 'F');
+  if(window.hzPdf) window.hzPdf.logoClair(doc, 210 - 14 - 34, 8.0, 34);
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
@@ -9258,8 +9262,9 @@ function exportSuggestionIAEpargnePDF(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  doc.setFillColor(95, 110, 58);
+  doc.setFillColor(13, 15, 12);
   doc.rect(0, 0, 210, 32, 'F');
+  if(window.hzPdf) window.hzPdf.logoClair(doc, 210 - 14 - 34, 10.0, 34);
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
@@ -10558,8 +10563,9 @@ function exportClientsPDF(){
   const donnees = construireDonneesClientsEnrichies();
   
   // En-tête
-  doc.setFillColor(95, 110, 58);
+  doc.setFillColor(13, 15, 12);
   doc.rect(0, 0, pageWidth, 30, 'F');
+  if(window.hzPdf) window.hzPdf.logoClair(doc, 210 - 14 - 34, 9.0, 34);
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');

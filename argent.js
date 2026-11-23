@@ -1069,25 +1069,7 @@ const AG_TAB_ICONS = { dash: 'home', argent: 'wallet', coffres: 'lock', objectif
 const AG_THEMES = {
   henzo:      { label: 'Henzo Studio',        desc: 'Charte officielle, sombre', sw: ['#0d0f0c', '#161913', '#8a9a5b', '#f4f2ec'] },
   'henzo-clair': { label: 'Henzo Studio clair', desc: 'Charte officielle, clair', sw: ['#f4f2ec', '#eae7df', '#5f6e3a', '#13150f'], clair: true },
-  aurora:     { label: 'Aurora',      desc: 'Vert profond et blanc', sw: ['#030b0a', '#00524D', '#48A89A', '#CBEFEB'] },
-  graphite:   { label: 'Graphite',    desc: 'Gris anthracite et vert citron', sw: ['#141414', '#262626', '#b6f23a', '#e9e9e9'] },
-  minuit:     { label: 'Minuit',      desc: 'Bleu nuit et bleu clair', sw: ['#070a14', '#1d2a5c', '#6b8eff', '#c9d4ff'] },
-  or:         { label: 'Or noir',     desc: 'Noir chaud et doré', sw: ['#0b0a08', '#3a2c12', '#d4a64a', '#f1dfb4'] },
-  ivoire:     { label: 'Ivoire',      desc: 'Clair, pour la journée', sw: ['#f4f2ee', '#ffffff', '#1f6f63', '#1b1b1b'], clair: true },
-  noir:       { label: 'Noir pur',    desc: 'Noir et blanc, très épuré', gen: { bg: '#000000', card: '#0e0e0e', accent: '#ffffff', light: '#f2f2f2', deep: '#262626', priBg: '#ffffff', priFg: '#000000' } },
-  bordeaux:   { label: 'Bordeaux',    desc: 'Vin profond et rose poudré', gen: { bg: '#0f0709', card: '#1a0d11', accent: '#c2546f', light: '#f3c9d3', deep: '#5a1426' } },
-  ocean:      { label: 'Océan',       desc: 'Bleu canard et turquoise', gen: { bg: '#04101a', card: '#0a1b29', accent: '#2fb3c9', light: '#c4eef6', deep: '#0b4a63' } },
-  lavande:    { label: 'Lavande',     desc: 'Violet nuit et lilas', gen: { bg: '#0d0a16', card: '#171226', accent: '#9b7cf0', light: '#ddd2ff', deep: '#3b2a7a' } },
-  terracotta: { label: 'Terracotta',  desc: 'Brun chaud et argile', gen: { bg: '#120b08', card: '#1d130e', accent: '#d9774a', light: '#f6d2bf', deep: '#6b2e14' } },
-  corail:     { label: 'Corail',      desc: 'Noir doux et corail', gen: { bg: '#0c0c10', card: '#16161c', accent: '#ff7a6b', light: '#ffd6cf', deep: '#5c2620' } },
-  emeraude:   { label: 'Émeraude',    desc: 'Vert vif et lumineux', gen: { bg: '#03100a', card: '#0a1d14', accent: '#2ecc8a', light: '#c7f5df', deep: '#0d5a3a' } },
-  moka:       { label: 'Moka',        desc: 'Café et crème', gen: { bg: '#120e0b', card: '#1d1713', accent: '#c49a6c', light: '#eedfcd', deep: '#4a3424' } },
-  sable:      { label: 'Sable',       desc: 'Clair, beige et doré', clair: true, gen: { bg: '#f6f0e6', card: '#fffaf2', accent: '#9a7231', text: '#2b2216', deep: '#6e5021' } },
-  rose:       { label: 'Rose poudré', desc: 'Clair, rose et framboise', clair: true, gen: { bg: '#fbf2f3', card: '#ffffff', accent: '#b4536b', text: '#3a1f27', deep: '#83384b' } },
-  menthe:     { label: 'Menthe',      desc: 'Clair, vert d\'eau', clair: true, gen: { bg: '#eef6f4', card: '#fbfffe', accent: '#00796b', text: '#0f2e2b', deep: '#00524D' } },
-  ciel:       { label: 'Ciel',        desc: 'Clair, bleu franc', clair: true, gen: { bg: '#eef3fb', card: '#ffffff', accent: '#2f6fdb', text: '#14213d', deep: '#1d4ea8' } },
-  blanc:      { label: 'Blanc pur',   desc: 'Clair, noir et blanc', clair: true, gen: { bg: '#f7f7f7', card: '#ffffff', accent: '#111111', text: '#111111', deep: '#111111' } },
-  neon:       { label: 'Néon',        desc: 'Anthracite, dégradé vert-turquoise lumineux', gen: { bg: '#141515', card: '#232525', accent: '#5ef2d6', light: '#e6fff8', deep: '#1d4a42', priBg: '#c8ff5c', priFg: '#111311' } }
+  graphite:   { label: 'Graphite',    desc: 'Gris anthracite et vert citron', sw: ['#141414', '#262626', '#b6f23a', '#e9e9e9'] }
 };
 function agHex(h){ h = String(h || '').replace('#', ''); if(h.length === 3) h = h.split('').map(c => c + c).join(''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) || 0); }
 function agMix(a, b, t){ const A = agHex(a), B = agHex(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join(''); }
