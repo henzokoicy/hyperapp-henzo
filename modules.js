@@ -6662,9 +6662,9 @@ function ouvrirCreerLien(prefill) {
         <div id="fraisWaveResult" style="display:none;margin-top:12px"></div>
       </div>
 
-      <label style="margin-top:14px">🔗 Lien Wave (créé par toi)</label>
-      <input type="url" id="lienWaveUrl" placeholder="Colle ici le lien Wave que tu as créé">
-      <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5">Colle le lien généré depuis ton app Wave (ex: https://pay.wave.com/m/...)</div>
+      <label style="margin-top:14px">🔗 Lien Wave (automatique)</label>
+      <input type="url" id="lienWaveUrl" placeholder="Laisse vide : le lien est créé avec le bon montant">
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5">L'app crée toute seule le lien Wave avec le montant exact du paiement, rien à copier depuis Wave. Tu peux quand même coller un lien Wave si tu préfères : son montant sera vérifié.</div>
 
       <button class="btn-primary" style="background:var(--wave);color:#000;font-weight:700;margin-top:14px" onclick="genererLienPersonnalise()">🚀 Générer le lien</button>
     </div>
@@ -6834,7 +6834,10 @@ async function genererLienPersonnalise() {
   const totalAmount = parseFloat(document.getElementById('lienTotalAmount').value);
   const desc = document.getElementById('lienDesc').value.trim() || 'Paiement';
   const paymentType = document.getElementById('lienPaymentType').value;
-  const waveLink = document.getElementById('lienWaveUrl').value.trim();
+  // Si on a collé tout le message de Wave (« Veuillez payer ... https://pay.wave.com/... »), on ne garde que le lien
+  const waveBrut = document.getElementById('lienWaveUrl').value.trim();
+  const waveTrouve = waveBrut.match(/https?:\/\/pay\.wave\.com\/[^\s"'<>]+/i);
+  const waveLink = waveTrouve ? waveTrouve[0].replace(/[.,;:)\]]+$/, '') : waveBrut;
 
   const shootType = document.getElementById('lienShootType').value.trim();
   const shootDate = document.getElementById('lienShootDate').value || null;
@@ -6846,8 +6849,7 @@ async function genererLienPersonnalise() {
 
   if(!clientName) { alert('Entrez le nom du client'); return; }
   if(!totalAmount || totalAmount <= 0) { alert('Entrez le montant total'); return; }
-  if(!waveLink) { alert('Collez votre lien Wave'); return; }
-  if(!waveLink.includes('pay.wave.com')) { alert('Le lien Wave semble invalide. Il doit contenir "pay.wave.com"'); return; }
+  if(waveLink && !waveLink.includes('pay.wave.com')) { alert('Le lien Wave semble invalide. Il doit contenir "pay.wave.com", ou laisse le champ vide.'); return; }
 
    // 🆕 Lire le montant depuis le champ flex en priorité
   const flexEl = document.getElementById('lienMontantFlex');
@@ -6871,6 +6873,26 @@ async function genererLienPersonnalise() {
     }
   }
 
+  // Lien Wave : créé automatiquement avec le montant exact, ou vérifié si tu en as collé un
+  const montantFinal = Math.round(montant);
+  let waveFinal = waveLink;
+  if(!waveFinal){
+    const idWave = (typeof BRAND !== 'undefined' && BRAND.waveId) ? BRAND.waveId : '';
+    if(!idWave){ alert('ID marchand Wave introuvable : colle un lien Wave dans le champ.'); return; }
+    waveFinal = 'https://pay.wave.com/m/' + idWave + '/c/ci/?amount=' + montantFinal;
+  } else {
+    try {
+      const u = new URL(waveFinal);
+      const dansLien = parseFloat(u.searchParams.get('amount'));
+      if(!dansLien || Math.round(dansLien) !== montantFinal){
+        const ok = confirm('Attention : le lien Wave est à ' + (dansLien ? new Intl.NumberFormat('fr-FR').format(dansLien) + ' FCFA' : 'un montant libre') + ', mais ce paiement est à ' + new Intl.NumberFormat('fr-FR').format(montantFinal) + ' FCFA.\n\nOK = corriger le lien avec ' + new Intl.NumberFormat('fr-FR').format(montantFinal) + ' FCFA\nAnnuler = revenir au formulaire');
+        if(!ok) return;
+        u.searchParams.set('amount', String(montantFinal));
+        waveFinal = u.toString();
+      }
+    } catch(e) { /* lien non analysable : on le garde tel quel */ }
+  }
+
   const result = await dbInsert('payment_links', {
     client_name: clientName,
     client_phone: clientPhone || null,
@@ -6878,7 +6900,7 @@ async function genererLienPersonnalise() {
     amount: Math.round(montant),
     total_amount: Math.round(totalAmount),
     payment_type: paymentType,
-    wave_link: waveLink,
+    wave_link: waveFinal,
     status: 'pending',
     shoot_type: shootType || null,
     shoot_date: shootDate ? new Date(shootDate).toISOString() : null,
