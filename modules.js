@@ -7215,7 +7215,7 @@ function genererRecuPDFClient(link) {
   doc.setLineWidth(0.6);
   doc.line(margin, 40, pageWidth - margin, 40);
 
-  doc.setFillColor(241, 239, 233);
+  doc.setFillColor(234, 231, 223);
   doc.roundedRect(margin, 50, pageWidth - margin * 2, 14, 2, 2, 'F');
   doc.setTextColor(95, 110, 58);
   doc.setFontSize(11);
@@ -7238,10 +7238,12 @@ function genererRecuPDFClient(link) {
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(92, 95, 84);
-  doc.text('Photographe professionnel', margin, y + 12);
+  doc.text('Studio photo & vidéo', margin, y + 12);
   doc.text('Abidjan · Bouaké, Côte d\'Ivoire', margin, y + 17);
   doc.text('+225 01 70 99 89 64', margin, y + 22);
-  doc.text('henzophotographie@gmail.com', margin, y + 27);
+  doc.text('contact@henzostudio.com', margin, y + 27);
+  doc.setTextColor(95, 110, 58);
+  doc.text('henzostudio.com', margin, y + 32);
 
   const colRight = margin + colWidth + 6;
   doc.setTextColor(92, 95, 84);
@@ -7259,7 +7261,7 @@ function genererRecuPDFClient(link) {
   doc.setTextColor(92, 95, 84);
   if(link.client_phone) doc.text('Tel : ' + cleanStr(link.client_phone), colRight, y + 12);
 
-  y += 38;
+  y += 42;
 
   doc.setDrawColor(226, 224, 214);
   doc.setLineWidth(0.3);
@@ -7273,15 +7275,21 @@ function genererRecuPDFClient(link) {
   y += 8;
 
   const details = [];
-  if(link.shoot_type) details.push(['Type', cleanStr(link.shoot_type)]);
-  details.push(['Description', cleanStr(link.description) || 'Paiement']);
+  const typeShoot = cleanStr(link.shoot_type);
+  let descr = cleanStr(link.description);
+  // Le type est souvent répété au début de la description (« Dot · Mr ... ») : on l'enlève
+  if(typeShoot && descr.toLowerCase().indexOf(typeShoot.toLowerCase()) === 0) descr = descr.slice(typeShoot.length).replace(/^[\s·\-:]+/, '');
+  if(descr && cleanStr(link.client_name) && descr.toLowerCase() === cleanStr(link.client_name).toLowerCase()) descr = '';
+  if(typeShoot) details.push(['Prestation', typeShoot]);
+  if(descr) details.push(['Détail', descr]);
+  if(!typeShoot && !descr) details.push(['Prestation', 'Paiement']);
 
   if(link.shoot_date){
     const d = new Date(link.shoot_date);
     const dateStr = d.toLocaleDateString('fr-FR', {weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'});
     const timeStr = d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
     details.push(['Date du shoot', dateStr]);
-    details.push(['Heure', timeStr]);
+    if(d.getHours() || d.getMinutes()) details.push(['Heure', timeStr]);
   }
   if(link.shoot_location) details.push(['Lieu', cleanStr(link.shoot_location)]);
   if(link.shoot_duration) details.push(['Durée', link.shoot_duration + ' h']);
@@ -7302,6 +7310,10 @@ function genererRecuPDFClient(link) {
     const valueLines = doc.splitTextToSize(value, pageWidth - margin * 2 - 50);
     doc.text(valueLines, margin + 45, y);
     y += Math.max(6, valueLines.length * 5);
+    // filet léger entre les lignes, pour une lecture plus claire
+    doc.setDrawColor(236, 234, 226);
+    doc.setLineWidth(0.2);
+    doc.line(margin, y - 2.6, pageWidth - margin, y - 2.6);
 
     if(y > 240){ doc.addPage(); y = 20; }
   });
@@ -7343,7 +7355,7 @@ function genererRecuPDFClient(link) {
   y += 14;
 
   const boxHeight = 48;
-  doc.setFillColor(241, 239, 233);
+  doc.setFillColor(234, 231, 223);
   doc.roundedRect(margin, y, pageWidth - margin * 2, boxHeight, 3, 3, 'F');
 
   doc.setDrawColor(95, 110, 58);
@@ -7376,7 +7388,7 @@ function genererRecuPDFClient(link) {
     doc.text('Paiement intégral', margin + 8, y + 42);
   }
 
-  y += boxHeight + 12;
+  y += boxHeight + 6;
 
   doc.setDrawColor(226, 224, 214);
   doc.setLineWidth(0.3);
@@ -7385,12 +7397,13 @@ function genererRecuPDFClient(link) {
   doc.setFontSize(9);
   doc.setTextColor(92, 95, 84);
   doc.setFont('helvetica', 'normal');
-  doc.text('Ce reçu atteste du paiement reçu par HENZO STUDIO.', pageWidth / 2, y + 8, { align: 'center' });
-  doc.text('Merci pour votre confiance !', pageWidth / 2, y + 14, { align: 'center' });
+  doc.text('Ce reçu atteste du paiement reçu par HENZO STUDIO.', pageWidth / 2, y + 7, { align: 'center' });
+  doc.text('Merci pour votre confiance !', pageWidth / 2, y + 12, { align: 'center' });
 
+  // Coordonnées juste sous le remerciement (position fixe avant : elles se chevauchaient)
   doc.setFontSize(8);
-  doc.setTextColor(168, 171, 157);
-  doc.text('henzophotographie@gmail.com  ·  +225 01 70 99 89 64  ·  Côte d\'Ivoire', pageWidth / 2, 285, { align: 'center' });
+  doc.setTextColor(95, 110, 58);
+  doc.text('contact@henzostudio.com  ·  +225 01 70 99 89 64  ·  henzostudio.com', pageWidth / 2, y + 19, { align: 'center' });
 
   return doc;
 }
