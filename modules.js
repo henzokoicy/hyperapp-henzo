@@ -6897,7 +6897,23 @@ async function genererLienPersonnalise() {
   renderPaymentLinks();
 }
 
-function afficherLienGenere(link) {
+// Le lien court n'est envoyé que s'il marche vraiment pour un client (lecture anonyme du paiement).
+// Sinon on envoie le lien long, qui contient tout le détail et fonctionne toujours.
+async function lienCourtDisponible(id) {
+  try {
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 2500);
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/lien_paiement`, {
+      method: 'POST', headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_id: id }), signal: ctl.signal
+    });
+    clearTimeout(t);
+    if(!r.ok) return false;
+    const j = await r.json(); const row = Array.isArray(j) ? j[0] : j;
+    return !!(row && Number(row.amount) > 0);
+  } catch(e) { return false; }
+}
+
+async function afficherLienGenere(link) {
   const ref = 'PL-' + String(link.id).padStart(4, '0');
 
   const params = new URLSearchParams({
@@ -6912,7 +6928,8 @@ function afficherLienGenere(link) {
   // Lien court et propre : client.henzostudio.com/p/PL-0034 (la page lit le détail dans la base).
   // Le lien long reste disponible en secours (copier le lien de secours) si besoin.
   const lienLong = `${CLIENT_URL}/pay.html?${params.toString()}`;
-  const lien = `${CLIENT_URL}/p/${ref}`;
+  const courtOk = await lienCourtDisponible(link.id);
+  const lien = courtOk ? `${CLIENT_URL}/p/${ref}` : lienLong;
 
   window.__lienCourant = {
     lien: lien,
