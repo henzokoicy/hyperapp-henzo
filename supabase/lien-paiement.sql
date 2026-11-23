@@ -10,6 +10,7 @@
 
 -- 0) Frais de paiement ajoutés au montant du client (amount reste ce que tu reçois)
 alter table public.payment_links add column if not exists frais numeric not null default 0;
+alter table public.payment_links add column if not exists taux_frais numeric not null default 0;   -- taux (en %) de ces frais, affiché au client
 
 -- 1) Le secret (créé une fois, au hasard, jamais lisible depuis l'extérieur)
 create table if not exists public.lien_secret (
@@ -48,7 +49,7 @@ security definer
 set search_path = public
 as $$
   select row_to_json(t) from (
-    select id, amount, total_amount, description, client_name, payment_type, wave_link, payment_method, frais
+    select id, amount, total_amount, description, client_name, payment_type, wave_link, payment_method, frais, taux_frais
     from public.payment_links
     where id = p_id
       and lower(coalesce(p_code, '')) = substr(md5(p_id::text || (select secret from public.lien_secret where id = 1)), 1, 8)

@@ -356,6 +356,9 @@
     .moyen button[disabled] { opacity:.55; cursor:default; }
     .autres .m-note { font-size:12px; color:var(--muted); margin-top:12px; line-height:1.6; }
 
+    .wave-ligne { margin-top:12px; text-align:center; font-size:14px; line-height:1.55; }
+    .wave-ligne b { font-size:16px; }
+    .wave-ligne .wl-frais { color:var(--accent); font-weight:700; }
     .qr-wave { margin-top:12px; border:1px solid var(--border-2, rgba(255,255,255,.15)); border-radius:14px; overflow:hidden; }
     .qr-wave summary { cursor:pointer; padding:13px 14px; font-weight:700; font-size:14px; list-style:none; }
     .qr-wave summary::-webkit-details-marker { display:none; }
@@ -546,6 +549,8 @@
       Payer avec Wave
     </a>
 
+    <div class="wave-ligne" id="waveLigne" style="display:none"></div>
+
     <details class="qr-wave" id="qrWave" style="display:none">
       <summary>💻 Sur ordinateur ou un autre écran : QR code Wave</summary>
       <div class="qr-corps">
@@ -603,6 +608,9 @@
   // Pour en ajouter un : copier une ligne. Pour en retirer un : supprimer sa ligne.
   // ============================================================
   const NUMERO_WHATSAPP = '2250170998964';
+  // Taux de frais de paiement par moyen (en %) : à modifier ici si les frais changent.
+  // Ils servent à calculer le montant à envoyer avec chaque moyen (frais à la charge du client).
+  const TAUX_FRAIS = { 'Wave': 1, 'Orange Money': 1.5, 'Moov Money': 1.5 };
   const AUTRES_MOYENS = [
     { id: 'orange', nom: 'Orange Money', numero: '+225 07 88 39 55 85', nomAffiche: '' },
     { id: 'moov',   nom: 'Moov Money',   numero: '+225 01 70 99 89 64', nomAffiche: '' }
@@ -661,6 +669,7 @@
     const waveLink   = p.get('w') || '';
     const methode    = p.get('pm') || '';
     const frais      = parseFloat(p.get('f')) || 0;   // frais de paiement ajoutés au montant du client
+    const tauxLien   = parseFloat(p.get('r')) || 0;   // taux de ces frais (en %)
     const refCode    = p.get('ref') || ref;
 
     // Si pas de montant, c'est un vieux lien : on tente Supabase (fallback)
@@ -698,7 +707,8 @@
               typeLabel: typeLabels[data.payment_type] || 'Paiement',
               total: data.total_amount,
               waveLink: data.wave_link,
-              methode: data.payment_method || ''
+              methode: data.payment_method || '',
+              taux: Number(data.taux_frais) || 0
             });
             return;
           }
@@ -728,7 +738,8 @@
       typeLabel: typeLabels[type] || 'Paiement',
       total: total,
       waveLink: waveLink,
-      methode: methode
+      methode: methode,
+      taux: tauxLien
     });
   }
 
@@ -758,7 +769,7 @@
     }
     const fraisEl = document.getElementById('fraisDisplay');
     if(fraisEl) {
-      fraisEl.textContent = info.frais > 0 ? 'Frais de paiement inclus : ' + new Intl.NumberFormat('fr-FR').format(info.frais) + ' FCFA (à ta charge)' : '';
+      fraisEl.textContent = info.frais > 0 ? 'Frais ' + (info.methode || 'Wave') + (info.taux > 0 ? ' (' + String(Math.round(info.taux * 10) / 10).replace('.', ',') + ' %)' : '') + ' inclus : ' + new Intl.NumberFormat('fr-FR').format(info.frais) + ' FCFA (à ta charge)' : '';
       fraisEl.style.display = info.frais > 0 ? 'block' : 'none';
     }
 
@@ -771,7 +782,20 @@
       const trouve = String(info.waveLink).match(/https?:\/\/pay\.wave\.com\/[^\s"'<>]+/i);
       const cleanLink = trouve ? trouve[0].replace(/[.,;:)\]]+$/, '') : info.waveLink.trim().replace(/[.,;:\s]+$/, '');
       btnWave.href = cleanLink;
-      aideEtat.lien = cleanLink; aideEtat.montant = info.amount; aideEtat.ref = info.ref;
+      // Montant avec Wave = montant du lien Wave lui-même (c'est ce que Wave débitera), frais Wave compris
+      let montantWave = info.amount;
+      try { const uw = new URL(cleanLink); const aw = parseFloat(uw.searchParams.get('amount')); if(aw > 0) montantWave = aw; } catch(e) {}
+      const netW = (typeof info.net === 'number' && info.net > 0) ? info.net : info.amount;
+      const fraisW = Math.max(0, Math.round(montantWave - netW));
+      const tauxW = ((info.methode || 'Wave') === 'Wave' && info.taux > 0) ? info.taux : TAUX_FRAIS['Wave'];
+      const ligneW = document.getElementById('waveLigne');
+      if(ligneW) {
+        ligneW.innerHTML = 'Avec Wave : <b></b>' + (fraisW > 0 ? '<div class="wl-frais"></div>' : '');
+        ligneW.querySelector('b').textContent = nf(montantWave) + ' FCFA';
+        if(fraisW > 0) ligneW.querySelector('.wl-frais').textContent = 'Frais Wave (' + fmtPct(tauxW) + ') inclus : ' + nf(fraisW) + ' FCFA (à ta charge)';
+        ligneW.style.display = 'block';
+      }
+      aideEtat.lien = cleanLink; aideEtat.montant = montantWave; aideEtat.ref = info.ref;
       // QR code Wave : exactement le même lien que le bouton (montant et frais compris)
       try {
         const qrBloc = document.getElementById('qrWave');
@@ -779,7 +803,7 @@
           const qr = window.qrcode(0, 'M'); qr.addData(cleanLink); qr.make();
           const im = document.getElementById('qrImage'); im.innerHTML = '';
           const img = document.createElement('img'); img.alt = 'QR code de paiement Wave'; img.src = qr.createDataURL(6, 0); im.appendChild(img);
-          document.getElementById('qrMontant').textContent = new Intl.NumberFormat('fr-FR').format(info.amount) + ' FCFA' + (info.frais > 0 ? ' (frais compris)' : '');
+          document.getElementById('qrMontant').textContent = nf(montantWave) + ' FCFA' + (fraisW > 0 ? ' (frais compris)' : '');
           qrBloc.style.display = 'block';
           // ordinateur : le QR est ouvert d'office ; téléphone : replié (on touche le bouton Wave)
           if(!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')) qrBloc.open = true;
@@ -852,9 +876,20 @@
     return blob;
   }
 
+  function fmtPct(t) { return String(Math.round(t * 10) / 10).replace('.', ',') + ' %'; }
+  function nf(n) { return new Intl.NumberFormat('fr-FR').format(n); }
+  // Montant à envoyer avec un moyen de paiement : le montant à recevoir + les frais de CE moyen
+  function calcPourMoyen(info, moyen) {
+    const net = (typeof info.net === 'number' && info.net > 0) ? info.net : info.amount;
+    if(!(info.frais > 0)) return { net: net, taux: 0, frais: 0, total: net };      // lien créé sans frais
+    const lienMoyen = info.methode || 'Wave';
+    const taux = (moyen === lienMoyen && info.taux > 0) ? info.taux : (TAUX_FRAIS[moyen] != null ? TAUX_FRAIS[moyen] : 1);
+    const total = Math.ceil(net / (1 - taux / 100));
+    return { net: net, taux: taux, frais: total - net, total: total };
+  }
+
   function afficherAutresMoyens(info) {
     const zone = document.getElementById('listeMoyens'); if(!zone) return;
-    const montantTxt = new Intl.NumberFormat('fr-FR').format(info.amount) + ' FCFA';
     const idLien = parseInt(String(info.ref).replace(/\D/g, ''), 10) || 0;
     paiementCourant.id = idLien; paiementCourant.code = codeParam || ''; paiementCourant.ref = info.ref;
     paiementCourant.amount = info.amount; paiementCourant.clientName = info.clientName;
@@ -867,10 +902,12 @@
       const bloc = document.createElement('div'); bloc.className = 'moyen';
       const nom = document.createElement('div'); nom.className = 'm-nom'; nom.textContent = m.nom + (m === choisi ? ' · moyen choisi ✓' : '');
       const num = document.createElement('div'); num.className = 'm-num'; num.textContent = m.numero;
+      const calcM = calcPourMoyen(info, m.nom);
+      const montantTxt = nf(calcM.total) + ' FCFA';
       const mont = document.createElement('div'); mont.className = 'm-montant';
-      const fraisTxt = info.frais > 0 ? new Intl.NumberFormat('fr-FR').format(info.frais) + ' FCFA' : '';
+      const fraisTxt = calcM.frais > 0 ? nf(calcM.frais) + ' FCFA' : '';
       mont.innerHTML = '<div class="m-label">Envoie exactement</div><div class="m-valeur"></div>' +
-        (fraisTxt ? '<div class="m-frais">Frais de paiement inclus : <span class="m-fv"></span> (à ta charge)</div>' : '') +
+        (fraisTxt ? '<div class="m-frais">Frais ' + m.nom + ' (' + fmtPct(calcM.taux) + ') inclus : <span class="m-fv"></span> (à ta charge)</div>' : '') +
         '<div class="m-regle">Ni plus, ni moins : envoie ce montant complet, frais compris' + (m.nomAffiche ? ', à <b class="m-na"></b>' : '') + '. Un montant plus petit rend ton paiement incomplet.</div>';
       mont.querySelector('.m-valeur').textContent = montantTxt;
       if(fraisTxt) mont.querySelector('.m-fv').textContent = fraisTxt;
@@ -884,7 +921,7 @@
       const copier1 = document.createElement('button'); copier1.type = 'button'; copier1.className = 'm-btn'; copier1.textContent = '📋 Copier le numéro';
       copier1.addEventListener('click', function(){ copierDirect(m.numero.replace(/^\+225\s*/, '').replace(/\s+/g, ''), copier1, '✓ Numéro copié'); });
       const copier2 = document.createElement('button'); copier2.type = 'button'; copier2.className = 'm-btn'; copier2.textContent = '📋 Copier le montant';
-      copier2.addEventListener('click', function(){ copierDirect(String(Math.round(info.amount)), copier2, '✓ Montant copié'); });
+      copier2.addEventListener('click', function(){ copierDirect(String(Math.round(calcM.total)), copier2, '✓ Montant copié'); });
 
       // Capture du paiement : on choisit l'image (téléphone ou ordinateur), on la voit, puis on l'envoie
       const fichier = document.createElement('input'); fichier.type = 'file'; fichier.accept = 'image/*'; fichier.style.display = 'none';
