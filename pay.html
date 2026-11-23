@@ -637,6 +637,7 @@
     const desc       = p.get('d') || 'Paiement';
     const type       = p.get('ty') || 'complet';
     const waveLink   = p.get('w') || '';
+    const methode    = p.get('pm') || '';
     const refCode    = p.get('ref') || ref;
 
     // Si pas de montant, c'est un vieux lien : on tente Supabase (fallback)
@@ -671,7 +672,8 @@
               type: data.payment_type || 'complet',
               typeLabel: typeLabels[data.payment_type] || 'Paiement',
               total: data.total_amount,
-              waveLink: data.wave_link
+              waveLink: data.wave_link,
+              methode: data.payment_method || ''
             });
             return;
           }
@@ -698,7 +700,8 @@
       type: type,
       typeLabel: typeLabels[type] || 'Paiement',
       total: total,
-      waveLink: waveLink
+      waveLink: waveLink,
+      methode: methode
     });
   }
 
@@ -810,9 +813,13 @@
     paiementCourant.id = idLien; paiementCourant.code = codeParam || ''; paiementCourant.ref = info.ref;
     paiementCourant.amount = info.amount; paiementCourant.clientName = info.clientName;
     zone.innerHTML = '';
-    AUTRES_MOYENS.forEach(function(m) {
+    // Moyen choisi par le studio (Orange Money, Moov Money) : il passe en premier et la section s'ouvre
+    const choisi = AUTRES_MOYENS.filter(function(m) { return m.nom === info.methode; })[0];
+    const liste = choisi ? [choisi].concat(AUTRES_MOYENS.filter(function(m) { return m !== choisi; })) : AUTRES_MOYENS;
+    if(choisi) { const d = document.getElementById('autresPaiements'); if(d) d.open = true; }
+    liste.forEach(function(m) {
       const bloc = document.createElement('div'); bloc.className = 'moyen';
-      const nom = document.createElement('div'); nom.className = 'm-nom'; nom.textContent = m.nom;
+      const nom = document.createElement('div'); nom.className = 'm-nom'; nom.textContent = m.nom + (m === choisi ? ' · moyen choisi ✓' : '');
       const num = document.createElement('div'); num.className = 'm-num'; num.textContent = m.numero;
       const mont = document.createElement('div'); mont.className = 'm-montant';
       mont.innerHTML = 'Envoie exactement <strong></strong>' + (m.nomAffiche ? ' à <strong></strong>' : '');

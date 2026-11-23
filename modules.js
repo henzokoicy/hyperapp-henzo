@@ -6940,10 +6940,16 @@ async function genererLienPersonnalise() {
     }
   }
 
+  // Mode de paiement choisi : MTN n'est pas encore proposé aux clients sur la page de paiement
+  if(paymentMethod === 'MTN Money' && !confirm('MTN Money n\'est pas encore proposé à tes clients sur la page de paiement.\n\nOK = créer quand même le lien (le client paiera avec Wave ou Orange / Moov)\nAnnuler = revenir au formulaire')) return;
+
   // Lien Wave : créé automatiquement avec le montant exact, ou vérifié si tu en as collé un
+  // (pas de lien en ligne pour espèces, chèque, virement : seulement l'enregistrement du paiement)
   const montantFinal = Math.round(montant);
   let waveFinal = waveLink;
-  if(!waveFinal){
+  if(!moyenEnLigne(paymentMethod) && paymentMethod !== 'MTN Money'){
+    waveFinal = '';
+  } else if(!waveFinal){
     const idWave = (typeof BRAND !== 'undefined' && BRAND.waveId) ? BRAND.waveId : '';
     if(!idWave){ alert('ID marchand Wave introuvable : colle un lien Wave dans le champ.'); return; }
     waveFinal = 'https://pay.wave.com/m/' + idWave + '/c/ci/?amount=' + montantFinal;
@@ -7005,6 +7011,10 @@ async function codeLienCourt(id) {
   } catch(e) { return ''; }
 }
 
+// Moyens de paiement avec un lien en ligne. Les autres (espèces, chèque, virement) : pas de lien.
+const MOYENS_EN_LIGNE = ['Wave', 'Orange Money', 'Moov Money'];
+function moyenEnLigne(m) { return MOYENS_EN_LIGNE.indexOf(m || 'Wave') >= 0; }
+
 async function afficherLienGenere(link) {
   const ref = 'PL-' + String(link.id).padStart(4, '0');
 
@@ -7014,18 +7024,21 @@ async function afficherLienGenere(link) {
     t: link.total_amount || 0,
     d: link.description || 'Paiement',
     ty: link.payment_type || 'complet',
+    pm: link.payment_method || 'Wave',
     w: link.wave_link || '',
     ref: ref
   });
   // Lien court et sécurisé : client.henzostudio.com/p/PL-0034-3fa9c1d2 (numéro + code secret, détail lu dans la base).
   // Le lien long reste disponible en secours (copier le lien de secours) si besoin.
   const lienLong = `${CLIENT_URL}/pay.html?${params.toString()}`;
-  const codeCourt = await codeLienCourt(link.id);
+  const enLigne = moyenEnLigne(link.payment_method);
+  const codeCourt = enLigne ? await codeLienCourt(link.id) : '';
   const lien = codeCourt ? `${CLIENT_URL}/p/${ref}-${codeCourt}` : lienLong;
 
   window.__lienCourant = {
     lien: lien,
     lienLong: lienLong,
+    enLigne: enLigne,
     clientName: link.client_name || 'Client',
     desc: link.description || 'Paiement',
     montant: link.amount || 0,
@@ -7070,19 +7083,27 @@ async function afficherLienGenere(link) {
         <div style="font-size:12px;color:var(--muted);margin:10px 0 4px">Référence</div>
         <div style="font-family:monospace;font-weight:600">${ref}</div>
       </div>
+      ${enLigne ? `
       <div style="background:var(--card2);border-radius:10px;padding:12px;margin-bottom:14px">
         <div style="font-size:11px;color:var(--muted);margin-bottom:6px">🔗 Lien à envoyer au client</div>
         <div style="font-family:monospace;font-size:11px;color:var(--accent);word-break:break-all">${lien}</div>
       </div>
       <div style="background:rgba(29,200,255,.1);border-radius:10px;padding:10px;margin-bottom:14px;font-size:11px;color:var(--muted)">
-        🔒 Le client verra ton portail Henzo, puis sera redirigé vers ton lien Wave.
+        🔒 Le client verra ton portail Henzo. ${link.payment_method === 'Orange Money' || link.payment_method === 'Moov Money' ? 'La page s\'ouvre sur <b>' + link.payment_method + '</b> en premier ; il peut aussi payer avec Wave.' : 'Il sera redirigé vers ton lien Wave ; il peut aussi payer avec Orange Money ou Moov Money.'}
       </div>
       <div style="display:grid;gap:8px">
         <button class="btn-primary" style="margin:0;background:var(--green);width:100%" onclick="envoyerLienWhatsAppActuel()">💬 Envoyer via WhatsApp</button>
         <button class="btn-ghost" style="margin:0;width:100%" onclick="copierLienPersoActuel()">📋 Copier le lien</button>
         <button class="btn-ghost" style="margin:0;width:100%;font-size:12px;opacity:.8" onclick="copierLienSecoursActuel()">🛟 Copier le lien de secours (long)</button>
         <button class="btn-ghost" style="margin:0;width:100%" onclick="apercuLienActuel()">👁️ Aperçu</button>
+      </div>` : `
+      <div style="background:rgba(201,179,126,.12);border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:var(--muted);line-height:1.6">
+        💵 <b style="color:var(--text)">Paiement par ${link.payment_method}</b> : pas de lien en ligne pour ce moyen.<br>
+        Le paiement est enregistré en attente. Quand tu l'as reçu, ouvre-le dans la liste des liens et touche « Marquer payé ».
       </div>
+      <div style="display:grid;gap:8px">
+        <button class="btn-primary" style="margin:0;background:var(--green);width:100%" onclick="envoyerLienWhatsAppActuel()">💬 Envoyer le récapitulatif au client</button>
+      </div>`}
     </div>
   `;
   document.body.appendChild(modal);
@@ -7113,7 +7134,7 @@ function envoyerLienWhatsAppActuel() {
   }
 
   let message = `Bonjour ${data.clientName} 👋,\n\n`;
-  message += `Voici votre lien de paiement sécurisé :\n\n`;
+  message += data.enLigne === false ? `Voici le récapitulatif de votre paiement :\n\n` : `Voici votre lien de paiement sécurisé :\n\n`;
   message += `📝 *Prestation :* ${data.desc}\n`;
 
   if(data.shootDate){
@@ -7140,7 +7161,12 @@ function envoyerLienWhatsAppActuel() {
 
   if(data.ref){ message += `\n📄 *Référence :* ${data.ref}\n`; }
 
-  message += `\n👉 *Cliquez ici pour payer :*\n${data.lien}\n\n`;
+  if(data.enLigne === false){
+    message += `\n💳 *Mode de paiement :* ${data.paymentMethod}\n\n`;
+  } else {
+    if(data.paymentMethod && data.paymentMethod !== 'Wave') message += `\n💳 *Mode de paiement :* ${data.paymentMethod}\n`;
+    message += `\n👉 *Cliquez ici pour payer :*\n${data.lien}\n\n`;
+  }
   message += `Merci pour votre confiance !\n`;
   message += `HENZO STUDIO 📸`;
 
