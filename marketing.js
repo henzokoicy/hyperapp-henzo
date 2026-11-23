@@ -583,8 +583,8 @@ function mkContext(){
 function mkMarque(){
   const k = window.ST_MARQUE && window.ST_MARQUE.nom;
   const p = (typeof PX !== 'undefined' && PX.page && PX.page.marque) || MK.marquePage;
-  const n = String(k || p || '').trim() || 'Henzo Photographie';
-  return /^henzo\s*studio$/i.test(n) ? 'Henzo Photographie' : n;
+  const n = String(k || p || '').trim() || 'Henzo Studio';
+  return n;
 }
 function mkMarqueCtx(){
   const m = window.ST_MARQUE; if(!m) return '';

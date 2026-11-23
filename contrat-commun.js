@@ -29,7 +29,7 @@ window.CT_MODELES = MODELES;
 //     remuneration, particulieres
 window.ctArticles = function(modele, d){
   d = d || {};
-  var studio = d.studio || 'Henzo Photographie', client = d.client || '[nom du client]';
+  var studio = d.studio || 'Henzo Studio', client = d.client || '[nom du client]';
   var prix = Math.round(Number(d.prix) || 0), pct = Math.max(0, Math.min(100, Number(d.acompte_pct) || 0));
   var acompte = Math.round(prix * pct / 100), reste = prix - acompte;
   var A = [];

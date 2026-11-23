@@ -179,7 +179,7 @@ function coachAnalyzeClients(){
           fn: () => {
             const phone = c.phone ? c.phone.replace(/[^0-9]/g, '') : '';
             const fullPhone = phone.startsWith('225') ? phone : '225' + phone;
-            const msg = `Bonjour ${c.name} 👋,\n\nJ'espère que tu vas bien ! Je pensais à toi, et je me disais qu'on pourrait peut-être refaire un shooting ensemble bientôt 📸\n\nDes nouvelles idées en tête ?\n\nHENZO PHOTOGRAPHIE`;
+            const msg = `Bonjour ${c.name} 👋,\n\nJ'espère que tu vas bien ! Je pensais à toi, et je me disais qu'on pourrait peut-être refaire un shooting ensemble bientôt 📸\n\nDes nouvelles idées en tête ?\n\nHENZO STUDIO`;
             const url = phone ? `https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
             window.open(url, '_blank');
             coachNextStep();

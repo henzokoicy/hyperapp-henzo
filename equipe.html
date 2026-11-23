@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<title>Espace équipe - Henzo Photographie</title>
+<title>Espace équipe - Henzo Studio</title>
 <meta name="theme-color" content="#0d0f0c">
 <link rel="icon" href="icon-192.png">
 <link href="polices/polices.css?v=2" rel="stylesheet">
@@ -164,7 +164,7 @@ function notif(o){ try { fetch(SUPABASE_URL + '/functions/v1/notifier', { method
 function errMsg(e){ var m = String((e && (e.message || e.msg)) || e || ''); return /Trop de demandes|déjà validé|pas ouvert|passée|introuvable/i.test(m) ? m : 'Ça n\'a pas marché. Vérifie ta connexion et réessaie.'; }
 function state(icon, title, txt){
   document.getElementById('hello').textContent = 'Espace équipe';
-  document.getElementById('sub').textContent = 'Henzo Photographie';
+  document.getElementById('sub').textContent = 'Henzo Studio';
   document.getElementById('app').innerHTML = '<div class="card state"><div class="ic">' + icon + '</div><h2>' + esc(title) + '</h2><p>' + esc(txt) + '</p></div>';
 }
 
@@ -208,7 +208,7 @@ function render(){
   if(v.notes && d.notes) h += secNotes(d.notes);
   if(v.classement) h += secClassement(d.classement || []);
   if(!secs.length && !d.consignes) h += '<div class="card state"><h2>Rien à afficher pour le moment</h2><p>Henzo va bientôt remplir ton espace.</p></div>';
-  h += '<div class="foot">Ce lien est personnel : ne le partage pas.<br>Henzo Photographie · Bouaké</div>';
+  h += '<div class="foot">Ce lien est personnel : ne le partage pas.<br>Henzo Studio · Bouaké</div>';
   document.getElementById('app').innerHTML = h;
 }
 
@@ -327,7 +327,7 @@ async function defi(id, delta, fini){
 function promoLink(p){ return p.slug && p.code ? location.origin + '/reserver.html?s=' + encodeURIComponent(p.slug) + '&p=' + encodeURIComponent(p.code) : ''; }
 function promoTxt(p){
   var l = promoLink(p);
-  return 'Tu cherches un photographe à Bouaké ? Je travaille avec Henzo Photographie : portraits, mariages, anniversaires, grossesse, événements...'
+  return 'Tu cherches un photographe à Bouaké ? Je travaille avec Henzo Studio : portraits, mariages, anniversaires, grossesse, événements...'
     + (l ? '\nRéserve ta séance avec mon lien : ' + l : '') + (p.code ? '\n' + (l ? 'Ou d' : 'D') + 'onne mon code ' + p.code + ' quand tu réserves.' : '');
 }
 function secPromo(p){

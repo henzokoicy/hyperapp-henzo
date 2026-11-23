@@ -3229,7 +3229,7 @@ function confirmerSeanceWhatsApp(id){
   message += `📅 *Date :* ${dateStr} à ${timeStr}\n`;
   if(s.location) message += `📍 *Lieu :* ${s.location}\n`;
   message += `\nÀ très bientôt !\n`;
-  message += `HENZO PHOTOGRAPHIE 📸`;
+  message += `HENZO STUDIO 📸`;
 
   const clean = client.phone.replace(/[^0-9]/g, '');
   const fullPhone = clean.startsWith('225') ? clean : '225' + clean;
@@ -7028,7 +7028,7 @@ function envoyerLienWhatsAppActuel() {
 
   message += `\n👉 *Cliquez ici pour payer :*\n${data.lien}\n\n`;
   message += `Merci pour votre confiance !\n`;
-  message += `HENZO PHOTOGRAPHIE 📸`;
+  message += `HENZO STUDIO 📸`;
 
   let url;
   if(data.phone) {
@@ -7239,7 +7239,7 @@ function genererRecuPDFClient(link) {
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(92, 95, 84);
   doc.text('Studio photo & vidéo', margin, y + 12);
-  doc.text('Abidjan · Bouaké, Côte d\'Ivoire', margin, y + 17);
+  doc.text('Ahougnansou, Bouaké · Côte d\'Ivoire', margin, y + 17);
   doc.text('+225 01 70 99 89 64', margin, y + 22);
   doc.text('contact@henzostudio.com', margin, y + 27);
   doc.setTextColor(95, 110, 58);
@@ -7439,7 +7439,7 @@ async function envoyerRecuWhatsApp(linkId) {
     `✅ Statut : PAYÉ\n\n` +
     `Vous trouverez votre reçu en pièce jointe 📎\n\n` +
     `Merci pour votre confiance !\n` +
-    `HENZO PHOTOGRAPHIE 📸`;
+    `HENZO STUDIO 📸`;
 
   let waUrl;
   if(link.client_phone) {
@@ -7459,7 +7459,7 @@ async function envoyerRecuWhatsApp(linkId) {
     if(navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({
         files: [file],
-        title: 'Reçu Henzo Photographie',
+        title: 'Reçu Henzo Studio',
         text: message
       });
       showToast('Reçu partagé');
@@ -10582,7 +10582,7 @@ function exportClientsPDF(){
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text('HENZO PHOTOGRAPHIE', margin, 15);
+  doc.text('HENZO STUDIO', margin, 15);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   doc.text('Base de données clients · ' + new Date().toLocaleDateString('fr-FR'), margin, 24);
@@ -10663,7 +10663,7 @@ function exportClientsPDF(){
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(168, 171, 157);
-    doc.text('HENZO PHOTOGRAPHIE · ' + (BRAND?.phone || '') + ' · Base de données clients', pageWidth / 2, 290, { align: 'center' });
+    doc.text('HENZO STUDIO · ' + (BRAND?.phone || '') + ' · Base de données clients', pageWidth / 2, 290, { align: 'center' });
   }
   
   doc.save(`clients-henzo-${todayStr()}.pdf`);

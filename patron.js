@@ -32,7 +32,7 @@ const PT_KEY_RDV = 'pt_rdv_cache';
 // ============================================================
 // B. MESSAGE "COMMENT PRENDRE RENDEZ-VOUS" (exporte tout de suite)
 // ============================================================
-const PT_RDV_DEFAUT = `Bonjour 😊 Merci pour votre intérêt pour Henzo Photographie !
+const PT_RDV_DEFAUT = `Bonjour 😊 Merci pour votre intérêt pour Henzo Studio !
 Pour réserver votre séance, c'est simple :
 1. Choisissez votre pack ici : {lien_tarifs}
 2. Envoyez-nous : votre nom et prénom, le jour et l'heure souhaités, et le pack choisi.

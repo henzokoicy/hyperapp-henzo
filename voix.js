@@ -646,7 +646,7 @@ function toast(msg, o){
 // ============================================================
 // PHRASES TOUTES PRETES
 // ============================================================
-const RDV_DEFAUT = `Bonjour 😊 Merci pour votre intérêt pour Henzo Photographie !
+const RDV_DEFAUT = `Bonjour 😊 Merci pour votre intérêt pour Henzo Studio !
 Pour réserver votre séance, c'est simple :
 1. Choisissez votre pack ici : {lien_tarifs}
 2. Envoyez-nous : votre nom et prénom, le jour et l'heure souhaités, et le pack choisi.
@@ -658,7 +658,7 @@ Pour réserver votre séance, c'est simple :
 const PH_BASE = [
   { k: 'rdv', t: 'Comment prendre rendez-vous', x: '' },   // '' = texte automatique
   { k: 'merci', t: 'Merci après la séance', x: "Bonjour {prenom} 😊\nMerci encore pour votre confiance et pour cette belle séance ! Nous commençons le tri et la retouche de vos photos. Nous vous prévenons dès qu'elles sont prêtes.\nBonne journée !" },
-  { k: 'avis', t: "Demande d'avis", x: "Bonjour {prenom} 😊\nNous espérons que vos photos vous plaisent ! Votre avis compte beaucoup pour nous : pouvez-vous écrire quelques mots sur votre expérience avec Henzo Photographie ? Ça aide d'autres clients à nous faire confiance.\nMerci beaucoup 🙏" },
+  { k: 'avis', t: "Demande d'avis", x: "Bonjour {prenom} 😊\nNous espérons que vos photos vous plaisent ! Votre avis compte beaucoup pour nous : pouvez-vous écrire quelques mots sur votre expérience avec Henzo Studio ? Ça aide d'autres clients à nous faire confiance.\nMerci beaucoup 🙏" },
   { k: 'acompte', t: 'Relance acompte', x: "Bonjour {prenom},\nPetit rappel : pour bloquer votre date, il reste l'acompte de 50 % à régler. Vous pouvez payer par Wave au {wave}. Sans acompte, nous ne pouvons pas garder le créneau.\nMerci et à bientôt !" },
   { k: 'adresse', t: 'Adresse et itinéraire', x: "📍 Le studio est à {adresse}.\nÀ Ahougnansou, demandez le Restaurant Le Rosier : le studio est juste en face. Si vous ne trouvez pas, appelez-nous et nous vous guidons." },
   { k: 'delai', t: 'Délai de livraison', x: "Bonjour {prenom},\nVos photos retouchées seront prêtes environ 7 jours après la séance (un peu plus pour les mariages et les dots). Nous vous envoyons le lien de téléchargement dès qu'elles sont prêtes." },
