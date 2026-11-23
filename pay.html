@@ -526,13 +526,19 @@
 
   const params = new URLSearchParams(window.location.search);
   refParam = params.get('ref');
+  let codeParam = null;
 
   if(!refParam) {
     const path = window.location.pathname;
-    const match = path.match(/\/p\/(PL-\d+)/i);
+    const match = path.match(/\/p\/(PL-\d+(?:-[0-9a-f]+)?)/i);
     if(match) {
       refParam = match[1];
     }
+  }
+  // Lien court sécurisé : PL-0034-3fa9c1d2 (numéro + code secret)
+  if(refParam) {
+    const m = refParam.match(/^(PL-\d+)-([0-9a-f]+)$/i);
+    if(m) { refParam = m[1]; codeParam = m[2]; }
   }
 
   // ============================================================
@@ -568,10 +574,10 @@
             const r1 = await sb.from('payment_links').select('*').eq('id', id).maybeSingle();
             if(!r1.error && r1.data) data = r1.data;
           } catch(e) {}
-          // Accès limité à ce seul paiement (fonction lien_paiement, voir supabase/lien-paiement.sql)
+          // Accès limité à ce seul paiement, avec le code secret du lien (voir supabase/lien-paiement.sql)
           if(!data) {
             try {
-              const r2 = await sb.rpc('lien_paiement', { p_id: id });
+              const r2 = await sb.rpc('lien_paiement', { p_id: id, p_code: codeParam || '' });
               if(!r2.error && r2.data) data = Array.isArray(r2.data) ? r2.data[0] : r2.data;
             } catch(e) {}
           }

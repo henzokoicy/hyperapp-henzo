@@ -6897,20 +6897,23 @@ async function genererLienPersonnalise() {
   renderPaymentLinks();
 }
 
-// Le lien court n'est envoyé que s'il marche vraiment pour un client (lecture anonyme du paiement).
-// Sinon on envoie le lien long, qui contient tout le détail et fonctionne toujours.
-async function lienCourtDisponible(id) {
+// Le lien court n'est envoyé que s'il marche vraiment pour un client (lecture anonyme avec le code secret).
+// Renvoie le code à mettre dans le lien, ou '' (alors on envoie le lien long, qui fonctionne toujours).
+async function codeLienCourt(id) {
   try {
+    const rc = await sb.rpc('lien_code', { p_id: id });
+    const code = rc && !rc.error && typeof rc.data === 'string' ? rc.data : '';
+    if(!code) return '';
     const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 2500);
     const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/lien_paiement`, {
       method: 'POST', headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_id: id }), signal: ctl.signal
+      body: JSON.stringify({ p_id: id, p_code: code }), signal: ctl.signal
     });
     clearTimeout(t);
-    if(!r.ok) return false;
+    if(!r.ok) return '';
     const j = await r.json(); const row = Array.isArray(j) ? j[0] : j;
-    return !!(row && Number(row.amount) > 0);
-  } catch(e) { return false; }
+    return row && Number(row.amount) > 0 ? code : '';
+  } catch(e) { return ''; }
 }
 
 async function afficherLienGenere(link) {
@@ -6925,11 +6928,11 @@ async function afficherLienGenere(link) {
     w: link.wave_link || '',
     ref: ref
   });
-  // Lien court et propre : client.henzostudio.com/p/PL-0034 (la page lit le détail dans la base).
+  // Lien court et sécurisé : client.henzostudio.com/p/PL-0034-3fa9c1d2 (numéro + code secret, détail lu dans la base).
   // Le lien long reste disponible en secours (copier le lien de secours) si besoin.
   const lienLong = `${CLIENT_URL}/pay.html?${params.toString()}`;
-  const courtOk = await lienCourtDisponible(link.id);
-  const lien = courtOk ? `${CLIENT_URL}/p/${ref}` : lienLong;
+  const codeCourt = await codeLienCourt(link.id);
+  const lien = codeCourt ? `${CLIENT_URL}/p/${ref}-${codeCourt}` : lienLong;
 
   window.__lienCourant = {
     lien: lien,
