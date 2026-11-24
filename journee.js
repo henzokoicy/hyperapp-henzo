@@ -37,7 +37,7 @@ const jourCourt = iso => new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR',
 function lireLocal(){ try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch(e){ return null; } }
 function normaliser(d){
   d = d && typeof d === 'object' ? d : {};
-  const r = Object.assign({ debut: '08:00', fin: '18:00', pauseDeb: '12:30', pauseFin: '13:30' }, d.regles || {});
+  const r = Object.assign({ debut: '08:00', fin: '18:00', pauseDeb: '12:30', pauseFin: '13:30', matinOn: true, matin: '07:00', soirOn: true, soir: '20:00' }, d.regles || {});
   return { jours: d.jours || {}, routines: Array.isArray(d.routines) ? d.routines : [], vrac: d.vrac || '', regles: r };
 }
 async function charger(){
@@ -359,6 +359,11 @@ function renderJournee(v){
     <details class="jr-card" ${JR.routinesOuvert ? 'open' : ''} ontoggle="JR.routinesOuvert=this.open"><summary>Mes règles et routines</summary>
       <div class="jr-2"><label>Début de journée<input type="time" value="${E(r.debut)}" onchange="jrRegle('debut',this.value)"></label><label>Fin de journée<input type="time" value="${E(r.fin)}" onchange="jrRegle('fin',this.value)"></label>
       <label>Pause de<input type="time" value="${E(r.pauseDeb)}" onchange="jrRegle('pauseDeb',this.value)"></label><label>à<input type="time" value="${E(r.pauseFin)}" onchange="jrRegle('pauseFin',this.value)"></label></div>
+      <h4>Messages sur ton téléphone</h4>
+      <label class="ag-check"><input type="checkbox" ${r.matinOn !== false ? 'checked' : ''} onchange="jrRegle('matinOn',this.checked)"> Résumé de ta journée chaque matin, à</label>
+      <input type="time" value="${E(r.matin || '07:00')}" onchange="jrRegle('matin',this.value)">
+      <label class="ag-check"><input type="checkbox" ${r.soirOn !== false ? 'checked' : ''} onchange="jrRegle('soirOn',this.checked)"> Rappel de préparer demain chaque soir, à</label>
+      <input type="time" value="${E(r.soir || '20:00')}" onchange="jrRegle('soir',this.value)">
       <h4>Routines (reviennent seules)</h4>
       ${JR.data.routines.length ? JR.data.routines.map(x => `<div class="jr-rt"><span>${E(x.t)} · ${x.debut ? E(x.debut) + ' · ' : ''}${duree(Number(x.min) || 30)}</span><button onclick="jrRoutineSuppr('${x.id}')">Retirer</button></div>`).join('') : '<small class="jr-hint">Aucune. Coche « Se répète » en ajoutant une tâche.</small>'}</details>
   </div>`;
