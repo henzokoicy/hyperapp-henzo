@@ -187,6 +187,14 @@ function msBdayTxt(j){ return j === 0 ? "aujourd'hui" : j === 1 ? 'demain' : 'da
 
 // ---------- Occasions ----------
 const MS_OCC = [
+  { k: 'mien', n: 'Mon propre message', ic: 'edit' },
+  { k: 'relance', n: 'Relancer', ic: 'history', sub: ["Il n'a pas répondu", 'Devis ou offre envoyé', 'Paiement en attente', 'Le faire revenir au studio'] },
+  { k: 'preparatifs', n: 'Où en sont les préparatifs ?', ic: 'calendar' },
+  { k: 'avantseance', n: 'Rappel avant la séance', ic: 'calendar', sub: ['La veille', 'Le jour même', 'Dans quelques jours'] },
+  { k: 'consignes', n: 'Consignes : tenue, lieu, heure', ic: 'info' },
+  { k: 'acompte', n: 'Acompte et paiement', ic: 'wallet', sub: ["Demander l'acompte", 'Rappeler le reste à payer'] },
+  { k: 'infos', n: 'Demander une info', ic: 'chat', sub: ["Le programme de l'événement", 'Les personnes à photographier', 'Le lieu et les horaires', 'Autre info'] },
+  { k: 'avis', n: 'Demander un avis', ic: 'star' },
   { k: 'anniversaire', n: 'Joyeux anniversaire', ic: 'star' },
   { k: 'merci', n: 'Merci', ic: 'heart' },
   { k: 'felicitations', n: 'Félicitations', ic: 'sparkles', sub: ['Mariage', 'Naissance', 'Diplôme', 'Nouveau travail', 'Fiançailles', 'Autre réussite'] },
@@ -326,7 +334,7 @@ function msgEcrire(o){
   if(occ === 'fete' && !w.sub){ const f = msFetes()[0]; if(f) w.sub = f.n; }
   w.vous = msDefaultVous();
   if(o.texte){ w.text = msClean(o.texte); w.step = ids.length ? 5 : 1; w.fromText = true; }
-  else if(ids.length && occ && occ !== 'autre') w.step = 3;
+  else if(ids.length && occ && occ !== 'autre' && occ !== 'mien') w.step = 3;
   else if(ids.length) w.step = 2;
   if(typeof agSheet === 'function') agSheet('msSheet', '<div id="msBody"></div>');
   msRender();
@@ -344,6 +352,8 @@ function msGo(step){
   if(step === 3){
     if(!w.occ){ agToast('Choisis pourquoi tu écris'); return; }
     if(w.occ === 'autre' && !String(w.desc || '').trim()){ w.err = 'Dis en quelques mots ce que tu veux dire (tu peux dicter).'; msRender(); return; }
+    if(w.occ === 'mien' && !String(w.desc || '').trim()){ w.err = 'Écris ton message (même en brouillon, tu peux dicter).'; msRender(); return; }
+    if(w.occ === 'mien'){ step = 4; w.questions = []; w.qDone = true; }
   }
   if(step === 5 && !String(w.text || '').trim()){ agToast('Choisis une version'); return; }
   w.err = ''; w.step = step; msRender();
@@ -355,7 +365,7 @@ function msRender(){
   if(!el || !w) return;
   const head = `<div class="ms-steps">${MS_STEPS.map((s, i) => `<i class="${i < w.step ? 'on' : ''}"></i>`).join('')}</div>
     <div class="ms-stepl">Étape ${w.step} sur 5 · ${MS_STEPS[w.step - 1]}</div>`;
-  const back = w.step > 1 ? `<button class="ag-back" onclick="msGo(${w.step === 5 && w.fromText ? 1 : w.step - 1})">${msI('chev', 16)} Retour</button>` : '';
+  const back = w.step > 1 ? `<button class="ag-back" onclick="msGo(${w.step === 5 && w.fromText ? 1 : w.step === 4 && w.occ === 'mien' ? 2 : w.step - 1})">${msI('chev', 16)} Retour</button>` : '';
   const body = [null, msStep1, msStep2, msStep3, msStep4, msStep5][w.step]();
   el.innerHTML = back + head + body + (w.err ? `<div class="ms-err" id="msErr">${msE(w.err)}</div>` : '');
 }
@@ -442,11 +452,11 @@ function msStep2(){
     ${w.occ === 'fete' ? `<label>Quelle fête ?</label><div class="ag-pills">${fetes.slice(0, 4).map(f => `<button class="${w.sub === f.n ? 'on' : ''}" onclick="MS.w.sub=${msE(JSON.stringify(f.n))};MS.w.versions=[];msRender()">${msE(f.n)}<small>${f.j === 0 ? "aujourd'hui" : 'dans ' + f.j + ' j'}</small></button>`).join('')}</div>
       <select onchange="MS.w.sub=this.value;MS.w.versions=[];msRender()" style="margin-top:6px"><option value="">Autre fête...</option>${fetes.map(f => `<option ${w.sub === f.n ? 'selected' : ''}>${msE(f.n)}</option>`).join('')}</select>` : ''}
     ${o && o.sub ? `<label>Pour quoi ?</label><div class="ag-pills">${o.sub.map(s => `<button class="${w.sub === s ? 'on' : ''}" onclick="MS.w.sub=${msE(JSON.stringify(s))};MS.w.versions=[];msRender()">${msE(s)}</button>`).join('')}</div>` : ''}
-    ${w.occ ? `<label>${w.occ === 'autre' ? 'Dis ce que tu veux dire (tape ou dicte)' : 'Un détail à ajouter ? (facultatif)'}</label>
-      <textarea id="msDesc" rows="3" oninput="MS.w.desc=this.value;MS.w.versions=[];MS.w.qDone=false" placeholder="${w.occ === 'autre' ? 'Ex : dire à Awa que la séance de samedi est déplacée à 16 h' : 'Ex : la séance de mars, un petit cadeau, une date...'}">${msE(w.desc)}</textarea>` : ''}
+    ${w.occ ? `<label>${w.occ === 'autre' ? 'Dis ce que tu veux dire (tape ou dicte)' : w.occ === 'mien' ? "Écris ton message comme tu veux, même en brouillon : l'IA l'améliore sans changer ton idée" : 'Un détail à ajouter ? (facultatif)'}</label>
+      <textarea id="msDesc" rows="${w.occ === 'mien' ? 6 : 3}" oninput="MS.w.desc=this.value;MS.w.versions=[];MS.w.qDone=false" placeholder="${w.occ === 'autre' ? 'Ex : dire à Awa que la séance de samedi est déplacée à 16 h' : w.occ === 'mien' ? "Ex : bonjour, est-ce que vous pouvez m'envoyer le programme de la soirée pour que je m'organise" : w.occ === 'infos' ? "Ex : le programme du mariage de samedi" : 'Ex : la séance de mars, un petit cadeau, une date...'}">${msE(w.desc)}</textarea>` : ''}
     ${w.occ === 'promo' && dettes.length ? `<div class="ms-warn"><b>${msE(dettes.map(c => c.name).join(', '))}</b> ${dettes.length > 1 ? 'te doivent' : 'te doit'} de l'argent : pas de promo pour ${dettes.length > 1 ? 'eux' : 'cette personne'}. Enlève-${dettes.length > 1 ? 'les' : 'la'} de la liste ou choisis une autre occasion.
       <button class="ms-link" onclick="msSansDettes()">Enlever ${dettes.length > 1 ? 'ces ' + dettes.length + ' personnes' : 'cette personne'}</button></div>` : ''}
-    <button class="btn-primary" style="margin-top:12px" onclick="msGo(3)">Continuer</button>`;
+    <button class="btn-primary" style="margin-top:12px" onclick="msGo(3)">${w.occ === 'mien' ? msI('sparkles', 16) + " Améliorer mon message" : 'Continuer'}</button>`;
 }
 function msSansDettes(){
   MS.w.ids = MS.w.ids.filter(id => !(typeof svDu === 'function' && svDu(id).total > 0));
@@ -464,7 +474,10 @@ function msBrief(c){
   const done = ss.filter(s => s.date && new Date(s.date) <= now), next = ss.filter(s => s.date && new Date(s.date) > now);
   if(done.length) L.push(`${done.length} séance(s) ${msIsClient(c) ? '' : 'ensemble '}: ${done.slice(0, 3).map(s => (s.type || 'Séance') + ' en ' + new Date(s.date).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })).join(', ')}`);
   else L.push('aucune séance passée');
-  if(next.length) L.push(`séance prévue le ${msDate(next[0].date, { day: 'numeric', month: 'long' })}`);
+  if(next.length){
+    const s0 = next[0], h = msHeure(s0.date);
+    L.push(`séance prévue le ${msDate(s0.date, { weekday: 'long', day: 'numeric', month: 'long' })}${h && h !== '00:00' ? ' à ' + h : ''}${s0.type ? ', type : ' + s0.type : ''}${s0.location ? ', lieu : ' + s0.location : ''}${Number(s0.price) > 0 ? `, prix ${Math.round(s0.price)} F dont ${Math.round(Number(s0.montant_recu) || 0)} F déjà payés` : ''}`);
+  }
   const j = msBdayIn(c), age = msAge(c);
   if(c.birthday) L.push(`anniversaire le ${msDate(String(c.birthday).slice(0, 10) + 'T12:00:00', { day: 'numeric', month: 'long' })}${j === 0 ? " (c'est aujourd'hui)" : j != null && j <= 30 ? ' (dans ' + j + ' jours)' : ''}${age ? ', va avoir ' + age + ' ans' : ''}`);
   if(typeof svLastImpression === 'function'){ const imp = svLastImpression(c.id); if(imp) L.push(`dernière impression de Henzo : ${imp.humeur === 'positif' ? 'bonne' : imp.humeur === 'negatif' ? 'mauvaise' : 'neutre'}${imp.text ? ' (' + imp.text + ')' : ''}`); }
@@ -483,6 +496,7 @@ function msOccTxt(){
   let t = o ? o.n : 'Message';
   if(w.occ === 'fete' && w.sub) t = 'Bonne fête : ' + w.sub;
   else if(w.sub) t += ' (' + w.sub + ')';
+  if(w.occ === 'mien') return 'Message écrit par Henzo lui-même : « ' + String(w.desc || '').trim() + ' »';
   if(w.desc && String(w.desc).trim()) t += '. Ce que Henzo veut dire : ' + String(w.desc).trim();
   return t;
 }
@@ -574,7 +588,7 @@ function msVersionsPrompt(){
   return `${msPeopleCtx()}
 Occasion : ${msOccTxt()}.
 ${rep ? 'Réponses de Henzo :\n' + rep : ''}
-Écris 3 versions du message :
+${w.occ === 'mien' ? "Henzo a déjà écrit son message. Garde son idée, son intention et toutes ses informations. Corrige les fautes, rends-le naturel, clair et agréable à lire. N'ajoute aucune information, aucune date, aucun prix qu'il n'a pas donné. Si son message est déjà très bon, change peu de choses.\n" : ''}Écris 3 versions du message :
 1. "courte" : 1 ou 2 phrases.
 2. "chaleureuse" : plus personnelle et émouvante, 3 à 5 phrases.
 3. "pro" : élégante et professionnelle, 2 à 4 phrases.
@@ -617,7 +631,7 @@ function msVEdit(i, v){
   MS.w.versions[i].texte = v;
   const p = document.getElementById('msPrev' + i); if(p) p.outerHTML = `<div id="msPrev${i}">${msPrevHtml(v)}</div>`;
 }
-function msUse(i){ const w = MS.w; w.text = w.versions[i].texte; w.pick = i; w.sent = {}; msGo(5); }
+function msUse(i){ const w = MS.w; w.text = w.versions[i].texte; w.pick = i; w.sent = {}; w.prevText = null; msGo(5); }
 function msStep4(){
   const w = MS.w, cs = msSel();
   if(w.busy === 'gen') return `${msWhoHtml()}<h3 class="ms-h3">3 versions</h3><div class="ms-load"><i class="ms-spin"></i> L'IA écrit tes 3 versions...</div>`;
@@ -692,6 +706,32 @@ function msModeles(){
     nouvelles: [`Coucou {prenom}, ${V('tu vas', 'vous allez')} bien ?`,
       `Bonjour {prenom},\nÇa fait un moment ! Je pensais à ${V('toi', 'vous')} et je voulais prendre de ${V('tes', 'vos')} nouvelles. J'espère que tout va bien.`,
       `Bonjour {prenom},\nJ'espère que ${V('tu vas', 'vous allez')} bien. Au plaisir d'avoir de ${V('tes', 'vos')} nouvelles.`],
+    mien: [`{prenom}, ${desc || '...'}`, `Bonjour {prenom},\n${desc || '...'}`, `Bonjour {prenom},\n${desc || '...'}\nBien cordialement.`],
+    relance: [`{prenom}, je reviens vers ${V('toi', 'vous')}${desc ? ' au sujet de ' + desc : ''}. ${V('Tu as pu y réfléchir', 'Avez-vous pu y réfléchir')} ?`,
+      `Bonjour {prenom},\nJ'espère que ${V('tu vas', 'vous allez')} bien. Je me permets de revenir vers ${V('toi', 'vous')}${desc ? ' au sujet de ' + desc : ''}. ${V('Dis-moi', 'Dites-moi')} ce qui ${V('te', 'vous')} conviendrait, je m'adapte volontiers.`,
+      `Bonjour {prenom},\nJe reviens vers ${V('toi', 'vous')}${desc ? ' concernant ' + desc : ''}. ${V('Peux-tu', 'Pouvez-vous')} me tenir informé de ${V('ta', 'votre')} décision ? Merci.`],
+    preparatifs: [`Bonjour {prenom}, comment avancent les préparatifs ?`,
+      `Bonjour {prenom},\nJ'espère que ${V('tu vas', 'vous allez')} bien. Je voulais savoir où en sont les préparatifs${desc ? ' (' + desc + ')' : ''}. Y a-t-il quelque chose que je peux faire pour ${V("t'aider", 'vous aider')} ?`,
+      `Bonjour {prenom},\nJe prends des nouvelles des préparatifs. ${V('Dis-moi', 'Dites-moi')} si tout est en place pour le jour J.`],
+    avantseance: (() => { const q = /veille/i.test(sub) ? "c'est demain" : /jour m/i.test(sub) ? "c'est aujourd'hui" : 'ça approche'; return [`{prenom}, petit rappel : ${q} pour notre séance !${e ? ' 📸' : ''}`,
+      `Bonjour {prenom},\nPetit rappel : ${q} pour notre séance${desc ? ' (' + desc + ')' : ''}. J'ai hâte ! ${V('Dis-moi', 'Dites-moi')} si ${V('tu as', 'vous avez')} une question.`,
+      `Bonjour {prenom},\nJe ${V('te', 'vous')} rappelle notre séance : ${q}${desc ? '. ' + desc : ''}. Merci de me confirmer ${V('ta', 'votre')} présence.`]; })(),
+    consignes: [`{prenom}, infos pour la séance : ${desc || 'tenue, lieu et heure'}.`,
+      `Bonjour {prenom},\nVoici les infos pour notre séance : ${desc || 'la tenue, le lieu et l\'heure'}. ${V('Dis-moi', 'Dites-moi')} si quelque chose n'est pas clair.`,
+      `Bonjour {prenom},\nPour préparer au mieux notre séance, voici les consignes : ${desc || 'tenue, lieu et heure'}. Merci de ${V('ta', 'votre')} confiance.`],
+    acompte: /reste/i.test(sub)
+      ? [`{prenom}, petit rappel pour le reste à payer de la séance${desc ? ' (' + desc + ')' : ''}. Merci !`,
+         `Bonjour {prenom},\nJe ${V('te', 'vous')} rappelle gentiment qu'il reste un solde à régler pour la séance${desc ? ' (' + desc + ')' : ''}. ${V('Tu peux', 'Vous pouvez')} me dire quand ça ${V('te', 'vous')} convient ?`,
+         `Bonjour {prenom},\nIl reste un solde à régler pour notre séance${desc ? ' (' + desc + ')' : ''}. Merci de ${V('ta', 'votre')} compréhension.`]
+      : [`{prenom}, pour valider la séance, il faut l'acompte${desc ? ' (' + desc + ')' : ''}. ${V('Tu peux', 'Vous pouvez')} le faire quand ?`,
+         `Bonjour {prenom},\nPour réserver ${V('ta', 'votre')} date, je demande un acompte${desc ? ' : ' + desc : ''}. Dès qu'il est reçu, la séance est confirmée. ${V('Dis-moi', 'Dites-moi')} comment ${V('tu préfères', 'vous préférez')} payer.`,
+         `Bonjour {prenom},\nPour confirmer notre séance, merci de régler l'acompte${desc ? ' : ' + desc : ''}. Je reste disponible pour toute question.`],
+    infos: (() => { const quoi = !sub || sub === 'Autre info' ? (desc || "l'information") : sub.toLowerCase() + (desc ? ' (' + desc + ')' : ''); return [`{prenom}, ${V('peux-tu', 'pouvez-vous')} m'envoyer ${quoi} ?`,
+      `Bonjour {prenom},\nJ'espère que ${V('tu vas', 'vous allez')} bien. Pour bien m'organiser, ${V('peux-tu', 'pouvez-vous')} m'envoyer ${quoi} ? Ça m'aidera à être au top le jour J. Merci d'avance !`,
+      `Bonjour {prenom},\nAfin de préparer au mieux ma prestation, je ${V('te', 'vous')} serais reconnaissant de m'envoyer ${quoi}. Merci.`]; })(),
+    avis: [`{prenom}, ${V('ton', 'votre')} avis m'intéresse : ${V('tu as', 'vous avez')} aimé ?`,
+      `Bonjour {prenom},\nJ'espère que ${V('tu es', 'vous êtes')} content${V('', '(e)')} du résultat. ${V('Ton', 'Votre')} avis compte beaucoup pour moi : ${V('peux-tu', 'pouvez-vous')} me dire en quelques mots ce que ${V('tu en as pensé', 'vous en avez pensé')} ?`,
+      `Bonjour {prenom},\nJe serais heureux de recueillir ${V('ton', 'votre')} avis sur la séance. Merci d'avance.`],
     autre: [`{prenom}, ${desc || '...'}`, `Bonjour {prenom},\n${desc || '...'}`, `Bonjour {prenom},\n${desc || '...'}\nBien cordialement.`]
   };
   const l = T[w.occ] || T.autre;
@@ -724,6 +764,7 @@ function msStep5(){
     <label>Message (modifiable)</label>
     <textarea id="msText" rows="${Math.min(10, Math.max(4, Math.ceil(String(w.text).length / 38) + 1))}" oninput="MS.w.text=this.value;const p=document.getElementById('msPrevS');if(p)p.outerHTML='<div id=&quot;msPrevS&quot;>'+msPrevHtml(this.value)+'</div>'">${msE(w.text)}</textarea>
     <div id="msPrevS">${msPrevHtml(w.text)}</div>
+    <div class="ms-tw" style="margin-top:8px">${[['corriger', 'Corriger'], ['chaleureux', 'Plus chaleureux'], ['court', 'Plus court'], ['pro', 'Plus pro'], ['clair', 'Plus clair']].map(([k, n]) => `<button ${w.busy ? 'disabled' : ''} onclick="msAmeliorer('${k}')">${w.busy === 'am:' + k ? '...' : msI('sparkles', 13) + ' ' + n}</button>`).join('')}${w.prevText ? `<button onclick="msAnnulerAm()">Annuler</button>` : ''}</div>
     <div style="margin-top:12px">${send}</div>
     <div class="ms-v-b" style="margin-top:10px">
       <button class="btn-secondary ms-big" style="margin:0" onclick="msCopy(${one ? 'msFill(MS.w.text,msPerson(' + one.id + '))' : 'msGeneric(MS.w.text)'})">${msI('copy', 15)} Copier</button>
@@ -736,6 +777,33 @@ function msStep5(){
       <button class="btn-primary" onclick="msProgSave()">Enregistrer pour plus tard</button></div>` : ''}
     <button class="btn-secondary" style="margin-top:10px" onclick="agCloseSheet('msSheet');msRefreshTop()">Terminer</button>`;
 }
+const MS_AMEL = {
+  corriger: "Corrige l'orthographe et la grammaire et rends le message plus naturel et fluide, sans changer son sens ni sa longueur.",
+  chaleureux: 'Rends le message plus chaleureux et personnel, sans exagérer.',
+  court: "Rends le message plus court (environ moitié moins de mots) en gardant l'essentiel.",
+  pro: 'Rends le message plus professionnel et élégant.',
+  clair: 'Rends le message plus clair et plus direct : une idée par phrase, la demande bien visible.'
+};
+async function msAmeliorer(mode){
+  const w = MS.w; if(!w || w.busy) return;
+  const t = msClean(w.text); if(!t){ agToast("Écris d'abord ton message"); return; }
+  const cs = msSel(), one = cs.length === 1 ? cs[0] : null;
+  const base = one ? t.split(msFirst(one)).join('{prenom}') : t;
+  w.busy = 'am:' + mode; w.err = ''; msRender();
+  try {
+    const j = msJson(await msAI(`${msPeopleCtx()}
+Voici le message de Henzo :
+« ${base} »
+Demande : ${MS_AMEL[mode] || mode} Garde {prenom} tel quel. ${w.vous ? 'Vouvoiement' : 'Tutoiement'}. N'ajoute aucune information, aucun prix, aucune date qui n'y sont pas déjà.
+Réponds uniquement en JSON : {"texte":"..."}`));
+    if(!j || !String(j.texte || '').trim()) throw new Error('vide');
+    if(MS.w !== w) return;
+    w.prevText = w.text; w.text = msClean(j.texte); w.sent = {};
+    if(one) w.text = w.text.replace(/\{prenom\}/gi, msFirst(one));
+  } catch(e){ if(MS.w !== w) return; w.err = "L'IA n'a pas répondu. Réessaie dans un instant."; }
+  w.busy = ''; msRender();
+}
+function msAnnulerAm(){ const w = MS.w; if(!w || w.prevText == null) return; w.text = w.prevText; w.prevText = null; msRender(); }
 function msDefaultAt(){
   const w = MS.w, cs = msSel();
   if(w.occ === 'anniversaire' && cs.length === 1){ const j = msBdayIn(cs[0]); if(j != null && j > 0){ const d = msToday0(); d.setDate(d.getDate() + j); d.setHours(8, 0, 0, 0); return msLocalInput(d); } }
