@@ -395,19 +395,36 @@ const ALIMENTS = [
   ['Banane', 89, 1.1, 23, 0.3], ['Orange', 47, 0.9, 12, 0.1], ['Mangue', 60, 0.8, 15, 0.4], ['Papaye', 43, 0.5, 11, 0.3], ['Ananas', 50, 0.5, 13, 0.1], ['Pomme', 52, 0.3, 14, 0.2],
   ['Avocat', 160, 2, 9, 15], ['Cacahuètes', 570, 26, 16, 49], ['Yaourt nature', 60, 3.5, 5, 3], ['Lait', 60, 3.2, 4.8, 3.3], ['Fromage', 350, 22, 1, 28],
   ['Café noir', 2, 0.1, 0, 0], ['Café au lait sucré', 45, 1.5, 6, 1.5], ['Sucre', 400, 0, 100, 0], ['Huile', 884, 0, 0, 100], ['Soda', 42, 0, 10.6, 0], ['Jus de fruit', 45, 0.5, 11, 0],
-  ['Biscuit', 450, 6, 70, 16], ['Chocolat', 540, 6, 55, 32], ['Salade / légumes cuits', 30, 1.5, 5, 0.3], ['Shawarma / sandwich', 230, 12, 24, 9]
+  ['Biscuit', 450, 6, 70, 16], ['Chocolat', 540, 6, 55, 32], ['Salade / légumes cuits', 30, 1.5, 5, 0.3], ['Shawarma / sandwich', 230, 12, 24, 9],
+  // --- Plats ivoiriens et ouest-africains (valeurs moyennes cuites, la portion varie beaucoup selon la cuisine) : nom, kcal, P, G, L pour 100 g, portion habituelle en g ---
+  ['Garba (attiéké + thon frit)', 175, 8, 24, 5.5, 400], ['Attiéké poisson', 160, 7, 26, 3, 400], ['Attiéké poulet', 170, 9, 26, 4, 400], ['Placali (pâte de manioc)', 110, 0.7, 27, 0.2, 250],
+  ['Foutou igname', 130, 1.8, 30, 0.2, 250], ['Foutou manioc', 140, 1, 34, 0.2, 250], ['Tô (pâte de maïs ou de mil)', 110, 3, 23, 0.8, 250], ['Akassa (pâte de maïs fermentée)', 90, 2, 20, 0.5, 200],
+  ['Riz gras (riz au gras)', 190, 4, 29, 6, 300], ['Riz sauce graine', 175, 4, 25, 7, 350], ['Riz sauce arachide (mafé)', 190, 5, 26, 7, 350], ['Riz sauce feuille', 150, 4, 25, 4, 350],
+  ['Riz sauce gombo', 140, 4, 25, 3, 350], ['Riz sauce claire (poisson)', 130, 6, 22, 2, 350], ['Tiep / thiéboudienne (riz au poisson)', 160, 7, 22, 5, 350], ['Riz au poulet', 170, 8, 24, 5, 350],
+  ['Atassi (riz et haricots)', 150, 5, 25, 3, 300], ['Haricots à l\'huile (niébé)', 160, 7, 19, 6, 250], ['Gnamankou / gombo-poisson', 90, 8, 5, 4, 250],
+  ['Sauce gombo', 55, 2, 6, 3, 150], ['Sauce claire (soupe de poisson)', 40, 5, 2, 1.5, 250], ['Sauce aubergine', 70, 2, 7, 4, 150], ['Sauce kopè / djoumgblé', 70, 3, 5, 4, 150], ['Sauce arachide (mafé)', 190, 6, 8, 15, 150],
+  ['Soupe de poulet / de poisson pimentée', 45, 6, 2, 1.5, 300], ['Soupe de viande (bœuf, mouton)', 60, 7, 2, 2.5, 300], ['Kedjenou de pintade', 140, 18, 4, 6, 300], ['Kedjenou de poisson', 120, 15, 4, 5, 300],
+  ['Choukouya (viande braisée au piment)', 230, 25, 2, 14, 200], ['Brochettes de bœuf', 200, 24, 2, 11, 150], ['Mouton / cabri braisé', 220, 25, 0, 13, 200], ['Poulet frit', 260, 24, 8, 15, 200],
+  ['Carpe braisée', 140, 22, 0, 5, 250], ['Capitaine / bar braisé', 120, 22, 0, 3, 250], ['Poisson frit', 220, 22, 6, 12, 200], ['Poisson fumé', 160, 30, 0, 4, 100], ['Crevettes cuites', 100, 20, 0.5, 1.5, 100],
+  ['Escargots (cuisinés)', 120, 16, 3, 4, 150], ['Bœuf haché sauce tomate', 160, 14, 5, 9, 200],
+  ['Alloco + œuf + piment', 210, 6, 28, 9, 250], ['Banane plantain braisée', 150, 1, 38, 0.3, 200], ['Banane plantain mûre frite', 240, 1.5, 38, 10, 150], ['Chips de plantain', 520, 2, 55, 33, 50],
+  ['Igname frite', 200, 2, 30, 9, 200], ['Igname braisée', 130, 1.8, 30, 0.2, 200], ['Patate douce bouillie', 90, 1.6, 21, 0.1, 200], ['Macabo / taro bouilli', 112, 1.5, 26, 0.2, 200],
+  ['Maïs grillé', 130, 4, 28, 2, 150], ['Pain + omelette', 220, 9, 22, 10, 200], ['Pain + sardines', 230, 12, 24, 9, 200], ['Pain + beurre / chocolat', 330, 7, 50, 11, 150],
+  ['Bofrot / beignets', 330, 5, 45, 15, 100], ['Galette / crêpe', 230, 5, 35, 8, 100], ['Dégué (couscous de mil au lait caillé)', 150, 4, 24, 4, 250], ['Bouillie de maïs / de mil', 60, 1.5, 13, 0.5, 300],
+  ['Jus de bissap sucré', 50, 0, 12, 0, 300], ['Jus de gingembre sucré', 55, 0, 14, 0, 300], ['Jus de baobab / tamarin', 60, 0.3, 15, 0, 300], ['Tchapalo (bière de mil)', 40, 0.5, 5, 0, 500], ['Eau de coco', 20, 0.2, 5, 0, 300],
+  ['Noix de coco fraîche', 350, 3.3, 15, 33, 50], ['Cacahuètes grillées', 590, 26, 16, 49, 40], ['Pastèque', 30, 0.6, 7.5, 0.2, 300], ['Citron / mandarine', 45, 0.8, 11, 0.2, 100]
 ];
 const sans = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 window.beChercher = function(v){
-  const q = sans(v).trim(); BE.res = q ? ALIMENTS.filter(a => sans(a[0]).includes(q)).slice(0, 8) : ALIMENTS.slice(0, 8);
+  const q = sans(v).trim(); BE.res = q ? ALIMENTS.filter(a => sans(a[0]).includes(q)).slice(0, 12) : ALIMENTS.filter(a => a[5]).slice(0, 12);
   const el = document.getElementById('beRes'); if(el) el.innerHTML = htmlRes();
 };
 function htmlRes(){
-  return BE.res.map((a, i) => `<div class="be-ligne"><div class="be-d"><b>${E(a[0])}</b><span>${a[1]} kcal / 100 g</span></div>
-    <input type="number" id="beG${i}" value="100" min="5" step="5" aria-label="grammes"><small>g</small><button onclick="beAjoutAliment(${i})">+</button></div>`).join('') || '<small class="be-hint">Aucun résultat. Utilise « Saisie directe » ci-dessous.</small>';
+  return BE.res.map((a, i) => `<div class="be-ligne"><div class="be-d"><b>${E(a[0])}</b><span>${a[1]} kcal / 100 g${a[5] ? ' · portion ' + a[5] + ' g ≈ ' + Math.round(a[1] * a[5] / 100) + ' kcal' : ''}</span></div>
+    <input type="number" id="beG${i}" value="${a[5] || 100}" min="5" step="5" aria-label="grammes"><small>g</small><button onclick="beAjoutAliment(${i})">+</button></div>`).join('') || '<small class="be-hint">Aucun résultat. Utilise « Saisie directe » ci-dessous.</small>';
 }
 window.beAjoutAliment = function(i){
-  const a = BE.res[i]; if(!a) return; const g = num((document.getElementById('beG' + i) || {}).value, 100), f = g / 100;
+  const a = BE.res[i]; if(!a) return; const g = num((document.getElementById('beG' + i) || {}).value, a[5] || 100), f = g / 100;
   ajouterRepas({ nom: `${a[0]} (${g} g)`, kcal: Math.round(a[1] * f), p: +(a[2] * f).toFixed(1), g: +(a[3] * f).toFixed(1), l: +(a[4] * f).toFixed(1) });
 };
 window.beAjoutDirect = function(){
@@ -427,7 +444,7 @@ window.beFavori = function(id){
 };
 window.beAjoutFavori = function(i){ const f = BE.data.favoris[i]; if(f) ajouterRepas(Object.assign({}, f)); };
 window.beSupprFavori = function(i){ BE.data.favoris.splice(i, 1); sauver(); beR(); };
-window.beMode = function(m){ BE.mode = m; BE.estim = null; if(m === 'chercher') BE.res = ALIMENTS.slice(0, 8); beR(); };
+window.beMode = function(m){ BE.mode = m; BE.estim = null; if(m === 'chercher') BE.res = ALIMENTS.filter(a => a[5]).slice(0, 12); beR(); };
 const SYS_NUTRI = () => `Tu es un nutritionniste prudent. Henzo mange souvent de la cuisine ivoirienne (attiéké, alloco, foutou, sauces, poisson/poulet braisé) mais aussi des plats courants. Estime les calories et macros (en grammes) du repas décrit ou photographié, portions réalistes. Si tu hésites, donne une estimation moyenne et dis-le dans "remarque". Réponds UNIQUEMENT en JSON : {"items":[{"nom":"","qte":"","kcal":0,"p":0,"g":0,"l":0}],"remarque":""}`;
 function lireEstim(r){
   const j = typeof mkJson === 'function' ? mkJson(r.text) : JSON.parse(r.text);
