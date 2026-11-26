@@ -50,7 +50,7 @@ function prochaineHeure(hm){
 // ---------- Données ----------
 function defaut(){
   return {
-    profil: { ok: false, sexe: 'h', age: 30, taille: 175, poids: 80, cible: 72, rythme: 0.5, activite: 1.375, regime: '', allergies: '', sante: '', budget: '', temps: '' },
+    profil: { ok: false, sexe: 'h', age: '', taille: '', poids: '', cible: '', rythme: 0.5, activite: 1.375, regime: '', allergies: '', sante: '', budget: '', temps: '' },
     poids: [], repas: {}, favoris: [], eau: {}, cafe: {}, sport: {}, humeur: {}, journal: {},
     sommeil: { minH: 7, rappelsOn: true, prochain: null, encours: null, nuits: [], aides: {} },
     notifs: { on: true }, rappels: {}, pauses: { on: false, every: 50, last: 0 }, bilan: null
@@ -97,15 +97,25 @@ function sauver(){
 }
 
 // ---------- Calculs corps ----------
+// Ce que tu ne sais pas est estimé (et signalé), jamais inventé en silence
+function valeurs(){
+  const P = BE.data.profil, w = num(P.poids, 0) >= 30 ? num(P.poids) : 70, est = [];
+  let h = num(P.taille, 0), a = num(P.age, 0), c = num(P.cible, 0);
+  if(h < 120 || h > 230){ h = P.sexe === 'f' ? 163 : 172; est.push('taille ' + h + ' cm'); }
+  if(a < 14 || a > 100){ a = 30; est.push('âge 30 ans'); }
+  if(c < 30 || c >= w){ if(c >= w && c) est.push('objectif au-dessus de ton poids, remplacé'); c = Math.round(w * 0.93 * 2) / 2; est.push('premier objectif ' + c + ' kg (−7 %)'); }
+  return { w, h, a, c, est };
+}
+const cibleKg = () => valeurs().c;
 function cibles(){
-  const P = BE.data.profil, w = num(P.poids, 70), h = num(P.taille, 170), a = num(P.age, 30);
+  const P = BE.data.profil, V = valeurs(), w = V.w, h = V.h, a = V.a;
   const bmr = 10 * w + 6.25 * h - 5 * a + (P.sexe === 'f' ? -161 : 5);
   const tdee = bmr * num(P.activite, 1.375);
   const rythme = Math.min(num(P.rythme, 0.5), Math.max(0.25, w * 0.01)); // jamais plus de 1 % du poids par semaine
   const plancher = P.sexe === 'f' ? 1200 : 1500;
   const kcal = Math.max(plancher, Math.round((tdee - rythme * 7700 / 7) / 10) * 10);
   return { bmr: Math.round(bmr), tdee: Math.round(tdee), kcal, prot: Math.round(1.6 * w), eau: Math.round(w * 35 / 50) * 50, rythme,
-    semaines: P.cible && w > P.cible ? Math.ceil((w - P.cible) / rythme) : 0 };
+    semaines: w > V.c ? Math.ceil((w - V.c) / rythme) : 0, est: V.est };
 }
 const poidsActuel = () => { const l = BE.data.poids.slice().sort((a, b) => a.d < b.d ? -1 : 1).pop(); return l ? l.kg : num(BE.data.profil.poids, 0); };
 function totalJour(iso){
@@ -504,7 +514,7 @@ window.beBoost = async function(){
   try {
     const t = totalJour(jourBE()), c = cibles(), n = dernierNuit();
     const r = await window.mkAI({ system: `Tu es le coach bien-être de Henzo, photographe/créatif qui travaille la nuit et veut perdre du poids. Écris un message court (3 phrases max) qui le booste, personnalisé, jamais culpabilisant, sans liste. État du moment : ${etat()}.`,
-      messages: [{ role: 'user', text: `Aujourd'hui : ${t.kcal}/${c.kcal} kcal, ${Math.round((BE.data.eau[jourBE()] || 0))} ml d'eau${n ? ', dernière nuit ' + dureeTxt(n.duree) : ''}. Poids ${poidsActuel()} kg, objectif ${BE.data.profil.cible} kg.` }], maxTokens: 300 });
+      messages: [{ role: 'user', text: `Aujourd'hui : ${t.kcal}/${c.kcal} kcal, ${Math.round((BE.data.eau[jourBE()] || 0))} ml d'eau${n ? ', dernière nuit ' + dureeTxt(n.duree) : ''}. Poids ${poidsActuel()} kg, objectif ${cibleKg()} kg.` }], maxTokens: 300 });
     BE.boost = r.text.trim();
   } catch(e){ erreur(e); }
   BE.busy = false; beR();
@@ -517,7 +527,7 @@ window.beBilan = async function(){
     const kc = jours.map(j => totalJour(j).kcal).filter(Boolean), nuits = S().nuits.filter(n => n.duree != null && jours.includes(n.jour));
     const moy = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : null, c = cibles();
     const hum = jours.map(j => BE.data.humeur[j]).filter(Boolean);
-    const resume = `Calories moyennes ${moy(kc) || '?'} (cible ${c.kcal}) sur ${kc.length} jours renseignés. Sommeil moyen ${nuits.length ? dureeTxt(moy(nuits.map(n => n.duree))) : '?'} sur ${nuits.length} nuits (cible ${S().minH} h), ${nuits.filter(n => n.ecart > 10).length} couchers en retard${nuits.filter(n => n.ecart > 10).length ? ' (motifs : ' + [...new Set(nuits.filter(n => n.ecart > 10).map(n => n.motif).filter(Boolean))].join(', ') + ')' : ''}. Poids ${poidsActuel()} kg, objectif ${BE.data.profil.cible} kg. Énergie moyenne ${moy(hum.map(h => h.energie).filter(Boolean)) || '?'}/5, humeur ${moy(hum.map(h => h.humeur).filter(Boolean)) || '?'}/5. Eau moyenne ${moy(jours.map(j => BE.data.eau[j] || 0).filter(Boolean)) || '?'} ml. Régime/allergies : ${BE.data.profil.regime || 'aucun'} ${BE.data.profil.allergies || ''}. Budget/temps : ${BE.data.profil.budget || ''} ${BE.data.profil.temps || ''}.`;
+    const resume = `Calories moyennes ${moy(kc) || '?'} (cible ${c.kcal}) sur ${kc.length} jours renseignés. Sommeil moyen ${nuits.length ? dureeTxt(moy(nuits.map(n => n.duree))) : '?'} sur ${nuits.length} nuits (cible ${S().minH} h), ${nuits.filter(n => n.ecart > 10).length} couchers en retard${nuits.filter(n => n.ecart > 10).length ? ' (motifs : ' + [...new Set(nuits.filter(n => n.ecart > 10).map(n => n.motif).filter(Boolean))].join(', ') + ')' : ''}. Poids ${poidsActuel()} kg, objectif ${cibleKg()} kg. Énergie moyenne ${moy(hum.map(h => h.energie).filter(Boolean)) || '?'}/5, humeur ${moy(hum.map(h => h.humeur).filter(Boolean)) || '?'}/5. Eau moyenne ${moy(jours.map(j => BE.data.eau[j] || 0).filter(Boolean)) || '?'} ml. Valeurs estimées faute de données : ${c.est.length ? c.est.join(', ') : 'aucune'}. Régime/allergies : ${BE.data.profil.regime || 'aucun'} ${BE.data.profil.allergies || ''}. Budget/temps : ${BE.data.profil.budget || ''} ${BE.data.profil.temps || ''}.`;
     const r = await window.mkAI({ recherche: true, maxTokens: 1600, system: `Tu es le coach bien-être de Henzo (photographe/créatif, travaille la nuit, veut perdre du poids avec un rythme de sommeil décalé). Fais le bilan de sa semaine : 1) ce qui va bien (sois sincère et encourageant), 2) ce qui bloque, 3) 3 actions concrètes pour la semaine, simples et peu chères, 4) un conseil appuyé sur une source fiable que tu as recherchée (OMS, HAS, Sleep Foundation, etc.) sur le sommeil décalé ou la perte de poids. Français simple, court, markdown léger. Pas de conseil médical ; si un problème de santé est évoqué, suggère un professionnel.`, messages: [{ role: 'user', text: resume }] });
     BE.data.bilan = { date: new Date().toISOString(), texte: r.text, sources: r.sources || [] }; sauver();
   } catch(e){ erreur(e); }
@@ -527,7 +537,10 @@ window.beBilan = async function(){
 // ---------- Profil ----------
 window.beProfil = function(){
   const g = id => (document.getElementById(id) || {}).value, P = BE.data.profil;
-  Object.assign(P, { ok: true, sexe: g('bpSexe'), age: num(g('bpAge'), 30), taille: num(g('bpTaille'), 170), poids: num(g('bpPoids'), 70), cible: num(g('bpCible'), 65), rythme: num(g('bpRythme'), 0.5), activite: num(g('bpAct'), 1.375),
+  const kg = num(g('bpPoids'), 0);
+  if(kg < 30 || kg > 300){ toast('Indique ton poids, même approximatif (balance de pharmacie, de salle de sport, chez un proche).', 'error'); return; }
+  const opt = id => { const v = num(g(id), 0); return v > 0 ? v : ''; };
+  Object.assign(P, { ok: true, sexe: g('bpSexe'), age: opt('bpAge'), taille: opt('bpTaille'), poids: kg, cible: opt('bpCible'), rythme: num(g('bpRythme'), 0.5), activite: num(g('bpAct'), 1.375),
     regime: (g('bpRegime') || '').trim(), allergies: (g('bpAll') || '').trim(), sante: (g('bpSante') || '').trim(), budget: (g('bpBudget') || '').trim(), temps: (g('bpTemps') || '').trim() });
   const d = jourBE(); BE.data.poids = BE.data.poids.filter(x => x.d !== d); BE.data.poids.push({ d, kg: P.poids });
   S().minH = num(g('bpMinH'), 7); BE.edit = false; sauver(); toast('Profil enregistré'); beR();
@@ -615,7 +628,7 @@ function ecranRepas(){
 function ecranCorps(){
   const J = jourBE(), c = cibles(), eau = BE.data.eau[J] || 0, cafes = BE.data.cafe[J] || [], lim = limiteCafe(), sp = BE.data.sport[J] || [];
   const pa = poidsActuel(), P = BE.data.profil;
-  return `<div class="be-card"><h3>Poids</h3><div class="be-gros-n"><b>${pa}</b> kg <span>objectif ${P.cible} kg${pa > P.cible ? ' · reste ' + (pa - P.cible).toFixed(1).replace('.', ',') + ' kg' : ' '}</span></div>
+  return `<div class="be-card"><h3>Poids</h3><div class="be-gros-n"><b>${pa}</b> kg <span>objectif ${cibleKg()} kg${pa > cibleKg() ? ' · reste ' + (pa - cibleKg()).toFixed(1).replace('.', ',') + ' kg' : ' '}</span></div>
     ${sparkline()}<div class="be-ligne"><input type="number" id="bePk" step="0.1" inputmode="decimal" placeholder="Poids du jour (kg)"><button onclick="beAjoutPoids()">Noter</button></div>
     <small class="be-hint">Pèse-toi 1 à 2 fois par semaine, le matin au réveil : la tendance compte, pas un jour isolé.</small></div>
   <div class="be-card"><h3>Eau</h3><div class="be-gros-n"><b>${(eau / 1000).toFixed(2).replace('.', ',')}</b> / ${(c.eau / 1000).toFixed(1).replace('.', ',')} L</div>
@@ -653,13 +666,17 @@ function formProfil(){
   const P = BE.data.profil, c = P.ok ? cibles() : null;
   return `<div class="be-card"><h3>${P.ok ? 'Mon profil' : 'Faisons connaissance'}</h3>
     ${P.ok ? '' : '<p>Quelques questions pour calculer tes objectifs. Tout reste modifiable plus tard.</p>'}
-    <div class="be-2"><label>Sexe<select id="bpSexe"><option value="h" ${P.sexe === 'h' ? 'selected' : ''}>Homme</option><option value="f" ${P.sexe === 'f' ? 'selected' : ''}>Femme</option></select></label><label>Âge<input id="bpAge" type="number" value="${P.age}"></label>
-    <label>Taille (cm)<input id="bpTaille" type="number" value="${P.taille}"></label><label>Poids actuel (kg)<input id="bpPoids" type="number" step="0.1" value="${P.poids}"></label>
-    <label>Poids visé (kg)<input id="bpCible" type="number" step="0.1" value="${P.cible}"></label><label>Rythme de perte<select id="bpRythme">${[[0.25, 'Très doux · 0,25 kg/sem'], [0.5, 'Doux · 0,5 kg/sem (conseillé)'], [0.75, 'Soutenu · 0,75 kg/sem']].map(([v, l]) => `<option value="${v}" ${num(P.rythme) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    <p class="be-hint">Tu ne connais pas un chiffre ? <b>Laisse-le vide</b> : je prends une valeur moyenne, je te le dis clairement, et tu pourras corriger quand tu sauras. Seul le poids est demandé, même à peu près.</p>
+    <details class="be-aide"><summary>Comment connaître ma taille et mon poids ?</summary>
+      <small class="be-hint"><b>Taille :</b> dos et talons contre un mur, un livre à plat sur la tête, une marque au mur, puis un mètre ruban. Ton tailleur ou ton barbier a peut-être déjà ta taille.<br><b>Poids :</b> une balance de pharmacie, de salle de sport ou chez un proche. Un chiffre à 2-3 kg près suffit pour démarrer ; ta vraie courbe se construit ensuite avec tes pesées.</small></details>
+    <div class="be-2"><label>Sexe<select id="bpSexe"><option value="h" ${P.sexe === 'h' ? 'selected' : ''}>Homme</option><option value="f" ${P.sexe === 'f' ? 'selected' : ''}>Femme</option></select></label><label>Âge <small>(facultatif)</small><input id="bpAge" type="number" inputmode="numeric" placeholder="Je ne sais pas" value="${P.age}"></label>
+    <label>Taille en cm <small>(facultatif)</small><input id="bpTaille" type="number" inputmode="numeric" placeholder="Je ne sais pas" value="${P.taille}"></label><label>Poids actuel en kg <small>(approximatif ok)</small><input id="bpPoids" type="number" step="0.1" inputmode="decimal" placeholder="Ex : 85" value="${P.poids}"></label>
+    <label>Poids visé en kg <small>(facultatif)</small><input id="bpCible" type="number" step="0.1" inputmode="decimal" placeholder="Je ne sais pas" value="${P.cible}"></label><label>Rythme de perte<select id="bpRythme">${[[0.25, 'Très doux · 0,25 kg/sem'], [0.5, 'Doux · 0,5 kg/sem (conseillé)'], [0.75, 'Soutenu · 0,75 kg/sem']].map(([v, l]) => `<option value="${v}" ${num(P.rythme) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     <label>Activité<select id="bpAct">${[[1.2, 'Très sédentaire (assis toute la nuit)'], [1.375, 'Peu actif'], [1.55, 'Actif (sport 3-4×/sem)']].map(([v, l]) => `<option value="${v}" ${num(P.activite) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     <label>Sommeil visé (h / 24 h)<input id="bpMinH" type="number" step="0.5" min="4" max="10" value="${S().minH}"></label></div>
     <label>Régime (halal, végétarien…) <input id="bpRegime" value="${E(P.regime)}"></label><label>Allergies, aliments que tu évites <input id="bpAll" value="${E(P.allergies)}"></label>
     <label>Santé / traitement à connaître (optionnel) <input id="bpSante" value="${E(P.sante)}"></label><label>Budget repas <input id="bpBudget" value="${E(P.budget)}" placeholder="Ex : 2 000 F par jour"></label><label>Temps pour cuisiner <input id="bpTemps" value="${E(P.temps)}" placeholder="Ex : 20 min max les soirs de montage"></label>
+    ${c && c.est.length ? `<div class="be-hint be-est">Estimé pour toi, faute de données : ${E(c.est.join(' · '))}. C'est une base pour démarrer, pas une mesure : corrige dès que tu sais.</div>` : ''}
     ${c ? `<div class="be-hint">Ton métabolisme de base ≈ ${c.bmr} kcal, dépense ≈ ${c.tdee} kcal/jour. Objectif : <b>${c.kcal} kcal</b>/jour, <b>${c.prot} g</b> de protéines, <b>${(c.eau / 1000).toFixed(1).replace('.', ',')} L</b> d'eau.${c.semaines ? ` Objectif atteint dans environ ${c.semaines} semaines.` : ''}</div>` : ''}
     <div class="be-act"><button class="btn-primary" onclick="beProfil()">${P.ok ? 'Enregistrer' : 'Calculer mes objectifs et commencer'}</button>${P.ok ? '<button class="btn-ghost" onclick="beEditProfil()">Fermer</button>' : ''}</div>
     <small class="be-hint">Conseils de bien-être, pas de conseil médical. Je ne descends jamais sous un minimum calorique sûr et je plafonne le rythme de perte.</small></div>`;
@@ -749,6 +766,7 @@ setTimeout(() => { charger().then(() => { if(BE.data.sommeil.prochain) syncRappe
   s.textContent = `
 .be-acc{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius-md,10px);padding:16px;margin:0 0 14px;display:flex;flex-direction:column;gap:8px}
 .be-acc.urgent{border-left-color:var(--red,#e5484d)}
+.be-est{padding:8px 10px;border-radius:10px;background:var(--card2);border:1px dashed var(--border)}.be-aide summary{cursor:pointer;font-size:12.5px;color:var(--muted)}.be-card label small{font-size:11px;opacity:.8}
 .be-acc-tag{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .be-acc-t{font-family:var(--font-display,inherit);font-size:16px;font-weight:600;color:var(--text);line-height:1.3}.be-acc-r{font-size:14px;color:var(--muted);line-height:1.45}
 .be-acc-b{display:flex;gap:10px;flex-wrap:wrap}.be-acc-go{background:var(--accent);color:var(--on-accent,var(--bg));border:0;border-radius:var(--radius-sm,4px);padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
