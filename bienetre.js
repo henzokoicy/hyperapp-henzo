@@ -252,7 +252,7 @@ function ovFermer(){ const o = document.getElementById('beOv'); if(o) o.remove()
 function ovCoucher(){
   const n = retardMin(); if(n == null) return;
   const [t1, t2] = messageRetard(n), p = S().prochain;
-  ov(`<div class="be-ov-in"><div class="be-ov-lune">🌙</div><h1>${E(t1)}</h1><p>${E(t2)}</p>
+  ov(`<div class="be-ov-in"><h1>${E(t1)}</h1><p>${E(t2)}</p>
     <div class="be-ov-h">Prévu à ${hhmm(new Date(p.at))}${n > 0 ? ' · il est ' + hhmm(new Date()) : ''}</div>
     <button class="be-gros" onclick="beJeMeCouche()">Je me couche maintenant</button>
     <button class="be-lien" onclick="beCouchePlusTard()">J'ai une raison, je me couche plus tard…</button>
@@ -281,7 +281,7 @@ window.beReporter = function(){
 };
 function ovBonneNuit(){
   const n = enCours(), late = n && n.ecart > 10;
-  ov(`<div class="be-ov-in"><div class="be-ov-lune">😴</div><h2>${late ? 'Couché avec ' + dureeTxt(n.ecart) + ' de retard. C\'est noté.' : 'Bonne nuit Henzo.'}</h2>
+  ov(`<div class="be-ov-in"><h2>${late ? 'Couché avec ' + dureeTxt(n.ecart) + ' de retard. C\'est noté.' : 'Bonne nuit Henzo.'}</h2>
     <p>${late ? 'Pas de culpabilité : on rattrape demain. Maintenant, dors.' : 'Pose le téléphone en dessous du niveau de ton visage, luminosité au minimum.'}</p>
     <button class="be-gros" onclick="beAide()">Je n'arrive pas à dormir</button>
     <button class="be-lien" onclick="ovFermerOuv()">Fermer, bonne nuit</button></div>`, 'nuit');
@@ -291,10 +291,10 @@ window.beAide = function(){
   const top = Object.entries(S().aides).sort((a, b) => b[1].oui - a[1].oui)[0];
   ov(`<div class="be-ov-in"><h2>Le sommeil ne vient pas ? Essayons.</h2>
     ${top ? `<div class="be-ov-h">Ce qui t'a le plus endormi jusqu'ici : <b>${E(top[0])}</b> (${top[1].oui} fois)</div>` : ''}
-    <button class="be-opt" onclick="beResp('478')">🫁 Respiration 4-7-8 (3 minutes)</button>
-    <button class="be-opt" onclick="beMinuteur()">🎬 Film ou audio avec minuterie</button>
-    <button class="be-opt" onclick="beVider()">📝 Vider ma tête (ça tourne dans mon cerveau)</button>
-    <button class="be-opt" onclick="beTelPose()">📵 Poser le téléphone 20 minutes</button>
+    <button class="be-opt" onclick="beResp('478')">Respiration 4-7-8 (3 minutes)</button>
+    <button class="be-opt" onclick="beMinuteur()">Film ou audio avec minuterie</button>
+    <button class="be-opt" onclick="beVider()">Vider ma tête (ça tourne dans mon cerveau)</button>
+    <button class="be-opt" onclick="beTelPose()">Poser le téléphone 20 minutes</button>
     <button class="be-lien" onclick="ovFermerOuv()">Fermer</button></div>`, 'nuit');
 };
 const RESP = { '478': { nom: '4-7-8', ph: [['Inspire', 4], ['Retiens', 7], ['Expire doucement', 8]], cycles: 6 },
@@ -348,7 +348,7 @@ window.beVideOk = function(){
   toast('Noté pour demain.'); beAide();
 };
 window.beTelPose = function(){
-  ov(`<div class="be-ov-in"><div class="be-ov-lune">📵</div><h2>Pose-le. 20 minutes.</h2>
+  ov(`<div class="be-ov-in"><h2>Pose-le. 20 minutes.</h2>
     <p>Éloigne le téléphone du lit. Lumière très faible, yeux fermés, respire lentement. Si le sommeil n'est toujours pas là après 20 minutes, lève-toi 5 minutes (lumière douce, pas d'écran) puis reviens.</p>
     <button class="be-gros" onclick="ovFermerOuv()">Compris, bonne nuit</button><button class="be-lien" onclick="beAide()">Retour</button></div>`, 'nuit');
 };
@@ -367,7 +367,7 @@ function veille(){
     const pa = BE.data.pauses;
     if(pa.on && Date.now() - (pa.last || 0) >= pa.every * 60000){
       pa.last = Date.now(); sauver();
-      toast('⏸️ Pause : regarde au loin 20 s, bois un verre d\'eau, étire ton dos.');
+      toast('⏸Pause : regarde au loin 20 s, bois un verre d\'eau, étire ton dos.');
       try { navigator.vibrate && navigator.vibrate(200); } catch(e){}
     }
   }, 20000);
@@ -413,7 +413,7 @@ window.beSupprRepas = function(id){ const j = jourBE(); BE.data.repas[j] = (BE.d
 window.beFavori = function(id){
   const x = (BE.data.repas[jourBE()] || []).find(r => r.id === id); if(!x) return;
   if(BE.data.favoris.some(f => f.nom === x.nom)){ toast('Déjà dans tes favoris'); return; }
-  BE.data.favoris.push({ nom: x.nom, kcal: x.kcal, p: x.p, g: x.g, l: x.l }); sauver(); toast('Ajouté aux favoris ⭐'); beR();
+  BE.data.favoris.push({ nom: x.nom, kcal: x.kcal, p: x.p, g: x.g, l: x.l }); sauver(); toast('Ajouté aux favoris '); beR();
 };
 window.beAjoutFavori = function(i){ const f = BE.data.favoris[i]; if(f) ajouterRepas(Object.assign({}, f)); };
 window.beSupprFavori = function(i){ BE.data.favoris.splice(i, 1); sauver(); beR(); };
@@ -445,7 +445,7 @@ function reduirePhoto(file){
 window.bePhoto = async function(inp){
   const f = inp.files && inp.files[0]; if(!f || BE.busy) return;
   if(typeof window.mkAI !== 'function'){ erreur('IA indisponible : connecte-la dans les réglages du Coach.'); return; }
-  BE.busy = true; BE.txt = '📷 Photo du repas'; beR();
+  BE.busy = true; BE.txt = 'Photo du repas'; beR();
   try {
     const b64 = await reduirePhoto(f);
     BE.estim = lireEstim(await window.mkAI({ system: SYS_NUTRI(), messages: [{ role: 'user', text: 'Voici la photo de mon repas. Estime-le.' }], images: [b64], maxTokens: 900 }));
@@ -467,14 +467,14 @@ window.beAjoutPoids = function(){
 window.beEau = function(ml){ const j = jourBE(); BE.data.eau[j] = Math.max(0, (BE.data.eau[j] || 0) + ml); sauver(); beR(); };
 window.beCafe = function(){
   const j = jourBE(); (BE.data.cafe[j] = BE.data.cafe[j] || []).push(hhmm(new Date())); sauver();
-  const l = limiteCafe(); if(l && Date.now() > l.getTime()) toast('⚠️ C\'est après ta limite caféine : ça risque de retarder ton sommeil.', 'error');
+  const l = limiteCafe(); if(l && Date.now() > l.getTime()) toast('C\'est après ta limite caféine : ça risque de retarder ton sommeil.', 'error');
   beR();
 };
 window.beCafeMoins = function(){ const j = jourBE(); (BE.data.cafe[j] || []).pop(); sauver(); beR(); };
 function limiteCafe(){ const p = S().prochain; return p && !p.logged ? new Date(new Date(p.at).getTime() - 8 * 3600000) : null; }
 window.beSport = function(type){
   const j = jourBE(), m = type === 'Marche' ? 30 : type === 'Étirements' ? 10 : 30;
-  (BE.data.sport[j] = BE.data.sport[j] || []).push({ id: idU(), type, min: m }); sauver(); toast(`${type} ${m} min ajouté 💪`); beR();
+  (BE.data.sport[j] = BE.data.sport[j] || []).push({ id: idU(), type, min: m }); sauver(); toast(`${type} ${m} min ajouté `); beR();
 };
 window.beSportSuppr = function(i){ const j = jourBE(); (BE.data.sport[j] || []).splice(i, 1); sauver(); beR(); };
 function sparkline(){
@@ -564,25 +564,25 @@ function ecranSommeil(){
   const next = prochaineHeure(s.formCoucher || '') ? s.formCoucher : (p ? hhmm(new Date(p.at)) : '07:00');
   const top = Object.entries(s.aides).sort((a, b) => b[1].oui - a[1].oui);
   return `
-  ${n ? `<div class="be-card be-nuit"><h3>🌙 Tu dors depuis ${hhmm(new Date(n.coucher))}</h3><p>Au réveil, dis-moi comment ça s'est passé. Je fais le diagnostic.</p>
+  ${n ? `<div class="be-card be-nuit"><h3>Tu dors depuis ${hhmm(new Date(n.coucher))}</h3><p>Au réveil, dis-moi comment ça s'est passé. Je fais le diagnostic.</p>
     <label>Heure de réveil<input type="time" id="beRv" value="${hhmm(new Date())}"></label>
     <label>Combien de temps pour t'endormir ?</label><div class="be-chips" id="beLat">${[5, 15, 30, 60, 90].map(v => `<button type="button" data-v="${v}" class="${(BE.latence || 20) === v ? 'on' : ''}" onclick="beLatence(${v})">${v} min</button>`).join('')}</div>
     <label>Qu'est-ce qui t'a aidé à dormir ?</label><div class="be-chips" id="beAid">${AIDES.map(a => `<button type="button" data-v="${E(a)}" onclick="beAideSel('${E(a)}')">${E(a)}</button>`).join('')}</div>
     <button class="btn-primary" onclick="beReveil()">Je me réveille : faire le diagnostic</button>
     <button class="be-lien2" onclick="beAide()">Je n'arrive pas à dormir</button></div>` : ''}
-  ${p && !n ? `<div class="be-card ${retard != null && retard >= 0 ? 'be-alerte' : ''}"><h3>${retard != null && retard >= 0 ? '🚨 ' + messageRetard(retard)[0] : '🛏️ Prochain coucher : ' + hhmm(new Date(p.at))}</h3>
+  ${p && !n ? `<div class="be-card ${retard != null && retard >= 0 ? 'be-alerte' : ''}"><h3>${retard != null && retard >= 0 ? '' + messageRetard(retard)[0] : 'Prochain coucher : ' + hhmm(new Date(p.at))}</h3>
     <p>${retard != null && retard >= 0 ? messageRetard(retard)[1] : `Réveil prévu vers ${hhmm(new Date(new Date(p.at).getTime() + (s.minH || 7) * 3600000 + 20 * 60000))} (${s.minH || 7} h de sommeil). Je t'alerte avant, puis je t'insiste à l'heure.`}</p>
     <div class="be-act"><button class="btn-primary" onclick="beJeMeCouche()">Je me couche maintenant</button><button class="btn-ghost" onclick="beOpenCoucherForm()">Changer l'heure</button></div></div>` : ''}
   ${(!p || BE.planOuvert) && !n ? `<div class="be-card"><h3>Planifier mon prochain coucher</h3>
     <p class="be-hint">Choisis une heure réaliste selon ta journée de travail : tu peux la changer chaque jour. L'important : quand elle sonne, tu y vas.</p>
     <div class="be-2"><label>Coucher à<input type="time" id="beNext" value="${E(next)}"></label><label>Heures de sommeil visées<input type="number" id="beMinH" min="4" max="10" step="0.5" value="${s.minH || 7}"></label></div>
     <div class="be-act"><button class="btn-primary" onclick="beProchainOk()">Valider et me le rappeler</button>${p ? '<button class="btn-ghost" onclick="beProchainAnnuler()">Annuler le plan</button>' : '<button class="btn-ghost" onclick="beNuitMaintenant()">Je me couche déjà</button>'}</div></div>` : ''}
-  ${last && last.diag ? `<div class="be-card"><h3>${last.diag.verdict === 'ok' ? '✅' : last.diag.verdict === 'moyen' ? '🟠' : '🔴'} Diagnostic de ta dernière nuit ${last.diagIA ? '<small>(IA)</small>' : ''}</h3>
+  ${last && last.diag ? `<div class="be-card"><h3>${last.diag.verdict === 'ok' ? '' : last.diag.verdict === 'moyen' ? '' : ''} Diagnostic de ta dernière nuit ${last.diagIA ? '<small>(IA)</small>' : ''}</h3>
     <p>${E(last.diag.diagnostic)}</p><h4>Comment rattraper</h4><p>${E(last.diag.rattrapage)}</p>
     ${last.diag.sieste && last.diag.sieste.duree ? `<p><b>Sieste :</b> ${last.diag.sieste.duree} min ${E(last.diag.sieste.debut || '')}</p>` : ''}
     ${last.diag.mot ? `<p class="be-mot">${E(last.diag.mot)}</p>` : ''}
     ${last.diag.coucher ? `<div class="be-act"><button class="btn-secondary" onclick="beAppliquerCoucher('${last.id}')">Planifier mon prochain coucher (${E(last.diag.coucher)})</button></div>` : ''}</div>` : ''}
-  <div class="be-card"><h3>Mes nuits</h3>${nuits.length ? nuits.map(x => `<div class="be-rt"><span>${jourCourt(x.jour)}</span><span>couché ${hhmm(new Date(x.coucher))}${x.ecart > 10 ? ` <em class="rouge">+${dureeTxt(x.ecart)}</em>` : x.prevu ? ' ✓' : ''}</span><b>${x.duree != null ? dureeTxt(x.duree) : '…'}</b></div>${x.motif && x.ecart > 10 ? `<div class="be-motif">${E(x.motif)}</div>` : ''}`).join('') : '<small class="be-hint">Aucune nuit notée pour le moment.</small>'}
+  <div class="be-card"><h3>Mes nuits</h3>${nuits.length ? nuits.map(x => `<div class="be-rt"><span>${jourCourt(x.jour)}</span><span>couché ${hhmm(new Date(x.coucher))}${x.ecart > 10 ? ` <em class="rouge">+${dureeTxt(x.ecart)}</em>` : x.prevu ? ` ${agIcon('check', 12)}` : ''}</span><b>${x.duree != null ? dureeTxt(x.duree) : '…'}</b></div>${x.motif && x.ecart > 10 ? `<div class="be-motif">${E(x.motif)}</div>` : ''}`).join('') : '<small class="be-hint">Aucune nuit notée pour le moment.</small>'}
     ${top.length ? `<h4>Ce qui t'endort</h4><div class="be-hint">${top.map(([k, v]) => `${E(k)} : ${v.oui}×`).join(' · ')}</div>` : ''}</div>
   <div class="be-card"><h3>Besoin d'aide pour dormir ?</h3><div class="be-act"><button class="btn-secondary" onclick="beAide()">Le sommeil ne vient pas</button><button class="btn-ghost" onclick="beResp('478','mental')">Respiration 4-7-8</button></div></div>
   <details class="be-card"><summary>Rappels et notifications</summary>
@@ -592,39 +592,39 @@ function ecranSommeil(){
 }
 function ecranRepas(){
   const J = jourBE(), c = cibles(), t = totalJour(J), liste = BE.data.repas[J] || [], reste = c.kcal - t.kcal;
-  const modes = [['texte', 'Texte'], ['photo', 'Photo'], ['chercher', 'Chercher'], ['favoris', 'Favoris ⭐']];
+  const modes = [['texte', 'Texte'], ['photo', 'Photo'], ['chercher', 'Chercher'], ['favoris', 'Favoris ']];
   let corps = '';
-  if(BE.mode === 'texte') corps = `<textarea id="beTxt" rows="3" placeholder="Ex : 2 œufs, un morceau de pain, un café au lait sucré">${E(BE.txt && BE.txt !== '📷 Photo du repas' ? BE.txt : '')}</textarea><small class="be-hint">Astuce : dicte avec le micro de ton clavier.</small>
+  if(BE.mode === 'texte') corps = `<textarea id="beTxt" rows="3" placeholder="Ex : 2 œufs, un morceau de pain, un café au lait sucré">${E(BE.txt && BE.txt !== 'Photo du repas' ? BE.txt : '')}</textarea><small class="be-hint">Astuce : dicte avec le micro de ton clavier.</small>
     <button class="btn-primary" ${BE.busy ? 'disabled' : ''} onclick="beEstimerTexte()">${BE.busy ? 'Estimation…' : 'Estimer les calories'}</button>`;
   else if(BE.mode === 'photo') corps = `<p class="be-hint">Prends ton repas en photo, l'IA estime les calories. Tu peux corriger avant d'ajouter.</p>
-    <label class="btn-primary be-file">${BE.busy ? 'Analyse…' : '📷 Photographier mon repas'}<input type="file" accept="image/*" capture="environment" onchange="bePhoto(this)" ${BE.busy ? 'disabled' : ''}></label>`;
+    <label class="btn-primary be-file">${BE.busy ? 'Analyse…' : 'Photographier mon repas'}<input type="file" accept="image/*" capture="environment" onchange="bePhoto(this)" ${BE.busy ? 'disabled' : ''}></label>`;
   else if(BE.mode === 'chercher') corps = `<input type="search" placeholder="Attiéké, poulet, banane…" oninput="beChercher(this.value)"><div id="beRes">${htmlRes()}</div>
     <h4>Saisie directe</h4><div class="be-2"><label>Nom<input id="beDN" placeholder="Repas"></label><label>Calories<input id="beDK" type="number" inputmode="numeric"></label></div>
     <button class="btn-ghost" onclick="beAjoutDirect()">Ajouter</button>`;
-  else corps = BE.data.favoris.length ? BE.data.favoris.map((f, i) => `<div class="be-ligne"><div class="be-d"><b>${E(f.nom)}</b><span>${f.kcal} kcal</span></div><button onclick="beAjoutFavori(${i})">+</button><button class="x" onclick="beSupprFavori(${i})" aria-label="Retirer">✕</button></div>`).join('')
-    : '<small class="be-hint">Aucun favori. Étoile ⭐ un repas de ta journée pour le retrouver en 1 clic.</small>';
+  else corps = BE.data.favoris.length ? BE.data.favoris.map((f, i) => `<div class="be-ligne"><div class="be-d"><b>${E(f.nom)}</b><span>${f.kcal} kcal</span></div><button onclick="beAjoutFavori(${i})">+</button><button class="x" onclick="beSupprFavori(${i})" aria-label="Retirer">${agIcon('trash', 15)}</button></div>`).join('')
+    : '<small class="be-hint">Aucun favori. Étoile un repas de ta journée pour le retrouver en 1 clic.</small>';
   const est = BE.estim ? `<div class="be-card be-estim"><h3>Estimation</h3>${BE.estim.items.map((it, i) => `<div class="be-ligne"><div class="be-d"><b>${E(it.nom)}</b><span>P ${it.p} · G ${it.g} · L ${it.l}</span></div><input type="number" id="beEk${i}" value="${it.kcal}"><small>kcal</small></div>`).join('')}
     ${BE.estim.remarque ? `<small class="be-hint">${E(BE.estim.remarque)}</small>` : ''}<div class="be-act"><button class="btn-primary" onclick="beValiderEstim()">Ajouter à ma journée</button><button class="btn-ghost" onclick="BE.estim=null;beR()">Annuler</button></div></div>` : '';
   return `<div class="be-card"><h3>Aujourd'hui</h3>
     <div class="be-jauge"><i style="width:${Math.min(100, Math.round(t.kcal / c.kcal * 100))}%;background:${reste < 0 ? 'var(--red,#e5484d)' : 'var(--accent)'}"></i></div>
     <div class="be-gros-n"><b>${t.kcal}</b> / ${c.kcal} kcal <span>${reste >= 0 ? 'reste ' + reste : 'dépassé de ' + (-reste)}</span></div>
     <div class="be-hint">Protéines ${Math.round(t.p)} / ${c.prot} g · Glucides ${Math.round(t.g)} g · Lipides ${Math.round(t.l)} g</div>
-    ${liste.length ? `<div class="be-liste">${liste.map(x => `<div class="be-ligne"><div class="be-d"><b>${E(x.nom)}</b><span>${E(x.h || '')} · ${x.kcal} kcal</span></div><button class="x" onclick="beFavori('${x.id}')" aria-label="Favori">⭐</button><button class="x" onclick="beSupprRepas('${x.id}')" aria-label="Retirer">✕</button></div>`).join('')}</div>` : '<small class="be-hint">Rien d\'ajouté. Commence par ton premier repas.</small>'}</div>
+    ${liste.length ? `<div class="be-liste">${liste.map(x => `<div class="be-ligne"><div class="be-d"><b>${E(x.nom)}</b><span>${E(x.h || '')} · ${x.kcal} kcal</span></div><button class="x" onclick="beFavori('${x.id}')" aria-label="Favori">${agIcon('star', 15)}</button><button class="x" onclick="beSupprRepas('${x.id}')" aria-label="Retirer">${agIcon('trash', 15)}</button></div>`).join('')}</div>` : '<small class="be-hint">Rien d\'ajouté. Commence par ton premier repas.</small>'}</div>
   <div class="be-card"><h3>Ajouter un repas</h3><div class="be-chips">${modes.map(([k, l]) => `<button class="${BE.mode === k ? 'on' : ''}" onclick="beMode('${k}')">${l}</button>`).join('')}</div>${corps}</div>${est}`;
 }
 function ecranCorps(){
   const J = jourBE(), c = cibles(), eau = BE.data.eau[J] || 0, cafes = BE.data.cafe[J] || [], lim = limiteCafe(), sp = BE.data.sport[J] || [];
   const pa = poidsActuel(), P = BE.data.profil;
-  return `<div class="be-card"><h3>⚖️ Poids</h3><div class="be-gros-n"><b>${pa}</b> kg <span>objectif ${P.cible} kg${pa > P.cible ? ' · reste ' + (pa - P.cible).toFixed(1).replace('.', ',') + ' kg' : ' ✅'}</span></div>
+  return `<div class="be-card"><h3>Poids</h3><div class="be-gros-n"><b>${pa}</b> kg <span>objectif ${P.cible} kg${pa > P.cible ? ' · reste ' + (pa - P.cible).toFixed(1).replace('.', ',') + ' kg' : ' '}</span></div>
     ${sparkline()}<div class="be-ligne"><input type="number" id="bePk" step="0.1" inputmode="decimal" placeholder="Poids du jour (kg)"><button onclick="beAjoutPoids()">Noter</button></div>
     <small class="be-hint">Pèse-toi 1 à 2 fois par semaine, le matin au réveil : la tendance compte, pas un jour isolé.</small></div>
-  <div class="be-card"><h3>💧 Eau</h3><div class="be-gros-n"><b>${(eau / 1000).toFixed(2).replace('.', ',')}</b> / ${(c.eau / 1000).toFixed(1).replace('.', ',')} L</div>
+  <div class="be-card"><h3>Eau</h3><div class="be-gros-n"><b>${(eau / 1000).toFixed(2).replace('.', ',')}</b> / ${(c.eau / 1000).toFixed(1).replace('.', ',')} L</div>
     <div class="be-jauge"><i style="width:${Math.min(100, Math.round(eau / c.eau * 100))}%"></i></div>
     <div class="be-act"><button class="btn-secondary" onclick="beEau(250)">+ 250 ml</button><button class="btn-secondary" onclick="beEau(500)">+ 500 ml</button><button class="btn-ghost" onclick="beEau(-250)">− 250</button></div></div>
-  <div class="be-card"><h3>☕ Caféine</h3><div class="be-gros-n"><b>${cafes.length}</b> aujourd'hui <span>${cafes.length ? 'dernier à ' + cafes[cafes.length - 1] : ''}</span></div>
-    ${lim ? `<div class="be-hint">${Date.now() > lim.getTime() ? '🚫 Limite dépassée' : '⏳ Dernier café avant'} <b>${hhmm(lim)}</b> (8 h avant ton coucher).</div>` : '<div class="be-hint">Planifie ton coucher pour avoir ta limite caféine.</div>'}
+  <div class="be-card"><h3>Caféine</h3><div class="be-gros-n"><b>${cafes.length}</b> aujourd'hui <span>${cafes.length ? 'dernier à ' + cafes[cafes.length - 1] : ''}</span></div>
+    ${lim ? `<div class="be-hint">${Date.now() > lim.getTime() ? 'Limite dépassée' : '⏳ Dernier café avant'} <b>${hhmm(lim)}</b> (8 h avant ton coucher).</div>` : '<div class="be-hint">Planifie ton coucher pour avoir ta limite caféine.</div>'}
     <div class="be-act"><button class="btn-secondary" onclick="beCafe()">+ Un café / boisson énergisante</button>${cafes.length ? '<button class="btn-ghost" onclick="beCafeMoins()">Annuler le dernier</button>' : ''}</div></div>
-  <div class="be-card"><h3>🏃 Mouvement</h3>${sp.length ? sp.map((x, i) => `<div class="be-rt"><span>${E(x.type)}</span><b>${x.min} min</b><button onclick="beSportSuppr(${i})" aria-label="Retirer">✕</button></div>`).join('') : '<small class="be-hint">Rien aujourd\'hui. Même 10 minutes comptent.</small>'}
+  <div class="be-card"><h3>Mouvement</h3>${sp.length ? sp.map((x, i) => `<div class="be-rt"><span>${E(x.type)}</span><b>${x.min} min</b><button onclick="beSportSuppr(${i})" aria-label="Retirer">${agIcon('trash', 15)}</button></div>`).join('') : '<small class="be-hint">Rien aujourd\'hui. Même 10 minutes comptent.</small>'}
     <div class="be-chips">${['Marche', 'Étirements', 'Renforcement', 'Course', 'Vélo'].map(t => `<button onclick="beSport('${t}')">+ ${t}</button>`).join('')}</div></div>`;
 }
 function ecranMental(){
@@ -632,18 +632,18 @@ function ecranMental(){
   const echelle = (k, lab, emo) => `<div class="be-ech"><b>${lab}</b><div class="be-chips">${[1, 2, 3, 4, 5].map(v => `<button class="${h[k] === v ? 'on' : ''}" onclick="beHumeur('${k}',${v})">${emo[v - 1]}</button>`).join('')}</div></div>`;
   return `<div class="be-card"><h3>Comment tu te sens ?</h3>
     ${echelle('humeur', 'Humeur', ['😞', '😕', '😐', '🙂', '😄'])}${echelle('energie', 'Énergie', ['🪫', '😴', '⚡', '🔋', '🚀'])}${echelle('stress', 'Stress', ['😌', '🙂', '😐', '😟', '🤯'])}</div>
-  <div class="be-card"><h3>🙏 Gratitude du jour</h3><small class="be-hint">3 choses, même toutes petites.</small>
+  <div class="be-card"><h3>Gratitude du jour</h3><small class="be-hint">3 choses, même toutes petites.</small>
     ${[0, 1, 2].map(i => `<input class="be-gr" value="${E(g[i] || '')}" placeholder="${['Quelque chose qui s\'est bien passé', 'Quelqu\'un ou quelque chose qui m\'aide', 'Une victoire, même petite'][i]}" oninput="beGratitude(${i},this.value)">`).join('')}</div>
-  <div class="be-card"><h3>🫁 Respiration</h3><div class="be-act"><button class="btn-secondary" onclick="beResp('478','mental')">4-7-8 (apaiser)</button><button class="btn-secondary" onclick="beResp('car','mental')">Carrée (focus)</button><button class="btn-secondary" onclick="beResp('coh','mental')">Cohérence (stress)</button></div></div>
-  <div class="be-card"><h3>⏸️ Pauses pendant le travail</h3>
+  <div class="be-card"><h3>Respiration</h3><div class="be-act"><button class="btn-secondary" onclick="beResp('478','mental')">4-7-8 (apaiser)</button><button class="btn-secondary" onclick="beResp('car','mental')">Carrée (focus)</button><button class="btn-secondary" onclick="beResp('coh','mental')">Cohérence (stress)</button></div></div>
+  <div class="be-card"><h3>⏸Pauses pendant le travail</h3>
     <label class="ag-check"><input type="checkbox" ${pa.on ? 'checked' : ''} onchange="bePauses(this.checked)"> Me rappeler une pause toutes les</label>
     <input type="number" min="20" step="5" value="${pa.every}" onchange="bePauseEvery(this.value)"><small class="be-hint">minutes. Regarde au loin 20 s, bois, étire dos et poignets. Fonctionne quand l'app est ouverte, pendant que tu retouches ou développes.</small></div>
-  <div class="be-card"><h3>💬 Un boost</h3>${BE.boost ? `<p class="be-mot">${E(BE.boost)}</p>` : '<small class="be-hint">Un message pour toi, adapté à ton état du moment.</small>'}
+  <div class="be-card"><h3>Un boost</h3>${BE.boost ? `<p class="be-mot">${E(BE.boost)}</p>` : '<small class="be-hint">Un message pour toi, adapté à ton état du moment.</small>'}
     <div class="be-act"><button class="btn-primary" ${BE.busy ? 'disabled' : ''} onclick="beBoost()">${BE.busy ? '…' : 'Me booster'}</button></div></div>`;
 }
 function ecranBilan(){
   const b = BE.data.bilan, md = t => typeof mkMd === 'function' ? mkMd(t) : '<p>' + E(t).replace(/\n/g, '<br>') + '</p>';
-  return `<div class="be-card"><h3>📈 Bilan de ma semaine</h3><p class="be-hint">Je regarde ton sommeil, tes repas, ton poids et ton humeur, je cherche des conseils fiables et je te propose 3 actions.</p>
+  return `<div class="be-card"><h3>Bilan de ma semaine</h3><p class="be-hint">Je regarde ton sommeil, tes repas, ton poids et ton humeur, je cherche des conseils fiables et je te propose 3 actions.</p>
     <div class="be-act"><button class="btn-primary" ${BE.busy ? 'disabled' : ''} onclick="beBilan()">${BE.busy ? 'Analyse en cours…' : b ? 'Refaire le bilan' : 'Faire mon bilan'}</button></div></div>
     ${b ? `<div class="be-card"><small class="be-hint">Fait le ${new Date(b.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</small><div class="be-md">${md(b.texte)}</div>
       ${(b.sources || []).length ? `<h4>Sources</h4>${b.sources.map(s => `<div><a href="${E(s.uri)}" target="_blank" rel="noopener">${E(s.title)}</a></div>`).join('')}` : ''}</div>` : ''}
@@ -666,10 +666,10 @@ function formProfil(){
 }
 function renderBienetre(v){
   if(!BE.data.profil.ok || BE.edit){ v.innerHTML = `<div class="be">${formProfil()}</div>`; return; }
-  const subs = [['sommeil', '🌙 Sommeil'], ['repas', '🍽️ Repas'], ['corps', '⚖️ Corps'], ['mental', '🧠 Mental'], ['bilan', '📈 Bilan']];
+  const subs = [['sommeil', 'Sommeil'], ['repas', 'Repas'], ['corps', 'Corps'], ['mental', 'Mental'], ['bilan', 'Bilan']];
   const ec = BE.sub === 'repas' ? ecranRepas : BE.sub === 'corps' ? ecranCorps : BE.sub === 'mental' ? ecranMental : BE.sub === 'bilan' ? ecranBilan : ecranSommeil;
   v.innerHTML = `<div class="be">${carteResume()}<div class="be-subs">${subs.map(([k, l]) => `<button class="${BE.sub === k ? 'on' : ''}" onclick="beSub('${k}')">${l}</button>`).join('')}</div>${ec()}
-    <button class="be-lien2" onclick="beEditProfil()">⚙️ Modifier mon profil et mes objectifs</button></div>`;
+    <button class="be-lien2" onclick="beEditProfil()">Modifier mon profil et mes objectifs</button></div>`;
 }
 
 // ---------- Branchement dans l'onglet Coach ----------
@@ -722,17 +722,18 @@ setTimeout(() => { charger().then(() => { if(BE.data.sommeil.prochain) syncRappe
 .be-lien2{margin:0;background:transparent;border:0;color:var(--muted);font-size:12.5px;text-decoration:underline;cursor:pointer;width:auto;align-self:center}
 .be-file{display:flex;align-items:center;justify-content:center;cursor:pointer;text-align:center}.be-file input{display:none}
 .be-md p{margin:6px 0;font-size:13.5px;line-height:1.5}.be-md h4{margin:10px 0 2px;color:var(--text)}
-.be-ov{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;background:#0b0c12;color:#f2f3f7;overflow:auto;text-align:center}
-.be-ov.coucher{background:radial-gradient(circle at 50% 30%,#2a1840,#0b0c12 70%)}.be-ov.noir{background:#000}
-.be-ov-in{width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px}.be-ov h1{font-size:34px;margin:0;line-height:1.1}.be-ov h2{font-size:22px;margin:0}.be-ov p{margin:0;font-size:16px;line-height:1.5;color:#c9ccd8}
-.be-ov-lune{font-size:56px}.be-ov-h{font-size:13px;color:#8e93a6}.be-ov small{color:#8e93a6}
-.be-ov label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:#c9ccd8;text-align:left}.be-ov input,.be-ov textarea{margin:0;width:100%;background:#171a26;color:#f2f3f7;border:1px solid #2b3047;border-radius:12px;padding:12px;font-size:16px}
-.be-gros{margin:0;width:100%;padding:18px;border:0;border-radius:16px;background:var(--accent,#6b8eff);color:#fff;font-size:18px;font-weight:800;cursor:pointer}
-.be-opt{margin:0;width:100%;padding:15px;border:1px solid #2b3047;border-radius:14px;background:#171a26;color:#f2f3f7;font-size:15px;text-align:left;cursor:pointer}
-.be-lien{margin:0;background:transparent;border:0;color:#8e93a6;font-size:14px;text-decoration:underline;cursor:pointer;width:auto;align-self:center}
-.be-ov .be-chips{justify-content:center}.be-ov .be-chips button{background:#171a26;color:#f2f3f7;border-color:#2b3047}.be-ov .be-chips button.on{background:var(--accent,#6b8eff);border-color:var(--accent,#6b8eff)}
-.be-cercle{width:200px;height:200px;border-radius:50%;margin:10px auto;background:radial-gradient(circle,#7f9cff,#3b4fa8);box-shadow:0 0 60px #4a62d466;transform:scale(.6)}
-.be-min{font-size:64px;font-weight:300;color:#3a3d4d;font-variant-numeric:tabular-nums}.be-ov.noir .be-ov-h,.be-ov.noir .be-lien{color:#2c2f3d}
+.be-ov{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;background:#0d0f0c;color:#f4f2ec;font-family:inherit;overflow:auto;text-align:center}
+.be-ov.coucher{background:radial-gradient(circle at 50% 30%,color-mix(in srgb,var(--accent) 22%,#0d0f0c),#0d0f0c 70%)}.be-ov.noir{background:#000}
+.be-ov-in{width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px}.be-ov h1{font-size:34px;margin:0;line-height:1.1}.be-ov h2{font-size:22px;margin:0}.be-ov p{margin:0;font-size:16px;line-height:1.5;color:#cfcdc2}
+.be-ov-h{font-size:13px;color:#8f9181}.be-ov small{color:#8f9181}
+
+.be-ov label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:#cfcdc2;text-align:left}.be-ov input,.be-ov textarea{margin:0;width:100%;background:#161913;color:#f4f2ec;border:1px solid #2a2e24;border-radius:12px;padding:12px;font-size:16px}
+.be-gros{margin:0;width:100%;padding:18px;border:0;border-radius:16px;font-family:inherit;background:var(--accent);color:var(--on-accent,#fff);font-size:18px;font-weight:800;cursor:pointer}
+.be-opt{margin:0;width:100%;padding:15px;border:1px solid #2a2e24;border-radius:14px;background:#161913;color:#f4f2ec;font-size:15px;text-align:left;cursor:pointer}
+.be-lien{margin:0;background:transparent;border:0;color:#8f9181;font-size:14px;text-decoration:underline;cursor:pointer;width:auto;align-self:center}
+.be-ov .be-chips{justify-content:center}.be-ov .be-chips button{background:#161913;color:#f4f2ec;border-color:#2a2e24}.be-ov .be-chips button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent,#fff)}
+.be-cercle{width:200px;height:200px;border-radius:50%;margin:10px auto;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 80%,#fff),var(--accent));box-shadow:0 0 60px color-mix(in srgb,var(--accent) 40%,transparent);transform:scale(.6)}
+.be-min{font-size:64px;font-weight:300;color:#33362b;font-variant-numeric:tabular-nums}.be-ov.noir .be-ov-h,.be-ov.noir .be-lien{color:#262920}
 `;
   document.head.appendChild(s);
 })();
