@@ -495,7 +495,7 @@ function agEndpointPills(side, sel){
   const cofs = agCoffres().map(c => {
     const v = 'g' + c.id;
     const lock = estCoffreBloque(c) ? ' 🔒' : '';
-    return `<button type="button" data-v="${v}" class="${sel === v ? 'on' : ''}" onclick="agPick(this);agTrUpdate()">${c.emoji || '🔒'} ${agEsc(c.name)}${lock}<small>${agF(c.current)}</small></button>`;
+    return `<button type="button" data-v="${v}" class="${sel === v ? 'on' : ''}" onclick="agPick(this);agTrUpdate()">${agEsc(c.emoji || '🔒')} ${agEsc(c.name)}${lock}<small>${agF(c.current)}</small></button>`;
   }).join('');
   return `<div class="ag-pills" id="agTr${side}">${accs}${cofs}</div>`;
 }

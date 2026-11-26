@@ -445,8 +445,8 @@ function coachRenderList(){
       " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
         <div style="font-size:24px;flex-shrink:0">${s.icon}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:14px;margin-bottom:4px">${s.title}</div>
-          <div style="font-size:12px;color:var(--muted);line-height:1.4">${s.subtitle}</div>
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px">${escH(s.title)}</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.4">${escH(s.subtitle)}</div>
         </div>
         <div style="color:${severityColors[s.severity] || 'var(--accent)'};font-size:20px;flex-shrink:0">›</div>
       </button>
@@ -491,7 +491,7 @@ function coachRenderStep(){
     <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 15%,transparent),color-mix(in srgb,var(--accent-2) 8%,transparent));border-radius:14px;padding:16px;margin-bottom:16px;border-left:3px solid var(--accent)">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <span style="font-size:22px">${s.icon}</span>
-        <span style="font-weight:700;font-size:15px">${s.title}</span>
+        <span style="font-weight:700;font-size:15px">${escH(s.title)}</span>
       </div>
       <div style="font-size:12px;color:var(--muted)">Étape ${coachCurrentStepIndex + 1}/${totalSteps}</div>
       <div style="height:4px;background:var(--card2);border-radius:2px;margin-top:10px;overflow:hidden">
@@ -499,8 +499,8 @@ function coachRenderStep(){
       </div>
     </div>
 
-    <div style="font-size:16px;font-weight:700;margin-bottom:10px">${current.title}</div>
-    <div style="font-size:14px;line-height:1.6;color:var(--text);margin-bottom:20px;white-space:pre-wrap">${current.text}</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:10px">${escH(current.title)}</div>
+    <div style="font-size:14px;line-height:1.6;color:var(--text);margin-bottom:20px;white-space:pre-wrap">${escH(current.text)}</div>
 
     <div id="coachAIBox"></div>
 

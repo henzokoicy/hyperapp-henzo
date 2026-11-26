@@ -197,7 +197,7 @@ function analyzeNoteLive(){
   }
   if(a.dateLabel) lines.push(`<div class="ai-line"><strong>📅</strong> Date : <span style="color:var(--yellow)">${a.dateLabel}</span></div>`);
   if(a.amount) lines.push(`<div class="ai-line"><strong>💰</strong> Montant : ${fmt(a.amount)}</div>`);
-  if(a.phone) lines.push(`<div class="ai-line"><strong>📞</strong> Téléphone : ${a.phone}</div>`);
+  if(a.phone) lines.push(`<div class="ai-line"><strong>📞</strong> Téléphone : ${escH(a.phone)}</div>`);
   if(a.tags.length) lines.push(`<div class="ai-line"><strong>🏷️</strong> Tags : ${a.tags.join(', ')}</div>`);
 
   if(lines.length === 0){ analysisEl.classList.remove('show'); return; }
@@ -712,7 +712,7 @@ function renderInspirations(){
   const allCats = [...new Set(inspirations.map(i => i.category).filter(Boolean))].sort();
 
   filterCat.innerHTML = '<option value="all">Toutes</option>' +
-    allCats.map(c => `<option value="${c}">${c}</option>`).join('');
+    allCats.map(c => `<option value="${escH(c)}">${escH(c)}</option>`).join('');
   if(currentCat && [...filterCat.options].some(o => o.value === currentCat)){ filterCat.value = currentCat; }
 
   const catFilter = filterCat.value;
@@ -743,24 +743,24 @@ function renderInspirations(){
     const isFav = i.favorite ? 'favorite' : '';
 
     const metaParts = [];
-    if(i.platform) metaParts.push(inspPlatformIcon(i.platform) + ' ' + i.platform);
-    if(i.city) metaParts.push('📍 ' + i.city);
-    if(i.phone) metaParts.push('📞 ' + i.phone);
-    if(i.email) metaParts.push('✉️ ' + i.email);
+    if(i.platform) metaParts.push(inspPlatformIcon(i.platform) + ' ' + escH(i.platform));
+    if(i.city) metaParts.push('📍 ' + escH(i.city));
+    if(i.phone) metaParts.push('📞 ' + escH(i.phone));
+    if(i.email) metaParts.push('✉️ ' + escH(i.email));
 
     const actions = [];
-    if(i.link) actions.push(`<a href="${i.link}" target="_blank" rel="noopener" class="insp-btn-link">🔗 Voir sa page</a>`);
+    if(i.link) actions.push(`<a href="${escH(urlSure(i.link))}" target="_blank" rel="noopener" class="insp-btn-link">🔗 Voir sa page</a>`);
     if(i.phone){ const cleanPhone = i.phone.replace(/[^0-9+]/g, ''); actions.push(`<a href="tel:${cleanPhone}" class="insp-btn-call">📞 Appeler</a>`); }
-    if(i.email) actions.push(`<a href="mailto:${i.email}" class="insp-btn-mail">✉️ Mail</a>`);
+    if(i.email) actions.push(`<a href="mailto:${escH(i.email)}" class="insp-btn-mail">✉️ Mail</a>`);
     actions.push(`<button class="insp-btn-edit" onclick="openInspirationModal(${i.id})">✏️ Modifier</button>`);
     actions.push(`<button class="insp-btn-del" onclick="delInspiration(${i.id})">🗑</button>`);
 
     return `<div class="insp-card ${isFav}">
       <div class="insp-card-header">
-        <div class="insp-avatar">${initials}</div>
+        <div class="insp-avatar">${escH(initials)}</div>
         <div class="insp-title">
-          <div class="insp-name">${i.name}${i.favorite ? ' <span class="insp-fav-star">⭐</span>' : ''}</div>
-          <div><span class="insp-category">${i.category || 'Autre'}</span></div>
+          <div class="insp-name">${escH(i.name)}${i.favorite ? ' <span class="insp-fav-star">⭐</span>' : ''}</div>
+          <div><span class="insp-category">${escH(i.category || 'Autre')}</span></div>
           ${metaParts.length ? `<div class="insp-meta">${metaParts.map(m => `<span>${m}</span>`).join('')}</div>` : ''}
         </div>
         <button class="insp-btn-fav" onclick="toggleFavoriteInspiration(${i.id})" title="Favori"
@@ -768,8 +768,8 @@ function renderInspirations(){
           ${i.favorite ? '⭐' : '☆'}
         </button>
       </div>
-      ${i.why ? `<div class="insp-why">"${i.why}"</div>` : ''}
-      ${(i.tags && i.tags.length) ? `<div class="insp-tags">${i.tags.map(t => `<span class="insp-tag">${t}</span>`).join('')}</div>` : ''}
+      ${i.why ? `<div class="insp-why">"${escH(i.why)}"</div>` : ''}
+      ${(i.tags && i.tags.length) ? `<div class="insp-tags">${i.tags.map(t => `<span class="insp-tag">${escH(t)}</span>`).join('')}</div>` : ''}
       <div class="insp-actions">${actions.join('')}</div>
     </div>`;
   }).join('');
@@ -1011,7 +1011,7 @@ function analyzeCoffreNameLive(){
     lines.push(`<div class="ai-line"><strong>📏</strong> Unité : <span style="color:var(--accent)">${a.unit}</span></div>`);
   }
   if(a.emoji && a.emoji !== '🎯'){
-    lines.push(`<div class="ai-line"><strong>${a.emoji}</strong> Emoji suggéré</div>`);
+    lines.push(`<div class="ai-line"><strong>${escH(a.emoji)}</strong> Emoji suggéré</div>`);
   }
 
   if(lines.length === 0){
@@ -1855,7 +1855,7 @@ function ouvrirRepartitionSeance(shootId){
 
       <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 12%,transparent),color-mix(in srgb,var(--green) 8%,transparent));border-radius:14px;padding:16px;margin-bottom:16px">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Séance</div>
-        <div style="font-weight:700;font-size:15px;margin-bottom:10px">📸 ${s.type}${clientName ? ' · ' + clientName : ''}</div>
+        <div style="font-weight:700;font-size:15px;margin-bottom:10px">📸 ${escH(s.type)}${clientName ? ' · ' + escH(clientName) : ''}</div>
         <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">
           <span style="color:var(--muted)">Reçu moins charges</span>
           <span style="font-weight:700">${fmt(netEncaisse)}</span>
@@ -1905,7 +1905,7 @@ function ouvrirRepartitionSeance(shootId){
             ? '<option value="">Aucun coffre</option>'
             : activeGoals.map(c => {
                 const info = Number(c.goal) >= 1e8 ? fmt(c.current) : (Number(c.current) / Number(c.goal) * 100).toFixed(0) + '%';
-                return `<option value="${c.id}">${c.emoji || '🎯'} ${c.name} (${info})</option>`;
+                return `<option value="${c.id}">${escH(c.emoji || '🎯')} ${escH(c.name)} (${info})</option>`;
               }).join('')
           }
         </select>
@@ -1926,7 +1926,7 @@ function ouvrirRepartitionSeance(shootId){
 
       <label style="margin-top:14px">Depuis quel compte ?</label>
       ${comptes.length
-        ? `<select id="repCompte">${comptes.map(a => `<option value="${a.id}" ${a.id === compteInit ? 'selected' : ''}>${a.name}</option>`).join('')}</select>`
+        ? `<select id="repCompte">${comptes.map(a => `<option value="${a.id}" ${a.id === compteInit ? 'selected' : ''}>${escH(a.name)}</option>`).join('')}</select>`
         : `<div style="font-size:12px;color:var(--yellow)">Crée d'abord tes comptes (onglet Argent).</div>`}
 
       <label style="margin-top:14px">Montant à répartir (FCFA)</label>
@@ -2098,7 +2098,7 @@ function openShootModal(id){
   const sel = document.getElementById('shootClient');
   if(sel){
     sel.innerHTML = '<option value="">-- Choisir --</option>'
-      + clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')
+      + clients.map(c => `<option value="${c.id}">${escH(c.name)}</option>`).join('')
       + '<option value="__new__" style="color:var(--green);font-weight:700">➕ Créer un nouveau client</option>';
   }
 
@@ -2436,7 +2436,7 @@ function openPaiementSeance(shootId, opts){
 
   const X = chargesResteTotal(s);
   const detailX = chargesListe(s).filter(e => chargeReste(e) > 0)
-    .map(e => `${chargeLabel(e)} ${fmt(chargeReste(e))}${e.deja_paye ? ' (déjà payée)' : ''}`).join(' · ');
+    .map(e => `${escH(chargeLabel(e))} ${fmt(chargeReste(e))}${e.deja_paye ? ' (déjà payée)' : ''}`).join(' · ');
   const montantInit = opts.montant ? Math.min(Number(opts.montant), resteAPayer) : resteAPayer;
   const methodInit = opts.method || 'Wave';
   const comptes = (typeof agActiveAccounts === 'function') ? agActiveAccounts() : [];
@@ -2460,7 +2460,7 @@ function openPaiementSeance(shootId, opts){
 
       <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--green) 12%,transparent),color-mix(in srgb,var(--accent) 6%,transparent));border-radius:14px;padding:14px;margin-bottom:16px">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Séance</div>
-        <div style="font-weight:700;font-size:15px;margin-bottom:10px">📸 ${s.type}${clientName ? ' · ' + clientName : ''}</div>
+        <div style="font-weight:700;font-size:15px;margin-bottom:10px">📸 ${escH(s.type)}${clientName ? ' · ' + escH(clientName) : ''}</div>
         ${ligne('Prix client', fmt(prix))}
         ${ligne('Déjà reçu', fmt(recu), 'color:var(--green)')}
         <div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--border);margin-top:6px">
@@ -2498,7 +2498,7 @@ function openPaiementSeance(shootId, opts){
 
       <label>Arrive sur quel compte ?</label>
       ${comptes.length
-        ? `<select id="paiementCompte">${comptes.map(a => `<option value="${a.id}" ${a.id === compteInit ? 'selected' : ''}>${a.name}</option>`).join('')}</select>`
+        ? `<select id="paiementCompte">${comptes.map(a => `<option value="${a.id}" ${a.id === compteInit ? 'selected' : ''}>${escH(a.name)}</option>`).join('')}</select>`
         : `<div style="font-size:12px;color:var(--yellow)">Crée d'abord tes comptes (onglet Argent).</div>`}
 
       <button class="btn-primary" id="paiementValiderBtn" style="margin:0;margin-top:16px;width:100%;background:linear-gradient(135deg,var(--green),#10b981);color:#000;font-weight:800;padding:16px" onclick="validerPaiementSeance(${shootId})">
@@ -3066,12 +3066,12 @@ function renderShoots(){
         });
         const iconeType = (type) => iconeDe[type] || '💸';
         chargeTags = Object.entries(parType).map(([type, montant]) =>
-          `<span class="badge" style="background:rgba(255,107,107,.12);color:var(--red);border:1px solid var(--red)">${iconeType(type)} ${type} -${fmt(montant)}</span>`
+          `<span class="badge" style="background:rgba(255,107,107,.12);color:var(--red);border:1px solid var(--red)">${iconeType(type)} ${escH(type)} -${fmt(montant)}</span>`
         ).join('');
 
         const couvertTot = chargesCouvertTotal(s);
         const resteCharges = chargesResteTotal(s);
-        const dejaPayees = chargesListe(s).filter(e => e.deja_paye).map(e => chargeLabel(e) + ' déjà payée');
+        const dejaPayees = chargesListe(s).filter(e => e.deja_paye).map(e => escH(chargeLabel(e)) + ' déjà payée');
         rappelCharge = `<div style="font-size:11px;color:${resteCharges > 0 ? 'var(--yellow)' : 'var(--muted)'};margin-top:6px">💸 Charges : ${fmt(charges)} (couvert ${fmt(couvertTot)} · reste ${fmt(resteCharges)})${dejaPayees.length ? ' · ' + dejaPayees.join(' · ') : ''}</div>`;
       }
     }
@@ -3383,7 +3383,7 @@ async function sauverNouveauClientShoot(){
   const sel = document.getElementById('shootClient');
   if(sel){
     sel.innerHTML = '<option value="">-- Choisir --</option>'
-      + clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')
+      + clients.map(c => `<option value="${c.id}">${escH(c.name)}</option>`).join('')
       + '<option value="__new__" style="color:var(--green);font-weight:700">➕ Créer un nouveau client</option>';
     sel.value = result.id;
   }
@@ -3520,7 +3520,7 @@ function renderShootExpenses(){
         <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
           <span style="font-size:11px;color:var(--muted);flex-shrink:0">Payée avec</span>
           <select onchange="updateChargeCompte(${idx}, this.value)" style="flex:1;font-size:12px;padding:6px;margin:0">
-            ${comptes.map(a => `<option value="${a.id}" ${a.id === compteSel ? 'selected' : ''}>${a.name}</option>`).join('')}
+            ${comptes.map(a => `<option value="${a.id}" ${a.id === compteSel ? 'selected' : ''}> ${escH(a.name)}</option>`).join('')}
           </select>
         </div>` : `<div style="font-size:11px;color:var(--yellow);margin-top:6px">Crée d'abord tes comptes (onglet Argent) pour noter d'où part l'argent.</div>`) : ''}
       ${couvert > 0 ? `<div style="font-size:11px;color:var(--muted);margin-top:6px">Déjà couvert par les paiements du client : ${fmt(couvert)}</div>` : ''}
@@ -3938,7 +3938,7 @@ function renderHistory(){
       <input type="checkbox" class="hist-check" data-id="${t.id}" ${checked} onchange="toggleTxSelect(${t.id}, this.checked); event.stopPropagation();">
       <div class="hist-content">
         <div class="hist-top">
-          <span class="hist-cat" style="${isCancelled ? 'text-decoration:line-through;' : ''}">${t.category}${isCancelled ? ' <span style="font-size:10px;color:var(--red);font-weight:700">ANNULÉE</span>' : ''}</span>
+          <span class="hist-cat" style="${isCancelled ? 'text-decoration:line-through;' : ''}">${escH(t.category)}${isCancelled ? ' <span style="font-size:10px;color:var(--red);font-weight:700">ANNULÉE</span>' : ''}</span>
           <span class="hist-amt ${cls}" style="${isCancelled ? 'text-decoration:line-through;' : ''}">${sign}${fmt(t.amount)}</span>
         </div>
         <div class="hist-bottom">${d}${t.note ? ' · ' + t.note : ''}</div>
@@ -4006,7 +4006,7 @@ function ouvrirDetailTx(txId, event){
       ${t.note ? `
         <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:12px">
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Note</div>
-          <div style="font-size:14px;line-height:1.5">${t.note}</div>
+          <div style="font-size:14px;line-height:1.5">${escH(t.note)}</div>
         </div>
       ` : ''}
 
@@ -4955,7 +4955,7 @@ async function openGoalReminderModal(id){
   const sel = document.getElementById('goalReminderGoal');
   if(!sel) return;
 
-  sel.innerHTML = '<option value="">-- Choisir un objectif --</option>' + coffres.map(c => `<option value="${c.id}">${getCoffreEmoji(c.name)} ${c.name}</option>`).join('');
+  sel.innerHTML = '<option value="">-- Choisir un objectif --</option>' + coffres.map(c => `<option value="${c.id}">${getCoffreEmoji(c.name)} ${escH(c.name)}</option>`).join('');
 
   document.getElementById('goalReminderModalTitle').textContent = r ? '✏️ Modifier le rappel' : '⏰ Nouveau rappel d\'épargne';
   document.getElementById('goalReminderSubmit').textContent = '💾 Enregistrer';
@@ -5045,10 +5045,10 @@ function renderGoalReminders(){
 
     return `<div class="goal-reminder-item">
       <div class="left">
-        <div class="title">${emoji} ${goalName}</div>
+        <div class="title">${emoji} ${escH(goalName)}</div>
         <div class="sub">
-          <span>${r.message}</span>
-          <span class="badge-freq">⏰ ${r.time}</span>
+          <span>${escH(r.message)}</span>
+          <span class="badge-freq">⏰ ${escH(r.time)}</span>
           <span class="badge-freq">${freqText}</span>
         </div>
       </div>
@@ -5436,7 +5436,7 @@ function renderDashboardGoalReminders(){
     const goal = coffres.find(c => c.id === r.goal_id);
     const goalName = goal ? goal.name : 'Objectif';
     const emoji = goal ? getCoffreEmoji(goal.name) : '🎯';
-    return `<div class="goal-reminder-item"><div class="left"><div class="title">${emoji} ${goalName}</div><div class="sub"><span>⏰ ${r.time}</span><span class="badge-freq">${freqLabels[r.frequency] || ''}</span></div></div></div>`;
+    return `<div class="goal-reminder-item"><div class="left"><div class="title">${emoji} ${escH(goalName)}</div><div class="sub"><span>⏰ ${escH(r.time)}</span><span class="badge-freq">${freqLabels[r.frequency] || ''}</span></div></div></div>`;
   }).join('') + (goalReminders.length > 3 ? `<div style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px">+${goalReminders.length - 3} autre(s)</div>` : '');
 }
 
@@ -5455,7 +5455,7 @@ function renderDashboardGoals(){
     const pct = Math.min(100, (current / goal) * 100);
     const color = getProgressionColor(pct);
     const emoji = getCoffreEmoji(c.name);
-    return `<div class="top-goal-item"><div class="left"><div class="title">${emoji} ${c.name}</div><div class="sub">${fmt(current)} / ${fmt(goal)} · ${pct.toFixed(0)}%</div></div><div class="progress-mini"><div style="width:${pct}%;background:${color}"></div></div><div style="font-size:11px;color:${color};font-weight:700;margin-left:6px">${pct.toFixed(0)}%</div></div>`;
+    return `<div class="top-goal-item"><div class="left"><div class="title">${emoji} ${escH(c.name)}</div><div class="sub">${fmt(current)} / ${fmt(goal)} · ${pct.toFixed(0)}%</div></div><div class="progress-mini"><div style="width:${pct}%;background:${color}"></div></div><div style="font-size:11px;color:${color};font-weight:700;margin-left:6px">${pct.toFixed(0)}%</div></div>`;
   }).join('');
 }
 
@@ -6361,7 +6361,7 @@ function afficherModalEpargne(coffreId) {
   modal.innerHTML = `
     <div class="modal">
       <div class="modal-wrap">
-        <h3>🎯 Épargner dans "${coffre.name}"</h3>
+        <h3>🎯 Épargner dans "${escH(coffre.name)}"</h3>
         <button class="close" onclick="fermerEpargnePerso()">×</button>
       </div>
       <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:14px">
@@ -6632,7 +6632,7 @@ function ouvrirCreerLien(prefill) {
         <button type="button" onclick="ouvrirNouveauClientLien()" style="width:auto;padding:0 16px;margin:0;background:var(--green);color:#000;border:none;border-radius:10px;font-weight:800;font-size:18px;cursor:pointer;flex-shrink:0" title="Créer un nouveau client">➕</button>
       </div>
       <datalist id="lienClientsList">
-        ${clients.map(c => `<option value="${c.name}">`).join('')}
+        ${clients.map(c => `<option value="${escH(c.name)}">`).join('')}
       </datalist>
 
       <div id="lienNewClientWrap" style="display:none;background:var(--card2);border-radius:12px;padding:12px;margin-top:10px;border:1px solid var(--green)">
@@ -6936,7 +6936,7 @@ async function sauverNouveauClientLien(){
   if(phoneInput && result.phone) phoneInput.value = result.phone;
 
   const dl = document.getElementById('lienClientsList');
-  if(dl){ dl.innerHTML = clients.map(c => `<option value="${c.name}">`).join(''); }
+  if(dl){ dl.innerHTML = clients.map(c => `<option value="${escH(c.name)}">`).join(''); }
 
   annulerNouveauClientLien();
 
@@ -7136,7 +7136,7 @@ async function afficherLienGenere(link) {
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Client</div>
         <div style="font-weight:700;margin-bottom:10px">${link.client_name}</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Prestation</div>
-        <div style="font-weight:600;margin-bottom:10px">${link.description}</div>
+        <div style="font-weight:600;margin-bottom:10px">${escH(link.description)}</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Type</div>
         <div style="font-weight:600;margin-bottom:10px">${typeLabels[link.payment_type] || 'Paiement'}</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Montant à payer</div>
@@ -8061,7 +8061,7 @@ function ouvrirGuideRepartition(linkId) {
       <div style="background:linear-gradient(135deg,color-mix(in srgb,var(--green) 15%,transparent),color-mix(in srgb,var(--accent) 10%,transparent));border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Montant reçu</div>
         <div style="font-size:32px;font-weight:800;color:var(--green);letter-spacing:-1px">${fmt(montant)}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:6px">${regle.icon} ${regle.label} · ${link.client_name || ''}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px">${regle.icon} ${regle.label} · ${escH(link.client_name || '')}</div>
       </div>
 
       <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
@@ -8240,7 +8240,7 @@ function openRevenueModal(){
   document.getElementById('revDate').value = localISO;
 
   const dl = document.getElementById('revClientsList');
-  if(dl){ dl.innerHTML = clients.map(c => `<option value="${c.name}">`).join(''); }
+  if(dl){ dl.innerHTML = clients.map(c => `<option value="${escH(c.name)}">`).join(''); }
 
   setRevenueType('complet');
 
@@ -8570,7 +8570,7 @@ function renderAssistantStep(){
             return `
               <button type="button" onclick="assistantSetGoal(${c.id})" style="background:${selected ? 'linear-gradient(135deg,color-mix(in srgb,var(--accent) 20%,transparent),color-mix(in srgb,var(--accent) 8%,transparent))' : 'var(--card2)'};border:1px solid ${selected ? 'var(--accent)' : 'var(--border)'};border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;font-family:inherit;color:var(--text);width:100%;">
                 <div style="flex:1;min-width:0">
-                  <div style="font-weight:700;font-size:14px;margin-bottom:3px">${emoji} ${c.name}</div>
+                  <div style="font-weight:700;font-size:14px;margin-bottom:3px">${escH(emoji)} ${escH(c.name)}</div>
                   <div style="font-size:11px;color:var(--muted)">${currentStr} / ${goalStr} · ${pct}%</div>
                 </div>
                 ${selected ? '<div style="color:var(--accent);font-size:22px;font-weight:700">✓</div>' : ''}
@@ -8981,7 +8981,7 @@ function lancerRechercheGlobale(){
       const color = t.type === 'revenu' ? 'var(--green)' : 'var(--red)';
       return `<div onclick="fermerRechercheGlobale();showTab('historique', null);setTimeout(() => ouvrirDetailTx(${t.id}), 400)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px">
         <div style="flex:1;min-width:0">
-          <div style="font-weight:600;font-size:13px">${t.category}${t.note ? ' · ' + t.note.substring(0, 30) : ''}</div>
+          <div style="font-weight:600;font-size:13px">${escH(t.category)}${t.note ? ' · ' + escH(t.note.substring(0, 30)) : ''}</div>
           <div style="font-size:11px;color:var(--muted)">${d}</div>
         </div>
         <div style="color:${color};font-weight:700;font-size:13px">${sign}${fmt(t.amount)}</div>
@@ -8994,7 +8994,7 @@ function lancerRechercheGlobale(){
     html += `<div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px">👥 Clients (${results.clients.length})</div>`;
     html += results.clients.slice(0, 5).map(c => `
       <div onclick="fermerRechercheGlobale();showTab('photo', null)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer">
-        <div style="font-weight:600;font-size:13px">👤 ${c.name}</div>
+        <div style="font-weight:600;font-size:13px">👤 ${escH(c.name)}</div>
         <div style="font-size:11px;color:var(--muted)">${c.phone || ''}${c.city ? ' · 📍 ' + c.city : ''}</div>
       </div>
     `).join('');
@@ -9007,7 +9007,7 @@ function lancerRechercheGlobale(){
       const client = s.client_id ? clients.find(c => c.id === s.client_id) : null;
       const d = new Date(s.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'short'});
       return `<div onclick="fermerRechercheGlobale();showTab('photo', null)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer">
-        <div style="font-weight:600;font-size:13px">📸 ${s.type}${client ? ' · ' + client.name : ''}</div>
+        <div style="font-weight:600;font-size:13px">📸 ${escH(s.type)}${client ? ' · ' + escH(client.name) : ''}</div>
         <div style="font-size:11px;color:var(--muted)">${d} · ${fmt(s.price)}</div>
       </div>`;
     }).join('');
@@ -9020,7 +9020,7 @@ function lancerRechercheGlobale(){
       const pct = ((Number(c.current) / Number(c.goal)) * 100).toFixed(0);
       const emoji = c.emoji || getCoffreEmoji(c.name);
       return `<div onclick="fermerRechercheGlobale();showTab('objectifs', null)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer">
-        <div style="font-weight:600;font-size:13px">${emoji} ${c.name}</div>
+        <div style="font-weight:600;font-size:13px">${escH(emoji)} ${escH(c.name)}</div>
         <div style="font-size:11px;color:var(--muted)">${pct}% · ${fmt(c.current)} / ${fmt(c.goal)}</div>
       </div>`;
     }).join('');
@@ -9042,7 +9042,7 @@ function lancerRechercheGlobale(){
     html += `<div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px">💫 Inspirations (${results.inspirations.length})</div>`;
     html += results.inspirations.slice(0, 5).map(i => `
       <div onclick="fermerRechercheGlobale();showTab('inspiration', null)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer">
-        <div style="font-weight:600;font-size:13px">💫 ${i.name}</div>
+        <div style="font-weight:600;font-size:13px">💫 ${escH(i.name)}</div>
         <div style="font-size:11px;color:var(--muted)">${i.category || ''}${i.city ? ' · 📍 ' + i.city : ''}</div>
       </div>
     `).join('');
@@ -9053,7 +9053,7 @@ function lancerRechercheGlobale(){
     html += `<div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px">⏰ Rappels (${results.reminders.length})</div>`;
     html += results.reminders.slice(0, 5).map(r => `
       <div onclick="fermerRechercheGlobale();showTab('motiv', null)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer">
-        <div style="font-weight:600;font-size:13px">⏰ ${r.text}</div>
+        <div style="font-weight:600;font-size:13px">⏰ ${escH(r.text)}</div>
         <div style="font-size:11px;color:var(--muted)">${r.time || ''}</div>
       </div>
     `).join('');
@@ -10507,8 +10507,8 @@ function renderCoachCoffres(){
         <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
           <div style="font-size:22px;flex-shrink:0">${c.icon}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-weight:700;font-size:13px;margin-bottom:3px">${c.title}</div>
-            <div style="font-size:12px;color:var(--muted);line-height:1.5">${c.text.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text)">$1</strong>')}</div>
+            <div style="font-weight:700;font-size:13px;margin-bottom:3px">${escH(c.title)}</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.5">${escH(c.text).replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text)">$1</strong>')}</div>
           </div>
         </div>
         ${c.action ? `
@@ -10631,8 +10631,8 @@ function afficherModaleRepartitionAuto(montant, source, proposition, regle){
         ${proposition.map((p, i) => `
           <div style="background:var(--card2);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px">
             <div style="flex:1;min-width:0">
-              <div style="font-weight:700;font-size:13px">${p.label}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px">${p.coffre.emoji || '🎯'} ${p.coffre.name}</div>
+              <div style="font-weight:700;font-size:13px">${escH(p.label)}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${escH(p.coffre.emoji || '🎯')} ${escH(p.coffre.name)}</div>
             </div>
             <div style="text-align:right">
               <input type="number" id="repartAuto-${i}" value="${p.montant}" 
@@ -11704,14 +11704,14 @@ function ouvrirComprendreCoffre(coffreId){
       <!-- EN-TÊTE : type + nom -->
       <div style="background:linear-gradient(135deg,${type.color}22,${type.color}08);border-left:3px solid ${type.color};border-radius:12px;padding:14px;margin-bottom:16px">
         <div style="font-size:11px;font-weight:700;color:${type.color};text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">${type.icon} ${type.label}</div>
-        <div style="font-size:18px;font-weight:800;letter-spacing:-.3px">${c.emoji || '🎯'} ${c.name}</div>
+        <div style="font-size:18px;font-weight:800;letter-spacing:-.3px">${escH(c.emoji || '🎯')} ${escH(c.name)}</div>
       </div>
 
       <!-- DESCRIPTION -->
       <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:12px">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700">📝 Description</div>
         ${hasDescription
-          ? `<div style="font-size:14px;line-height:1.6;color:var(--text)">${c.description}</div>
+          ? `<div style="font-size:14px;line-height:1.6;color:var(--text)">${escH(c.description)}</div>
              <button class="btn-ghost" style="margin-top:10px;width:100%;font-size:12px;padding:6px" onclick="regenererDescription(${c.id})">🔄 Régénérer</button>`
           : `<div style="font-size:13px;color:var(--muted);text-align:center;padding:10px;font-style:italic">Aucune description pour ce coffre</div>
              <button class="btn-primary" style="margin-top:10px;width:100%;background:linear-gradient(135deg,var(--accent),var(--accent-dk));font-size:13px" onclick="genererDescriptionCoffre(${c.id})">🤖 Générer la description</button>`
@@ -11722,7 +11722,7 @@ function ouvrirComprendreCoffre(coffreId){
       ${hasWhy ? `
         <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:12px">
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700">💡 Ta motivation</div>
-          <div style="font-size:14px;line-height:1.6;color:var(--text);font-style:italic">"${c.why}"</div>
+          <div style="font-size:14px;line-height:1.6;color:var(--text);font-style:italic">"${escH(c.why)}"</div>
         </div>
       ` : ''}
 
@@ -12398,7 +12398,7 @@ function ouvrirSelecteurCoffre(type){
       const cur = Number(c.current || 0);
       const goal = Number(c.goal || 0);
       return `<button type="button" class="btn-ghost" style="margin:0;width:100%;padding:14px;text-align:left;font-size:13px;border-radius:10px;margin-bottom:6px" onclick="choisirCoffrePourLigne('${type}', ${c.id})">
-        <div style="font-weight:700;font-size:14px;margin-bottom:4px">${emoji} ${c.name}</div>
+        <div style="font-weight:700;font-size:14px;margin-bottom:4px">${escH(emoji)} ${escH(c.name)}</div>
         <div style="font-size:11px;color:var(--muted)">${fmt(cur)}${goal < 1e8 ? ' / ' + fmt(goal) : ''}</div>
       </button>`;
     }).join('');

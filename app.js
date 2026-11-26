@@ -31,6 +31,8 @@ const todayStr = () => new Date().toISOString().slice(0,10);
 const monthKey = d => (d || todayStr()).slice(0,7);
 // Échappe le texte saisi (noms, notes, catégories...) avant de l'afficher en HTML
 function escH(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+// Liens saisis par l'utilisateur : seulement http(s), jamais javascript: ou data:
+function urlSure(u){ u = String(u == null ? '' : u).trim(); if(!u) return ''; if(/^(https?:)?\/\//i.test(u)) return u; if(/^[a-z][a-z0-9+.-]*:/i.test(u)) return ''; return 'https://' + u.replace(/^\/+/, ''); }
 
 // 🆕 Urgence d'une séance (Aujourd'hui / Demain / Dans N jours...), utilisé
 // par la liste des séances et par le bandeau "Prochaines séances" du Tableau.
