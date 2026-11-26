@@ -37,7 +37,7 @@ const jourCourt = iso => new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR',
 const num = (v, d) => { const n = parseFloat(String(v).replace(',', '.')); return isFinite(n) ? n : (d == null ? 0 : d); };
 const toast = (m, t) => { if(typeof coToast === 'function') coToast(m, t); };
 const erreur = e => { if(typeof coErr === 'function') coErr(e); else alert((e && e.message) || e); };
-const beR = () => { BE.force = true; return coRender(); };
+const beR = () => { BE.force = true; setTimeout(() => { try { rendreAccueil(); } catch(e){} }, 0); return coRender(); };
 window.beR = beR;
 // prochaine fois que l'horloge affiche HH:MM
 function prochaineHeure(hm){
@@ -686,6 +686,59 @@ coRender = window.coRender = async function(){
 };
 const rendreTab = coRenderToday;
 coRenderToday = window.coRenderToday = function(v){ if(CO.tab === 'bienetre') return renderBienetre(v); return rendreTab.apply(this, arguments); };
+
+// ---------- Widget de l'accueil ----------
+window.beOuvrir = function(sub, plan){
+  BE.sub = sub || 'sommeil'; if(plan) BE.planOuvert = true;
+  if(typeof coOpen === 'function') coOpen('bienetre');
+};
+window.beEauAcc = function(){
+  const j = jourBE(); BE.data.eau[j] = (BE.data.eau[j] || 0) + 250; sauver(); rendreAccueil(); toast('+ 250 ml');
+};
+function actionAcc(){
+  const s = S(), p = s.prochain && !s.prochain.logged ? s.prochain : null, n = enCours(), r = retardMin();
+  if(!BE.data.profil.ok) return { t: 'Mets en place ton bien-être', r: 'Sommeil, calories, énergie : deux minutes pour commencer.', b: 'Commencer', f: "beOuvrir('sommeil')" };
+  if(r != null && r >= 0) return { t: messageRetard(r)[0], r: messageRetard(r)[1], b: 'Je me couche maintenant', f: 'beJeMeCouche()', urgent: true };
+  if(n) return { t: 'Tu dors depuis ' + hhmm(new Date(n.coucher)), r: 'Au réveil, fais le diagnostic de ta nuit.', b: 'Je me réveille', f: "beOuvrir('sommeil')" };
+  if(!p) return { t: 'Planifie ton prochain coucher', r: 'Sans heure, pas de rappel. Choisis-la selon ta nuit de travail.', b: 'Planifier', f: "beOuvrir('sommeil', true)" };
+  const at = new Date(p.at), lim = limiteCafe();
+  return { t: 'Prochain coucher à ' + hhmm(at), r: 'Dans ' + dureeTxt((at - Date.now()) / 60000) + (lim && lim.getTime() > Date.now() ? ' · dernier café avant ' + hhmm(lim) : lim ? ' · plus de caféine maintenant' : ''), b: 'Voir mon sommeil', f: "beOuvrir('sommeil')" };
+}
+function accHtml(){
+  const a = actionAcc();
+  const rapide = BE.data.profil.ok ? `<div class="be-acc-q"><button onclick="beEauAcc()">+ 250 ml d'eau</button><button onclick="beOuvrir('repas')">Repas</button><button onclick="beOuvrir('mental')">Humeur</button></div>` : '';
+  return `<div class="be-acc ${a.urgent ? 'urgent' : ''}"><div class="be-acc-tag">Bien-être</div>
+    <div class="be-acc-t">${E(a.t)}</div><div class="be-acc-r">${E(a.r)}</div>
+    <div class="be-acc-b"><button class="be-acc-go" onclick="${a.f}">${E(a.b)}</button><button class="be-acc-plus" onclick="beOuvrir('sommeil')">Ouvrir</button></div>
+    ${BE.data.profil.ok ? carteResume() : ''}${rapide}</div>`;
+}
+function rendreAccueil(){
+  const el = document.getElementById('agDashMini'); if(!el) return;
+  if(!BE.loaded){ charger().then(() => rendreAccueil()); return; }
+  let h = document.getElementById('beAccueil');
+  if(!h){
+    h = document.createElement('div'); h.id = 'beAccueil';
+    const pp = document.getElementById('ppCarte'), tete = el.querySelector('.ag-hello');
+    if(pp && pp.parentNode === el) el.insertBefore(h, pp.nextSibling);
+    else if(tete && tete.nextSibling) el.insertBefore(h, tete.nextSibling); else el.insertBefore(h, el.firstChild);
+  }
+  h.innerHTML = accHtml();
+}
+(function brancherAccueil(){
+  let essais = 0;
+  const t = setInterval(() => {
+    if(typeof agRenderDashMini === 'function'){
+      clearInterval(t);
+      if(!agRenderDashMini.__be){
+        const base = agRenderDashMini;
+        agRenderDashMini = window.agRenderDashMini = function(){ const r = base.apply(this, arguments); try { rendreAccueil(); } catch(e){} return r; };
+        agRenderDashMini.__be = true;
+      }
+      try { rendreAccueil(); } catch(e){}
+    } else if(++essais > 60) clearInterval(t);
+  }, 500);
+  setInterval(() => { try { if(BE.loaded) rendreAccueil(); } catch(e){} }, 60000);
+})();
 veille();
 // Charge tôt pour que le plein écran de coucher marche même sans ouvrir l'onglet
 setTimeout(() => { charger().then(() => { if(BE.data.sommeil.prochain) syncRappels(); }); }, 3500);
@@ -694,6 +747,14 @@ setTimeout(() => { charger().then(() => { if(BE.data.sommeil.prochain) syncRappe
   if(document.getElementById('beCss')) return;
   const s = document.createElement('style'); s.id = 'beCss';
   s.textContent = `
+.be-acc{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius-md,10px);padding:16px;margin:0 0 14px;display:flex;flex-direction:column;gap:8px}
+.be-acc.urgent{border-left-color:var(--red,#e5484d)}
+.be-acc-tag{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.be-acc-t{font-family:var(--font-display,inherit);font-size:16px;font-weight:600;color:var(--text);line-height:1.3}.be-acc-r{font-size:14px;color:var(--muted);line-height:1.45}
+.be-acc-b{display:flex;gap:10px;flex-wrap:wrap}.be-acc-go{background:var(--accent);color:var(--on-accent,var(--bg));border:0;border-radius:var(--radius-sm,4px);padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.be-acc-plus{background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm,4px);padding:10px 14px;font-size:14px;cursor:pointer;font-family:inherit}
+.be-acc-q{display:flex;gap:6px;flex-wrap:wrap}.be-acc-q button{margin:0;width:auto;padding:7px 12px;border-radius:999px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:12.5px;cursor:pointer;font-family:inherit}
+.be-acc .be-resume{margin-top:2px}
 .be{display:flex;flex-direction:column;gap:12px;padding-bottom:28px}
 .be-resume{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .be-r{padding:10px;border-radius:14px;background:var(--card);border:1px solid var(--border)}.be-r small{display:block;font-size:11px;color:var(--muted);text-transform:uppercase}.be-r b{display:block;font-size:18px;color:var(--text);margin:2px 0 6px}.be-r em{font-style:normal;font-size:12px;color:var(--muted)}
