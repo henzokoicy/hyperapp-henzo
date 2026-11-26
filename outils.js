@@ -708,7 +708,7 @@ async function otAcceptResa(id){
   const parrain = parCode ? (clients || []).find(x => String(x.code_parrain || '').toUpperCase() === parCode && (!c || x.id !== c.id)) : null;
   const srcResa = String(r.source || '').trim() || (parrain ? 'Recommandé par un client' : '');
   if(!c){
-    c = await dbInsert('clients', { name: r.nom, phone: r.telephone, categories: [], source: srcResa || null, parrain_id: parrain ? parrain.id : null }); if(!c) return; clients.unshift(c);
+    c = await dbInsert('clients', { name: String(r.nom || '').replace(/[<>"`]/g, '').trim().slice(0, 80), phone: String(r.telephone || '').replace(/[^\d+ ]/g, '').slice(0, 25), categories: [], source: srcResa || null, parrain_id: parrain ? parrain.id : null }); if(!c) return; clients.unshift(c);
   } else {
     // Sans ecraser ce qui est deja rempli
     const patch = {};

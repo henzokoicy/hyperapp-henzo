@@ -510,12 +510,12 @@ function renderNotes(){
     }
 
     const createdStr = n.created_at ? new Date(n.created_at).toLocaleDateString('fr-FR', {day:'2-digit', month:'short'}) : '';
-    const priorityBadge = n.priority && n.priority !== 'normale' ? `<span class="note-priority-badge ${n.priority}">${n.priority}</span>` : '';
+    const priorityBadge = n.priority && n.priority !== 'normale' ? `<span class="note-priority-badge ${escH(n.priority)}">${escH(n.priority)}</span>` : '';
 
     return `<div class="note-card priority-${n.priority || 'normale'} ${n.archived ? 'archived' : ''} ${n.pinned ? 'pinned' : ''}" data-note="${n.id}">
       <div class="note-header">
         <div style="flex:1;min-width:0;">
-          <div class="note-title">${n.pinned ? `<span class="note-pin-tag">${noteIcon('pin', true)}</span>` : ''}${icon} ${n.title || (n.content || '').substring(0, 40)}
+          <div class="note-title">${n.pinned ? `<span class="note-pin-tag">${noteIcon('pin', true)}</span>` : ''}${icon} ${escH(n.title || (n.content || '').substring(0, 40))}
           <span class="note-category-badge">${catLabel}</span>${priorityBadge}</div>
         </div>
         <div class="note-quick">
@@ -524,9 +524,9 @@ function renderNotes(){
           <button class="copy" onclick="copyNote(${n.id})" title="Copier la note" aria-label="Copier">${noteIcon('copy')}</button>
         </div>
       </div>
-      ${n.content ? `<div class="note-content">${(n.content || '').replace(/\n/g, '<br>')}</div>` : ''}
+      ${n.content ? `<div class="note-content">${escH(n.content || '').replace(/\n/g, '<br>')}</div>` : ''}
       <div class="note-meta">${createdStr ? `<span>📅 ${createdStr}</span>` : ''}${reminderHtml}</div>
-      ${(n.tags && n.tags.length) ? `<div class="note-tags">${n.tags.map(t => `<span class="note-tag">#${t}</span>`).join('')}</div>` : ''}
+      ${(n.tags && n.tags.length) ? `<div class="note-tags">${n.tags.map(t => `<span class="note-tag">#${escH(t)}</span>`).join('')}</div>` : ''}
       <div class="note-actions">
         <button class="note-btn-done" onclick="toggleNoteDone(${n.id})">${n.archived ? '📌 Réactiver' : '✅ Terminer'}</button>
         <button class="note-btn-edit" onclick="openNoteModal(${n.id})">✏️ Modifier</button>
@@ -1166,7 +1166,7 @@ function renderAnalysePercutante(){
     };
 
     if(pct >= 100){
-      items.push({cls:'good', title:`${c.name} : Terminé !`, text:`Tu as atteint ton objectif 🏆`});
+      items.push({cls:'good', title:`${escH(c.name)} : Terminé !`, text:`Tu as atteint ton objectif 🏆`});
       return;
     }
 
@@ -1174,12 +1174,12 @@ function renderAnalysePercutante(){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
       if(days > 0){
         const perMonth = (rest / days) * 30;
-        items.push({ cls:'', title:`${c.name}`, text:`Il te faut <strong>${fmtVal(perMonth)}</strong> par mois pour finir à temps.` });
+        items.push({ cls:'', title:`${escH(c.name)}`, text:`Il te faut <strong>${fmtVal(perMonth)}</strong> par mois pour finir à temps.` });
       } else {
-        items.push({ cls:'danger', title:`${c.name}`, text:`Deadline dépassée. Reste ${fmtVal(rest)}.` });
+        items.push({ cls:'danger', title:`${escH(c.name)}`, text:`Deadline dépassée. Reste ${fmtVal(rest)}.` });
       }
     } else {
-      items.push({ cls:'', title:`${c.name} : ${pct.toFixed(0)}%`, text:`Il te reste <strong>${fmtVal(rest)}</strong> à obtenir.` });
+      items.push({ cls:'', title:`${escH(c.name)} : ${pct.toFixed(0)}%`, text:`Il te reste <strong>${fmtVal(rest)}</strong> à obtenir.` });
     }
   });
 
@@ -1428,12 +1428,12 @@ function renderCoffres(){
         return `<div class="coffre" style="border-left:3px solid var(--accent)">
           <div class="coffre-header">
             <div class="coffre-name">
-              <span class="coffre-emoji">${emoji}</span>${c.name}
+              <span class="coffre-emoji">${escH(emoji)}</span>${escH(c.name)}
             </div>
             <span class="coffre-badge">🎯 OBJECTIF</span>
           </div>
-          ${c.description ? `<div class="coffre-why" style="border-left-color:var(--accent)">📝 ${c.description}</div>` : ''}
-          ${c.why ? `<div class="coffre-why">"${c.why}"</div>` : ''}
+          ${c.description ? `<div class="coffre-why" style="border-left-color:var(--accent)">📝 ${escH(c.description)}</div>` : ''}
+          ${c.why ? `<div class="coffre-why">"${escH(c.why)}"</div>` : ''}
           ${dateStr ? `<div class="coffre-next"><span>📅 Objectif : ${dateStr}</span></div>` : ''}
           <div class="coffre-actions">
             <button class="btn-ghost" style="margin:0;padding:8px" onclick="openCoffreModal(${c.id})" title="Modifier">✏️ Modifier</button>
@@ -1510,7 +1510,7 @@ function renderCoffres(){
       </div>
       <div class="coffre-header">
         <div class="coffre-name" style="flex-wrap:wrap">
-          <span class="coffre-emoji">${emoji}</span>${c.name}${typeTag}
+          <span class="coffre-emoji">${escH(emoji)}</span>${escH(c.name)}${typeTag}
         </div>
         ${badge}
       </div>
@@ -1531,8 +1531,8 @@ function renderCoffres(){
           </div>`
         : ''
       }
-      ${c.description ? `<div class="coffre-why" style="border-left-color:var(--pink)">📝 ${c.description}</div>` : ''}
-      ${c.why ? `<div class="coffre-why">"${c.why}"</div>` : ''}
+      ${c.description ? `<div class="coffre-why" style="border-left-color:var(--pink)">📝 ${escH(c.description)}</div>` : ''}
+      ${c.why ? `<div class="coffre-why">"${escH(c.why)}"</div>` : ''}
       ${timeInfo}
            <div class="coffre-actions">
         ${estCoffreBloque(c)
@@ -1563,8 +1563,8 @@ function renderCoffres(){
       const isMoney = (c.goal_type || 'money') === 'money';
       const unit = c.unit || 'FCFA';
       const restStr = isMoney ? fmt(rest) : Math.round(rest) + ' ' + unit;
-      const msg = c.why ? `Rappelle-toi : "${c.why}"` : `Tu es à ${pct}%.`;
-      return `<div class="insight bad"><div class="title">🛑 ${c.name} : encore ${restStr}</div><div>${msg}</div></div>`;
+      const msg = c.why ? `Rappelle-toi : "${escH(c.why)}"` : `Tu es à ${pct}%.`;
+      return `<div class="insight bad"><div class="title">🛑 ${escH(c.name)} : encore ${restStr}</div><div>${msg}</div></div>`;
     }).join('');
   }
 }
@@ -1704,7 +1704,7 @@ function renderClients(){
     const cats = Array.isArray(c.categories) ? c.categories : [];
     const catHtml = cats.length > 0
       ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
-          ${cats.map(cat => `<span style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 20%,transparent),color-mix(in srgb,var(--accent-2) 12%,transparent));color:var(--accent-2);padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700">🏷️ ${cat}</span>`).join('')}
+          ${cats.map(cat => `<span style="background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 20%,transparent),color-mix(in srgb,var(--accent-2) 12%,transparent));color:var(--accent-2);padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700">🏷️ ${escH(cat)}</span>`).join('')}
         </div>`
       : '';
 
@@ -1728,11 +1728,11 @@ function renderClients(){
     }
 
     return `<div class="item-card">
-      <div class="head"><div class="name">👤 ${c.name}</div></div>
-      ${c.phone ? `<div class="amt"><span>📞 ${c.phone}</span></div>` : ''}
-      ${c.email ? `<div class="amt"><span>✉️ ${c.email}</span></div>` : ''}
-      ${c.city ? `<div class="amt"><span>📍 ${c.city}</span></div>` : ''}
-      ${c.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">${c.notes}</div>` : ''}
+      <div class="head"><div class="name">👤 ${escH(c.name)}</div></div>
+      ${c.phone ? `<div class="amt"><span>📞 ${escH(c.phone)}</span></div>` : ''}
+      ${c.email ? `<div class="amt"><span>✉️ ${escH(c.email)}</span></div>` : ''}
+      ${c.city ? `<div class="amt"><span>📍 ${escH(c.city)}</span></div>` : ''}
+      ${c.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">${escH(c.notes)}</div>` : ''}
       ${catHtml}
       
       <div style="background:var(--card);border-radius:10px;padding:10px 12px;margin-top:10px;border:1px solid var(--border)">
@@ -3032,7 +3032,7 @@ function renderShoots(){
     const d = new Date(s.date);
     const dStr = d.toLocaleDateString('fr-FR', {day:'2-digit', month:'short', year:'numeric'}) + ' à ' + d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
     const urgence = (typeof urgenceSeance === 'function') ? urgenceSeance(s.date) : '';
-    const locInfo = s.location ? `📍 ${s.location}` : '';
+    const locInfo = s.location ? `📍 ${escH(s.location)}` : '';
     const photoInfo = s.photo_count ? `📷 ${s.photo_count} photos` : '';
     const metaInfo = [locInfo, photoInfo].filter(x => x).join(' · ');
 
@@ -3184,7 +3184,7 @@ function renderShoots(){
 
     return `<div class="item-card ${itemClass}">
       <div class="head">
-        <div class="name">📸 ${s.type}${client ? ' · ' + client.name : ''}</div>
+        <div class="name">📸 ${escH(s.type)}${client ? ' · ' + escH(client.name) : ''}</div>
         <div class="shoot-badges">
           <span class="shoot-status ${stat.class}">${stat.label}</span>
           ${paymentBadge}
@@ -3201,7 +3201,7 @@ function renderShoots(){
       ${metaInfo ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">${metaInfo}</div>` : ''}
       ${financeBlock}
       ${isCancelled && s.cancel_reason ? `<div style="font-size:12px;color:var(--red);margin-top:6px;font-style:italic">❌ Raison : ${s.cancel_reason}</div>` : ''}
-      ${s.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">${s.notes}</div>` : ''}
+      ${s.notes ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">${escH(s.notes)}</div>` : ''}
       ${typeof exChecklistBtn === 'function' ? exChecklistBtn(s) : ''}
       <div class="actions" style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${actionButtons}</div>
     </div>`;
@@ -3824,7 +3824,7 @@ function populateHistFilters(){
 
   const cats = [...new Set(txs.map(t => t.category))].sort();
   const previousCat = catSelect.value;
-  catSelect.innerHTML = '<option value="all">Toutes les catégories</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
+  catSelect.innerHTML = '<option value="all">Toutes les catégories</option>' + cats.map(c => `<option value="${escH(c)}">${escH(c)}</option>`).join('');
   if(previousCat && [...catSelect.options].some(o => o.value === previousCat)) catSelect.value = previousCat;
 }
 
@@ -4318,7 +4318,7 @@ function renderSavedIdeas(){
   if(!el) return;
   if(savedIdeas.length === 0){ el.innerHTML = '<div class="empty">Aucune idée sauvegardée</div>'; return; }
 
-  el.innerHTML = savedIdeas.map(i => `<div class="idea"><div class="t">⭐ ${i.title}</div><div class="d">${i.description || ''}</div><button class="btn-ghost" style="margin-top:8px;font-size:12px;padding:6px" onclick="delSavedIdea(${i.id})">× Retirer</button></div>`).join('');
+  el.innerHTML = savedIdeas.map(i => `<div class="idea"><div class="t">⭐ ${escH(i.title)}</div><div class="d">${escH(i.description || '')}</div><button class="btn-ghost" style="margin-top:8px;font-size:12px;padding:6px" onclick="delSavedIdea(${i.id})">× Retirer</button></div>`).join('');
 }
 
 // ============================================================
@@ -4893,7 +4893,7 @@ function renderReminders(){
     return `<div class="reminder ${statusClass}">
       <div class="reminder-icon">${icon}</div>
       <div class="reminder-content">
-        <div class="reminder-text">${r.text}</div>
+        <div class="reminder-text">${escH(r.text)}</div>
         <div class="reminder-meta">
           <span>${dateStr}</span>
           ${statusBadge ? `<span class="reminder-badge">${statusBadge}</span>` : ''}
@@ -5107,26 +5107,26 @@ function renderGoalSuggestions(){
     const rest = goal - current;
 
     if(pct >= 100){
-      suggestions.push({cls:'good', icon:'🏆', title:`"${c.name}" atteint !`, body:`Félicitations ! Fixe-toi un nouveau défi.`});
+      suggestions.push({cls:'good', icon:'🏆', title:`"${escH(c.name)}" atteint !`, body:`Félicitations ! Fixe-toi un nouveau défi.`});
       return;
     }
     if(pct === 0){
-      suggestions.push({cls:'urgent', icon:'🚀', title:`Démarre "${c.name}"`, body:`Commence par <strong>${fmt(goal * 0.05)}</strong> (5%).`});
+      suggestions.push({cls:'urgent', icon:'🚀', title:`Démarre "${escH(c.name)}"`, body:`Commence par <strong>${fmt(goal * 0.05)}</strong> (5%).`});
       return;
     }
 
     if(c.target_date){
       const days = Math.ceil((new Date(c.target_date) - new Date()) / 86400000);
       if(days > 0 && days < 30){
-        suggestions.push({cls:'urgent', icon:'⏱', title:`Deadline proche : ${c.name}`, body:`Reste <strong>${days} jours</strong> pour économiser <strong>${fmt(rest)}</strong>. Soit ${fmt(rest/days)}/jour.`});
+        suggestions.push({cls:'urgent', icon:'⏱', title:`Deadline proche : ${escH(c.name)}`, body:`Reste <strong>${days} jours</strong> pour économiser <strong>${fmt(rest)}</strong>. Soit ${fmt(rest/days)}/jour.`});
       } else if(days > 0){
         const perMonth = (rest / days) * 30;
-        suggestions.push({cls:'', icon:'📊', title:`Rythme pour "${c.name}"`, body:`Épargne <strong>${fmt(perMonth)}</strong> par mois pour finir à temps.`});
+        suggestions.push({cls:'', icon:'📊', title:`Rythme pour "${escH(c.name)}"`, body:`Épargne <strong>${fmt(perMonth)}</strong> par mois pour finir à temps.`});
       } else {
-        suggestions.push({cls:'urgent', icon:'⚠️', title:`Deadline dépassée : ${c.name}`, body:`Reste <strong>${fmt(rest)}</strong>. Replanifie une date cible.`});
+        suggestions.push({cls:'urgent', icon:'⚠️', title:`Deadline dépassée : ${escH(c.name)}`, body:`Reste <strong>${fmt(rest)}</strong>. Replanifie une date cible.`});
       }
     } else {
-      suggestions.push({cls:'', icon:'📈', title:`${c.name} : ${pct.toFixed(0)}%`, body:`Reste <strong>${fmt(rest)}</strong>. Ajoute ${fmt(rest/4)} chaque semaine.`});
+      suggestions.push({cls:'', icon:'📈', title:`${escH(c.name)} : ${pct.toFixed(0)}%`, body:`Reste <strong>${fmt(rest)}</strong>. Ajoute ${fmt(rest/4)} chaque semaine.`});
     }
   });
 
@@ -5286,7 +5286,7 @@ function renderMoneyDetails(){
           return `
             <div style="margin-top:10px">
               <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
-                <span style="color:var(--text)">${emoji} ${c.name}</span>
+                <span style="color:var(--text)">${escH(emoji)} ${escH(c.name)}</span>
                 <span style="color:${color};font-weight:700">${valStr} <span style="color:var(--muted);font-weight:400">/ ${goalStr}</span></span>
               </div>
               <div style="height:4px;background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:2px;overflow:hidden">
@@ -5322,7 +5322,7 @@ function renderMoneyDetails(){
           return `
             <div style="margin-top:10px">
               <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
-                <span style="color:var(--text)">📸 ${s.type}${client ? ' · ' + client.name : ''} <span style="color:var(--muted);font-size:11px">(${dateStr})</span></span>
+                <span style="color:var(--text)">📸 ${escH(s.type)}${client ? ' · ' + escH(client.name) : ''} <span style="color:var(--muted);font-size:11px">(${dateStr})</span></span>
                 <span style="color:var(--yellow);font-weight:700">${fmt(reste)}</span>
               </div>
               <div style="height:4px;background:color-mix(in srgb,var(--gold) 12%,transparent);border-radius:2px;overflow:hidden">
@@ -5484,8 +5484,8 @@ function renderDashboardUpcoming(){
     const urgence = (typeof urgenceSeance === 'function') ? urgenceSeance(s.date) : '';
     return `<div onclick="showTab('photo', null)" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px">
       <div>
-        <div style="font-weight:700;font-size:13px">📸 ${s.type}${client ? ' · ' + client.name : ''}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">${heure}${s.location ? ' · 📍 ' + s.location : ''}</div>
+        <div style="font-weight:700;font-size:13px">📸 ${escH(s.type)}${client ? ' · ' + escH(client.name) : ''}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${heure}${s.location ? ' · 📍 ' + escH(s.location) : ''}</div>
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--accent);white-space:nowrap">${urgence}</div>
     </div>`;

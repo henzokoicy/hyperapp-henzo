@@ -29,6 +29,8 @@ let editingClientId    = null;
 const fmt      = n => new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' ' + CURRENCY;
 const todayStr = () => new Date().toISOString().slice(0,10);
 const monthKey = d => (d || todayStr()).slice(0,7);
+// Échappe le texte saisi (noms, notes, catégories...) avant de l'afficher en HTML
+function escH(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 // 🆕 Urgence d'une séance (Aujourd'hui / Demain / Dans N jours...), utilisé
 // par la liste des séances et par le bandeau "Prochaines séances" du Tableau.
@@ -1043,7 +1045,7 @@ function buildInsights(){
       if(days > 0 && days <= 90){
         ins.push({
           cls:'warn',
-          t:`"${c.name}"`,
+          t:`"${escH(c.name)}"`,
           m:`Reste ${fmt(rest)} en ${days} jours.`
         });
       }
@@ -1142,8 +1144,8 @@ function renderDashboard(){
       const vers = t.to_goal_id ? (coffres.find(c => c.id === t.to_goal_id) || {}).name : '';
       return `<div class="tx">
         <div class="left">
-          <div class="cat">${t.category || 'Transfert'}${vers ? ' · ' + vers : ''}</div>
-          <div class="note">${d}${t.note ? ' · ' + t.note : ''}</div>
+          <div class="cat">${escH(t.category || 'Transfert')}${vers ? ' · ' + escH(vers) : ''}</div>
+          <div class="note">${d}${t.note ? ' · ' + escH(t.note) : ''}</div>
         </div>
         <div class="amt" style="color:var(--muted)">${fmt(t.amount)}</div>
       </div>`;
@@ -1158,8 +1160,8 @@ function renderDashboard(){
       const cls  = t.type === 'revenu' ? 'pos' : 'neg';
       return `<div class="tx">
         <div class="left">
-          <div class="cat">${t.category}</div>
-          <div class="note">${d}${t.note ? ' · ' + t.note : ''}</div>
+          <div class="cat">${escH(t.category)}</div>
+          <div class="note">${d}${t.note ? ' · ' + escH(t.note) : ''}</div>
         </div>
         <div style="display:flex;align-items:center;gap:4px">
           <div class="amt ${cls}">${sign}${fmt(t.amount)}</div>
